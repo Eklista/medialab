@@ -1,42 +1,87 @@
-# MediaLab — Universidad Galileo
+# 🎬 MediaLab — Universidad Galileo
 
-Proyecto del dashboard del **Laboratorio de Multimedia** (MediaLab), hecho con React + Vite + Tailwind CSS + TypeScript.
+Bienvenido al proyecto del **Laboratorio de Multimedia (MediaLab)** de **Universidad Galileo**, un dashboard web hecho con cariño y altas dosis de cafeína ☕.  
+Este proyecto busca centralizar los servicios audiovisuales, producción de contenido y apoyo académico de MediaLab, con una interfaz moderna, modular y funcional.
 
-## 🚀 Requisitos
+## 🧰 Tech Stack
 
-- Node.js v18 o superior
-- NPM o Yarn (usa el que más te guste)
+- ⚛️ React + Vite — Para un frontend veloz y modular.  
+- 🎨 Tailwind CSS — Para estilos elegantes sin dolor.  
+- 🧠 TypeScript — Porque nos gusta que el código nos diga si la estamos cagando.  
+- 🌐 React Router DOM — Navegación bonita y sin recarga.  
+- 🖼️ Assets personalizados — Imágenes propias del equipo.
 
-## 🛠️ Instalación
+## 🚀 ¿Cómo levantar el proyecto sin romper nada?
 
-1. Clona este repositorio:
-   ```bash
-   git clone https://github.com/Eklista/medialab.git
-   cd medialab
+1. **Cloná el repo**
 
-    Instala las dependencias:
+git clone https://github.com/Eklista/medialab.git  
+cd medialab
 
-npm install
-# o con yarn
+2. **Instalá las dependencias**
+
+npm install  
+# o si sos del team Yarn:  
 # yarn
 
-Inicia el entorno de desarrollo:
+3. **Corré el server de desarrollo**
 
-npm run dev
-# o con yarn
+npm run dev  
+# o  
 # yarn dev
 
-Abre tu navegador en:
+4. **Abrilo en el navegador**
 
-    http://localhost:5173/
+http://localhost:5173/
 
-📁 Estructura del proyecto
+## 📁 Estructura del proyecto (`src/`)
 
-src/
-├── assets/            # Imágenes, íconos, etc.
-├── components/        # Componentes reutilizables
-│   └── layout/        # Navbar, Footer, etc.
-├── pages/             # Vistas principales como HomePage
-├── styles/            # Archivos CSS (tailwind, variables, etc.)
-├── App.tsx            # Componente principal
-└── main.tsx           # Punto de entrada
+src/  
+├── App.tsx  
+├── main.tsx  
+├── vite-env.d.ts  
+│  
+├── assets/  
+│   └── images/  
+│       ├── gallery1.jpg  
+│       ├── gallery2.jpg  
+│       ├── gallery3.jpg  
+│       ├── logo.png  
+│       ├── medialab-hero.jpg  
+│       ├── medialab-team.jpg  
+│       ├── service-academic.jpg  
+│       ├── service-audiovisual.jpg  
+│       └── service-content.jpg  
+│  
+├── components/  
+│   ├── common/  
+│   ├── forms/  
+│   ├── layout/  
+│   │   ├── Footer.tsx  
+│   │   ├── Navbar.tsx  
+│   │   └── index.ts  
+│   └── ui/  
+│  
+├── features/  
+│  
+├── pages/  
+│   ├── index.ts  
+│   ├── home/  
+│   │   └── HomePage.tsx  
+│   └── request-form/  
+│       └── RequestFormPage.tsx  
+│  
+├── routes/  
+│  
+├── services/  
+│  
+├── styles/  
+│   └── global.css  
+│  
+├── types/  
+│  
+└── utils/
+
+---
+
+Made with ❤️ por el equipo de MediaLab — Universidad Galileo.
