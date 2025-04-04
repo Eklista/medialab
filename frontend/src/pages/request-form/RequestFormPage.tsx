@@ -1,13 +1,27 @@
+// En RequestFormPage.tsx
 import React from 'react';
 import { Navbar, Footer } from '../../components/layout';
 import ServiceRequestForm from '../../features/service-request/ServiceRequestForm';
 
 export const RequestFormPage: React.FC = () => {
+  // Manejador de eventos explícito
+  const handleInteraction = () => {
+    console.log('Página interactuada');
+    // Este handler no hace nada específico pero a veces
+    // su mera presencia puede "activar" la interactividad
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    // Nota: Añadimos pointer-events-auto para asegurar que los eventos funcionan
+    <div 
+      className="min-h-screen bg-gray-50 relative"
+      onClick={handleInteraction}
+      onTouchStart={handleInteraction}
+    >
       <Navbar />
       
-      <main className="py-12">
+      {/* Añadimos z-10 y pointer-events-auto para asegurar que es interactivo */}
+      <main className="py-12 relative z-10" style={{ touchAction: 'manipulation' }}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10 text-center">
             <h1 className="text-3xl font-bold text-(--color-text-main) mb-3">
@@ -27,5 +41,5 @@ export const RequestFormPage: React.FC = () => {
     </div>
   );
 };
-// Mantener también el export default para compatibilidad
+
 export default RequestFormPage;

@@ -1,3 +1,4 @@
+// components/RadioButtonOption.tsx
 import React from 'react';
 
 interface RadioButtonOptionProps {
@@ -21,14 +22,22 @@ const RadioButtonOption: React.FC<RadioButtonOptionProps> = ({
   description,
   icon
 }) => {
+  // Utiliza una función más directa
+  const handleClick = () => {
+    onChange(value);
+  };
+
   return (
-    <div 
+    <div
       className={`relative flex flex-col rounded-lg border-2 p-4 cursor-pointer transition-all duration-200 ${
-        checked 
-          ? 'border-black bg-black/5' 
+        checked
+          ? 'border-black bg-black/5'
           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
       }`}
-      onClick={() => onChange(value)}
+      onClick={handleClick}
+      // Eliminar onTouchEnd ya que puede causar problemas en algunos dispositivos
+      role="button" // Cambio a role="button" para mejor compatibilidad táctil
+      tabIndex={0}
     >
       {/* Input oculto para mantener la accesibilidad y funcionalidad */}
       <input
@@ -38,9 +47,9 @@ const RadioButtonOption: React.FC<RadioButtonOptionProps> = ({
         value={value}
         className="sr-only"
         checked={checked}
-        onChange={() => onChange(value)}
+        onChange={handleClick}
       />
-      
+     
       <div className="flex items-start">
         {checked && (
           <div className="absolute -top-2 -right-2 bg-black text-white rounded-full p-1 shadow-md">
@@ -49,17 +58,18 @@ const RadioButtonOption: React.FC<RadioButtonOptionProps> = ({
             </svg>
           </div>
         )}
-        
+       
         <div className="flex flex-1">
           {icon && (
             <div className={`mr-3 ${checked ? 'text-black' : 'text-gray-500'}`}>
               {icon}
             </div>
           )}
-          <div>
-            <label htmlFor={id} className="block text-lg font-medium text-black cursor-pointer">
+          <div className="w-full">
+            {/* Cambiar label a div para evitar problemas con eventos */}
+            <div className="block text-lg font-medium text-black cursor-pointer">
               {label}
-            </label>
+            </div>
             {description && (
               <p className="mt-1 text-sm text-(--color-text-secondary)">
                 {description}

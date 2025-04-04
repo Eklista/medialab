@@ -75,19 +75,24 @@ const ActivityTypeStep: React.FC<ActivityTypeStepProps> = ({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {activityOptions.map((option) => (
-          <RadioButtonOption
-            key={option.id}
-            id={option.id}
-            label={option.label}
-            value={option.value}
-            name="activityType"
-            description={option.description}
-            icon={option.icon}
-            checked={selectedActivity === option.value}
-            onChange={(value) => onActivitySelect(value as ActivityType)}
-          />
+            <div 
+            key={option.id} 
+            className="w-full h-full" 
+            onClick={() => onActivitySelect(option.value as ActivityType)}
+            >
+            <RadioButtonOption
+                id={option.id}
+                label={option.label}
+                value={option.value}
+                name="activityType"
+                description={option.description}
+                icon={option.icon}
+                checked={selectedActivity === option.value}
+                onChange={(value) => onActivitySelect(value as ActivityType)}
+            />
+            </div>
         ))}
-      </div>
+        </div>
     </div>
   );
 };

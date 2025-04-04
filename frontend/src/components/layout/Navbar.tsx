@@ -115,11 +115,14 @@ export const Navbar = () => {
           </div>
         </div>
         
-        {/* Overlay semi-transparente para cuando el menú está abierto */}
+        {/* Overlay solo se renderiza cuando el menú está abierto */}
         <div 
-          className={`fixed inset-0 bg-black transition-opacity duration-300 md:hidden ${isMenuOpen ? 'opacity-50 z-30' : 'opacity-0 -z-10'}`}
+          className={`fixed inset-0 bg-black transition-opacity duration-300 md:hidden ${
+            isMenuOpen ? 'opacity-50 z-40 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
+          }`}
           onClick={() => setIsMenuOpen(false)}
         ></div>
+
         
         {/* Menú móvil slide-in desde la derecha - Ahora con z-index mayor que el botón */}
         <div className={`fixed top-0 right-0 bottom-0 z-50 w-64 bg-(--color-bg-secondary) shadow-xl transform transition-transform duration-300 ease-in-out md:hidden ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
