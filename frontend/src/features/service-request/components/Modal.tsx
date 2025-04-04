@@ -1,6 +1,5 @@
 // src/features/service-request/components/Modal.tsx
 import React, { useEffect, useRef } from 'react';
-import Button from './Button';
 
 export interface ModalProps {
   isOpen: boolean;

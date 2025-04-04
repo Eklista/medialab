@@ -13,8 +13,7 @@ import {
   CrudList,
   Select,
   CheckboxOption,
-  Column,
-  CrudItem
+  Column
 } from '../../features/service-request/components';
 
 // Tipos y datos de ejemplo
