@@ -1,0 +1,43 @@
+/* src/styles/global.css */
+@import "tailwindcss";
+
+@theme {
+  /* Paleta principal */
+  --color-bg-main: #f8f9fb;
+  --color-bg-secondary: #ffffff;
+  --color-text-main: #181c24;
+  --color-text-secondary: #6b7280;
+  
+  /* Acentos */
+  --color-accent-1: #cbe81a; 
+  --color-accent-2: #7758ff;
+  
+  /* Colores de estado */
+  --color-success: #22c55e;
+  --color-warning: #fbbf24;
+  --color-error: #ef4444;
+  
+  /* Elementos estructurales */
+  --color-border: #e5e7eb;
+  --color-hover: #b5cf15;
+  --color-btn-secondary: #f3f4f6;
+  --color-shadow: rgba(0, 0, 0, 0.05);
+  
+  /* Gradientes */
+  --gradient-accent: linear-gradient(135deg, #cbe81a, #b5cf15);
+  
+  /* Tipografía */
+  --font-sans: "Poppins", "Inter", system-ui, sans-serif;
+  --font-heading: "Poppins", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
