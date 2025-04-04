@@ -86,6 +86,9 @@ export const Navbar = () => {
               <a href="#gallery" className="text-(--color-text-main) hover:text-(--color-accent-1) transition-colors py-2">
                 Galería
               </a>
+              <a href="/documentation/components-test" className="text-(--color-text-main) hover:text-(--color-accent-1) transition-colors py-2">
+                Componentes
+              </a>
               <Link 
                 to="/request" 
                 className="bg-(--color-accent-1) text-(--color-text-main) px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
