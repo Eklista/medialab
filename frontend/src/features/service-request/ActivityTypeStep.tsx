@@ -19,7 +19,7 @@ const ActivityTypeStep: React.FC<ActivityTypeStepProps> = ({
       id: 'single',
       label: 'Actividad Única',
       value: 'single',
-      description: 'Actividad que sucede una única vez',
+      description: 'Evento único programado para una fecha y hora específica.',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -30,7 +30,7 @@ const ActivityTypeStep: React.FC<ActivityTypeStepProps> = ({
       id: 'recurrent',
       label: 'Actividad Recurrente',
       value: 'recurrent',
-      description: 'Para eventos que se repiten en el tiempo',
+      description: 'Actividad que ocurre de forma periódica según un patrón definido',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -41,7 +41,7 @@ const ActivityTypeStep: React.FC<ActivityTypeStepProps> = ({
       id: 'podcast',
       label: 'Podcast',
       value: 'podcast',
-      description: 'Grabación de video o audio y material para este',
+      description: 'Producción de contenido en formato de podcast, con episodios, moderadores y grabaciones planificadas.',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -52,7 +52,7 @@ const ActivityTypeStep: React.FC<ActivityTypeStepProps> = ({
       id: 'course',
       label: 'Cursos',
       value: 'course',
-      description: 'Para grabaciones de material académico',
+      description: 'Grabaciones académicas organizadas por cursos y clases dentro de una carrera universitaria.',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path d="M12 14l9-5-9-5-9 5 9 5z" />
