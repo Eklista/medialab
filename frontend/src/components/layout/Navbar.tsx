@@ -165,6 +165,13 @@ export const Navbar = () => {
                 >
                   Galería
                 </a>
+                <a 
+                  href="/documentation/components-test" 
+                  className="text-(--color-text-main) hover:text-(--color-accent-1) transition-colors py-2 border-b border-(--color-border) pb-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Componentes
+                </a>
               </div>
             </nav>
             
