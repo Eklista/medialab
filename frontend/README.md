@@ -15,24 +15,30 @@ Este proyecto busca centralizar los servicios audiovisuales, producción de cont
 
 1. **Cloná el repo**
 
-git clone https://github.com/Eklista/medialab.git  
+```bash
+git clone https://github.com/Eklista/medialab.git
 cd medialab
+```
 
 2. **Instalá las dependencias**
 
-npm install  
-# o si sos del team Yarn:  
-# yarn
+```bash
+npm install
+# o si sos del team Yarn:
+yarn
+```
 
 3. **Corré el server de desarrollo**
 
-npm run dev  
-# o  
-# yarn dev
+```bash
+npm run dev
+# o
+yarn dev
+```
 
-4. **Abrilo en el navegador**
+. **Abrilo en el navegador**
 
-http://localhost:5173/
+http://localhost:5173/4
 
 ## 📁 Estructura del proyecto (`src/`)
 
