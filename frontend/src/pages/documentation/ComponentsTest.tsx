@@ -319,7 +319,6 @@ const ComponentsTest: React.FC = () => {
                         <TimeRangePicker
                           id="time-range"
                           name="time-range"
-                          label="Horario"
                           startTime={timeRange.start}
                           endTime={timeRange.end}
                           onStartTimeChange={(time) => setTimeRange(prev => ({...prev, start: time}))}
@@ -587,7 +586,6 @@ const ComponentsTest: React.FC = () => {
             <TimeRangePicker
               id="modal-time-range"
               name="modal-time-range"
-              label="Horario"
               startTime={modalStartTime}
               endTime={modalEndTime}
               onStartTimeChange={(time) => setModalStartTime(time)}
