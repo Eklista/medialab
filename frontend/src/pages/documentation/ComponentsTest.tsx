@@ -12,6 +12,9 @@ import {
   DataTable,
   CrudList,
   Select,
+  DatePicker,
+  TimeRangePicker,
+  MultiDayPicker,
   CheckboxOption,
   Column
 } from '../../features/service-request/components';
@@ -48,8 +51,15 @@ const ComponentsTest: React.FC = () => {
   const [activityType, setActivityType] = useState('');
   const [podcastName, setPodcastName] = useState('');
   const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  
+  // Estados para fechas y horas
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [timeRange, setTimeRange] = useState<{start: Date | null, end: Date | null}>({
+    start: null,
+    end: null
+  });
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [isRecurrent, setIsRecurrent] = useState(false);
   
   // Opciones para selects
@@ -75,9 +85,9 @@ const ComponentsTest: React.FC = () => {
   
   // Modal de ejemplo
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalDate, setModalDate] = useState('');
-  const [modalStartTime, setModalStartTime] = useState('');
-  const [modalEndTime, setModalEndTime] = useState('');
+  const [modalDate, setModalDate] = useState<Date | null>(null);
+  const [modalStartTime, setModalStartTime] = useState<Date | null>(null);
+  const [modalEndTime, setModalEndTime] = useState<Date | null>(null);
   
   // Estado para el CRUD simple de episodios
   const [episodes, setEpisodes] = useState<{id: string, name: string}[]>([
@@ -201,14 +211,22 @@ const ComponentsTest: React.FC = () => {
   // Manejador para añadir fechas desde el modal
   const handleAddDate = () => {
     if (modalDate && modalStartTime && modalEndTime) {
-      console.log('Fecha añadida:', { date: modalDate, start: modalStartTime, end: modalEndTime });
+      console.log('Fecha añadida:', { 
+        date: modalDate, 
+        start: modalStartTime.toTimeString().slice(0, 5), 
+        end: modalEndTime.toTimeString().slice(0, 5) 
+      });
       // Aquí podrías añadir la fecha a un estado
-      setModalDate('');
-      setModalStartTime('');
-      setModalEndTime('');
+      setModalDate(null);
+      setModalStartTime(null);
+      setModalEndTime(null);
       setIsModalOpen(false);
     }
   };
+
+  // Fechas mínimas y máximas para los DatePickers
+  const minDate = new Date(2025, 0, 1); // 1 enero 2025
+  const maxDate = new Date(2030, 11, 31); // 31 diciembre 2030
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 font-['Inter', 'Poppins', sans-serif]">
@@ -274,26 +292,39 @@ const ComponentsTest: React.FC = () => {
                       />
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <TextInput
+                        <DatePicker
                           id="start-date"
                           name="start-date"
                           label="Fecha de Inicio"
-                          type="text"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
+                          selectedDate={startDate}
+                          onChange={(date) => setStartDate(date)}
                           required
-                          placeholder="AAAA-MM-DD"
+                          minDate={minDate}
+                          maxDate={maxDate}
                         />
                         
-                        <TextInput
+                        <DatePicker
                           id="end-date"
                           name="end-date"
                           label="Fecha de Fin"
-                          type="text"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
+                          selectedDate={endDate}
+                          onChange={(date) => setEndDate(date)}
                           required
-                          placeholder="AAAA-MM-DD"
+                          minDate={minDate}
+                          maxDate={maxDate}
+                        />
+                      </div>
+                      
+                      <div className="mt-4">
+                        <TimeRangePicker
+                          id="time-range"
+                          name="time-range"
+                          label="Horario"
+                          startTime={timeRange.start}
+                          endTime={timeRange.end}
+                          onStartTimeChange={(time) => setTimeRange(prev => ({...prev, start: time}))}
+                          onEndTimeChange={(time) => setTimeRange(prev => ({...prev, end: time}))}
+                          required
                         />
                       </div>
                     </div>
@@ -347,6 +378,24 @@ const ComponentsTest: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </section>
+
+              {/* Sección de MultiDayPicker */}
+              <section>
+                <div className="bg-white shadow rounded-lg p-6">
+                  <h2 className="text-xl font-bold mb-6 pb-2 border-b">Selección de Fechas Múltiples</h2>
+                  
+                  <MultiDayPicker
+                    id="multiple-dates"
+                    name="multiple-dates"
+                    label="Seleccione las fechas para la actividad"
+                    selectedDates={selectedDates}
+                    onChange={setSelectedDates}
+                    minDate={minDate}
+                    maxDate={maxDate}
+                    helperText="Seleccione y agregue fechas individuales para su actividad"
+                  />
                 </div>
               </section>
               
@@ -524,40 +573,27 @@ const ComponentsTest: React.FC = () => {
           </p>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TextInput
+            <DatePicker
               id="modal-date"
               name="modal-date"
               label="Fecha"
-              type="text"
-              value={modalDate}
-              onChange={(e) => setModalDate(e.target.value)}
+              selectedDate={modalDate}
+              onChange={(date) => setModalDate(date)}
               required
-              placeholder="AAAA-MM-DD"
+              minDate={minDate}
+              maxDate={maxDate}
             />
             
-            <div className="grid grid-cols-2 gap-3">
-              <TextInput
-                id="modal-start-time"
-                name="modal-start-time"
-                label="Hora inicio"
-                type="text"
-                value={modalStartTime}
-                onChange={(e) => setModalStartTime(e.target.value)}
-                required
-                placeholder="HH:MM"
-              />
-              
-              <TextInput
-                id="modal-end-time"
-                name="modal-end-time"
-                label="Hora fin"
-                type="text"
-                value={modalEndTime}
-                onChange={(e) => setModalEndTime(e.target.value)}
-                required
-                placeholder="HH:MM"
-              />
-            </div>
+            <TimeRangePicker
+              id="modal-time-range"
+              name="modal-time-range"
+              label="Horario"
+              startTime={modalStartTime}
+              endTime={modalEndTime}
+              onStartTimeChange={(time) => setModalStartTime(time)}
+              onEndTimeChange={(time) => setModalEndTime(time)}
+              required
+            />
           </div>
           
           <Button

@@ -8,7 +8,7 @@ export interface TextInputProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
-  type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url';
+  type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'date' | 'time';
   required?: boolean;
   disabled?: boolean;
   error?: string;
@@ -16,6 +16,8 @@ export interface TextInputProps {
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
   helperText?: string;
+  min?: string;
+  max?: string;
 }
 
 const TextInput: React.FC<TextInputProps> = ({
@@ -33,7 +35,12 @@ const TextInput: React.FC<TextInputProps> = ({
   icon,
   iconPosition = 'left',
   helperText,
+  min,
+  max,
 }) => {
+  // Determinar si debemos mostrar un placeholder para tipos date/time
+  const showPlaceholder = type !== 'date' && type !== 'time';
+  
   return (
     <div className={`mb-4 ${className}`}>
       {label && (
@@ -59,9 +66,11 @@ const TextInput: React.FC<TextInputProps> = ({
           type={type}
           value={value}
           onChange={onChange}
-          placeholder={placeholder}
+          placeholder={showPlaceholder ? placeholder : undefined}
           required={required}
           disabled={disabled}
+          min={min}
+          max={max}
           className={`
             block w-full px-4 py-2 rounded-lg border
             ${icon && iconPosition === 'left' ? 'pl-10' : ''}
