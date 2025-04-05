@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import Button from './Button';
+import Modal from './Modal';
 
 export interface MultiDayPickerProps {
   id: string;
@@ -21,7 +22,6 @@ export interface MultiDayPickerProps {
 
 const MultiDayPicker: React.FC<MultiDayPickerProps> = ({
   id,
-  name,
   label,
   selectedDates,
   onChange,
@@ -33,7 +33,14 @@ const MultiDayPicker: React.FC<MultiDayPickerProps> = ({
   minDate,
   maxDate,
 }) => {
-  const [currentDate, setCurrentDate] = useState<Date | null>(null);
+  // Estado para el modal del calendario
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Estado para almacenar temporalmente las fechas seleccionadas en el modal
+  const [tempSelectedDates, setTempSelectedDates] = useState<Date[]>([]);
+  // Estado para saber si hay cambios sin guardar
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // Estado para el modal de confirmación
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   // Función para formatar fecha en DD/MM/YYYY
   const formatDate = (date: Date) => {
@@ -44,26 +51,88 @@ const MultiDayPicker: React.FC<MultiDayPickerProps> = ({
     });
   };
 
-  // Añadir una fecha a la selección
-  const handleAddDate = () => {
-    if (currentDate) {
-      // Verificar que la fecha no esté ya seleccionada
-      const dateExists = selectedDates.some(date => 
-        date.getFullYear() === currentDate.getFullYear() && 
-        date.getMonth() === currentDate.getMonth() && 
-        date.getDate() === currentDate.getDate()
-      );
+  // Abrir el modal y copiar las fechas actuales a las temporales
+  const handleOpenModal = () => {
+    setTempSelectedDates([...selectedDates]);
+    setHasUnsavedChanges(false);
+    setIsModalOpen(true);
+  };
 
-      if (!dateExists) {
-        onChange([...selectedDates, currentDate]);
-        setCurrentDate(null);
-      }
+  // Función para manejar el intento de cerrar el modal
+  const handleCloseModal = () => {
+    // Si hay cambios sin guardar, mostramos el modal de confirmación
+    if (hasUnsavedChanges) {
+      setIsConfirmModalOpen(true);
+    } else {
+      // Si no hay cambios, cerramos directamente
+      setIsModalOpen(false);
     }
   };
 
-  // Eliminar una fecha de la selección
+  // Función para manejar la selección de fechas dentro del modal
+  const handleDateChange = (date: Date | null) => {
+    if (!date) return;
+    
+    // Comprobamos si la fecha ya está seleccionada
+    const dateIndex = tempSelectedDates.findIndex(selectedDate => 
+      selectedDate.getFullYear() === date.getFullYear() && 
+      selectedDate.getMonth() === date.getMonth() && 
+      selectedDate.getDate() === date.getDate()
+    );
+    
+    if (dateIndex >= 0) {
+      // Si la fecha ya está seleccionada, la eliminamos (toggle)
+      const newDates = [...tempSelectedDates];
+      newDates.splice(dateIndex, 1);
+      setTempSelectedDates(newDates);
+    } else {
+      // Si la fecha no está seleccionada, la añadimos
+      setTempSelectedDates([...tempSelectedDates, date]);
+    }
+    
+    // Marcamos que hay cambios sin guardar
+    setHasUnsavedChanges(true);
+  };
+
+  // Guardar las fechas seleccionadas y cerrar el modal
+  const handleSaveDates = () => {
+    onChange(tempSelectedDates);
+    setIsModalOpen(false);
+    setHasUnsavedChanges(false);
+  };
+
+  // Confirmar salir sin guardar
+  const handleConfirmDiscard = () => {
+    setIsConfirmModalOpen(false);
+    setIsModalOpen(false);
+    setHasUnsavedChanges(false);
+  };
+
+  // Cancelar salir sin guardar
+  const handleCancelDiscard = () => {
+    setIsConfirmModalOpen(false);
+  };
+
+  // Eliminar una fecha específica de la selección principal (fuera del modal)
   const handleRemoveDate = (indexToRemove: number) => {
     onChange(selectedDates.filter((_, index) => index !== indexToRemove));
+  };
+
+  // Eliminar una fecha específica de la selección temporal (dentro del modal)
+  const handleRemoveTempDate = (indexToRemove: number) => {
+    setTempSelectedDates(tempSelectedDates.filter((_, index) => index !== indexToRemove));
+    setHasUnsavedChanges(true);
+  };
+
+  // Limpiar todas las fechas seleccionadas temporales
+  const handleClearTempDates = () => {
+    setTempSelectedDates([]);
+    setHasUnsavedChanges(true);
+  };
+
+  // Limpiar todas las fechas seleccionadas principales
+  const handleClearAllDates = () => {
+    onChange([]);
   };
 
   return (
@@ -79,65 +148,65 @@ const MultiDayPicker: React.FC<MultiDayPickerProps> = ({
       )}
       
       <div className="space-y-4">
-        <div className="flex items-end space-x-3">
-          <div className="flex-grow">
-            <ReactDatePicker
-              id={id}
-              name={name}
-              selected={currentDate}
-              onChange={setCurrentDate}
-              placeholderText="Seleccionar fecha"
-              disabled={disabled}
-              dateFormat="dd/MM/yyyy"
-              minDate={minDate}
-              maxDate={maxDate}
-              highlightDates={selectedDates}
-              className={`
-                block w-full px-4 py-2 rounded-lg border
-                ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 
-                       'border-gray-300 focus:ring-black focus:border-black'}
-                ${disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}
-                focus:outline-none focus:ring-2 focus:ring-opacity-50 transition duration-150 ease-in-out
-              `}
-            />
-          </div>
+        <div className="flex items-center space-x-3">
           <Button
-            type="button"
-            onClick={handleAddDate}
-            disabled={!currentDate || disabled}
-            size="sm"
+            variant="outline"
+            onClick={handleOpenModal}
+            disabled={disabled}
             leftIcon={
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             }
           >
-            Agregar
+            Selección Manual de Fechas
           </Button>
+          
+          {selectedDates.length > 0 && (
+            <span className="text-sm text-gray-500">
+              {selectedDates.length} {selectedDates.length === 1 ? 'fecha seleccionada' : 'fechas seleccionadas'}
+            </span>
+          )}
         </div>
         
         {selectedDates.length > 0 && (
           <div className="mt-3">
-            <p className="text-sm font-medium text-gray-700 mb-2">Fechas seleccionadas:</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedDates.map((date, index) => (
-                <div 
-                  key={index}
-                  className="bg-gray-100 rounded-full px-3 py-1 text-sm flex items-center"
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-medium text-gray-700">Fechas seleccionadas:</p>
+              {selectedDates.length > 0 && (
+                <Button 
+                  variant="text" 
+                  size="xs" 
+                  onClick={handleClearAllDates}
+                  className="text-red-600 hover:text-red-800"
                 >
-                  <span>{formatDate(date)}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveDate(index)}
-                    className="ml-2 text-gray-500 hover:text-red-500"
-                    disabled={disabled}
+                  Limpiar todo
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-32 overflow-y-auto">
+              {selectedDates.length === 0 ? (
+                <p className="text-gray-500 text-sm italic">No hay fechas seleccionadas</p>
+              ) : (
+                selectedDates.sort((a, b) => a.getTime() - b.getTime()).map((date, index) => (
+                  <div 
+                    key={index}
+                    className="bg-white rounded-full px-3 py-1 text-sm flex items-center shadow-sm border border-gray-200"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
+                    <span>{formatDate(date)}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDate(index)}
+                      className="ml-2 text-gray-500 hover:text-red-500"
+                      disabled={disabled}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -150,6 +219,114 @@ const MultiDayPicker: React.FC<MultiDayPickerProps> = ({
       {helperText && !error && (
         <p className="mt-1 text-sm text-gray-500">{helperText}</p>
       )}
+      
+      {/* Modal para selección de fechas */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title="Selección Manual de Fechas"
+        footer={
+          <>
+            <Button variant="outline" onClick={handleCloseModal}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveDates}>
+              Aceptar
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 mb-2">
+            Seleccione las fechas para su actividad haciendo clic en el calendario. Haga clic nuevamente en una fecha seleccionada para desmarcarla.
+          </p>
+          
+          <div className="relative flex justify-center">
+            <ReactDatePicker
+              selected={null}
+              onChange={(date) => handleDateChange(date)}
+              inline
+              monthsShown={1}
+              highlightDates={tempSelectedDates}
+              minDate={minDate}
+              maxDate={maxDate}
+              calendarClassName="border border-gray-200 rounded-lg shadow-sm"
+            />
+            
+            {tempSelectedDates.length > 0 && (
+              <div className="absolute top-2 right-2">
+                <button
+                  type="button"
+                  onClick={handleClearTempDates}
+                  className="bg-white text-gray-500 hover:text-red-500 p-1 rounded-full shadow-sm border border-gray-200"
+                  title="Limpiar selección"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {tempSelectedDates.length > 0 && (
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-1">
+                <p className="text-sm font-medium text-gray-700">Fechas seleccionadas: {tempSelectedDates.length}</p>
+                <Button 
+                  variant="text" 
+                  size="xs" 
+                  onClick={handleClearTempDates}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  Limpiar
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-32 overflow-y-auto">
+                {tempSelectedDates.sort((a, b) => a.getTime() - b.getTime()).map((date, index) => (
+                  <div 
+                    key={index}
+                    className="bg-white rounded-full px-3 py-1 text-sm flex items-center shadow-sm border border-gray-200"
+                  >
+                    <span>{formatDate(date)}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTempDate(index)}
+                      className="ml-2 text-gray-500 hover:text-red-500"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+      
+      {/* Modal de confirmación */}
+      <Modal
+        isOpen={isConfirmModalOpen}
+        onClose={handleCancelDiscard}
+        title="¿Desea salir sin guardar?"
+        footer={
+          <>
+            <Button variant="outline" onClick={handleCancelDiscard}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleConfirmDiscard}>
+              Salir sin guardar
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600">
+          Ha realizado cambios en la selección de fechas que no se han guardado. 
+          Si sale ahora, perderá estos cambios.
+        </p>
+      </Modal>
     </div>
   );
 };
