@@ -1,11 +1,13 @@
 // src/features/service-request/components/CheckboxGroup.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import Checkbox from './Checkbox';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 
 export interface CheckboxOption {
   id: string;
   label: string;
   value: string;
+  description?: string; // Añadimos descripción para tooltip
 }
 
 export interface CheckboxGroupProps {
@@ -33,6 +35,8 @@ const CheckboxGroup: React.FC<CheckboxGroupProps> = ({
   className = '',
   columns = 1,
 }) => {
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>, value: string) => {
     const isChecked = e.target.checked;
     
@@ -64,15 +68,38 @@ const CheckboxGroup: React.FC<CheckboxGroupProps> = ({
       
       <div className={`grid gap-x-6 gap-y-3 ${gridColumnsClass}`}>
         {options.map((option) => (
-          <Checkbox
-            key={option.id}
-            id={`${name}-${option.id}`}
-            name={`${name}[${option.id}]`}
-            label={option.label}
-            checked={selectedValues.includes(option.value)}
-            onChange={(e) => handleCheckboxChange(e, option.value)}
-            disabled={disabled}
-          />
+          <div key={option.id} className="relative">
+            <div className="flex items-center">
+              <Checkbox
+                id={`${name}-${option.id}`}
+                name={`${name}[${option.id}]`}
+                label={option.label}
+                checked={selectedValues.includes(option.value)}
+                onChange={(e) => handleCheckboxChange(e, option.value)}
+                disabled={disabled}
+              />
+              
+              {/* Icono de información para tooltip si hay description */}
+              {option.description && (
+                <div 
+                  className="ml-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  onMouseEnter={() => setActiveTooltip(option.id)}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                  onFocus={() => setActiveTooltip(option.id)}
+                  onBlur={() => setActiveTooltip(null)}
+                >
+                  <InformationCircleIcon className="h-4 w-4" />
+                </div>
+              )}
+            </div>
+            
+            {/* Tooltip */}
+            {activeTooltip === option.id && option.description && (
+              <div className="absolute z-10 w-64 bg-black bg-opacity-90 text-white text-xs rounded p-2 mt-1 left-0 shadow-lg">
+                {option.description}
+              </div>
+            )}
+          </div>
         ))}
       </div>
       
