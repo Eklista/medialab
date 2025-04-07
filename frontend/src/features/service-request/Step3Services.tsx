@@ -86,45 +86,56 @@ const Step3Services: React.FC<Step3ServicesProps> = ({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Sidebar - Servicios principales */}
-      <div className="lg:w-1/3">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Servicios Principales</h3>
-          <p className="text-gray-600 mb-4">
-            Seleccione los servicios principales que necesita para su actividad.
-          </p>
-          
-          <CheckboxGroup
-            name="mainServices"
-            options={mainServiceOptions}
-            selectedValues={selectedMainServices}
-            onChange={onMainServiceChange}
-            required
-            error={errors.mainServices}
-          />
-        </div>
+    <div className="space-y-5">
+      {/* Título y descripción estandarizados */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-black mb-2">Paso 3: Selección de Servicios</h2>
+        <div className="h-1 w-32 bg-black rounded-full mb-4"></div>
+        <p className="text-base text-gray-600">
+          Seleccione los servicios que necesita para su actividad
+        </p>
       </div>
 
-      {/* Main Content - Subservicios */}
-      <div className="lg:w-2/3">
-        {selectedMainServices.length > 0 ? (
-          <>
-            <h3 className="text-xl font-semibold mb-4">Detalle de Servicios</h3>
-            {/* Renderizar secciones de subservicios para cada servicio principal seleccionado */}
-            {mainServices
-              .filter(service => selectedMainServices.includes(service.id))
-              .map(renderSubServiceSection)}
-          </>
-        ) : (
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
-            <PhotoIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">Ningún servicio seleccionado</h3>
-            <p className="text-gray-500">
-              Para continuar, seleccione al menos un servicio principal del panel izquierdo.
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Sidebar - Servicios principales */}
+        <div className="lg:w-1/3">
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold mb-4">Servicios Principales</h3>
+            <p className="text-gray-600 mb-4">
+              Seleccione los servicios principales que necesita para su actividad.
             </p>
+            
+            <CheckboxGroup
+              name="mainServices"
+              options={mainServiceOptions}
+              selectedValues={selectedMainServices}
+              onChange={onMainServiceChange}
+              required
+              error={errors.mainServices}
+            />
           </div>
-        )}
+        </div>
+
+        {/* Main Content - Subservicios */}
+        <div className="lg:w-2/3">
+          {selectedMainServices.length > 0 ? (
+            <>
+              <h3 className="text-xl font-semibold mb-4">Detalle de Servicios</h3>
+              {/* Renderizar secciones de subservicios para cada servicio principal seleccionado */}
+              {mainServices
+                .filter(service => selectedMainServices.includes(service.id))
+                .map(renderSubServiceSection)}
+            </>
+          ) : (
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
+              <PhotoIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-600 mb-2">Ningún servicio seleccionado</h3>
+              <p className="text-gray-500">
+                Para continuar, seleccione al menos un servicio principal del panel izquierdo.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

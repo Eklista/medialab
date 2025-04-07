@@ -4,6 +4,9 @@ import Button from './Button';
 import InputWithButton from './InputWithButton';
 import Modal from './Modal';
 import TextInput from './TextInput';
+import Select from './Select';
+import Textarea from './TextArea';
+import { SelectOption } from './Select';
 
 export interface CrudItem {
   id: string;
@@ -24,7 +27,8 @@ export interface CrudListProps<T extends CrudItem> {
     name: string;
     label: string;
     placeholder?: string;
-    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url';
+    type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'select' | 'textarea';
+    options?: SelectOption[];
     required?: boolean;
   }[];
   className?: string;
@@ -76,7 +80,7 @@ function CrudList<T extends CrudItem>({
     resetForm();
   };
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -96,6 +100,52 @@ function CrudList<T extends CrudItem>({
       onAddItem(formData as unknown as Omit<T, 'id'>);
     }
     handleCloseModal();
+  };
+  
+  // Renderizar un campo según su tipo
+  const renderField = (field: NonNullable<CrudListProps<T>['additionalFields']>[0]) => {
+    if (field.type === 'select' && field.options) {
+      return (
+        <Select
+          key={field.name}
+          id={`item-${field.name}`}
+          name={field.name}
+          label={field.label}
+          value={formData[field.name] || ''}
+          onChange={handleInputChange}
+          options={field.options}
+          placeholder={field.placeholder || `Seleccione ${field.label.toLowerCase()}`}
+          required={field.required}
+        />
+      );
+    } else if (field.type === 'textarea') {
+      return (
+        <Textarea
+          key={field.name}
+          id={`item-${field.name}`}
+          name={field.name}
+          label={field.label}
+          value={formData[field.name] || ''}
+          onChange={handleInputChange}
+          placeholder={field.placeholder}
+          required={field.required}
+        />
+      );
+    } else {
+      return (
+        <TextInput
+          key={field.name}
+          id={`item-${field.name}`}
+          name={field.name}
+          label={field.label}
+          placeholder={field.placeholder}
+          type={field.type as 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | undefined}
+          value={formData[field.name] || ''}
+          onChange={handleInputChange}
+          required={field.required}
+        />
+      );
+    }
   };
   
   return (
@@ -179,19 +229,7 @@ function CrudList<T extends CrudItem>({
           />
           
           {/* Render additional fields */}
-          {additionalFields.map((field) => (
-            <TextInput
-              key={field.name}
-              id={`item-${field.name}`}
-              name={field.name}
-              label={field.label}
-              placeholder={field.placeholder}
-              type={field.type as 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | undefined}
-              value={formData[field.name] || ''}
-              onChange={handleInputChange}
-              required={field.required}
-            />
-          ))}
+          {additionalFields.map(renderField)}
         </div>
       </Modal>
       

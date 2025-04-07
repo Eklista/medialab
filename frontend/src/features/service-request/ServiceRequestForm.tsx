@@ -1,7 +1,7 @@
 // src/features/service-request/ServiceRequestForm.tsx
 import React, { useState } from 'react';
 import ActivityTypeStep, { ActivityType } from './ActivityTypeStep';
-import { ActivityDetailsStep } from './PlaceholderSteps';
+import ActivityDetailsStep from './ActivityDetailsStep';
 import Step3Services from './Step3Services';
 import Step4ActivityRequester, { RequesterData } from './Step4ActivityRequester';
 import Stepper from './components/Stepper';
@@ -232,7 +232,7 @@ const ServiceRequestForm: React.FC = () => {
   };
   
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+    <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-md p-6">
       {/* Progress Indicator */}
       <Stepper currentStep={currentStep} totalSteps={4} />
       
