@@ -147,17 +147,7 @@ const Step4ActivityRequester: React.FC<Step4ActivityRequesterProps> = ({
               </div>
               <p className="mt-1 text-sm text-gray-500">Fecha actual en la que realiza esta solicitud</p>
             </div>
-            
-            {/* Información de privacidad */}
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                <BuildingOfficeIcon className="h-5 w-5 mr-2 text-gray-600" />
-                Información de privacidad
-              </h3>
-              <p className="text-sm text-gray-600">
-                Los datos proporcionados serán utilizados exclusivamente para procesar su solicitud de servicio.
-              </p>
-            </div>
+        
           </div>
         </div>
         
@@ -176,6 +166,16 @@ const Step4ActivityRequester: React.FC<Step4ActivityRequesterProps> = ({
             showCharCount
           />
         </div>
+      </div>
+      {/* Información de privacidad */}
+      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+          <BuildingOfficeIcon className="h-5 w-5 mr-2 text-gray-600" />
+          Información de privacidad
+        </h3>
+        <p className="text-sm text-gray-600">
+          Los datos proporcionados serán utilizados exclusivamente para procesar su solicitud de servicio.
+        </p>
       </div>
     </div>
   );

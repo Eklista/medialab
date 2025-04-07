@@ -153,7 +153,7 @@ const CourseDetails: React.FC = () => {
                 }
               }}
               options={[
-                { value: '', label: 'Seleccione un curso', disabled: true },
+                { value: '', label: '', disabled: true },
                 ...courses.map(course => ({ value: course.id, label: course.name }))
               ]}
             />
