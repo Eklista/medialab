@@ -8,10 +8,15 @@ import {
   ChevronDownIcon, 
   UserIcon, 
   LockClosedIcon, 
-  ArrowRightOnRectangleIcon 
+  ArrowRightOnRectangleIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  onMenuClick: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { state, logout, lockSession } = useAuth();
   const navigate = useNavigate();
@@ -47,14 +52,25 @@ const Navbar: React.FC = () => {
   }, [isUserMenuOpen]);
   
   return (
-    <div className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center px-4">
+    <div className="bg-white shadow-sm border-b border-gray-200 py-3 px-4 flex items-center">
+      {/* Menú hamburguesa para móviles */}
+      <button 
+        className="lg:hidden mr-4 text-gray-600 hover:text-gray-800" 
+        onClick={onMenuClick}
+        aria-label="Menú"
+      >
+        <Bars3Icon className="h-6 w-6" />
+      </button>
+      
+      {/* Título del dashboard */}
       <div className="flex-1">
         <h1 className="text-xl font-semibold text-gray-800">Dashboard</h1>
       </div>
       
-      <div className="flex items-center space-x-4">
-        {/* Notificaciones (placeholder) */}
-        <button className="text-gray-600 hover:text-gray-800 p-2 rounded-full hover:bg-gray-100">
+      {/* Acciones del lado derecho */}
+      <div className="flex items-center space-x-3">
+        {/* Notificaciones (placeholder) - oculto en móviles más pequeños */}
+        <button className="hidden sm:block text-gray-600 hover:text-gray-800 p-2 rounded-full hover:bg-gray-100">
           <BellIcon className="h-6 w-6" />
         </button>
         
@@ -62,22 +78,24 @@ const Navbar: React.FC = () => {
         <div className="relative user-menu-container">
           <button 
             onClick={toggleUserMenu}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-800"
+            className="flex items-center text-gray-600 hover:text-gray-800"
           >
             <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
               <span className="text-sm font-medium text-gray-700">
-                {state.user?.firstName.charAt(0)}{state.user?.lastName.charAt(0)}
+                {state.user?.firstName?.charAt(0)}{state.user?.lastName?.charAt(0)}
               </span>
             </div>
-            <span className="hidden sm:inline font-medium">{state.user?.firstName} {state.user?.lastName}</span>
-            <ChevronDownIcon className="h-5 w-5" />
+            {/* Nombre solo visible en pantallas medianas y grandes */}
+            <span className="hidden md:inline ml-2 font-medium">{state.user?.firstName}</span>
+            <ChevronDownIcon className="h-5 w-5 ml-1" />
           </button>
           
           {/* Menú desplegable */}
           {isUserMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
-              <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200">
-                Conectado como <span className="font-medium">{state.user?.email}</span>
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
+              <div className="px-4 py-3 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-900">{state.user?.firstName} {state.user?.lastName}</p>
+                <p className="text-xs text-gray-500 mt-1 truncate">{state.user?.email}</p>
               </div>
               
               <button

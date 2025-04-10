@@ -31,12 +31,11 @@ const RadioButtonOption: React.FC<RadioButtonOptionProps> = ({
     <div
       className={`relative flex flex-col rounded-lg border-2 p-4 cursor-pointer transition-all duration-200 ${
         checked
-          ? 'border-black bg-black/5'
-          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+          ? 'border-black bg-gray-100'
+          : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
       }`}
       onClick={handleClick}
-      // Eliminar onTouchEnd ya que puede causar problemas en algunos dispositivos
-      role="button" // Cambio a role="button" para mejor compatibilidad táctil
+      role="button" 
       tabIndex={0}
     >
       {/* Input oculto para mantener la accesibilidad y funcionalidad */}
@@ -66,7 +65,6 @@ const RadioButtonOption: React.FC<RadioButtonOptionProps> = ({
             </div>
           )}
           <div className="w-full">
-            {/* Cambiar label a div para evitar problemas con eventos */}
             <div className="block text-lg font-medium text-black cursor-pointer">
               {label}
             </div>

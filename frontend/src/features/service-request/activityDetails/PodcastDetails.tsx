@@ -3,10 +3,15 @@ import React, { useState } from 'react';
 import {
   CrudList,
   CrudItem,
-  Select
+  Select,
+  Checkbox,
+  TextInput,
+  Textarea,
+  RadioButtonOption
 } from '../components';
 import { departments } from '../data/faculties';
-import { MicrophoneIcon } from '@heroicons/react/24/outline';
+import { MicrophoneIcon, BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
+import PodcastRecurrenceSettings, { RecurrenceData } from './components/PodcastRecurrenceSettings';
 
 // Interfaces para los modelos de datos
 interface Moderator extends CrudItem {
@@ -28,12 +33,59 @@ interface PodcastEpisode extends CrudItem {
   guests: Guest[];
 }
 
+// Location type options
+const locationTypeOptions = [
+  { 
+    id: 'university', 
+    value: 'university', 
+    label: 'Universidad',
+    icon: <BuildingOfficeIcon className="h-6 w-6" />
+  },
+  { 
+    id: 'external', 
+    value: 'external', 
+    label: 'Ubicación externa',
+    icon: <MapPinIcon className="h-6 w-6" />
+  },
+  { 
+    id: 'virtual', 
+    value: 'virtual', 
+    label: 'Virtual',
+    icon: <GlobeAltIcon className="h-6 w-6" />
+  }
+];
+
 const PodcastDetails: React.FC = () => {
   // Estados
   const [moderators, setModerators] = useState<Moderator[]>([]);
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
   const [currentEpisode, setCurrentEpisode] = useState<string | null>(null);
   const [newGuest, setNewGuest] = useState<string>('');
+
+  // Estados básicos para el podcast
+  const [podcastName, setPodcastName] = useState('');
+  const [podcastDescription, setPodcastDescription] = useState('');
+  const [mainFaculty, setMainFaculty] = useState('');
+
+  // Estados para la ubicación
+  const [locationType, setLocationType] = useState('');
+  const [tower, setTower] = useState('');
+  const [classroom, setClassroom] = useState('');
+  const [externalAddress, setExternalAddress] = useState('');
+
+  // Estado para recurrencia
+  const [recurrenceData, setRecurrenceData] = useState<RecurrenceData>({
+    isRecurrent: false,
+    startDate: null,
+    endDate: null,
+    startTime: null,
+    endTime: null,
+    recurrenceType: 'daily',
+    selectedWeekDays: [],
+    weekOfMonth: '',
+    dayOfMonth: '',
+    selectedDates: []
+  });
 
   // Gestión de moderadores
   const handleAddModerator = (moderator: Omit<Moderator, 'id'>) => {
@@ -116,6 +168,16 @@ const PodcastDetails: React.FC = () => {
     setEpisodes(updatedEpisodes);
   };
 
+  // Actualizar datos de recurrencia
+  const handleRecurrenceChange = (data: Partial<RecurrenceData>) => {
+    setRecurrenceData(prev => ({ ...prev, ...data }));
+  };
+
+  // Handle location type change
+  const handleLocationTypeChange = (value: string) => {
+    setLocationType(value);
+  };
+
   // Campos adicionales para CrudList
   const moderatorFields = [
     {
@@ -151,7 +213,8 @@ const PodcastDetails: React.FC = () => {
       name: 'description',
       label: 'Descripción',
       placeholder: 'Breve descripción del contenido',
-      required: false
+      required: false,
+      type: 'textarea' as const
     }
   ];
 
@@ -162,40 +225,184 @@ const PodcastDetails: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold">Detalles del Podcast</h2>
           <p className="text-gray-600">
-            Configure los moderadores y episodios para su podcast
+            Configure la información general, fechas de grabación, moderadores y episodios para su podcast
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Sección de Moderadores */}
-        <div>
-          <CrudList<Moderator>
-            title="Moderadores"
-            items={moderators}
-            onAddItem={handleAddModerator}
-            onUpdateItem={handleUpdateModerator}
-            onDeleteItem={handleDeleteModerator}
-            addButtonText="Agregar Moderador"
-            emptyMessage="No hay moderadores registrados"
-            additionalFields={moderatorFields}
-            validateInput={(value) => value ? null : 'El nombre es obligatorio'}
+      {/* Información básica del podcast */}
+      <div className="mb-6">
+        {/* Nombre y Facultad (primera fila) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <TextInput
+            id="podcast-name"
+            name="podcast-name"
+            label="Nombre del podcast"
+            value={podcastName}
+            onChange={(e) => setPodcastName(e.target.value)}
+            placeholder="Ej. Ciencia al Día"
+            required
+          />
+          
+          <Select
+            id="podcast-faculty"
+            name="podcast-faculty"
+            label="Facultad principal"
+            value={mainFaculty}
+            onChange={(e) => setMainFaculty(e.target.value)}
+            options={departments}
+            placeholder="Seleccione la facultad responsable"
+            required
           />
         </div>
-
-        {/* Sección de Episodios */}
-        <div>
-          <CrudList<PodcastEpisode>
-            title="Episodios"
-            items={episodes}
-            onAddItem={handleAddEpisode}
-            onUpdateItem={handleUpdateEpisode}
-            onDeleteItem={handleDeleteEpisode}
-            addButtonText="Agregar Episodio"
-            emptyMessage="No hay episodios registrados"
-            additionalFields={episodeFields}
-            validateInput={(value) => value ? null : 'El nombre es obligatorio'}
+        
+        {/* Descripción (ancho completo) */}
+        <div className="mb-4">
+          <Textarea
+            id="podcast-description"
+            name="podcast-description"
+            label="Descripción general"
+            value={podcastDescription}
+            onChange={(e) => setPodcastDescription(e.target.value)}
+            placeholder="Describe brevemente de qué trata este podcast"
+            rows={3}
+            maxLength={500}
+            showCharCount
           />
+        </div>
+      </div>
+
+      {/* Sección de Agenda y Recurrencia */}
+      <div className="border-t border-gray-200 pt-6 mb-6">
+        <h3 className="text-lg font-medium mb-4">Fechas de Grabación</h3>
+        
+        <div className="mb-4">
+          <Checkbox
+            id="is-recurrent"
+            name="is-recurrent"
+            label="Grabación recurrente"
+            checked={recurrenceData.isRecurrent}
+            onChange={(e) => handleRecurrenceChange({ isRecurrent: e.target.checked })}
+            helperText="Active esta opción si el podcast se grabará en múltiples ocasiones con un patrón regular"
+          />
+        </div>
+        
+        <PodcastRecurrenceSettings 
+          recurrenceData={recurrenceData}
+          onRecurrenceChange={handleRecurrenceChange}
+        />
+      </div>
+
+      {/* Sección de Ubicación */}
+      <div className="border-t border-gray-200 pt-6 mb-6">
+        <h3 className="text-lg font-medium mb-4">Ubicación</h3>
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-black mb-2">
+            Tipo de ubicación<span className="text-red-500 ml-1">*</span>
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {locationTypeOptions.map(option => (
+              <RadioButtonOption
+                key={option.id}
+                id={`podcast-location-type-${option.id}`}
+                name="podcast-location-type"
+                label={option.label}
+                value={option.value}
+                checked={locationType === option.value}
+                onChange={handleLocationTypeChange}
+                icon={option.icon}
+              />
+            ))}
+          </div>
+        </div>
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-black mb-2">
+            Detalles de ubicación<span className="text-red-500 ml-1">*</span>
+          </label>
+          
+          {locationType === 'university' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <TextInput
+                id="podcast-tower"
+                name="podcast-tower"
+                label="Torre"
+                value={tower}
+                onChange={(e) => setTower(e.target.value)}
+                placeholder="Ej. Torre A"
+                required
+              />
+              <TextInput
+                id="podcast-classroom"
+                name="podcast-classroom"
+                label="Salón"
+                value={classroom}
+                onChange={(e) => setClassroom(e.target.value)}
+                placeholder="Ej. 101"
+                required
+              />
+            </div>
+          )}
+          
+          {locationType === 'external' && (
+            <TextInput
+              id="podcast-external-address"
+              name="podcast-external-address"
+              label="Dirección"
+              value={externalAddress}
+              onChange={(e) => setExternalAddress(e.target.value)}
+              placeholder="Ingrese la dirección completa"
+              required
+            />
+          )}
+          
+          {locationType === 'virtual' && (
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-gray-600">Los enlaces de la producción serán enviados por MediaLab.</p>
+            </div>
+          )}
+          
+          {!locationType && (
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-gray-600">Seleccione un tipo de ubicación primero.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Sección de Moderadores y Episodios */}
+      <div className="border-t border-gray-200 pt-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Sección de Moderadores */}
+          <div>
+            <CrudList<Moderator>
+              title="Moderadores"
+              items={moderators}
+              onAddItem={handleAddModerator}
+              onUpdateItem={handleUpdateModerator}
+              onDeleteItem={handleDeleteModerator}
+              addButtonText="Agregar Moderador"
+              emptyMessage="No hay moderadores registrados"
+              additionalFields={moderatorFields}
+              validateInput={(value) => value ? null : 'El nombre es obligatorio'}
+            />
+          </div>
+
+          {/* Sección de Episodios */}
+          <div>
+            <CrudList<PodcastEpisode>
+              title="Episodios"
+              items={episodes}
+              onAddItem={handleAddEpisode}
+              onUpdateItem={handleUpdateEpisode}
+              onDeleteItem={handleDeleteEpisode}
+              addButtonText="Agregar Episodio"
+              emptyMessage="No hay episodios registrados"
+              additionalFields={episodeFields}
+              validateInput={(value) => value ? null : 'El nombre es obligatorio'}
+            />
+          </div>
         </div>
       </div>
 

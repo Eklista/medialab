@@ -42,3 +42,5 @@ export type { TimeRangePickerProps } from './TimeRangePicker';
 
 export { default as MultiDayPicker } from './MultiDayPicker';
 export type { MultiDayPickerProps } from './MultiDayPicker';
+
+export { default as RadioButtonOption } from './RadioButtonOption';

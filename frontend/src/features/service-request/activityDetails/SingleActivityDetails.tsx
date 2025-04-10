@@ -1,35 +1,210 @@
 // src/features/service-request/activityDetails/SingleActivityDetails.tsx
-import React from 'react';
-import { CalendarIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import TextInput from '../components/TextInput';
+import Select from '../components/Select';
+import DatePicker from '../components/DatePicker';
+import TimePicker from '../components/TimePicker';
+import RadioButtonOption from '../components/RadioButtonOption';
+import Textarea from '../components/TextArea';
+// Import departments data
+import { departments } from '../data/faculties';
+import { BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
+
+// Location type options
+const locationTypeOptions = [
+  { 
+    id: 'university', 
+    value: 'university', 
+    label: 'Universidad',
+    icon: <BuildingOfficeIcon className="h-6 w-6" />
+  },
+  { 
+    id: 'external', 
+    value: 'external', 
+    label: 'Ubicación externa',
+    icon: <MapPinIcon className="h-6 w-6" />
+  },
+  { 
+    id: 'virtual', 
+    value: 'virtual', 
+    label: 'Virtual',
+    icon: <GlobeAltIcon className="h-6 w-6" />
+  }
+];
 
 const SingleActivityDetails: React.FC = () => {
+  // State for form fields
+  const [activityName, setActivityName] = useState('');
+  const [faculty, setFaculty] = useState('');
+  const [activityDate, setActivityDate] = useState<Date | null>(null);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [locationType, setLocationType] = useState('');
+  
+  // Location details based on location type
+  const [tower, setTower] = useState('');
+  const [classroom, setClassroom] = useState('');
+  const [externalAddress, setExternalAddress] = useState('');
+  
+  const [additionalDetails, setAdditionalDetails] = useState('');
+
+  // Handle location type change
+  const handleLocationTypeChange = (value: string) => {
+    setLocationType(value);
+  };
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-8">
-      <div className="text-center mb-6">
-        <CalendarIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-        <h2 className="text-xl font-bold mb-2">Actividad Única</h2>
-        <p className="text-gray-600 mb-6">
-          Configure los detalles para una actividad que se realizará en una fecha específica.
-        </p>
+    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      {/* Contenedor principal */}
+      
+      {/* 1. Nombre y Facultad (primera fila) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Nombre de la actividad */}
+        <TextInput
+          id="single-activity-name"
+          name="single-activity-name"
+          label="Nombre de actividad"
+          value={activityName}
+          onChange={(e) => setActivityName(e.target.value)}
+          placeholder="Ej. Conferencia de Ingeniería"
+          required
+        />
+        
+        {/* Facultad */}
+        <Select
+          id="single-activity-faculty"
+          name="single-activity-faculty"
+          label="Facultad"
+          value={faculty}
+          onChange={(e) => setFaculty(e.target.value)}
+          options={departments}
+          placeholder="Seleccione una facultad"
+          required
+        />
       </div>
       
-      <div className="p-6 border border-gray-200 rounded-lg bg-gray-50 mx-auto max-w-2xl">
-        <div className="flex items-center justify-center">
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 w-full">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  <span className="font-medium">Próximamente:</span> La configuración detallada para actividades únicas estará disponible en futuras actualizaciones. Por el momento, puede continuar con el proceso para solicitar los servicios básicos.
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* 2. Fecha y Horarios (segunda fila) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Fecha de la actividad */}
+        <DatePicker
+          id="single-activity-date"
+          name="single-activity-date"
+          label="Fecha de la actividad"
+          selectedDate={activityDate}
+          onChange={setActivityDate}
+          required
+        />
+        
+        {/* Hora inicio */}
+        <TimePicker
+          id="single-activity-start-time"
+          name="single-activity-start-time"
+          label="Hora inicio"
+          selectedTime={startTime}
+          onChange={setStartTime}
+          required
+        />
+        
+        {/* Hora fin */}
+        <TimePicker
+          id="single-activity-end-time"
+          name="single-activity-end-time"
+          label="Hora fin"
+          selectedTime={endTime}
+          onChange={setEndTime}
+          required
+        />
+      </div>
+      
+      {/* 3. Tipo de ubicación (ancho completo) */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-black mb-2">
+          Tipo de ubicación<span className="text-red-500 ml-1">*</span>
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {locationTypeOptions.map(option => (
+            <RadioButtonOption
+              key={option.id}
+              id={`location-type-${option.id}`}
+              name="single-activity-location-type"
+              label={option.label}
+              value={option.value}
+              checked={locationType === option.value}
+              onChange={handleLocationTypeChange}
+              icon={option.icon}
+            />
+          ))}
         </div>
+      </div>
+      
+      {/* 4. Detalles de ubicación (ancho completo) */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-black mb-2">
+          Detalles de ubicación<span className="text-red-500 ml-1">*</span>
+        </label>
+        
+        {locationType === 'university' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TextInput
+              id="single-activity-tower"
+              name="single-activity-tower"
+              label="Torre"
+              value={tower}
+              onChange={(e) => setTower(e.target.value)}
+              placeholder="Ej. Torre A"
+              required
+            />
+            <TextInput
+              id="single-activity-classroom"
+              name="single-activity-classroom"
+              label="Salón"
+              value={classroom}
+              onChange={(e) => setClassroom(e.target.value)}
+              placeholder="Ej. 101"
+              required
+            />
+          </div>
+        )}
+        
+        {locationType === 'external' && (
+          <TextInput
+            id="single-activity-external-address"
+            name="single-activity-external-address"
+            label="Dirección"
+            value={externalAddress}
+            onChange={(e) => setExternalAddress(e.target.value)}
+            placeholder="Ingrese la dirección completa"
+            required
+          />
+        )}
+        
+        {locationType === 'virtual' && (
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-gray-600">Los enlaces de la producción serán enviados por MediaLab.</p>
+          </div>
+        )}
+        
+        {!locationType && (
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-gray-600">Seleccione un tipo de ubicación primero.</p>
+          </div>
+        )}
+      </div>
+      
+      {/* 5. Detalles adicionales (ancho completo) */}
+      <div>
+        <Textarea
+          id="single-activity-additional-details"
+          name="single-activity-additional-details"
+          label="Detalles adicionales"
+          value={additionalDetails}
+          onChange={(e) => setAdditionalDetails(e.target.value)}
+          placeholder="Ingrese cualquier detalle adicional relevante para la actividad"
+          rows={4}
+          helperText="Opcional. Máximo 500 caracteres."
+          maxLength={500}
+          showCharCount
+        />
       </div>
     </div>
   );

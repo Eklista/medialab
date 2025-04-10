@@ -37,7 +37,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
   maxTime,
 }) => {
   return (
-    <div className={`mb-4 ${className}`}>
+    <div className={`w-full ${className}`}>
       {label && (
         <label 
           htmlFor={id} 
@@ -48,7 +48,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
         </label>
       )}
       
-      <div className="relative rounded-md shadow-sm">
+      <div className="relative w-full">
         <ReactDatePicker
           id={id}
           name={name}
@@ -70,6 +70,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
             ${disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}
             focus:outline-none focus:ring-2 focus:ring-opacity-50 transition duration-150 ease-in-out
           `}
+          wrapperClassName="w-full"
         />
       </div>
       

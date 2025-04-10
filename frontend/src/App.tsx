@@ -10,6 +10,9 @@ import {
   ProductionPage,
   CoursesPage,
   PodcastPage,
+  RequestsPage,
+  AdminsPage,
+  AppSettingsPage,
   SettingsPage
 } from './features/dashboard'
 import './styles/global.css'
@@ -31,6 +34,9 @@ function App() {
         <Route path="/dashboard/production" element={<ProductionPage />} />
         <Route path="/dashboard/courses" element={<CoursesPage />} />
         <Route path="/dashboard/podcast" element={<PodcastPage />} />
+        <Route path="/dashboard/requests" element={<RequestsPage />} />
+        <Route path="/dashboard/admins" element={<AdminsPage />} />
+        <Route path="/dashboard/app-settings" element={<AppSettingsPage />} />
         <Route path="/dashboard/settings" element={<SettingsPage />} />
         
         {/* Redirigir rutas no definidas a la página principal */}
