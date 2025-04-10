@@ -22,6 +22,7 @@ const LoginPage: React.FC = () => {
   
   return (
     <AuthLayout
+    
       title="Iniciar Sesión"
       subtitle="Ingresa tus credenciales para acceder al sistema"
     >
