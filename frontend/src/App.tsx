@@ -5,7 +5,13 @@ import { RequestFormPage } from './pages/request-form/RequestFormPage'
 import ComponentsTest from './pages/documentation/ComponentsTest'
 import { AuthProvider } from './features/auth/context'
 import { LoginPage, ForgotPasswordPage, ResetPasswordPage } from './features/auth/pages'
-import ProtectedRoute from './features/auth/components/ProtectedRoute'
+import { 
+  DashboardHome,
+  ProductionPage,
+  CoursesPage,
+  PodcastPage,
+  SettingsPage
+} from './features/dashboard'
 import './styles/global.css'
 
 function App() {
@@ -16,15 +22,16 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/request" element={<RequestFormPage />} />
         <Route path="/documentation/components-test" element={<ComponentsTest />} />
-
-        {/* Página principal accesible para todos */}
-        <Route path="/" element={<HomePage />} />
         
-        {/* Rutas protegidas */}
-        <Route element={<ProtectedRoute />}>
-        </Route>
+        {/* Rutas del dashboard */}
+        <Route path="/dashboard" element={<DashboardHome />} />
+        <Route path="/dashboard/production" element={<ProductionPage />} />
+        <Route path="/dashboard/courses" element={<CoursesPage />} />
+        <Route path="/dashboard/podcast" element={<PodcastPage />} />
+        <Route path="/dashboard/settings" element={<SettingsPage />} />
         
         {/* Redirigir rutas no definidas a la página principal */}
         <Route path="*" element={<Navigate to="/" replace />} />

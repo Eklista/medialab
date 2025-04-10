@@ -12,7 +12,7 @@ const ForgotPasswordPage: React.FC = () => {
   
   // Si el usuario ya está autenticado, redirigir a la página principal
   if (state.isAuthenticated && !state.isLocked) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   
   // Si la sesión está bloqueada, mostrar la pantalla de bloqueo

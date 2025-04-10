@@ -91,18 +91,18 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 const mockUsers = [
   {
     id: '1',
-    email: 'admin@example.com',
+    email: 'pablo@prueba.com',
     password: 'Admin123',
-    firstName: 'Admin',
-    lastName: 'User',
+    firstName: 'Pablo',
+    lastName: 'Lacán',
     role: UserRole.ADMIN
   },
   {
     id: '2',
-    email: 'user@example.com',
+    email: 'kohler@prueba.com',
     password: 'User123',
-    firstName: 'Normal',
-    lastName: 'User',
+    firstName: 'Christian',
+    lastName: 'Kohler',
     role: UserRole.USER
   }
 ];
