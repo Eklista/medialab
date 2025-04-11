@@ -5,18 +5,18 @@ import { RequestFormPage } from './pages/request-form/RequestFormPage'
 import ComponentsTest from './pages/documentation/ComponentsTest'
 import { AuthProvider } from './features/auth/context'
 import { LoginPage, ForgotPasswordPage, ResetPasswordPage } from './features/auth/pages'
-import { 
+import {
   DashboardHome,
   ProductionPage,
   CoursesPage,
   PodcastPage,
   RequestsPage,
-  AdminsPage,
+  UsersPage,
   AppSettingsPage,
-  SettingsPage
+  SettingsPage,
+  UserProfilePage
 } from './features/dashboard'
 import './styles/global.css'
-
 function App() {
   return (
     <AuthProvider>
@@ -28,22 +28,24 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/request" element={<RequestFormPage />} />
         <Route path="/documentation/components-test" element={<ComponentsTest />} />
-        
+       
         {/* Rutas del dashboard */}
         <Route path="/dashboard" element={<DashboardHome />} />
         <Route path="/dashboard/production" element={<ProductionPage />} />
         <Route path="/dashboard/courses" element={<CoursesPage />} />
         <Route path="/dashboard/podcast" element={<PodcastPage />} />
         <Route path="/dashboard/requests" element={<RequestsPage />} />
-        <Route path="/dashboard/admins" element={<AdminsPage />} />
-        <Route path="/dashboard/app-settings" element={<AppSettingsPage />} />
+        <Route path="/dashboard/users" element={<UsersPage />} />
+        <Route path="/dashboard/app-settings/*" element={<AppSettingsPage />} />
         <Route path="/dashboard/settings" element={<SettingsPage />} />
+        <Route path="/dashboard/users/:userId" element={<UserProfilePage />} />
         
+        {/* Ruta de error 404 */}
+       
         {/* Redirigir rutas no definidas a la página principal */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
   )
 }
-
 export default App

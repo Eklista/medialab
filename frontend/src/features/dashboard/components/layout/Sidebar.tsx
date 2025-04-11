@@ -80,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       children: [
         {
           title: 'Usuarios',
-          path: '/dashboard/admins',
+          path: '/dashboard/users',
           icon: <UserGroupIcon className="h-5 w-5" />
         },
         {

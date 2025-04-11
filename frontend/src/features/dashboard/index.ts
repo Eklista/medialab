@@ -16,6 +16,7 @@ export { default as ProductionPage } from './pages/ProductionPage';
 export { default as CoursesPage } from './pages/CoursesPage';
 export { default as PodcastPage } from './pages/PodcastPage';
 export { default as RequestsPage } from './pages/RequestsPage';
-export { default as AdminsPage } from './pages/AdminsPage';
+export { default as UsersPage } from './pages/UsersPage';
 export { default as AppSettingsPage } from './pages/AppSettingsPage';
 export { default as SettingsPage } from './pages/SettingsPage';
+export { default as UserProfilePage } from './pages/UsersProfilePage';
