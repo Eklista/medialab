@@ -139,18 +139,7 @@ const UsersPage: React.FC = () => {
       minute: '2-digit'
     });
   };
-  
-  const formatJoinDate = (dateString: string) => {
-    if (dateString === '-') return '-';
     
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-  
   // Obtener lista única de áreas para el filtro
   const areaOptions = ['all', ...new Set(users.map(user => user.area))];
   
