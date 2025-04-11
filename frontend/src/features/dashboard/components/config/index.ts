@@ -13,3 +13,6 @@ export type { ServiceFormData, SubService } from './ServiceForm';
 
 export { default as FacultyDepartmentForm } from './FacultyDepartmentForm';
 export type { FacultyDepartmentFormData } from './FacultyDepartmentForm';
+
+export { default as AcademicUnitForm } from './AcademicUnitForm';
+export type { AcademicUnitFormData } from './AcademicUnitForm';

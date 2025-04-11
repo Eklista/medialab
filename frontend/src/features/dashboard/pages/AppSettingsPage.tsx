@@ -6,7 +6,7 @@ import DashboardCard from '../components/ui/DashboardCard';
 import ConfigSidebar, { ConfigMenuItem } from '../components/config/ConfigSidebar';
 import RolesAreasSettings from './settings/RolesAreasSettings';
 import ServicesSettings from './settings/ServicesSettings';
-import FacultiesSettings from './settings/FacultiesSettings';
+import AcademicUnitsSettings from './settings/AcademicUnitsSettings';
 import { 
   UserGroupIcon, 
   WrenchScrewdriverIcon, 
@@ -69,7 +69,7 @@ const AppSettingsPage: React.FC = () => {
             <Routes>
               <Route path="roles-areas" element={<RolesAreasSettings />} />
               <Route path="services" element={<ServicesSettings />} />
-              <Route path="faculties" element={<FacultiesSettings />} />
+              <Route path="faculties" element={<AcademicUnitsSettings />} />
               <Route path="/" element={<Navigate to="roles-areas" replace />} />
             </Routes>
           </DashboardCard>
