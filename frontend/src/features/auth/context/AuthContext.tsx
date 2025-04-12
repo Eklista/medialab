@@ -1,7 +1,7 @@
 // src/features/auth/context/AuthContext.tsx
-
 import React, { createContext, useReducer, useEffect, ReactNode } from 'react';
 import { UserRole } from '../types/auth.types';
+import { authService } from '../../../services';
 
 // Definiciones de tipos
 export interface User {
@@ -87,26 +87,6 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   }
 };
 
-// Usuarios de prueba
-const mockUsers = [
-  {
-    id: '1',
-    email: 'pablo@prueba.com',
-    password: 'Admin123',
-    firstName: 'Pablo',
-    lastName: 'Lacán',
-    role: UserRole.ADMIN
-  },
-  {
-    id: '2',
-    email: 'kohler@prueba.com',
-    password: 'User123',
-    firstName: 'Christian',
-    lastName: 'Kohler',
-    role: UserRole.USER
-  }
-];
-
 // Crear el contexto
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -116,76 +96,104 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Restaurar sesión del localStorage al cargar el componente
   useEffect(() => {
-    const savedUser = localStorage.getItem('auth_user');
-    
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        dispatch({ type: 'RESTORE_SESSION', payload: userData });
-        
-        console.log('Sesión restaurada:', userData);
-      } catch (error) {
-        console.error('Error al restaurar la sesión:', error);
-        localStorage.removeItem('auth_user');
+    const checkAuth = async () => {
+      if (authService.isAuthenticated()) {
+        try {
+          const userData = await authService.getCurrentUser();
+          
+          // Convertir de datos de API a formato interno
+          const user: User = {
+            id: userData.id.toString(),
+            email: userData.email,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            role: userData.roles.includes('ADMIN') ? UserRole.ADMIN : UserRole.USER
+          };
+          
+          dispatch({ type: 'RESTORE_SESSION', payload: user });
+          console.log('Sesión restaurada:', user);
+        } catch (error) {
+          console.error('Error al restaurar la sesión:', error);
+          authService.logout();
+        }
       }
-    }
+    };
+    
+    checkAuth();
   }, []);
 
   // Función para iniciar sesión
   const login = async (credentials: LoginCredentials): Promise<void> => {
     dispatch({ type: 'LOGIN_START' });
     
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        const user = mockUsers.find(user => user.email === credentials.email);
-        
-        if (user && user.password === credentials.password) {
-          const { password, ...safeUser } = user;
-          
-          // Guardar en localStorage
-          localStorage.setItem('auth_user', JSON.stringify(safeUser));
-          
-          dispatch({ type: 'LOGIN_SUCCESS', payload: safeUser });
-          resolve();
-        } else {
-          dispatch({ 
-            type: 'LOGIN_FAIL', 
-            payload: 'Credenciales incorrectas' 
-          });
-          reject(new Error('Credenciales incorrectas'));
-        }
-      }, 1000);
-    });
+    try {
+      const userData = await authService.login(credentials);
+      
+      // Convertir de datos de API a formato interno
+      const user: User = {
+        id: userData.id.toString(),
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.roles.includes('ADMIN') ? UserRole.ADMIN : UserRole.USER
+      };
+      
+      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+    } catch (error: any) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error.message || 'Credenciales incorrectas' 
+      });
+      throw error;
+    }
   };
 
   // Función para cerrar sesión
   const logout = () => {
-    localStorage.removeItem('auth_user');
+    authService.logout();
     dispatch({ type: 'LOGOUT' });
   };
 
-  // Funciones simplificadas
-  const forgotPassword = async (_email: string): Promise<void> => {
-    // En una implementación real, aquí verificaríamos si el email existe
-    // y enviaríamos un correo de recuperación
-    return Promise.resolve();
+  // Funciones para recuperación de contraseña
+  const forgotPassword = async (email: string): Promise<void> => {
+    try {
+      await authService.forgotPassword(email);
+    } catch (error) {
+      throw error;
+    }
   };
 
-  const resetPassword = async (_password: string, _confirmPassword: string): Promise<void> => {
-    // En una implementación real, aquí verificaríamos que las contraseñas coinciden
-    // y actualizaríamos la contraseña en la base de datos
-    return Promise.resolve();
+  const resetPassword = async (password: string, confirmPassword: string): Promise<void> => {
+    // En una implementación real, el token vendría de la URL
+    const token = window.location.pathname.split('/').pop() || '';
+    
+    if (password !== confirmPassword) {
+      throw new Error('Las contraseñas no coinciden');
+    }
+    
+    try {
+      await authService.resetPassword(token, password);
+    } catch (error) {
+      throw error;
+    }
   };
 
+  // Funciones para bloqueo de sesión
   const lockSession = () => {
     dispatch({ type: 'LOCK_SESSION' });
   };
 
-  const unlockSession = async (_password: string): Promise<void> => {
-    // En una implementación real, aquí verificaríamos si la contraseña es correcta
-    // para el usuario actual antes de desbloquear
-    dispatch({ type: 'UNLOCK_SESSION' });
-    return Promise.resolve();
+  const unlockSession = async (password: string): Promise<void> => {
+    try {
+      const isValid = await authService.verifyPassword(password);
+      if (isValid) {
+        dispatch({ type: 'UNLOCK_SESSION' });
+      } else {
+        throw new Error('Contraseña incorrecta');
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al verificar la contraseña');
+    }
   };
 
   return (
