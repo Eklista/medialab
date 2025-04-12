@@ -5,6 +5,7 @@ import { RequestFormPage } from './pages/request-form/RequestFormPage'
 import ComponentsTest from './pages/documentation/ComponentsTest'
 import { AuthProvider } from './features/auth/context'
 import { LoginPage, ForgotPasswordPage, ResetPasswordPage } from './features/auth/pages'
+import { ProtectedRoute } from './features/auth/components'
 import {
   DashboardHome,
   ProductionPage,
@@ -17,6 +18,7 @@ import {
   UserProfilePage
 } from './features/dashboard'
 import './styles/global.css'
+
 function App() {
   return (
     <AuthProvider>
@@ -29,16 +31,18 @@ function App() {
         <Route path="/request" element={<RequestFormPage />} />
         <Route path="/documentation/components-test" element={<ComponentsTest />} />
        
-        {/* Rutas del dashboard */}
-        <Route path="/dashboard" element={<DashboardHome />} />
-        <Route path="/dashboard/production" element={<ProductionPage />} />
-        <Route path="/dashboard/courses" element={<CoursesPage />} />
-        <Route path="/dashboard/podcast" element={<PodcastPage />} />
-        <Route path="/dashboard/requests" element={<RequestsPage />} />
-        <Route path="/dashboard/users" element={<UsersPage />} />
-        <Route path="/dashboard/app-settings/*" element={<AppSettingsPage />} />
-        <Route path="/dashboard/settings" element={<SettingsPage />} />
-        <Route path="/dashboard/users/:userId" element={<UserProfilePage />} />
+        {/* Rutas protegidas del dashboard */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<DashboardHome />} />
+          <Route path="/dashboard/production" element={<ProductionPage />} />
+          <Route path="/dashboard/courses" element={<CoursesPage />} />
+          <Route path="/dashboard/podcast" element={<PodcastPage />} />
+          <Route path="/dashboard/requests" element={<RequestsPage />} />
+          <Route path="/dashboard/users" element={<UsersPage />} />
+          <Route path="/dashboard/app-settings/*" element={<AppSettingsPage />} />
+          <Route path="/dashboard/settings" element={<SettingsPage />} />
+          <Route path="/dashboard/users/:userId" element={<UserProfilePage />} />
+        </Route>
         
         {/* Ruta de error 404 */}
        
@@ -48,4 +52,5 @@ function App() {
     </AuthProvider>
   )
 }
+
 export default App
