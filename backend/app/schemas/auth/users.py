@@ -16,6 +16,8 @@ class UserCreate(UserBase):
     phone: Optional[str] = None
     birth_date: Optional[date] = None
     join_date: date
+    roleId: Optional[str] = None 
+    areaId: Optional[str] = None
     
 # Esquema para actualizar usuario
 class UserUpdate(BaseModel):

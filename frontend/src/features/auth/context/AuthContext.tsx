@@ -101,12 +101,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           const userData = await authService.getCurrentUser();
           
+          // Obtener el nombre y apellido del campo name o de firstName/lastName
+          const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
+          const firstName = nameParts[0] || userData.firstName || '';
+          const lastName = nameParts.slice(1).join(' ') || userData.lastName || '';
+          
           // Convertir de datos de API a formato interno
           const user: User = {
             id: userData.id.toString(),
             email: userData.email,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
+            firstName: firstName,
+            lastName: lastName,
             role: userData.roles.includes('ADMIN') ? UserRole.ADMIN : UserRole.USER
           };
           
@@ -129,12 +134,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const userData = await authService.login(credentials);
       
+      // Obtener el nombre y apellido del campo name o de firstName/lastName
+      const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
+      const firstName = nameParts[0] || userData.firstName || '';
+      const lastName = nameParts.slice(1).join(' ') || userData.lastName || '';
+      
       // Convertir de datos de API a formato interno
       const user: User = {
         id: userData.id.toString(),
         email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
+        firstName: firstName,
+        lastName: lastName,
         role: userData.roles.includes('ADMIN') ? UserRole.ADMIN : UserRole.USER
       };
       

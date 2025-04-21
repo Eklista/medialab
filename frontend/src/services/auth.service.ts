@@ -17,8 +17,10 @@ export interface User {
   id: number;
   email: string;
   username: string;
-  firstName: string;
-  lastName: string;
+  // Soportamos ambas estructuras - name o firstName/lastName
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   profileImage?: string;
   bannerImage?: string;
   phone?: string;
@@ -69,7 +71,12 @@ class AuthService {
       }
       
       // Obtener información del usuario usando la instancia apiClient
-      return await this.getCurrentUser();
+      const userData = await this.getCurrentUser();
+      
+      // Normalizar datos del usuario para asegurar compatibilidad
+      this.normalizeUserData(userData);
+      
+      return userData;
     } catch (error) {
       console.error('Error en login:', error);
       
@@ -99,9 +106,32 @@ class AuthService {
   async getCurrentUser(): Promise<User> {
     try {
       const response = await apiClient.get<User>('/users/me');
+      
+      // Normalizar datos del usuario para asegurar compatibilidad
+      this.normalizeUserData(response.data);
+      
       return response.data;
     } catch (error) {
       throw new Error(handleApiError(error));
+    }
+  }
+  
+  // Método auxiliar para asegurar que los datos de usuario tienen ambos formatos disponibles
+  private normalizeUserData(userData: User): void {
+    // Si tenemos firstName/lastName pero no name, crear name
+    if (!userData.name && (userData.firstName || userData.lastName)) {
+      userData.name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+    }
+    
+    // Si tenemos name pero no firstName/lastName, dividir name
+    if (userData.name && (!userData.firstName || !userData.lastName)) {
+      const nameParts = userData.name.split(' ');
+      if (!userData.firstName) {
+        userData.firstName = nameParts[0] || '';
+      }
+      if (!userData.lastName) {
+        userData.lastName = nameParts.slice(1).join(' ') || '';
+      }
     }
   }
   

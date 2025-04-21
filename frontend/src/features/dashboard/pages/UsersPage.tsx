@@ -1,5 +1,5 @@
 // src/features/dashboard/pages/UsersPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardDataTable from '../components/ui/DashboardDataTable';
@@ -7,17 +7,19 @@ import DashboardButton from '../components/ui/DashboardButton';
 import DashboardModal from '../components/ui/DashboardModal';
 import DashboardCard from '../components/ui/DashboardCard';
 import UserForm, { UserFormData } from '../components/users/UserForm';
+import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { userService } from '../../../services';
+import { Role, Area } from '../../../services/users.service';
 
-// Definición de tipos
-interface User {
+// Definimos una interfaz para nuestro modelo de usuario local
+interface LocalUser {
   id: string;
-  name: string;
+  fullName: string;
   email: string;
   role: string;
   area: string;
   isActive: boolean;
-  joinDate: string;
   lastLogin: string;
   profileImage?: string;
 }
@@ -25,153 +27,308 @@ interface User {
 const UsersPage: React.FC = () => {
   const navigate = useNavigate();
   
-  // Estado para los usuarios
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      name: 'Pablo Lacan',
-      email: 'placan@medialab.com',
-      role: 'Super Admin',
-      area: 'Producción Audiovisual',
-      isActive: true,
-      joinDate: '2023-01-15',
-      lastLogin: '2025-04-10T08:30:00'
-    },
-    {
-      id: '2',
-      name: 'Christian Kohler',
-      email: 'ckohler@medialab.com',
-      role: 'Admin',
-      area: 'Desarrollo Web',
-      isActive: true,
-      joinDate: '2023-03-20',
-      lastLogin: '2025-04-09T14:15:00'
-    }
-  ]);
-
-  // Estado para modales
+  // Estado para usuarios
+  const [users, setUsers] = useState<LocalUser[]>([]);
+  
+  // Estado para roles y áreas
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  
+  // Estados para modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<LocalUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Estado para carga de datos
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Estado para búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
-  const [filterArea, setFilterArea] = useState('all');
   
-  // Funciones de manejo
+  // Cargar datos iniciales al montar el componente
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+  
+  // Función para cargar los datos iniciales
+  const loadInitialData = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Cargar usuarios, roles y áreas en paralelo con mejor manejo de errores
+      const [apiUsers, apiRoles, apiAreas] = await Promise.all([
+        userService.getUsers().catch(err => {
+          console.error('Error al obtener usuarios:', err);
+          throw new Error(`No se pudieron cargar los usuarios: ${err.message}`);
+        }),
+        userService.getRoles().catch(err => {
+          console.error('Error al obtener roles:', err);
+          throw new Error(`No se pudieron cargar los roles: ${err.message}`);
+        }),
+        userService.getAreas().catch(err => {
+          console.error('Error al obtener áreas:', err);
+          throw new Error(`No se pudieron cargar las áreas: ${err.message}`);
+        })
+      ]);
+      
+      // Guardar roles y áreas
+      setRoles(apiRoles);
+      setAreas(apiAreas);
+      
+      // Convertir los usuarios de la API al formato local
+      const transformedUsers: LocalUser[] = apiUsers.map(apiUser => {
+        // Obtener los nombres de los roles del usuario
+        let roleNames: string[] = [];
+        if (apiUser.roles && Array.isArray(apiUser.roles)) {
+          roleNames = apiUser.roles;
+        }
+        let roleName = roleNames.join(', ');
+        if (!roleName) roleName = 'Sin rol asignado';
+        
+        // Intentar encontrar el área del usuario
+        let areaName = 'Sin área asignada';
+        
+        // Asegurarnos que firstName y lastName existen
+        const firstName = apiUser.firstName || apiUser.first_name || '';
+        const lastName = apiUser.lastName || apiUser.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        return {
+          id: apiUser.id.toString(),
+          fullName: fullName || 'Usuario sin nombre',
+          email: apiUser.email || 'Sin email',
+          role: roleName,
+          area: areaName,
+          isActive: !!apiUser.isActive || !!apiUser.is_active,
+          lastLogin: apiUser.lastLogin || apiUser.last_login || '-',
+          profileImage: apiUser.profileImage || apiUser.profile_image
+        };
+      });
+      
+      setUsers(transformedUsers);
+    } catch (err) {
+      console.error('Error al cargar datos iniciales:', err);
+      setError(err instanceof Error ? err.message : 'Error al cargar los datos');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Manejadores para CRUD de usuarios
   const handleAddUser = () => {
     setIsAddModalOpen(true);
   };
   
-  const handleEditUser = (user: User) => {
+  const handleEditUser = (user: LocalUser) => {
     setCurrentUser(user);
     setIsEditModalOpen(true);
   };
   
-  const handleViewUser = (user: User) => {
+  const handleViewUser = (user: LocalUser) => {
     // Navegar al perfil del usuario
     navigate(`/dashboard/users/${user.id}`);
   };
   
-  const handleDeleteClick = (user: User) => {
+  const handleDeleteClick = (user: LocalUser) => {
     setCurrentUser(user);
     setIsDeleteModalOpen(true);
   };
   
-  const handleDeleteUser = () => {
-    if (currentUser) {
-      // Aquí iría la lógica de eliminación
-      setUsers(users.filter(user => user.id !== currentUser.id));
-      setIsDeleteModalOpen(false);
-      setCurrentUser(null);
-    }
-  };
-  
-  const handleAddSubmit = (data: UserFormData) => {
-    setIsSubmitting(true);
-    
-    // Simulamos una petición a la API
-    setTimeout(() => {
-      const newUser: User = {
-        id: Date.now().toString(),
-        ...data,
-        isActive: true,
-        lastLogin: '-'
-      };
-      
-      setUsers([...users, newUser]);
-      setIsAddModalOpen(false);
-      setIsSubmitting(false);
-    }, 500);
-  };
-  
-  const handleEditSubmit = (data: UserFormData) => {
+  const handleDeleteUser = async () => {
     if (!currentUser) return;
     
     setIsSubmitting(true);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
+    try {
+      // Llamar a la API para eliminar el usuario
+      await userService.deleteUser(parseInt(currentUser.id));
+      
+      // Actualizar la lista local de usuarios
+      setUsers(users.filter(user => user.id !== currentUser.id));
+      setIsDeleteModalOpen(false);
+      setCurrentUser(null);
+    } catch (err) {
+      console.error('Error al eliminar usuario:', err);
+      setError(err instanceof Error ? err.message : 'Error al eliminar usuario');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleAddSubmit = async (data: UserFormData) => {
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Preparar los datos para la API usando snake_case para el backend
+      const userData = {
+        email: data.email,
+        username: data.username || data.email.split('@')[0],
+        password: data.password || 'TemporalPassword123',
+        // Importante: Usar snake_case para que coincida con el backend
+        first_name: data.firstName,
+        last_name: data.lastName,
+        // El backend espera una fecha tipo ISO string en formato YYYY-MM-DD
+        join_date: new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('Enviando datos para crear usuario:', userData);
+      
+      // 1. Crear el usuario primero
+      const newApiUser = await userService.createUser(userData);
+      
+      // 2. Si tenemos roleId y areaId, asignar el rol al usuario recién creado
+      if (data.roleId && data.areaId) {
+        try {
+          console.log(`Asignando rol ${data.roleId} y área ${data.areaId} al usuario ${newApiUser.id}`);
+          await userService.assignRole(newApiUser.id, data.roleId, data.areaId);
+        } catch (roleError) {
+          console.error('Error al asignar rol:', roleError);
+          // Continuamos aunque falle la asignación de rol
+        }
+      }
+      
+      // Encontrar los nombres del rol y área según sus IDs
+      const roleName = roles.find(r => r.id === data.roleId)?.name || 'Sin rol';
+      const areaName = areas.find(a => a.id === data.areaId)?.name || 'Sin área';
+      
+      // Añadir el nuevo usuario a la lista local
+      const newLocalUser: LocalUser = {
+        id: newApiUser.id.toString(),
+        fullName: `${newApiUser.firstName || newApiUser.first_name || ''} ${newApiUser.lastName || newApiUser.last_name || ''}`.trim(),
+        email: newApiUser.email,
+        role: roleName,
+        area: areaName,
+        isActive: newApiUser.isActive || newApiUser.is_active || true,
+        lastLogin: newApiUser.lastLogin || newApiUser.last_login || '-',
+        profileImage: newApiUser.profileImage || newApiUser.profile_image
+      };
+      
+      setUsers([...users, newLocalUser]);
+      setIsAddModalOpen(false);
+    } catch (err) {
+      console.error('Error al crear usuario:', err);
+      setError(err instanceof Error ? err.message : 'Error al crear usuario');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleEditSubmit = async (data: UserFormData) => {
+    if (!currentUser) return;
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Preparar los datos para la API usando snake_case para el backend
+      const userData = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email
+      };
+      
+      // Llamar a la API para actualizar el usuario
+      const updatedApiUser = await userService.updateUser(parseInt(currentUser.id), userData);
+      
+      // Si se proporcionaron roleId y areaId y son diferentes a los actuales, actualizar rol
+      if (data.roleId && data.areaId) {
+        const currentRoleId = roles.find(r => r.name === currentUser.role)?.id;
+        const currentAreaId = areas.find(a => a.name === currentUser.area)?.id;
+        
+        if (data.roleId !== currentRoleId || data.areaId !== currentAreaId) {
+          try {
+            console.log(`Actualizando rol a ${data.roleId} y área a ${data.areaId} para usuario ${currentUser.id}`);
+            await userService.assignRole(updatedApiUser.id, data.roleId, data.areaId);
+          } catch (roleError) {
+            console.error('Error al actualizar rol:', roleError);
+            // Continuamos aunque falle la actualización de rol
+          }
+        }
+      }
+      
+      // Encontrar los nombres del rol y área según sus IDs
+      const roleName = roles.find(r => r.id === data.roleId)?.name || currentUser.role;
+      const areaName = areas.find(a => a.id === data.areaId)?.name || currentUser.area;
+      
+      // Actualizar el usuario en la lista local
       setUsers(users.map(user => 
-        user.id === currentUser.id
-          ? { ...user, ...data }
+        user.id === currentUser.id 
+          ? {
+              ...user,
+              fullName: `${data.firstName} ${data.lastName}`,
+              email: data.email,
+              role: roleName,
+              area: areaName,
+              isActive: updatedApiUser.isActive || updatedApiUser.is_active || user.isActive
+            }
           : user
       ));
       
       setIsEditModalOpen(false);
       setCurrentUser(null);
+    } catch (err) {
+      console.error('Error al actualizar usuario:', err);
+      setError(err instanceof Error ? err.message : 'Error al actualizar usuario');
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
+  // Formatear fecha para mostrar en un formato legible
   const formatDate = (dateString: string) => {
     if (dateString === '-') return '-';
     
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
-    
-  // Obtener lista única de áreas para el filtro
-  const areaOptions = ['all', ...new Set(users.map(user => user.area))];
   
-  // Filtrar usuarios
+  // Filtrar usuarios según términos de búsqueda y filtros seleccionados
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesArea = filterArea === 'all' || user.area === filterArea;
     
-    return matchesSearch && matchesRole && matchesArea;
+    return matchesSearch && matchesRole;
   });
+  
+  // Determinar las opciones de filtrado para roles
+  const roleFilterOptions = ['all', ...new Set(users.map(user => user.role))].filter(Boolean);
   
   // Columnas para la tabla
   const columns = [
     {
       header: 'Nombre',
-      accessor: (user: User) => (
+      accessor: (user: LocalUser) => (
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
             {user.profileImage ? (
-              <img src={user.profileImage} alt={user.name} className="h-full w-full object-cover" />
+              <img src={user.profileImage} alt={user.fullName} className="h-full w-full object-cover" />
             ) : (
               <span className="text-gray-600 font-medium">
-                {user.name.split(' ').map(n => n[0]).join('')}
+                {user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
               </span>
             )}
           </div>
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+            <div className="text-sm font-medium text-gray-900">{user.fullName}</div>
             <div className="text-sm text-gray-500">{user.email}</div>
           </div>
         </div>
@@ -179,13 +336,13 @@ const UsersPage: React.FC = () => {
     },
     {
       header: 'Área',
-      accessor: (user: User) => (
+      accessor: (user: LocalUser) => (
         <span className="text-sm text-gray-900">{user.area}</span>
       )
     },
     {
       header: 'Rol',
-      accessor: (user: User) => (
+      accessor: (user: LocalUser) => (
         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
           {user.role}
         </span>
@@ -193,7 +350,7 @@ const UsersPage: React.FC = () => {
     },
     {
       header: 'Estado',
-      accessor: (user: User) => (
+      accessor: (user: LocalUser) => (
         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
           user.isActive 
             ? 'bg-green-100 text-green-800' 
@@ -205,7 +362,7 @@ const UsersPage: React.FC = () => {
     },
     {
       header: 'Último acceso',
-      accessor: (user: User) => formatDate(user.lastLogin)
+      accessor: (user: LocalUser) => formatDate(user.lastLogin)
     }
   ];
   
@@ -243,32 +400,29 @@ const UsersPage: React.FC = () => {
             </DashboardButton>
           </div>
           
-          <div className="flex flex-wrap gap-2">
-            <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-            >
-              <option value="all">Todos los roles</option>
-              <option value="Super Admin">Super Admin</option>
-              <option value="Admin">Admin</option>
-              <option value="Editor">Editor</option>
-              <option value="Viewer">Visualizador</option>
-            </select>
-            
-            <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-              value={filterArea}
-              onChange={(e) => setFilterArea(e.target.value)}
-            >
-              <option value="all">Todas las áreas</option>
-              {areaOptions.filter(area => area !== 'all').map(area => (
-                <option key={area} value={area}>{area}</option>
-              ))}
-            </select>
-          </div>
+          {roleFilterOptions.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              <select
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+              >
+                <option value="all">Todos los roles</option>
+                {roleFilterOptions.filter(role => role !== 'all').map(role => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </DashboardCard>
+      
+      {/* Usar el componente ApiErrorHandler */}
+      <ApiErrorHandler 
+        error={error} 
+        onRetry={loadInitialData} 
+        resourceName="los usuarios"
+      />
       
       {/* Tabla de usuarios */}
       <DashboardDataTable
@@ -279,7 +433,8 @@ const UsersPage: React.FC = () => {
         onEdit={handleEditUser}
         onDelete={handleDeleteClick}
         actionColumn={true}
-        emptyMessage="No se encontraron usuarios"
+        emptyMessage={isLoading ? "Cargando usuarios..." : "No se encontraron usuarios"}
+        isLoading={isLoading}
       />
       
       {/* Modal para agregar usuario */}
@@ -293,6 +448,8 @@ const UsersPage: React.FC = () => {
           onSubmit={handleAddSubmit}
           onCancel={() => setIsAddModalOpen(false)}
           isSubmitting={isSubmitting}
+          roles={roles}
+          areas={areas}
         />
       </DashboardModal>
       
@@ -309,11 +466,13 @@ const UsersPage: React.FC = () => {
         {currentUser && (
           <UserForm
             initialData={{
-              name: currentUser.name,
+              // Separar el nombre completo en nombre y apellidos
+              firstName: currentUser.fullName.split(' ')[0] || '',
+              lastName: currentUser.fullName.split(' ').slice(1).join(' ') || '',
               email: currentUser.email,
-              role: currentUser.role,
-              area: currentUser.area,
-              joinDate: currentUser.joinDate
+              // Encontrar los IDs correspondientes
+              roleId: roles.find(r => r.name === currentUser.role)?.id || '',
+              areaId: areas.find(a => a.name === currentUser.area)?.id || ''
             }}
             onSubmit={handleEditSubmit}
             onCancel={() => {
@@ -321,6 +480,9 @@ const UsersPage: React.FC = () => {
               setCurrentUser(null);
             }}
             isSubmitting={isSubmitting}
+            roles={roles}
+            areas={areas}
+            isEditMode={true}
           />
         )}
       </DashboardModal>
@@ -336,7 +498,7 @@ const UsersPage: React.FC = () => {
       >
         <div className="py-3">
           <p className="text-gray-700">
-            ¿Estás seguro de que deseas eliminar al usuario <span className="font-medium">{currentUser?.name}</span>?
+            ¿Estás seguro de que deseas eliminar al usuario <span className="font-medium">{currentUser?.fullName}</span>?
           </p>
           <p className="text-gray-500 text-sm mt-2">
             Esta acción no se puede deshacer.
@@ -356,6 +518,7 @@ const UsersPage: React.FC = () => {
           <DashboardButton
             variant="danger"
             onClick={handleDeleteUser}
+            loading={isSubmitting}
           >
             Eliminar
           </DashboardButton>

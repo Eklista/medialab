@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.models.auth.users import User
@@ -33,15 +33,16 @@ def get_current_user(
             detail="Credenciales inválidas",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    user = db.query(User).filter(User.id == int(token_data.sub)).first()
-    
+
+    # Eager loading de roles para evitar consultas adicionales
+    user = db.query(User).options(joinedload(User.roles)).filter(User.id == int(token_data.sub)).first()
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado"
         )
-    
+
     return user
 
 def get_current_active_user(

@@ -1,11 +1,17 @@
 from typing import List, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from pydantic import BaseModel
+from datetime import datetime
+from sqlalchemy import text, insert
 
 from app.database import get_db
+from datetime import datetime
+from sqlalchemy import text, insert
 from app.models.auth.users import User
+from app.models.auth.roles import Role
+from app.models.organization.areas import Area
 from app.schemas.auth.users import UserCreate, UserUpdate, UserInDB, UserWithRoles
 from app.services.auth_service import create_user, get_user_by_id
 from app.api.deps import get_current_user, get_current_active_superuser, get_current_active_user
@@ -111,9 +117,34 @@ def create_new_user(
     Crea un nuevo usuario (solo para superusuarios)
     """
     try:
-        user_data = user_in.dict()
-        return create_user(db, user_data)
+        # Extraer los datos básicos de usuario
+        user_data = user_in.dict(exclude={"roleId", "areaId"})
+        
+        # Crear el usuario
+        new_user = create_user(db, user_data)
+        
+        # Si se proporcionaron roleId y areaId, asignar el rol
+        if hasattr(user_in, "roleId") and hasattr(user_in, "areaId") and user_in.roleId and user_in.areaId:
+            try:
+                # Añadir entrada en la tabla user_roles
+                db.execute(
+                    insert(user_roles).values(
+                        user_id=new_user.id,
+                        role_id=int(user_in.roleId),
+                        area_id=int(user_in.areaId),
+                        assigned_at=datetime.utcnow()
+                    )
+                )
+                db.commit()
+            except Exception as role_error:
+                # Logear el error pero continuar
+                logger.error(f"Error al asignar rol: {str(role_error)}")
+        
+        # Refrescar el usuario para incluir el rol asignado
+        db.refresh(new_user)
+        return new_user
     except SQLAlchemyError as e:
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al crear usuario: {str(e)}"
@@ -209,4 +240,65 @@ def delete_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al eliminar usuario: {str(e)}"
+        )
+
+@router.post("/{user_id}/roles", status_code=status.HTTP_200_OK)
+def assign_role_to_user(
+    user_id: int,
+    roleId: str = Body(...),
+    areaId: str = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_superuser)
+) -> Any:
+    """
+    Asigna un rol a un usuario (solo para superusuarios)
+    """
+    try:
+        user = get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado"
+            )
+        
+        # Verificar que el rol existe
+        role = db.query(Role).filter(Role.id == int(roleId)).first()
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Rol no encontrado"
+            )
+        
+        # Verificar que el área existe
+        area = db.query(Area).filter(Area.id == int(areaId)).first()
+        if not area:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Área no encontrada"
+            )
+        
+        # Eliminar asignaciones de rol actuales si existen
+        db.execute(
+            text("DELETE FROM user_roles WHERE user_id = :user_id"),
+            {"user_id": user.id}
+        )
+        
+        # Insertar nueva asignación de rol
+        db.execute(
+            insert(user_roles).values(
+                user_id=user.id,
+                role_id=int(roleId),
+                area_id=int(areaId),
+                assigned_at=datetime.utcnow()
+            )
+        )
+        
+        db.commit()
+        
+        return {"message": f"Rol asignado exitosamente al usuario {user.full_name}"}
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al asignar rol: {str(e)}"
         )
