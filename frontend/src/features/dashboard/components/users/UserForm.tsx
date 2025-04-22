@@ -60,7 +60,6 @@ const UserForm: React.FC<UserFormProps> = ({
   // Actualizar el nombre de usuario basado en el email si no está en modo edición
   useEffect(() => {
     if (!isEditMode && formData.email) {
-      // Siempre actualizar el username cuando cambia el email, sin importar si ya hay un valor
       const suggestedUsername = formData.email.split('@')[0];
       setFormData(prev => ({
         ...prev,

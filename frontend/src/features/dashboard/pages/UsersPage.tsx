@@ -90,8 +90,12 @@ const UsersPage: React.FC = () => {
         let roleName = roleNames.join(', ');
         if (!roleName) roleName = 'Sin rol asignado';
         
-        // Intentar encontrar el área del usuario
+        // Obtener el nombre del área del usuario
         let areaName = 'Sin área asignada';
+        if (apiUser.areas && Array.isArray(apiUser.areas) && apiUser.areas.length > 0) {
+          // Tomar la primera área (normalmente un usuario está asignado a una sola área con un rol)
+          areaName = apiUser.areas.map(area => area.name).join(', ');
+        }
         
         // Asegurarnos que firstName y lastName existen
         const firstName = apiUser.firstName || apiUser.first_name || '';

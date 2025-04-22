@@ -1,11 +1,32 @@
 from typing import Dict, Any
 from app.models.auth.users import User
+from sqlalchemy import text
+from app.database import SessionLocal
 
 def transform_user_with_roles(user: User) -> Dict[str, Any]:
     """
     Transforma un objeto usuario de SQLAlchemy en un diccionario
-    con los roles convertidos a strings
+    con los roles convertidos a strings y las áreas asociadas
     """
+    # Obtener información de las áreas asociadas a este usuario
+    db = SessionLocal()
+    try:
+        # Obtener las áreas asociadas a los roles del usuario
+        query = text("""
+            SELECT a.id, a.name 
+            FROM areas a 
+            JOIN user_roles ur ON a.id = ur.area_id 
+            WHERE ur.user_id = :user_id
+        """)
+        result = db.execute(query, {"user_id": user.id}).fetchall()
+        
+        # Crear diccionario de áreas por su ID
+        areas = []
+        if result:
+            areas = [{"id": row[0], "name": row[1]} for row in result]
+    finally:
+        db.close()
+    
     user_dict = {
         "id": user.id,
         "email": user.email,
@@ -20,6 +41,7 @@ def transform_user_with_roles(user: User) -> Dict[str, Any]:
         "last_login": user.last_login,
         "is_active": user.is_active,
         "is_online": user.is_online,
-        "roles": [role.name for role in user.roles]
+        "roles": [role.name for role in user.roles],
+        "areas": areas  # Añadimos la información de áreas
     }
     return user_dict

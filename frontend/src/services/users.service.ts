@@ -16,6 +16,7 @@ export interface User {
   lastLogin?: string;
   last_login?: string;
   roles: string[];
+  areas?: Array<{id: number, name: string}>;
   joinDate?: string;
   join_date?: string;
 }
@@ -82,7 +83,8 @@ class UserService {
       profileImage: apiUser.profileImage || apiUser.profile_image || null,
       isActive: apiUser.isActive !== undefined ? apiUser.isActive : (apiUser.is_active || false),
       lastLogin: apiUser.lastLogin || apiUser.last_login || null,
-      roles: Array.isArray(apiUser.roles) ? apiUser.roles : []
+      roles: Array.isArray(apiUser.roles) ? apiUser.roles : [],
+      areas: Array.isArray(apiUser.areas) ? apiUser.areas : []
     };
   }
   

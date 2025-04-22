@@ -1,8 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 from pydantic import BaseModel, EmailStr, Field
 
-# Esquemas base
+# Esquema base
 class UserBase(BaseModel):
     email: EmailStr
     username: str
@@ -53,6 +53,7 @@ class UserInDB(UserBase):
 # Esquema para respuesta de usuario con roles
 class UserWithRoles(UserInDB):
     roles: List[str] = []
+    areas: List[Dict[str, Any]] = []  # Añadimos las áreas
 
 class PasswordVerify(BaseModel):
     password: str
