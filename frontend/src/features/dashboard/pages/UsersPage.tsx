@@ -165,51 +165,60 @@ const UsersPage: React.FC = () => {
     setError(null);
     
     try {
-      // Preparar los datos para la API usando snake_case para el backend
+      // Preparar los datos para la API
       const userData = {
         email: data.email,
         username: data.username || data.email.split('@')[0],
         password: data.password || 'TemporalPassword123',
-        // Importante: Usar snake_case para que coincida con el backend
-        first_name: data.firstName,
-        last_name: data.lastName,
-        // El backend espera una fecha tipo ISO string en formato YYYY-MM-DD
-        join_date: new Date().toISOString().split('T')[0]
+        firstName: data.firstName,
+        lastName: data.lastName,
+        join_date: new Date().toISOString().split('T')[0],
+        roleId: data.roleId,
+        areaId: data.areaId
       };
       
       console.log('Enviando datos para crear usuario:', userData);
       
-      // 1. Crear el usuario primero
+      // Crear el usuario
       const newApiUser = await userService.createUser(userData);
+      console.log('Usuario creado:', newApiUser);
       
-      // 2. Si tenemos roleId y areaId, asignar el rol al usuario recién creado
+      // Asignar rol si se proporcionaron roleId y areaId
       if (data.roleId && data.areaId) {
         try {
           console.log(`Asignando rol ${data.roleId} y área ${data.areaId} al usuario ${newApiUser.id}`);
           await userService.assignRole(newApiUser.id, data.roleId, data.areaId);
+          console.log("Rol asignado exitosamente");
+          
+          // Recargar todos los usuarios para obtener la información actualizada
+          const updatedUserList = await userService.getUsers();
+          setUsers(updatedUserList.map(user => ({
+            id: user.id.toString(),
+            fullName: `${user.firstName || user.first_name || ''} ${user.lastName || user.last_name || ''}`.trim(),
+            email: user.email || 'Sin email',
+            role: user.roles.join(', ') || 'Sin rol',
+            area: 'Área asignada', // Idealmente esto debería venir de la API
+            isActive: user.isActive || user.is_active || false,
+            lastLogin: user.lastLogin || user.last_login || '-'
+          })));
         } catch (roleError) {
           console.error('Error al asignar rol:', roleError);
-          // Continuamos aunque falle la asignación de rol
         }
+      } else {
+        // Si no hay rol que asignar, solo actualizar la lista con el nuevo usuario
+        const newLocalUser: LocalUser = {
+          id: newApiUser.id.toString(),
+          fullName: `${data.firstName} ${data.lastName}`,
+          email: data.email,
+          role: 'Sin rol',
+          area: 'Sin área',
+          isActive: true,
+          lastLogin: '-'
+        };
+        
+        setUsers([...users, newLocalUser]);
       }
       
-      // Encontrar los nombres del rol y área según sus IDs
-      const roleName = roles.find(r => r.id === data.roleId)?.name || 'Sin rol';
-      const areaName = areas.find(a => a.id === data.areaId)?.name || 'Sin área';
-      
-      // Añadir el nuevo usuario a la lista local
-      const newLocalUser: LocalUser = {
-        id: newApiUser.id.toString(),
-        fullName: `${newApiUser.firstName || newApiUser.first_name || ''} ${newApiUser.lastName || newApiUser.last_name || ''}`.trim(),
-        email: newApiUser.email,
-        role: roleName,
-        area: areaName,
-        isActive: newApiUser.isActive || newApiUser.is_active || true,
-        lastLogin: newApiUser.lastLogin || newApiUser.last_login || '-',
-        profileImage: newApiUser.profileImage || newApiUser.profile_image
-      };
-      
-      setUsers([...users, newLocalUser]);
       setIsAddModalOpen(false);
     } catch (err) {
       console.error('Error al crear usuario:', err);

@@ -100,68 +100,28 @@ class UserService {
   // Crear un nuevo usuario
   async createUser(userData: any): Promise<User> {
     try {
-      // Log de los datos recibidos
       console.log('Datos recibidos en createUser:', userData);
       
-      // Estructura de datos que espera el backend (snake_case)
-      const apiData: any = {};
+      const apiData: any = {
+        email: userData.email,
+        username: userData.username,
+        password: userData.password,
+        first_name: userData.firstName || userData.first_name || '',
+        last_name: userData.lastName || userData.last_name || '',
+        join_date: userData.joinDate || userData.join_date || new Date().toISOString().split('T')[0]
+      };
       
-      // Copiar y convertir campos de camelCase a snake_case si es necesario
-      if (userData.email) apiData.email = userData.email;
-      if (userData.username) apiData.username = userData.username;
-      if (userData.password) apiData.password = userData.password;
-      
-      // Manejar first_name/firstName
-      if (userData.first_name) apiData.first_name = userData.first_name;
-      else if (userData.firstName) apiData.first_name = userData.firstName;
-      
-      // Manejar last_name/lastName
-      if (userData.last_name) apiData.last_name = userData.last_name;
-      else if (userData.lastName) apiData.last_name = userData.lastName;
-      
-      // Manejar join_date/joinDate
-      if (userData.join_date) apiData.join_date = userData.join_date;
-      else if (userData.joinDate) apiData.join_date = userData.joinDate;
-      
-      // Manejar role_id/roleId
-      if (userData.role_id) apiData.role_id = userData.role_id;
-      else if (userData.roleId) apiData.role_id = userData.roleId;
-      
-      // Manejar area_id/areaId
-      if (userData.area_id) apiData.area_id = userData.area_id;
-      else if (userData.areaId) apiData.area_id = userData.areaId;
-      
-      // Comprobar que tenemos todos los campos obligatorios
-      const requiredFields = ['email', 'username', 'password', 'first_name', 'last_name', 'join_date'];
-      const missingFields = requiredFields.filter(field => !apiData[field]);
-      
-      if (missingFields.length > 0) {
-        throw new Error(`Campos obligatorios faltantes: ${missingFields.join(', ')}`);
-      }
+      // Añadir roleId y areaId si existen (enviándolos directamente, sin cambio de nombre)
+      if (userData.roleId) apiData.roleId = userData.roleId;
+      if (userData.areaId) apiData.areaId = userData.areaId;
       
       console.log('Datos enviados a la API:', apiData);
       
-      // Hacer la solicitud al API
       const response = await apiClient.post<User>('/users', apiData);
       return this.normalizeUser(response.data);
-    } catch (error: any) {
+    } catch (error) {
+      // Manejo de errores como lo tenías antes
       console.error('Error al crear usuario:', error);
-      
-      // Manejar errores específicos de validación de la API
-      if (error.response?.data?.detail) {
-        const detailData = error.response.data.detail;
-        if (Array.isArray(detailData)) {
-          const errorMessages = detailData.map((err: any) => {
-            if (typeof err === 'string') return err;
-            if (err.msg) return `${err.loc ? err.loc.join('.') + ': ' : ''}${err.msg}`;
-            return JSON.stringify(err);
-          });
-          throw new Error(errorMessages.join(', '));
-        } else {
-          throw new Error(typeof detailData === 'string' ? detailData : JSON.stringify(detailData));
-        }
-      }
-      
       throw new Error(handleApiError(error));
     }
   }
