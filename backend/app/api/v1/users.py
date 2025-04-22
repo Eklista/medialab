@@ -6,7 +6,8 @@ from datetime import datetime
 from sqlalchemy import text, insert
 
 from app.database import get_db
-from app.models.auth.users import User, user_roles
+from app.models.auth.users import User
+from app.models.associations import user_roles
 from app.models.auth.roles import Role
 from app.models.organization.areas import Area
 from app.schemas.auth.users import UserCreate, UserUpdate, UserInDB, UserWithRoles

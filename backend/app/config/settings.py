@@ -29,11 +29,11 @@ CORS_ORIGINS = [
 ]
 
 # Configuración de correo electrónico
-EMAIL_ENABLED = True
-SMTP_HOST = "smtp.hostinger.com"
-SMTP_PORT = 465
-SMTP_TLS = True
-SMTP_USER = "medialab@byblnk.com"
-SMTP_PASSWORD = "V0rt3x2025*"
-EMAILS_FROM_EMAIL = "medialab@byblnk.com"
-EMAILS_FROM_NAME = "MediaLab Sistema"
+EMAIL_ENABLED = os.getenv("EMAIL_ENABLED") == "True"
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT"))
+SMTP_TLS = os.getenv("SMTP_TLS") == "True"
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+EMAILS_FROM_EMAIL = os.getenv("EMAILS_FROM_EMAIL")
+EMAILS_FROM_NAME = os.getenv("EMAILS_FROM_NAME")
