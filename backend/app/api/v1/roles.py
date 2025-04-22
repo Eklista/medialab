@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
-from app.models.auth.roles import Role
 from app.models.auth.users import User
 from app.schemas.auth.roles import RoleCreate, RoleUpdate, RoleInDB, RoleWithPermissions
+from app.services.role_service import RoleService
+from app.utils.error_handler import ErrorHandler
 from app.api.deps import get_current_active_superuser
 
 router = APIRouter()
@@ -21,8 +22,11 @@ def read_roles(
     """
     Obtiene lista de roles (solo para superusuarios)
     """
-    roles = db.query(Role).offset(skip).limit(limit).all()
-    return roles
+    try:
+        roles = RoleService.get_roles(db=db, skip=skip, limit=limit)
+        return roles
+    except SQLAlchemyError as e:
+        raise ErrorHandler.handle_db_error(e, "obtener", "roles")
 
 @router.post("/", response_model=RoleInDB)
 def create_role(
@@ -34,17 +38,10 @@ def create_role(
     Crea un nuevo rol (solo para superusuarios)
     """
     try:
-        db_role = Role(**role_in.dict())
-        db.add(db_role)
-        db.commit()
-        db.refresh(db_role)
-        return db_role
+        role = RoleService.create_role(db=db, role_data=role_in.dict())
+        return role
     except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al crear rol: {str(e)}"
-        )
+        raise ErrorHandler.handle_db_error(e, "crear", "rol")
 
 @router.get("/{role_id}", response_model=RoleWithPermissions)
 def read_role(
@@ -55,13 +52,11 @@ def read_role(
     """
     Obtiene un rol específico por ID (solo para superusuarios)
     """
-    role = db.query(Role).filter(Role.id == role_id).first()
-    if not role:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Rol no encontrado"
-        )
-    return role
+    try:
+        role = RoleService.get_role_with_permissions(db=db, role_id=role_id)
+        return role
+    except SQLAlchemyError as e:
+        raise ErrorHandler.handle_db_error(e, "obtener", "rol")
 
 @router.patch("/{role_id}", response_model=RoleInDB)
 def update_role(
@@ -74,25 +69,14 @@ def update_role(
     Actualiza un rol existente (solo para superusuarios)
     """
     try:
-        role = db.query(Role).filter(Role.id == role_id).first()
-        if not role:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Rol no encontrado"
-            )
-        
-        for field, value in role_in.dict(exclude_unset=True).items():
-            setattr(role, field, value)
-        
-        db.commit()
-        db.refresh(role)
+        role = RoleService.update_role(
+            db=db,
+            role_id=role_id,
+            role_data=role_in.dict(exclude_unset=True)
+        )
         return role
     except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al actualizar rol: {str(e)}"
-        )
+        raise ErrorHandler.handle_db_error(e, "actualizar", "rol")
 
 @router.delete("/{role_id}", response_model=RoleInDB)
 def delete_role(
@@ -104,19 +88,34 @@ def delete_role(
     Elimina un rol (solo para superusuarios)
     """
     try:
-        role = db.query(Role).filter(Role.id == role_id).first()
-        if not role:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Rol no encontrado"
-            )
-        
-        db.delete(role)
-        db.commit()
+        role = RoleService.delete_role(db=db, role_id=role_id)
         return role
     except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al eliminar rol: {str(e)}"
+        raise ErrorHandler.handle_db_error(e, "eliminar", "rol")
+
+@router.post("/{role_id}/permissions", status_code=status.HTTP_200_OK)
+def assign_permissions_to_role(
+    role_id: int,
+    permission_ids: List[int],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_superuser)
+) -> Any:
+    """
+    Asigna permisos a un rol (solo para superusuarios)
+    """
+    try:
+        success = RoleService.assign_permissions(
+            db=db,
+            role_id=role_id,
+            permission_ids=permission_ids
         )
+        
+        if success:
+            return {"message": "Permisos asignados exitosamente"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al asignar permisos"
+            )
+    except SQLAlchemyError as e:
+        raise ErrorHandler.handle_db_error(e, "asignar permisos a", "rol")

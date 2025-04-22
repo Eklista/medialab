@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
-from app.models.organization.areas import Area
 from app.models.auth.users import User
 from app.schemas.organization.areas import AreaCreate, AreaUpdate, AreaInDB
+from app.services.area_service import AreaService
+from app.utils.error_handler import ErrorHandler
 from app.api.deps import get_current_active_superuser, get_current_active_user
 
 router = APIRouter()
@@ -21,8 +22,11 @@ def read_areas(
     """
     Obtiene lista de áreas (solo para usuarios autenticados)
     """
-    areas = db.query(Area).offset(skip).limit(limit).all()
-    return areas
+    try:
+        areas = AreaService.get_areas(db=db, skip=skip, limit=limit)
+        return areas
+    except SQLAlchemyError as e:
+        raise ErrorHandler.handle_db_error(e, "obtener", "áreas")
 
 @router.post("/", response_model=AreaInDB)
 def create_area(
@@ -34,17 +38,10 @@ def create_area(
     Crea una nueva área (solo para superusuarios)
     """
     try:
-        db_area = Area(**area_in.dict())
-        db.add(db_area)
-        db.commit()
-        db.refresh(db_area)
-        return db_area
+        area = AreaService.create_area(db=db, area_data=area_in.dict())
+        return area
     except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al crear área: {str(e)}"
-        )
+        raise ErrorHandler.handle_db_error(e, "crear", "área")
 
 @router.get("/{area_id}", response_model=AreaInDB)
 def read_area(
@@ -55,13 +52,11 @@ def read_area(
     """
     Obtiene un área específica por ID (solo para usuarios autenticados)
     """
-    area = db.query(Area).filter(Area.id == area_id).first()
-    if not area:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Área no encontrada"
-        )
-    return area
+    try:
+        area = AreaService.get_area_by_id(db=db, area_id=area_id)
+        return area
+    except SQLAlchemyError as e:
+        raise ErrorHandler.handle_db_error(e, "obtener", "área")
 
 @router.patch("/{area_id}", response_model=AreaInDB)
 def update_area(
@@ -74,25 +69,14 @@ def update_area(
     Actualiza un área existente (solo para superusuarios)
     """
     try:
-        area = db.query(Area).filter(Area.id == area_id).first()
-        if not area:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Área no encontrada"
-            )
-        
-        for field, value in area_in.dict(exclude_unset=True).items():
-            setattr(area, field, value)
-        
-        db.commit()
-        db.refresh(area)
+        area = AreaService.update_area(
+            db=db,
+            area_id=area_id,
+            area_data=area_in.dict(exclude_unset=True)
+        )
         return area
     except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al actualizar área: {str(e)}"
-        )
+        raise ErrorHandler.handle_db_error(e, "actualizar", "área")
 
 @router.delete("/{area_id}", response_model=AreaInDB)
 def delete_area(
@@ -104,19 +88,7 @@ def delete_area(
     Elimina un área (solo para superusuarios)
     """
     try:
-        area = db.query(Area).filter(Area.id == area_id).first()
-        if not area:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Área no encontrada"
-            )
-        
-        db.delete(area)
-        db.commit()
+        area = AreaService.delete_area(db=db, area_id=area_id)
         return area
     except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al eliminar área: {str(e)}"
-        )
+        raise ErrorHandler.handle_db_error(e, "eliminar", "área")

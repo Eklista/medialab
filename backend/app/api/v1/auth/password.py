@@ -1,16 +1,14 @@
-from datetime import datetime, timedelta
-import secrets
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.services.auth_service import get_user_by_email, get_password_hash
+from app.services.auth_service import AuthService
+from app.services.user_service import UserService
 from app.models.auth.users import User
 from app.schemas.auth.users import UserPasswordChange
 from app.api.deps import get_current_user
-from app.config.security import verify_password
 
 router = APIRouter()
 
@@ -22,24 +20,17 @@ def forgot_password(
     """
     Envía un token de recuperación de contraseña
     """
-    user = get_user_by_email(db, email)
+    result = AuthService.generate_password_reset_token(db, email)
     
     # Siempre responder positivamente para evitar enumeración de usuarios
-    if not user or not user.is_active:
-        return {"message": "Si el correo existe, recibirás instrucciones para restablecer tu contraseña"}
+    # El email solo se enviará si existe el usuario y está activo
     
-    # Generar token de recuperación
-    reset_token = secrets.token_urlsafe(32)
-    reset_token_expires = datetime.utcnow() + timedelta(hours=24)
-    
-    # Guardar token en BD
-    user.reset_token = reset_token
-    user.reset_token_expires = reset_token_expires
-    db.commit()
-    
-    # Aquí se enviaría el email (simulado por ahora)
-    reset_url = f"/reset-password/{reset_token}"
-    print(f"URL de recuperación para {email}: {reset_url}")
+    # Aquí normalmente enviaríamos un email con el enlace de recuperación
+    if result:
+        # Simulado por ahora, en un entorno real enviaríamos un email
+        # usando un servicio de email
+        reset_url = f"/reset-password/{result['reset_token']}"
+        print(f"URL de recuperación para {result['email']}: {reset_url}")
     
     return {"message": "Si el correo existe, recibirás instrucciones para restablecer tu contraseña"}
 
@@ -52,28 +43,17 @@ def reset_password(
     """
     Restablece la contraseña mediante token
     """
-    user = db.query(User).filter(User.reset_token == token).first()
+    result = AuthService.reset_password(db, token, new_password)
     
-    if not user or not user.is_active:
+    if result:
+        return {"message": "Contraseña restablecida exitosamente"}
+    else:
+        # Este caso no debería ocurrir ya que la función reset_password lanza excepciones
+        # en caso de error, pero lo incluimos por completitud
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token de recuperación inválido"
+            detail="Error al restablecer la contraseña"
         )
-    
-    # Verificar que el token no haya expirado
-    if not user.reset_token_expires or user.reset_token_expires < datetime.utcnow():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token de recuperación expirado"
-        )
-    
-    # Actualizar contraseña
-    user.password_hash = get_password_hash(new_password)
-    user.reset_token = None
-    user.reset_token_expires = None
-    db.commit()
-    
-    return {"message": "Contraseña restablecida exitosamente"}
 
 @router.post("/change-password")
 def change_password(
@@ -84,15 +64,19 @@ def change_password(
     """
     Cambia la contraseña del usuario autenticado
     """
-    # Verificar contraseña actual
-    if not verify_password(password_data.current_password, current_user.password_hash):
+    result = UserService.change_password(
+        db=db, 
+        user_id=current_user.id,
+        current_password=password_data.current_password,
+        new_password=password_data.new_password
+    )
+    
+    if result:
+        return {"message": "Contraseña actualizada exitosamente"}
+    else:
+        # Este caso no debería ocurrir ya que la función change_password lanza excepciones
+        # en caso de error, pero lo incluimos por completitud
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Contraseña actual incorrecta"
+            detail="Error al cambiar la contraseña"
         )
-    
-    # Actualizar contraseña
-    current_user.password_hash = get_password_hash(password_data.new_password)
-    db.commit()
-    
-    return {"message": "Contraseña actualizada exitosamente"}

@@ -1,5 +1,4 @@
 # app/api/v1/auth/login.py
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,12 +7,10 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.services.auth_service import authenticate_user, create_tokens, update_user_login
+from app.services.auth_service import AuthService
 from app.schemas.auth.token import Token
-from app.schemas.auth.users import PasswordVerify
-from app.models.auth.users import User
-from app.config.security import verify_password
 from app.api.deps import get_current_user
+from app.models.auth.users import User
 
 
 # Definir esquema para verificación de contraseña
@@ -30,7 +27,7 @@ def login_access_token(
     """
     Obtiene un token de acceso mediante OAuth2 password flow
     """
-    user = authenticate_user(db, form_data.username, form_data.password)
+    user = AuthService.authenticate_user(db, form_data.username, form_data.password)
    
     if not user:
         raise HTTPException(
@@ -46,10 +43,10 @@ def login_access_token(
         )
    
     # Actualizar último acceso
-    update_user_login(db, user)
+    AuthService.update_user_login(db, user)
    
     # Generar tokens
-    tokens = create_tokens(user.id)
+    tokens = AuthService.create_tokens(user.id)
    
     return tokens
 
@@ -62,7 +59,9 @@ def verify_password_endpoint(
     """
     Verifica si la contraseña del usuario es correcta
     """
-    is_valid = verify_password(password_data.password, current_user.password_hash)
+    from app.services.user_service import UserService
+    
+    is_valid = UserService.verify_password(db, current_user.id, password_data.password)
    
     if not is_valid:
         raise HTTPException(

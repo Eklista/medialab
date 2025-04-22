@@ -2,14 +2,12 @@ from typing import Generator, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
-from pydantic import ValidationError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.auth.users import User
-from app.config.settings import SECRET_KEY, ALGORITHM
-from app.schemas.auth.token import TokenPayload
+from app.services.auth_service import AuthService
+from app.utils.error_handler import ErrorHandler
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"/api/v1/auth/login"
@@ -23,27 +21,19 @@ def get_current_user(
     Valida el token y retorna el usuario actual
     """
     try:
-        payload = jwt.decode(
-            token, SECRET_KEY, algorithms=[ALGORITHM]
-        )
-        token_data = TokenPayload(**payload)
-    except (JWTError, ValidationError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Eager loading de roles para evitar consultas adicionales
-    user = db.query(User).options(joinedload(User.roles)).filter(User.id == int(token_data.sub)).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-
-    return user
+        # Verificar token usando el servicio de autenticación
+        token_data = AuthService.verify_token(token)
+        
+        # Obtener usuario con roles
+        from app.repositories.user_repository import UserRepository
+        user = UserRepository.get_with_roles(db, int(token_data.sub))
+        
+        if not user:
+            raise ErrorHandler.handle_not_found_error(entity="Usuario")
+            
+        return user
+    except Exception as e:
+        raise ErrorHandler.handle_authentication_error(e)
 
 def get_current_active_user(
     current_user: User = Depends(get_current_user),
@@ -68,8 +58,6 @@ def get_current_active_superuser(
     is_superuser = any(role.name == "ADMIN" for role in current_user.roles)
     
     if not is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Permisos insuficientes"
-        )
+        raise ErrorHandler.handle_permission_error()
+        
     return current_user
