@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 
 // Determinar la URL base según el entorno
-const getBaseUrl = () => {
+export const getBaseUrl = () => {
   return import.meta.env.MODE === 'production' 
     ? 'https://medialab.onrender.com/api/v1'  // URL de producción en Render
     : 'http://localhost:8000/api/v1';         // URL de desarrollo local
@@ -53,7 +53,7 @@ apiClient.interceptors.response.use(
           return Promise.reject(error);
         }
         
-        // Llamada a refresh token
+        // Llamada a refresh token - usar apiClient en lugar de axios
         const response = await apiClient.post('/auth/refresh-token', {
           refresh_token: refreshToken
         });

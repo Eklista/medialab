@@ -1,4 +1,4 @@
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError, getBaseUrl } from './api';
 
 // Interfaz para representar un usuario en la aplicación
 export interface User {
@@ -62,6 +62,7 @@ class UserService {
   // Obtener todos los usuarios
   async getUsers(): Promise<User[]> {
     try {
+      console.log('Obteniendo usuarios desde:', `${getBaseUrl()}/users`);
       const response = await apiClient.get<User[]>('/users');
       
       // Asegurarse de que los usuarios tienen un formato consistente

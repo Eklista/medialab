@@ -1,4 +1,4 @@
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError, getBaseUrl } from './api';
 import axios from 'axios';
 
 export interface LoginRequest {
@@ -50,15 +50,16 @@ class AuthService {
   async login(credentials: LoginRequest): Promise<User> {
     try {
       console.log('Intentando login con:', credentials.email);
+      console.log('URL de login:', `${getBaseUrl()}/auth/login`);
       
       // IMPORTANTE: FastAPI OAuth2 espera exactamente este formato
       const formData = new FormData();
       formData.append('username', credentials.email);
       formData.append('password', credentials.password);
       
-      // Usar Axios directamente para evitar interceptores que puedan causar problemas
-      const response = await axios.post<TokenResponse>(
-        'http://localhost:8000/api/v1/auth/login', 
+      // Usar apiClient en lugar de axios directo
+      const response = await apiClient.post<TokenResponse>(
+        '/auth/login', 
         formData
       );
       
