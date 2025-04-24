@@ -31,5 +31,5 @@ app.add_middleware(
 app.include_router(api_router, prefix=API_V1_PREFIX)
 
 @app.get("/")
-def read_root():
-    return {"message": "Bienvenido a la API de MediaLab"}
+def root():
+    return {"message": "API funcionando. Accede a la documentación en " + API_V1_PREFIX + "/docs"}

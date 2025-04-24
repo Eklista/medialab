@@ -17,6 +17,7 @@ import {
   SettingsPage,
   UserProfilePage
 } from './features/dashboard'
+import RequestDetailsPage from './features/dashboard/pages/RequestDetailsPage'
 import './styles/global.css'
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
           <Route path="/dashboard/courses" element={<CoursesPage />} />
           <Route path="/dashboard/podcast" element={<PodcastPage />} />
           <Route path="/dashboard/requests" element={<RequestsPage />} />
+          <Route path="/dashboard/requests/:id" element={<RequestDetailsPage />} />
           <Route path="/dashboard/users" element={<UsersPage />} />
           <Route path="/dashboard/app-settings/*" element={<AppSettingsPage />} />
           <Route path="/dashboard/settings" element={<SettingsPage />} />

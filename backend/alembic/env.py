@@ -9,8 +9,9 @@ from app.config.settings import DATABASE_URL
 from app.models.base import Base
 
 # Importar todos los modelos aquí para que Alembic los reconozca
-from app.models.auth.users import User, user_roles
-from app.models.auth.roles import Role, role_permissions
+from app.models.auth.users import User
+from app.models.auth.associations import user_roles, role_permissions
+from app.models.auth.roles import Role
 from app.models.auth.permissions import Permission
 from app.models.organization.areas import Area
 

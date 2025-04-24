@@ -1,8 +1,16 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 
+// Determinar la URL base según el entorno
+const getBaseUrl = () => {
+  // En producción usar la URL de Render, en desarrollo usar localhost
+  return import.meta.env.MODE === 'production' 
+    ? 'https://medialab.onrender.com/api/v1'  // URL de producción
+    : 'http://localhost:8000/api/v1';
+};
+
 // Crear instancia de Axios
 const apiClient: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8000/api/v1',
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -46,7 +54,7 @@ apiClient.interceptors.response.use(
         }
         
         // Llamada a refresh token
-        const response = await axios.post('/auth/refresh-token', {
+        const response = await axios.post(getBaseUrl() + '/auth/refresh-token', {
           refresh_token: refreshToken
         });
         

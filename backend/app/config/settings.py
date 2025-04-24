@@ -26,6 +26,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 CORS_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
+    "https://medialab.vercel.app"
 ]
 
 # Configuración de correo electrónico

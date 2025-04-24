@@ -23,7 +23,10 @@ export interface DashboardDataTableProps<T> {
     currentPage: number;
     totalPages: number;
     onPageChange: (page: number) => void;
+    itemsPerPage: number;
+    totalItems: number;
   };
+  renderActions?: (item: T) => React.ReactNode;
 }
 
 function DashboardDataTable<T>({
@@ -38,6 +41,7 @@ function DashboardDataTable<T>({
   className = '',
   isLoading = false,
   pagination,
+  renderActions,
 }: DashboardDataTableProps<T>) {
   const renderCellContent = (item: T, column: Column<T>) => {
     if (typeof column.accessor === 'function') {
@@ -74,20 +78,16 @@ function DashboardDataTable<T>({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {Array.from({ length: 5 }).map((_, rowIndex) => (
-              <tr key={rowIndex} className="animate-pulse">
+            {Array.from({ length: 3 }).map((_, rowIndex) => (
+              <tr key={rowIndex}>
                 {columns.map((_, colIndex) => (
                   <td key={colIndex} className="px-6 py-4 whitespace-nowrap">
-                    <div className="h-4 bg-gray-200 rounded w-full max-w-xs"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-full max-w-xs"></div>
                   </td>
                 ))}
                 {actionColumn && (
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="flex justify-end space-x-2">
-                      {onView && <div className="h-8 w-16 bg-gray-200 rounded"></div>}
-                      {onEdit && <div className="h-8 w-16 bg-gray-200 rounded"></div>}
-                      {onDelete && <div className="h-8 w-16 bg-gray-200 rounded"></div>}
-                    </div>
+                    <div className="h-8 bg-gray-200 rounded animate-pulse w-20 ml-auto"></div>
                   </td>
                 )}
               </tr>
@@ -99,118 +99,123 @@ function DashboardDataTable<T>({
   }
   
   // No data
-  if (!isLoading && data.length === 0) {
+  if (data.length === 0) {
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 p-8 text-center ${className}`}>
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-        </svg>
-        <p className="text-gray-500 text-lg">{emptyMessage}</p>
+      <div className={`bg-white rounded-lg border border-gray-200 p-6 text-center ${className}`}>
+        <p className="text-gray-500">{emptyMessage}</p>
       </div>
     );
   }
   
   return (
-    <div className={`overflow-hidden bg-white rounded-lg border border-gray-200 ${className}`}>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
+    <div className={`overflow-x-auto bg-white rounded-lg border border-gray-200 ${className}`}>
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            {columns.map((column, index) => (
+              <th
+                key={index}
+                scope="col"
+                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.className || ''}`}
+              >
+                {column.header}
+              </th>
+            ))}
+            {actionColumn && (
+              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Acciones
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {data.map((item) => (
+            <tr key={keyExtractor(item)}>
               {columns.map((column, index) => (
-                <th
+                <td 
                   key={index}
-                  scope="col"
-                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.className || ''}`}
+                  className={`px-6 py-4 whitespace-nowrap ${column.className || ''}`}
                 >
-                  {column.header}
-                </th>
+                  {renderCellContent(item, column)}
+                </td>
               ))}
               {actionColumn && (
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  {/* Custom actions if provided */}
+                  {renderActions && renderActions(item)}
+                  
+                  {/* Default actions */}
+                  {onView && (
+                    <DashboardButton
+                      variant="text"
+                      size="sm"
+                      onClick={() => onView(item)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Ver
+                    </DashboardButton>
+                  )}
+                  {onEdit && (
+                    <DashboardButton
+                      variant="text"
+                      size="sm"
+                      onClick={() => onEdit(item)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Editar
+                    </DashboardButton>
+                  )}
+                  {onDelete && (
+                    <DashboardButton
+                      variant="text"
+                      size="sm"
+                      onClick={() => onDelete(item)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Eliminar
+                    </DashboardButton>
+                  )}
+                </td>
               )}
             </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data.map((item) => (
-              <tr key={keyExtractor(item)} className="hover:bg-gray-50">
-                {columns.map((column, index) => (
-                  <td 
-                    key={index}
-                    className={`px-6 py-4 whitespace-nowrap ${column.className || ''}`}
-                  >
-                    {renderCellContent(item, column)}
-                  </td>
-                ))}
-                {actionColumn && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
-                      {onView && (
-                        <DashboardButton
-                          variant="text"
-                          size="sm"
-                          onClick={() => onView(item)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Ver
-                        </DashboardButton>
-                      )}
-                      {onEdit && (
-                        <DashboardButton
-                          variant="text"
-                          size="sm"
-                          onClick={() => onEdit(item)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Editar
-                        </DashboardButton>
-                      )}
-                      {onDelete && (
-                        <DashboardButton
-                          variant="text"
-                          size="sm"
-                          onClick={() => onDelete(item)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Eliminar
-                        </DashboardButton>
-                      )}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
       
       {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
+      {pagination && (
         <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
           <div>
             <p className="text-sm text-gray-700">
-              Página <span className="font-medium">{pagination.currentPage}</span> de{' '}
-              <span className="font-medium">{pagination.totalPages}</span>
+              Mostrando <span className="font-medium">{pagination.itemsPerPage}</span> de{' '}
+              <span className="font-medium">{pagination.totalItems}</span> registros
             </p>
           </div>
-          <div className="flex space-x-2">
-            <DashboardButton
-              variant="outline"
-              size="sm"
-              onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
-              disabled={pagination.currentPage <= 1}
-            >
-              Anterior
-            </DashboardButton>
-            <DashboardButton
-              variant="outline"
-              size="sm"
-              onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
-              disabled={pagination.currentPage >= pagination.totalPages}
-            >
-              Siguiente
-            </DashboardButton>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-700">
+              Página <span className="font-medium">{pagination.currentPage}</span> de{' '}
+              <span className="font-medium">{pagination.totalPages}</span>
+            </span>
+            <div className="flex space-x-2">
+              <DashboardButton
+                variant="outline"
+                size="sm"
+                onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage <= 1}
+                className="disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </DashboardButton>
+              <DashboardButton
+                variant="outline"
+                size="sm"
+                onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage >= pagination.totalPages}
+                className="disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </DashboardButton>
+            </div>
           </div>
         </div>
       )}
