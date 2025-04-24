@@ -50,18 +50,22 @@ class AuthService {
   async login(credentials: LoginRequest): Promise<User> {
     try {
       console.log('Intentando login con:', credentials.email);
-      console.log('URL de login:', `${getBaseUrl()}/auth/login`);
       
-      // IMPORTANTE: FastAPI OAuth2 espera exactamente este formato
-      const formData = new FormData();
+      // Necesitamos enviar los datos en formato x-www-form-urlencoded
+      const formData = new URLSearchParams();
       formData.append('username', credentials.email);
       formData.append('password', credentials.password);
       
-      // Usar apiClient en lugar de axios directo
-      const response = await apiClient.post<TokenResponse>(
-        '/auth/login', 
-        formData
-      );
+      // Usa axios directamente pero con la URL correcta y headers adecuados
+      const response = await axios.post<TokenResponse>(
+        `${getBaseUrl()}/auth/login`,
+        formData.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );  
       
       console.log('Login exitoso, respuesta:', response.data);
       
