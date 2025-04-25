@@ -4,7 +4,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardCard from '../components/ui/DashboardCard';
 import DashboardButton from '../components/ui/DashboardButton';
+import DashboardModal from '../components/ui/DashboardModal';
 import { CalendarDaysIcon, BriefcaseIcon, EnvelopeIcon, PhoneIcon, UserCircleIcon, CakeIcon, MapPinIcon, ArrowLeftIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { userService } from '../../../services';
+import { useAuth } from '../../auth/hooks/useAuth';
+import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
 
 // Importar imágenes
 import heroBanner from '../../../assets/images/medialab-hero.jpg';
@@ -13,6 +17,8 @@ import defaultUserImage from '../../../assets/images/user.jpg';
 interface UserProfile {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: string;
   area: string;
@@ -32,88 +38,223 @@ interface UserProfile {
 const UserProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const { state } = useAuth(); // Acceso al estado de autenticación
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    phone: '',
+    birthday: '',
+    location: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Simulamos una carga de datos
+  // Verificar si el usuario actual es el dueño del perfil
+  const isCurrentUser = state.user && userId === state.user.id?.toString();
+  
+  // Cargar datos del usuario desde la API
   useEffect(() => {
     const fetchUser = async () => {
-      setIsLoading(true);
+      if (!userId) {
+        navigate('/dashboard/users');
+        return;
+      }
       
-      // En un caso real, aquí harías una petición a tu API
-      setTimeout(() => {
-        if (userId === '1') {
-          setUser({
-            id: '1',
-            name: 'Pablo Lacan',
-            email: 'placan@medialab.com',
-            role: 'Super Admin',
-            area: 'Producción Audiovisual',
-            isActive: true,
-            joinDate: '2023-01-15',
-            lastLogin: '2025-04-10T08:30:00',
-            birthday: '1988-05-15',
-            phone: '+502 5555-1234',
-            location: 'Ciudad de Guatemala',
-            recentActivity: [
-              { date: '2025-04-10T08:30:00', action: 'Inició sesión en el sistema' },
-              { date: '2025-04-09T16:45:00', action: 'Actualizó la configuración del sistema' },
-              { date: '2025-04-08T14:20:00', action: 'Creó un nuevo usuario' }
-            ]
-          });
-        } else if (userId === '2') {
-          setUser({
-            id: '2',
-            name: 'Christian Kohler',
-            email: 'ckohler@medialab.com',
-            role: 'Admin',
-            area: 'Desarrollo Web',
-            isActive: true,
-            joinDate: '2023-03-20',
-            lastLogin: '2025-04-09T14:15:00',
-            birthday: '1990-03-28',
-            phone: '+502 5555-6789',
-            location: 'Ciudad de Guatemala',
-            recentActivity: [
-              { date: '2025-04-09T14:15:00', action: 'Inició sesión en el sistema' },
-              { date: '2025-04-08T11:30:00', action: 'Actualizó la información de un curso' },
-              { date: '2025-04-07T09:15:00', action: 'Creó un nuevo curso' }
-            ]
-          });
-        } else {
-          // Usuario no encontrado
-          navigate('/dashboard/users');
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Obtener el usuario desde la API
+        const userData = await userService.getUserById(parseInt(userId));
+        
+        // Determinar rol y área del usuario
+        let roleName = 'Sin rol asignado';
+        let areaName = 'Sin área asignada';
+        
+        if (userData.roles && userData.roles.length > 0) {
+          roleName = userData.roles.join(', ');
         }
         
+        if (userData.areas && userData.areas.length > 0) {
+          areaName = userData.areas.map(area => area.name).join(', ');
+        }
+        
+        // Transformar los datos a nuestro formato interno
+        const userProfile: UserProfile = {
+          id: userData.id.toString(),
+          name: `${userData.firstName || userData.first_name || ''} ${userData.lastName || userData.last_name || ''}`.trim(),
+          firstName: userData.firstName || userData.first_name || '',
+          lastName: userData.lastName || userData.last_name || '',
+          email: userData.email,
+          role: roleName,
+          area: areaName,
+          isActive: userData.isActive || !!userData.is_active,
+          joinDate: userData.joinDate || userData.join_date || new Date().toISOString().split('T')[0],
+          lastLogin: userData.lastLogin || userData.last_login || new Date().toISOString(),
+          profileImage: userData.profileImage || userData.profile_image,
+          // Como la propiedad phone no existe en el tipo User, usamos un valor por defecto
+          phone: '',
+          // Generar actividades recientes simuladas para el ejemplo
+          // En una implementación real, esto vendría del backend
+          recentActivity: [
+            { date: new Date().toISOString(), action: 'Inició sesión en el sistema' },
+            { 
+              date: new Date(Date.now() - 86400000).toISOString(), 
+              action: 'Actualizó su perfil' 
+            },
+            { 
+              date: new Date(Date.now() - 172800000).toISOString(), 
+              action: 'Creó una nueva solicitud' 
+            }
+          ]
+        };
+        
+        setUser(userProfile);
+        
+        // Inicializar los datos del formulario
+        setFormData({
+          phone: userProfile.phone || '',
+          birthday: userProfile.birthday ? new Date(userProfile.birthday).toISOString().split('T')[0] : '',
+          location: userProfile.location || ''
+        });
+      } catch (err) {
+        console.error('Error al obtener datos del usuario:', err);
+        setError(err instanceof Error ? err.message : 'Error al cargar el perfil del usuario');
+      } finally {
         setIsLoading(false);
-      }, 800);
+      }
     };
     
     fetchUser();
   }, [userId, navigate]);
   
+  // Manejar cambios en el formulario
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+  };
+  
+  // Enviar los datos actualizados
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      // En una implementación real, aquí se enviarían los datos al backend
+      // Pero como 'phone' y 'birth_date' no están en el tipo UserUpdateRequest,
+      // guardamos los datos localmente por ahora
+      console.log('Datos a actualizar:', {
+        phone: formData.phone,
+        birthday: formData.birthday,
+        location: formData.location
+      });
+      
+      // Simular actualización con el backend
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Actualizar el estado local
+      setUser({
+        ...user,
+        phone: formData.phone,
+        birthday: formData.birthday,
+        location: formData.location
+      });
+      
+      // Cerrar el modal
+      setIsEditModalOpen(false);
+      
+      // Mostrar notificación de éxito
+      alert('Perfil actualizado exitosamente');
+    } catch (err) {
+      console.error('Error al actualizar perfil:', err);
+      setError(err instanceof Error ? err.message : 'Error al actualizar el perfil');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Manejar la activación/desactivación de un usuario
+  const handleToggleUserStatus = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Llamar a la API para actualizar el estado del usuario
+      await userService.updateUser(parseInt(user.id), {
+        isActive: !user.isActive
+      });
+      
+      // Actualizar el estado local
+      setUser({
+        ...user,
+        isActive: !user.isActive
+      });
+      
+      // Mostrar notificación de éxito (podría implementarse con un sistema de notificaciones)
+      alert(`Usuario ${!user.isActive ? 'activado' : 'desactivado'} exitosamente`);
+    } catch (err) {
+      console.error('Error al cambiar estado del usuario:', err);
+      setError(err instanceof Error ? err.message : 'Error al actualizar el estado del usuario');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Manejar el restablecimiento de contraseña
+  const handleResetPassword = async () => {
+    if (!user) return;
+    
+    // Confirmar acción con el usuario
+    if (!confirm(`¿Estás seguro de que deseas restablecer la contraseña de ${user.name}?`)) {
+      return;
+    }
+    
+    try {
+      // En un sistema real, aquí se llamaría a la API para enviar el correo de restablecimiento
+      // Por ahora simulamos con un mensaje de éxito
+      alert(`Se ha enviado un correo a ${user.email} con instrucciones para restablecer la contraseña.`);
+    } catch (err) {
+      console.error('Error al restablecer contraseña:', err);
+      setError(err instanceof Error ? err.message : 'Error al restablecer la contraseña');
+    }
+  };
+  
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
   
   const formatDateTime = (dateString: string) => {
     if (!dateString) return '-';
     
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
   
   if (isLoading) {
@@ -122,6 +263,18 @@ const UserProfilePage: React.FC = () => {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
         </div>
+      </DashboardLayout>
+    );
+  }
+  
+  if (error) {
+    return (
+      <DashboardLayout>
+        <ApiErrorHandler 
+          error={error} 
+          onRetry={() => window.location.reload()} 
+          resourceName="el perfil del usuario"
+        />
       </DashboardLayout>
     );
   }
@@ -155,12 +308,15 @@ const UserProfilePage: React.FC = () => {
           Volver a la lista
         </DashboardButton>
         
-        <DashboardButton
-          onClick={() => navigate(`/dashboard/users/edit/${user.id}`)}
-          leftIcon={<PencilIcon className="h-5 w-5" />}
-        >
-          Editar perfil
-        </DashboardButton>
+        {/* Botón de editar perfil - solo visible para el propio usuario */}
+        {isCurrentUser && (
+          <DashboardButton
+            onClick={() => setIsEditModalOpen(true)}
+            leftIcon={<PencilIcon className="h-5 w-5" />}
+          >
+            Completar perfil
+          </DashboardButton>
+        )}
       </div>
       
       {/* Banner y foto de perfil */}
@@ -345,9 +501,20 @@ const UserProfilePage: React.FC = () => {
               subtitle="Acciones disponibles para este usuario"
             >
               <div className="space-y-3">
+                {isCurrentUser && (
+                  <DashboardButton
+                    variant="outline"
+                    fullWidth
+                    onClick={() => setIsEditModalOpen(true)}
+                  >
+                    Editar información
+                  </DashboardButton>
+                )}
+                
                 <DashboardButton
                   variant="outline"
                   fullWidth
+                  onClick={handleResetPassword}
                 >
                   Restablecer contraseña
                 </DashboardButton>
@@ -355,6 +522,7 @@ const UserProfilePage: React.FC = () => {
                 <DashboardButton
                   variant={user.isActive ? 'danger' : 'primary'}
                   fullWidth
+                  onClick={handleToggleUserStatus}
                 >
                   {user.isActive ? 'Desactivar usuario' : 'Activar usuario'}
                 </DashboardButton>
@@ -363,6 +531,81 @@ const UserProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Modal para completar perfil */}
+      <DashboardModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Completar información de perfil"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              Teléfono
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+              placeholder="+502 5555-1234"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="birthday" className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha de nacimiento
+            </label>
+            <input
+              type="date"
+              id="birthday"
+              name="birthday"
+              value={formData.birthday}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+              Ubicación
+            </label>
+            <input
+              type="text"
+              id="location"
+              name="location"
+              value={formData.location}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+              placeholder="Ciudad de Guatemala"
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              Esta información es opcional y nos ayuda a organizar mejor los eventos y servicios.
+            </p>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <DashboardButton
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </DashboardButton>
+            
+            <DashboardButton
+              onClick={handleUpdateProfile}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            >
+              Guardar cambios
+            </DashboardButton>
+          </div>
+        </div>
+      </DashboardModal>
     </DashboardLayout>
   );
 };

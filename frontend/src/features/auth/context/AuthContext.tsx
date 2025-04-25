@@ -90,6 +90,53 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 // Crear el contexto
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Función para procesar y normalizar los datos del usuario
+const processUserData = (userData: any): User => {
+  console.log('Datos de usuario recibidos:', userData);
+  
+  // Extraer nombre y apellido de forma más robusta
+  let firstName = '';
+  let lastName = '';
+  
+  // Si hay campos firstName/lastName directamente, usarlos
+  if (userData.firstName || userData.first_name) {
+    firstName = userData.firstName || userData.first_name;
+  }
+  
+  if (userData.lastName || userData.last_name) {
+    lastName = userData.lastName || userData.last_name;
+  }
+  
+  // Si no hay firstName/lastName pero hay name, dividirlo
+  if ((!firstName || !lastName) && userData.name) {
+    const nameParts = userData.name.split(' ');
+    if (!firstName) firstName = nameParts[0] || '';
+    if (!lastName) lastName = nameParts.slice(1).join(' ') || '';
+  }
+  
+  // Si aún no hay firstName/lastName, intentar extraer del email
+  if (!firstName && userData.email) {
+    firstName = userData.email.split('@')[0];
+  }
+  
+  // Asegurar que role esté correctamente asignado
+  const role = Array.isArray(userData.roles) && userData.roles.includes('ADMIN') 
+    ? UserRole.ADMIN 
+    : UserRole.USER;
+  
+  // Construir y devolver el objeto User normalizado
+  const user: User = {
+    id: String(userData.id || ''),
+    email: userData.email || '',
+    firstName,
+    lastName,
+    role
+  };
+  
+  console.log('Usuario procesado:', user);
+  return user;
+};
+
 // Proveedor del contexto
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
@@ -100,20 +147,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (authService.isAuthenticated()) {
         try {
           const userData = await authService.getCurrentUser();
+          console.log('Datos al restaurar sesión:', userData);
           
-          // Obtener el nombre y apellido del campo name o de firstName/lastName
-          const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
-          const firstName = nameParts[0] || userData.firstName || '';
-          const lastName = nameParts.slice(1).join(' ') || userData.lastName || '';
-          
-          // Convertir de datos de API a formato interno
-          const user: User = {
-            id: userData.id.toString(),
-            email: userData.email,
-            firstName: firstName,
-            lastName: lastName,
-            role: userData.roles.includes('ADMIN') ? UserRole.ADMIN : UserRole.USER
-          };
+          // Procesar datos del usuario
+          const user = processUserData(userData);
           
           dispatch({ type: 'RESTORE_SESSION', payload: user });
           console.log('Sesión restaurada:', user);
@@ -133,20 +170,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     try {
       const userData = await authService.login(credentials);
+      console.log('Datos recibidos al iniciar sesión:', userData);
       
-      // Obtener el nombre y apellido del campo name o de firstName/lastName
-      const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
-      const firstName = nameParts[0] || userData.firstName || '';
-      const lastName = nameParts.slice(1).join(' ') || userData.lastName || '';
-      
-      // Convertir de datos de API a formato interno
-      const user: User = {
-        id: userData.id.toString(),
-        email: userData.email,
-        firstName: firstName,
-        lastName: lastName,
-        role: userData.roles.includes('ADMIN') ? UserRole.ADMIN : UserRole.USER
-      };
+      // Procesar datos del usuario
+      const user = processUserData(userData);
       
       dispatch({ type: 'LOGIN_SUCCESS', payload: user });
     } catch (error: any) {

@@ -21,6 +21,11 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const { state, logout, lockSession } = useAuth();
   const navigate = useNavigate();
   
+  // Para depuración - ver qué hay en el estado
+  useEffect(() => {
+    console.log("Estado de autenticación en Navbar:", state);
+  }, [state]);
+  
   // Función para alternar el menú de usuario
   const toggleUserMenu = () => {
     setIsUserMenuOpen(!isUserMenuOpen);
@@ -37,6 +42,15 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
     lockSession();
   };
   
+  // Navegación a perfil de usuario
+  const handleNavigateToProfile = () => {
+    // Navegar a la página de perfil del usuario actual
+    if (state.user && state.user.id) {
+      navigate(`/dashboard/users/${state.user.id}`);
+      setIsUserMenuOpen(false);
+    }
+  };
+  
   // Cerrar el menú de usuario al hacer clic fuera de él
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,6 +64,45 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isUserMenuOpen]);
+  
+  // Función para obtener el nombre de manera segura
+  const getFirstName = () => {
+    if (!state.user) return 'Usuario';
+    const firstName = state.user.firstName;
+    return firstName || state.user.email?.split('@')[0] || 'Usuario';
+  };
+  
+  // Función para obtener las iniciales de manera segura
+  const getInitials = () => {
+    if (!state.user) return '';
+    
+    const firstName = state.user.firstName || '';
+    const lastName = state.user.lastName || '';
+    
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`;
+    } else if (firstName) {
+      return firstName.charAt(0);
+    } else if (state.user.email) {
+      return state.user.email.charAt(0).toUpperCase();
+    }
+    
+    return 'U';
+  };
+  
+  // Función para obtener el nombre completo
+  const getFullName = () => {
+    if (!state.user) return 'Usuario';
+    
+    const firstName = state.user.firstName || '';
+    const lastName = state.user.lastName || '';
+    
+    if (firstName || lastName) {
+      return `${firstName} ${lastName}`.trim();
+    }
+    
+    return state.user.email?.split('@')[0] || 'Usuario';
+  };
   
   return (
     <div className="bg-white shadow-sm border-b border-gray-200 py-3 px-4 flex items-center">
@@ -82,11 +135,13 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
           >
             <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
               <span className="text-sm font-medium text-gray-700">
-                {state.user?.firstName?.charAt(0)}{state.user?.lastName?.charAt(0)}
+                {getInitials()}
               </span>
             </div>
             {/* Nombre solo visible en pantallas medianas y grandes */}
-            <span className="hidden md:inline ml-2 font-medium">{state.user?.firstName}</span>
+            <span className="hidden md:inline ml-2 font-medium">
+              {getFirstName()}
+            </span>
             <ChevronDownIcon className="h-5 w-5 ml-1" />
           </button>
           
@@ -94,15 +149,16 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
           {isUserMenuOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
               <div className="px-4 py-3 border-b border-gray-200">
-                <p className="text-sm font-medium text-gray-900">{state.user?.firstName} {state.user?.lastName}</p>
-                <p className="text-xs text-gray-500 mt-1 truncate">{state.user?.email}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {getFullName()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1 truncate">
+                  {state.user?.email}
+                </p>
               </div>
               
               <button
-                onClick={() => {
-                  setIsUserMenuOpen(false);
-                  navigate('/dashboard/settings');
-                }}
+                onClick={handleNavigateToProfile}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 <div className="flex items-center">
