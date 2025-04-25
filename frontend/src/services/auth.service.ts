@@ -36,8 +36,14 @@ export interface ForgotPasswordRequest {
   email: string;
 }
 
+export interface VerifyCodeRequest {
+  email: string;
+  code: string;
+}
+
 export interface ResetPasswordRequest {
-  token: string;
+  email: string;
+  code: string;
   new_password: string;
 }
 
@@ -140,22 +146,62 @@ class AuthService {
     }
   }
   
+  // Nuevo método para solicitar código de recuperación
   async forgotPassword(email: string): Promise<{ message: string }> {
     try {
-      const response = await apiClient.post<{ message: string }>('/auth/forgot-password', { email });
+      const response = await apiClient.post<{ message: string }>(
+        '/auth/forgot-password',
+        { email }
+      );
       return response.data;
     } catch (error) {
       throw new Error(handleApiError(error));
     }
   }
   
-  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  // Nuevo método para verificar código
+  async verifyCode(email: string, code: string): Promise<{ valid: boolean }> {
     try {
-      const response = await apiClient.post<{ message: string }>(
-        `/auth/reset-password/${token}`,
-        { new_password: newPassword }
+      const response = await apiClient.post<{ valid: boolean }>(
+        '/auth/verify-code',
+        { email, code }
       );
       return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+  
+  // Nuevo método para restablecer contraseña con código
+  async resetPassword(password: string, confirmPassword: string, code?: string, email?: string): Promise<{ message: string }> {
+    try {
+      // Verificar que contraseñas coincidan
+      if (password !== confirmPassword) {
+        throw new Error('Las contraseñas no coinciden');
+      }
+      
+      // Si tenemos email y código, usar el nuevo flujo
+      if (email && code) {
+        const response = await apiClient.post<{ message: string }>(
+          `/auth/reset-password`,
+          { 
+            email,
+            code,
+            new_password: password 
+          }
+        );
+        return response.data;
+      } 
+      // Si solo tenemos código (token), usar el flujo antiguo para compatibilidad
+      else if (code) {
+        const response = await apiClient.post<{ message: string }>(
+          `/auth/reset-password/${code}`,
+          { new_password: password }
+        );
+        return response.data;
+      } else {
+        throw new Error('Falta información necesaria para restablecer la contraseña');
+      }
     } catch (error) {
       throw new Error(handleApiError(error));
     }

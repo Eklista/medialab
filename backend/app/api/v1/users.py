@@ -93,7 +93,6 @@ def create_new_user(
                 )
             except Exception as role_error:
                 # Logear el error pero continuar
-                # Este enfoque sería mejorado posteriormente
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f"Error al asignar rol: {str(role_error)}")
@@ -101,6 +100,7 @@ def create_new_user(
         return new_user
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "crear", "usuario")
+
 
 @router.get("/{user_id}", response_model=UserWithRoles)
 def read_user_by_id(

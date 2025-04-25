@@ -4,7 +4,7 @@ import { HomePage } from './pages/home/HomePage'
 import { RequestFormPage } from './pages/request-form/RequestFormPage'
 import ComponentsTest from './pages/documentation/ComponentsTest'
 import { AuthProvider } from './features/auth/context'
-import { LoginPage, ForgotPasswordPage, ResetPasswordPage } from './features/auth/pages'
+import { LoginPage, PasswordRecoveryPage } from './features/auth/pages'
 import { ProtectedRoute } from './features/auth/components'
 import {
   DashboardHome,
@@ -26,8 +26,10 @@ function App() {
       <Routes>
         {/* Rutas públicas */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/password-recovery" element={<PasswordRecoveryPage />} />
+        {/* Rutas antiguas para mantener compatibilidad */}
+        <Route path="/forgot-password" element={<Navigate to="/password-recovery" replace />} />
+        <Route path="/reset-password/:token" element={<Navigate to="/password-recovery" replace />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/request" element={<RequestFormPage />} />
         <Route path="/documentation/components-test" element={<ComponentsTest />} />

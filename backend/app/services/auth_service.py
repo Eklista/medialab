@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from jose import jwt, JWTError
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -98,9 +98,9 @@ class AuthService:
         return token_data
     
     @staticmethod
-    def generate_password_reset_token(db: Session, email: str) -> Optional[Dict[str, str]]:
+    def generate_password_reset_code(db: Session, email: str, reset_code: str, expires_at: datetime) -> Optional[Dict[str, Any]]:
         """
-        Genera un token para restablecer contraseña
+        Genera un código para restablecer contraseña
         """
         user = UserRepository.get_by_email(db, email)
         
@@ -108,28 +108,69 @@ class AuthService:
         if not user or not user.is_active:
             return None
         
-        # Generar token de recuperación
-        from secrets import token_urlsafe
-        reset_token = token_urlsafe(32)
-        reset_token_expires = datetime.utcnow() + timedelta(hours=24)
-        
-        # Guardar token en BD
+        # Guardar código en BD
         user_data = {
-            "reset_token": reset_token,
-            "reset_token_expires": reset_token_expires
+            "reset_token": reset_code,  # Usamos el campo reset_token para guardar el código
+            "reset_token_expires": expires_at
         }
         
         UserRepository.update(db, user, user_data)
         
         return {
             "email": user.email,
-            "reset_token": reset_token
+            "reset_code": reset_code,
+            "user_data": {
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name
+            }
         }
+    
+    @staticmethod
+    def verify_reset_code(db: Session, email: str, code: str) -> bool:
+        """
+        Verifica si un código de recuperación es válido y no ha expirado
+        """
+        user = UserRepository.get_by_email(db, email)
+        
+        if not user or not user.is_active:
+            return False
+        
+        # Verificar que el código coincida y no haya expirado
+        if (user.reset_token != code or 
+            not user.reset_token_expires or 
+            user.reset_token_expires < datetime.utcnow()):
+            return False
+        
+        return True
+    
+    @staticmethod
+    def reset_password_with_code(db: Session, email: str, code: str, new_password: str) -> bool:
+        """
+        Restablece la contraseña mediante código de verificación
+        """
+        # Verificar que el código sea válido
+        if not AuthService.verify_reset_code(db, email, code):
+            return False
+        
+        user = UserRepository.get_by_email(db, email)
+        
+        # Actualizar contraseña
+        user_data = {
+            "password_hash": get_password_hash(new_password),
+            "reset_token": None,
+            "reset_token_expires": None
+        }
+        
+        UserRepository.update(db, user, user_data)
+        
+        return True
     
     @staticmethod
     def reset_password(db: Session, token: str, new_password: str) -> bool:
         """
         Restablece la contraseña mediante token
+        (Método mantenido para compatibilidad con versiones anteriores)
         """
         # Buscar usuario con este token
         user = db.query(User).filter(User.reset_token == token).first()

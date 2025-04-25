@@ -31,7 +31,8 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (password: string, confirmPassword: string, token?: string) => Promise<void>;
+  verifyCode: (email: string, code: string) => Promise<boolean>;
+  resetPassword: (password: string, confirmPassword: string, code: string, email: string) => Promise<void>;
   lockSession: () => void;
   unlockSession: (password: string) => Promise<void>;
 }
@@ -194,27 +195,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Funciones para recuperación de contraseña
   const forgotPassword = async (email: string): Promise<void> => {
     try {
+      dispatch({ type: 'LOGIN_START' }); // Usar el estado de carga global
       await authService.forgotPassword(email);
+      dispatch({ type: 'LOGIN_FAIL', payload: '' }); // Limpiar error y detener carga
     } catch (error) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error instanceof Error ? error.message : 'Error al enviar email' 
+      });
       throw error;
     }
   };
 
-  const resetPassword = async (password: string, confirmPassword: string, token?: string): Promise<void> => {
-    // Obtener el token desde el parámetro o desde la URL si no se proporciona
-    const resetToken = token || window.location.pathname.split('/').pop() || '';
-    
-    if (!resetToken) {
-      throw new Error('Token de recuperación no proporcionado');
+  // Función para verificar código
+  const verifyCode = async (email: string, code: string): Promise<boolean> => {
+    try {
+      dispatch({ type: 'LOGIN_START' }); // Usar el estado de carga global
+      const result = await authService.verifyCode(email, code);
+      dispatch({ type: 'LOGIN_FAIL', payload: '' }); // Limpiar error y detener carga
+      return result.valid;
+    } catch (error) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error instanceof Error ? error.message : 'Código inválido o expirado' 
+      });
+      throw error;
     }
-    
+  };
+
+  // Función para restablecer contraseña
+  const resetPassword = async (password: string, confirmPassword: string, code: string, email: string): Promise<void> => {
     if (password !== confirmPassword) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: 'Las contraseñas no coinciden' 
+      });
       throw new Error('Las contraseñas no coinciden');
     }
     
     try {
-      dispatch({ type: 'LOGIN_START' }); // Usar el estado de carga global también
-      await authService.resetPassword(resetToken, password);
+      dispatch({ type: 'LOGIN_START' }); // Usar el estado de carga global
+      await authService.resetPassword(password, confirmPassword, code, email);
+      dispatch({ type: 'LOGIN_FAIL', payload: '' }); // Limpiar error y detener carga
     } catch (error) {
       dispatch({ 
         type: 'LOGIN_FAIL', 
@@ -238,7 +260,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error('Contraseña incorrecta');
       }
     } catch (error: any) {
-      throw new Error(error.message || 'Error al verificar la contraseña');
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error.message || 'Contraseña incorrecta' 
+      });
+      throw error;
     }
   };
 
@@ -249,6 +275,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         logout,
         forgotPassword,
+        verifyCode,
         resetPassword,
         lockSession,
         unlockSession

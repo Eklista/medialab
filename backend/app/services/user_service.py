@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+import os
 from typing import List, Optional, Dict, Any
 from datetime import date
 from fastapi import HTTPException, status
@@ -7,6 +9,7 @@ from app.repositories.user_repository import UserRepository
 from app.models.auth.users import User
 from app.schemas.auth.users import UserCreate, UserUpdate
 from app.config.security import get_password_hash, verify_password
+from app.services.email_service import send_email
 
 
 class UserService:
@@ -50,7 +53,7 @@ class UserService:
     @staticmethod
     def create_user(db: Session, user_data: Dict[str, Any]) -> User:
         """
-        Crea un nuevo usuario
+        Crea un nuevo usuario y envía un correo de bienvenida
         """
         # Verificar si el email ya existe
         if UserRepository.get_by_email(db, user_data["email"]):
@@ -78,8 +81,77 @@ class UserService:
         # Si no se especifica estado activo, establecer como activo
         if "is_active" not in user_data:
             user_data["is_active"] = True
-        
-        return UserRepository.create(db, user_data)
+
+        # Crear el usuario
+        new_user = UserRepository.create(db, user_data)
+
+        # Enviar un correo de bienvenida
+        try:
+            UserService.send_welcome_email(new_user.email, new_user.username)  # Usamos el método estático
+        except Exception as e:
+            # Si ocurre un error en el envío del correo, loguear pero no fallar la creación del usuario
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error al enviar el correo de bienvenida: {str(e)}")
+
+        return new_user
+
+    @staticmethod
+    def send_welcome_email(email: str, username: str) -> None:
+        """
+        Envía un correo de bienvenida después de crear el usuario
+        """
+        base_url = os.getenv("FRONTEND_URL_PROD") if os.getenv("ENVIRONMENT") == "production" else os.getenv("FRONTEND_URL_DEV")
+        login_link = f"{base_url}/login"
+
+        subject = "Bienvenido a MediaLab Sistema"
+
+        html_template = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fb; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <h2 style="color: #181c24;">¡Bienvenido a <span style="color: #7758ff;">MediaLab</span>, {username}!</h2>
+
+            <div style="background-color: #eff6ff; padding: 16px; border-left: 4px solid #7758ff; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #181c24;">
+                    Te informamos que tu cuenta en la plataforma MediaLab ha sido creada exitosamente. Para poder ingresar por primera vez, sigue estos sencillos pasos:
+                </p>
+                <ol style="margin: 10px 0 0 20px; color: #6b7280;">
+                    <li>Haz clic en el botón de abajo para dirigirte a la página de inicio de sesión.</li>
+                    <li>Una vez allí, selecciona la opción <strong>"¿Olvidaste tu contraseña?"</strong>.</li>
+                    <li>Sigue las instrucciones que te indicaremos para restablecer tu contraseña.</li>
+                    <li>Después de crear tu nueva contraseña, podrás iniciar sesión en MediaLab.</li>
+                </ol>
+            </div>
+
+            <p style="color: #181c24; margin-bottom: 20px;">
+                Una vez que hayas ingresado al sistema, es importante que completes tu perfil de la siguiente manera:
+            </p>
+            <ol style="margin: 0 0 0 20px; color: #6b7280;">
+                <li>Dirígete a la sección <strong>"Mi perfil"</strong> en el menú principal.</li>
+                <li>Haz clic en el botón <strong>"Completar perfil"</strong>.</li>
+                <li><strong>Es obligatorio</strong> que subas una fotografía tuya como foto de perfil.</li>
+                <li>En el banner de perfil, puedes colocar la imagen que desees.</li>
+                <li>Tu número de teléfono es opcional.</li>
+                <li><strong>Es obligatorio</strong> que ingreses tu fecha de nacimiento.</li>
+            </ol>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{login_link}" style="background-color: #7758ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 16px; --color-hover: #b5cf15;">
+                    Ir a la página de inicio de sesión
+                </a>
+            </div>
+
+            <p style="margin-top: 40px; font-size: 14px; color: #6b7280;">
+                Si tienes alguna pregunta o necesitas ayuda en cualquier momento, no dudes en contactar a nuestro equipo de soporte de MediaLab.
+            </p>
+        </div>
+        """
+
+        send_email(
+            email_to=email,
+            subject=subject,
+            html_template=html_template
+        )
+
     
     @staticmethod
     def update_user(db: Session, user_id: int, user_data: Dict[str, Any]) -> User:
