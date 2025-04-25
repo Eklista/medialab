@@ -7,43 +7,54 @@ from app.database import get_db
 from app.services.auth_service import AuthService
 from app.services.user_service import UserService
 from app.models.auth.users import User
-from app.schemas.auth.users import UserPasswordChange
+from app.schemas.auth.users import UserPasswordChange, EmailSchema, ResetPasswordSchema
 from app.api.deps import get_current_user
 
 router = APIRouter()
 
 @router.post("/forgot-password")
 def forgot_password(
-    email: str,
+    email_data: EmailSchema,
     db: Session = Depends(get_db)
 ) -> Any:
     """
     Envía un token de recuperación de contraseña
     """
-    result = AuthService.generate_password_reset_token(db, email)
+    result = AuthService.generate_password_reset_token(db, email_data.email)
+    
+    # Si el resultado es exitoso, enviar email con el enlace
+    if result:
+        from app.services.email_service import send_reset_password_email
+        
+        # Obtener detalles del usuario para personalizar el email
+        user = db.query(User).filter(User.email == email_data.email).first()
+        
+        if user:
+            # Enviar el correo electrónico con el token
+            success = send_reset_password_email(
+                email_to=email_data.email,
+                username=user.username,
+                token=result['reset_token']
+            )
+            
+            if success:
+                print(f"Email de recuperación enviado a: {email_data.email}")
+            else:
+                print(f"Error al enviar email de recuperación a: {email_data.email}")
     
     # Siempre responder positivamente para evitar enumeración de usuarios
-    # El email solo se enviará si existe el usuario y está activo
-    
-    # Aquí normalmente enviaríamos un email con el enlace de recuperación
-    if result:
-        # Simulado por ahora, en un entorno real enviaríamos un email
-        # usando un servicio de email
-        reset_url = f"/reset-password/{result['reset_token']}"
-        print(f"URL de recuperación para {result['email']}: {reset_url}")
-    
     return {"message": "Si el correo existe, recibirás instrucciones para restablecer tu contraseña"}
 
 @router.post("/reset-password/{token}")
 def reset_password(
     token: str,
-    new_password: str,
+    password_data: ResetPasswordSchema,
     db: Session = Depends(get_db)
 ) -> Any:
     """
     Restablece la contraseña mediante token
     """
-    result = AuthService.reset_password(db, token, new_password)
+    result = AuthService.reset_password(db, token, password_data.new_password)
     
     if result:
         return {"message": "Contraseña restablecida exitosamente"}

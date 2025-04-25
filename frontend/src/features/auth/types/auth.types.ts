@@ -11,6 +11,8 @@ export interface User {
   firstName: string;
   lastName: string;
   role: UserRole;
+  profileImage?: string;
+  profile_image?: string;
 }
 
 export interface AuthState {

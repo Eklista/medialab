@@ -2,6 +2,14 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+# URL del frontend según el entorno
+FRONTEND_URL_DEV = os.getenv("FRONTEND_URL_DEV", "http://localhost:5173")
+FRONTEND_URL_PROD = os.getenv("FRONTEND_URL_PROD", "https://medialab.vercel.app")
+
+FRONTEND_URL = FRONTEND_URL_PROD if ENVIRONMENT == "production" else FRONTEND_URL_DEV
+
 # Cargar variables de entorno desde .env
 env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)

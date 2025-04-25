@@ -58,3 +58,10 @@ class UserWithRoles(UserInDB):
 
 class PasswordVerify(BaseModel):
     password: str
+
+# Esquema para verificar el token de restablecimiento de contraseña
+class EmailSchema(BaseModel):
+    email: EmailStr
+
+class ResetPasswordSchema(BaseModel):
+    new_password: str = Field(..., min_length=8)

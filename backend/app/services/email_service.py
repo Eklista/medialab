@@ -32,16 +32,24 @@ def send_email(
         mail_from=(EMAILS_FROM_NAME, EMAILS_FROM_EMAIL),
     )
     
+    # Para puerto 465, necesitamos configurar ssl=True
+    smtp_config = {
+        "host": SMTP_HOST,
+        "port": SMTP_PORT,
+        "user": SMTP_USER,
+        "password": SMTP_PASSWORD
+    }
+    
+    # Si es puerto 465, configurar SSL en lugar de TLS
+    if SMTP_PORT == 465:
+        smtp_config["ssl"] = True
+    else:
+        smtp_config["tls"] = SMTP_TLS
+    
     response = message.send(
         to=email_to,
         render=environment,
-        smtp={
-            "host": SMTP_HOST,
-            "port": SMTP_PORT,
-            "tls": SMTP_TLS,
-            "user": SMTP_USER,
-            "password": SMTP_PASSWORD,
-        }
+        smtp=smtp_config
     )
     
     return response.status_code == 250
@@ -50,11 +58,16 @@ def send_reset_password_email(email_to: str, username: str, token: str) -> bool:
     """
     Envía un correo de restablecimiento de contraseña
     """
+    from app.config.settings import FRONTEND_URL, ENVIRONMENT
+    
     project_name = "MediaLab Sistema"
-    reset_url = f"/reset-password/{token}"
+    reset_url = f"{FRONTEND_URL}/reset-password/{token}"
+    
+    # Añadir información del entorno en el correo (opcional, solo para depuración)
+    environment_info = f"(Entorno: {ENVIRONMENT})" if ENVIRONMENT == "development" else ""
     
     template = f"""
-    <h1>Restablecimiento de Contraseña</h1>
+    <h1>Restablecimiento de Contraseña {environment_info}</h1>
     <p>Hola {username},</p>
     <p>Has solicitado restablecer tu contraseña en {project_name}.</p>
     <p>Para completar el proceso, por favor haz clic en el siguiente enlace:</p>

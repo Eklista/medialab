@@ -113,18 +113,22 @@ const UserForm: React.FC<UserFormProps> = ({
       newErrors.areaId = 'El área es requerida';
     }
     
-    // Validar contraseña solo si no estamos en modo edición
-    if (!isEditMode && !formData.password) {
+    // Validar contraseña: debe tener al menos 8 caracteres si se proporciona
+    if (!isEditMode && formData.password) {
+      if (formData.password.length < 8) {
+        newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
+      }
+    } else if (!isEditMode && !formData.password) {
       newErrors.password = 'La contraseña es requerida';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   
   const generateSecurePassword = (): string => {
     // Generar una contraseña más segura que la predeterminada
-    const length = 12;
+    const length = Math.max(12, 8);
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+';
     let password = '';
     
@@ -189,6 +193,16 @@ const UserForm: React.FC<UserFormProps> = ({
   
   return (
     <form onSubmit={handleSubmit}>
+      {Object.keys(errors).length > 0 && (
+        <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <p className="font-medium">Por favor, corrige los siguientes errores:</p>
+          <ul className="list-disc pl-5 mt-2 space-y-1">
+            {Object.entries(errors).map(([field, message]) => (
+              <li key={field}>{message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {(!hasValidRoles || !hasValidAreas) && (
         <div className="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg">
           <p className="font-medium">Advertencia</p>
@@ -273,18 +287,43 @@ const UserForm: React.FC<UserFormProps> = ({
         </div>
         
         {!isEditMode && (
-          <DashboardTextInput
-            id="user-password"
-            name="password"
-            label="Contraseña"
-            type="password"
-            value={formData.password || ''}
-            onChange={handleInputChange}
-            placeholder="Contraseña del usuario"
-            helperText={passwordSet ? undefined : "Se generará una contraseña aleatoria si deja este campo vacío"}
-            error={errors.password}
-            icon={<KeyIcon className="h-5 w-5" />}
-          />
+          <>
+            <DashboardTextInput
+              id="user-password"
+              name="password"
+              label="Contraseña"
+              type="password"
+              value={formData.password || ''}
+              onChange={handleInputChange}
+              placeholder="Contraseña del usuario"
+              helperText={passwordSet ? undefined : "Se generará una contraseña aleatoria si deja este campo vacío"}
+              error={errors.password}
+              icon={<KeyIcon className="h-5 w-5" />}
+            />
+            
+            {formData.password && (
+              <div className="mt-2">
+                <div className="flex items-center mb-1">
+                  <span className="text-sm text-gray-600 mr-2">Fuerza:</span>
+                  <div className="h-2 flex-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full ${
+                        formData.password.length < 8 ? 'bg-red-500' :
+                        formData.password.length < 10 ? 'bg-yellow-500' :
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min(100, (formData.password.length / 12) * 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {formData.password.length < 8 ? 'Débil - Mínimo 8 caracteres requeridos' :
+                  formData.password.length < 10 ? 'Media - Añade más caracteres para mayor seguridad' :
+                  'Fuerte - Buena elección'}
+                </p>
+              </div>
+            )}
+          </>
         )}
         
         {!isEditMode && formData.username && (

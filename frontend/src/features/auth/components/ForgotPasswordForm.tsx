@@ -35,23 +35,10 @@ const ForgotPasswordForm: React.FC = () => {
           Si no encuentras el correo, revisa tu carpeta de spam.
         </p>
         
-        {/* En un entorno de prueba, proporcionamos un enlace directo a reset-password */}
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">
-            <strong>Modo de prueba:</strong> Puedes usar el siguiente enlace:
-          </p>
-          <Link 
-            to="/reset-password/test-token"
-            className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Restablecer contraseña
+        <div className="mt-4">
+          <Link to="/login" className="text-blue-600 hover:underline">
+            ← Volver al inicio de sesión
           </Link>
-          
-          <div className="mt-4">
-            <Link to="/login" className="text-blue-600 hover:underline">
-              ← Volver al inicio de sesión
-            </Link>
-          </div>
         </div>
       </div>
     );
@@ -103,9 +90,10 @@ const ForgotPasswordForm: React.FC = () => {
         </Link>
       </div>
       
+      {/* Puedes decidir si mantener o eliminar estos ejemplos de correo también */}
       <div className="text-center text-sm text-gray-500 mt-2">
         <p>Para pruebas, usa estos correos:</p>
-        <p>admin@example.com o user@example.com</p>
+        <p>pablo@prueba.com o kohler@prueba.com</p>
       </div>
     </form>
   );

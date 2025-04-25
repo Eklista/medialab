@@ -122,7 +122,24 @@ const UsersPage: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
+
+  const getFullImageUrl = (imagePath: string | undefined | null): string => {
+    if (!imagePath) return '';
+    
+    // Si la ruta ya comienza con http:// o https://, asumimos que es una URL completa
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // Obtener la URL base del API
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const baseUrl = apiUrl.replace('/api/v1', '');
+    // Asegurarnos de que la ruta de la imagen comience con /
+    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    
+    return `${baseUrl}${path}`;
+  };
+
   // Manejadores para CRUD de usuarios
   const handleAddUser = () => {
     setIsAddModalOpen(true);
@@ -333,7 +350,20 @@ const UsersPage: React.FC = () => {
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
             {user.profileImage ? (
-              <img src={user.profileImage} alt={user.fullName} className="h-full w-full object-cover" />
+              <img 
+                src={getFullImageUrl(user.profileImage)} 
+                alt={user.fullName} 
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  // Si la imagen falla, mostrar las iniciales
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent) {
+                    const initials = user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2);
+                    parent.innerHTML = `<span class="text-gray-600 font-medium">${initials}</span>`;
+                  }
+                }}
+              />
             ) : (
               <span className="text-gray-600 font-medium">
                 {user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
