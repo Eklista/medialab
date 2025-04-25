@@ -1,7 +1,7 @@
 // src/features/auth/components/ResetPasswordForm.tsx
 
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import TextInput from '../../service-request/components/TextInput';
 import Button from '../../service-request/components/Button';
 import { useAuth } from '../hooks/useAuth';
@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 const ResetPasswordForm: React.FC = () => {
   const { resetPassword, state } = useAuth();
   const navigate = useNavigate();
+  const { token } = useParams<{ token?: string }>();
   
   const [formData, setFormData] = useState({
     password: '',
@@ -20,6 +21,8 @@ const ResetPasswordForm: React.FC = () => {
     confirmPassword: ''
   });
   
+  // Estado de carga local (además del state.isLoading global)
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   // Estados para mostrar/ocultar contraseñas
   const [showPassword, setShowPassword] = useState(false);
@@ -65,20 +68,29 @@ const ResetPasswordForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    if (!validateForm() || !token) {
       return;
     }
     
     try {
-      await resetPassword(formData.password, formData.confirmPassword);
+      // Establecer estado de carga local
+      setIsSubmitting(true);
+      
+      await resetPassword(formData.password, formData.confirmPassword, token);
+      
+      // Solo marcar como exitoso si no hay errores
       setSuccess(true);
       
-      // Redirigir después de 3 segundos
+      // Retrasar la redirección para dar tiempo a que el usuario vea el mensaje
       setTimeout(() => {
         navigate('/login');
       }, 3000);
     } catch (error) {
       // Error ya manejado en el contexto
+      console.error('Error al restablecer la contraseña:', error);
+    } finally {
+      // Siempre desactivar el estado de carga local, independientemente del resultado
+      setIsSubmitting(false);
     }
   };
   
@@ -260,13 +272,17 @@ const ResetPasswordForm: React.FC = () => {
         <Button 
           type="submit"
           variant="primary"
-          loading={state.isLoading}
+          loading={isSubmitting || state.isLoading} // Usar AMBOS estados de carga
           fullWidth
+          disabled={isSubmitting || state.isLoading} // Deshabilitar durante la carga
         >
-          Restablecer contraseña
+          {isSubmitting ? 'Procesando...' : 'Restablecer contraseña'}
         </Button>
         
-        <Link to="/login" className="text-center py-2 text-blue-600 hover:underline sm:self-center">
+        <Link 
+          to="/login" 
+          className={`text-center py-2 text-blue-600 hover:underline sm:self-center ${(isSubmitting || state.isLoading) ? 'opacity-50 pointer-events-none' : ''}`}
+        >
           ← Volver al inicio de sesión
         </Link>
       </div>

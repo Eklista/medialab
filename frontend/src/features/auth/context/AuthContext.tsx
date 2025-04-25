@@ -31,7 +31,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (password: string, confirmPassword: string) => Promise<void>;
+  resetPassword: (password: string, confirmPassword: string, token?: string) => Promise<void>;
   lockSession: () => void;
   unlockSession: (password: string) => Promise<void>;
 }
@@ -200,17 +200,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const resetPassword = async (password: string, confirmPassword: string): Promise<void> => {
-    // En una implementación real, el token vendría de la URL
-    const token = window.location.pathname.split('/').pop() || '';
+  const resetPassword = async (password: string, confirmPassword: string, token?: string): Promise<void> => {
+    // Obtener el token desde el parámetro o desde la URL si no se proporciona
+    const resetToken = token || window.location.pathname.split('/').pop() || '';
+    
+    if (!resetToken) {
+      throw new Error('Token de recuperación no proporcionado');
+    }
     
     if (password !== confirmPassword) {
       throw new Error('Las contraseñas no coinciden');
     }
     
     try {
-      await authService.resetPassword(token, password);
+      dispatch({ type: 'LOGIN_START' }); // Usar el estado de carga global también
+      await authService.resetPassword(resetToken, password);
     } catch (error) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error instanceof Error ? error.message : 'Error al restablecer la contraseña'
+      });
       throw error;
     }
   };
