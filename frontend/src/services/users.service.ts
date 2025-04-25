@@ -1,4 +1,4 @@
-import apiClient, { handleApiError, getBaseUrl } from './api';
+import apiClient, { handleApiError, /* getBaseUrl */ } from './api';
 
 // Interfaz para representar un usuario en la aplicación
 export interface User {
@@ -11,6 +11,8 @@ export interface User {
   last_name?: string;
   profileImage?: string;
   profile_image?: string;
+  bannerImage?: string;
+  banner_image?: string;
   isActive: boolean;
   is_active?: boolean;
   lastLogin?: string;
@@ -19,6 +21,8 @@ export interface User {
   areas?: Array<{id: number, name: string}>;
   joinDate?: string;
   join_date?: string;
+  phone?: string;
+  birth_date?: string;
 }
 
 // Definir la estructura de la solicitud para crear un usuario
@@ -42,6 +46,11 @@ export interface UserUpdateRequest {
   roleId?: string;
   areaId?: string;
   isActive?: boolean;
+  // Edición de campos de usuario
+  phone?: string;
+  birthDate?: string;
+  profileImage?: string;
+  bannerImage?: string;
 }
 
 // Interfaces para Roles y Áreas
@@ -62,7 +71,7 @@ class UserService {
   // Obtener todos los usuarios
   async getUsers(): Promise<User[]> {
     try {
-      console.log('Obteniendo usuarios desde:', `${getBaseUrl()}/users`);
+      //console.log('Obteniendo usuarios desde:', `${getBaseUrl()}/users`);
       const response = await apiClient.get<User[]>('/users');
       
       // Asegurarse de que los usuarios tienen un formato consistente
@@ -75,18 +84,26 @@ class UserService {
   
   // Normalizar el formato del usuario para manejar las diferentes formas de nombrar propiedades
   private normalizeUser(apiUser: any): User {
-    return {
+    //console.log('Normalizando usuario desde API:', apiUser);
+    
+    const normalized = {
       id: apiUser.id,
       email: apiUser.email || '',
       username: apiUser.username || '',
       firstName: apiUser.firstName || apiUser.first_name || '',
       lastName: apiUser.lastName || apiUser.last_name || '',
       profileImage: apiUser.profileImage || apiUser.profile_image || null,
+      bannerImage: apiUser.bannerImage || apiUser.banner_image || null,
       isActive: apiUser.isActive !== undefined ? apiUser.isActive : (apiUser.is_active || false),
       lastLogin: apiUser.lastLogin || apiUser.last_login || null,
       roles: Array.isArray(apiUser.roles) ? apiUser.roles : [],
-      areas: Array.isArray(apiUser.areas) ? apiUser.areas : []
+      areas: Array.isArray(apiUser.areas) ? apiUser.areas : [],
+      phone: apiUser.phone || '',
+      birth_date: apiUser.birth_date || null
     };
+    
+    //console.log('Usuario normalizado:', normalized);
+    return normalized;
   }
   
   // Obtener un usuario por ID
@@ -103,7 +120,7 @@ class UserService {
   // Crear un nuevo usuario
   async createUser(userData: any): Promise<User> {
     try {
-      console.log('Datos recibidos en createUser:', userData);
+      //console.log('Datos recibidos en createUser:', userData);
       
       const apiData: any = {
         email: userData.email,
@@ -118,18 +135,17 @@ class UserService {
       if (userData.roleId) apiData.roleId = userData.roleId;
       if (userData.areaId) apiData.areaId = userData.areaId;
       
-      console.log('Datos enviados a la API:', apiData);
+      //console.log('Datos enviados a la API:', apiData);
       
       const response = await apiClient.post<User>('/users', apiData);
       return this.normalizeUser(response.data);
     } catch (error) {
       // Manejo de errores como lo tenías antes
-      console.error('Error al crear usuario:', error);
+      //console.error('Error al crear usuario:', error);
       throw new Error(handleApiError(error));
     }
   }
   
-  // Actualizar un usuario existente
   async updateUser(userId: number, userData: UserUpdateRequest): Promise<User> {
     try {
       // Convertir los nombres de propiedades a snake_case para el backend
@@ -139,11 +155,18 @@ class UserService {
       if (userData.username !== undefined) apiData.username = userData.username;
       if (userData.firstName !== undefined) apiData.first_name = userData.firstName;
       if (userData.lastName !== undefined) apiData.last_name = userData.lastName;
-      if (userData.roleId !== undefined) apiData.role_id = userData.roleId;
-      if (userData.areaId !== undefined) apiData.area_id = userData.areaId;
       if (userData.isActive !== undefined) apiData.is_active = userData.isActive;
+      if (userData.phone !== undefined) apiData.phone = userData.phone;
+      if (userData.birthDate !== undefined) apiData.birth_date = userData.birthDate;
+      if (userData.profileImage !== undefined) apiData.profile_image = userData.profileImage;
+      if (userData.bannerImage !== undefined) apiData.banner_image = userData.bannerImage;
+      
+      //console.log('Llamada a updateUser con datos:', userData);
+      //console.log('Datos convertidos para la API:', apiData);
       
       const response = await apiClient.patch<User>(`/users/${userId}`, apiData);
+      //console.log('Respuesta del servidor:', response.data);
+      
       return this.normalizeUser(response.data);
     } catch (error) {
       console.error(`Error al actualizar usuario con ID ${userId}:`, error);
@@ -212,7 +235,7 @@ class UserService {
   // Asignar un rol a un usuario
   async assignRole(userId: number, roleId: string, areaId: string): Promise<void> {
     try {
-      console.log(`Asignando rol ${roleId} con área ${areaId} al usuario ${userId}`);
+      //console.log(`Asignando rol ${roleId} con área ${areaId} al usuario ${userId}`);
       
       const apiData = {
         roleId: roleId.toString(),

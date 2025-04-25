@@ -1,5 +1,9 @@
 from typing import List, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, UploadFile, File, Form
+import os
+import shutil
+from pathlib import Path
+from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
@@ -192,3 +196,76 @@ def assign_role_to_user(
             )
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "asignar rol a", "usuario")
+
+@router.post("/upload-image", status_code=status.HTTP_200_OK)
+async def upload_user_image(
+    file: UploadFile = File(...),
+    type: str = Form(...),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Sube una imagen de perfil o banner para el usuario
+    """
+    try:
+        # Verificar el tipo de archivo
+        content_type = file.content_type
+        if not content_type or not content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El archivo debe ser una imagen"
+            )
+        
+        # Obtener extensión del archivo
+        extension = os.path.splitext(file.filename)[1] if file.filename else ""
+        if not extension:
+            # Si no hay extensión, asignar una basada en el tipo de contenido
+            if content_type == "image/jpeg":
+                extension = ".jpg"
+            elif content_type == "image/png":
+                extension = ".png"
+            else:
+                extension = ".jpg"  # Por defecto
+        
+        # Crear un nombre único para el archivo
+        filename = f"{uuid4().hex}{extension}"
+        
+        # Asegurar que el directorio de subida existe
+        upload_dir = Path("static/uploads/users")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ruta completa del archivo
+        file_path = upload_dir / filename
+        
+        # Guardar el archivo
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # URL pública del archivo
+        public_url = f"/static/uploads/users/{filename}"
+        
+        # Actualizar el campo correspondiente en el usuario
+        user_data = {}
+        if type == "profile":
+            user_data["profile_image"] = public_url
+        elif type == "banner":
+            user_data["banner_image"] = public_url
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tipo de imagen no válido"
+            )
+        
+        # Actualizar el usuario
+        updated_user = UserService.update_user(
+            db=db,
+            user_id=current_user.id,
+            user_data=user_data
+        )
+        
+        return {"url": public_url}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al subir la imagen: {str(e)}"
+        )

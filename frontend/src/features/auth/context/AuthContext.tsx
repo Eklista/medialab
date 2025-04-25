@@ -92,7 +92,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Función para procesar y normalizar los datos del usuario
 const processUserData = (userData: any): User => {
-  console.log('Datos de usuario recibidos:', userData);
+ ///////////////console.log('Datos de usuario recibidos:', userData);
   
   // Extraer nombre y apellido de forma más robusta
   let firstName = '';
@@ -133,7 +133,7 @@ const processUserData = (userData: any): User => {
     role
   };
   
-  console.log('Usuario procesado:', user);
+  ///////////////console.log('Usuario procesado:', user);
   return user;
 };
 
@@ -147,13 +147,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (authService.isAuthenticated()) {
         try {
           const userData = await authService.getCurrentUser();
-          console.log('Datos al restaurar sesión:', userData);
+          ///////////////console.log('Datos al restaurar sesión:', userData);
           
           // Procesar datos del usuario
           const user = processUserData(userData);
           
           dispatch({ type: 'RESTORE_SESSION', payload: user });
-          console.log('Sesión restaurada:', user);
+          ///////////////console.log('Sesión restaurada:', user);
         } catch (error) {
           console.error('Error al restaurar la sesión:', error);
           authService.logout();
@@ -170,7 +170,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     try {
       const userData = await authService.login(credentials);
-      console.log('Datos recibidos al iniciar sesión:', userData);
+     /////////////// console.log('Datos recibidos al iniciar sesión:', userData);
       
       // Procesar datos del usuario
       const user = processUserData(userData);

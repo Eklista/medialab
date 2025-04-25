@@ -27,6 +27,7 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     birth_date: Optional[date] = None
+    location: Optional[str] = None
     is_active: Optional[bool] = None
     profile_image: Optional[str] = None
     banner_image: Optional[str] = None

@@ -23,7 +23,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   
   // Para depuración - ver qué hay en el estado
   useEffect(() => {
-    console.log("Estado de autenticación en Navbar:", state);
+    ///////////////console.log("Estado de autenticación en Navbar:", state);
   }, [state]);
   
   // Función para alternar el menú de usuario

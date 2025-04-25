@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+import os
 from app.config.settings import APP_NAME, API_V1_PREFIX, CORS_ORIGINS
 
 from app.models.associations import user_roles, role_permissions
@@ -17,6 +20,10 @@ app = FastAPI(
     docs_url=f"{API_V1_PREFIX}/docs",
     redoc_url=f"{API_V1_PREFIX}/redoc",
 )
+
+static_dir = Path("static")
+static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 #CORS
 app.add_middleware(

@@ -5,8 +5,11 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardCard from '../components/ui/DashboardCard';
 import DashboardButton from '../components/ui/DashboardButton';
 import DashboardModal from '../components/ui/DashboardModal';
-import { CalendarDaysIcon, BriefcaseIcon, EnvelopeIcon, PhoneIcon, UserCircleIcon, CakeIcon, MapPinIcon, ArrowLeftIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, BriefcaseIcon, EnvelopeIcon, PhoneIcon, UserCircleIcon, CakeIcon, ArrowLeftIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { userService } from '../../../services';
+import { UserUpdateRequest } from '../../../services/users.service';
+import { getBaseUrl } from '../../../services/api';
+import fileUploadService from '../../../services/fileUpload.service';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
 
@@ -26,6 +29,7 @@ interface UserProfile {
   joinDate: string;
   lastLogin: string;
   profileImage?: string;
+  bannerImage?: string;
   birthday?: string;
   phone?: string;
   location?: string;
@@ -46,10 +50,17 @@ const UserProfilePage: React.FC = () => {
   const [formData, setFormData] = useState({
     phone: '',
     birthday: '',
-    location: ''
+    profileImage: '',
+    bannerImage: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  
+  const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
+  const [selectedBannerImage, setSelectedBannerImage] = useState<File | null>(null);
+  const [previewProfileImage, setPreviewProfileImage] = useState<string | null>(null);
+  const [previewBannerImage, setPreviewBannerImage] = useState<string | null>(null);
+
   // Verificar si el usuario actual es el dueño del perfil
   const isCurrentUser = state.user && userId === state.user.id?.toString();
   
@@ -67,6 +78,11 @@ const UserProfilePage: React.FC = () => {
       try {
         // Obtener el usuario desde la API
         const userData = await userService.getUserById(parseInt(userId));
+        //console.log('Datos recibidos de getUserById:', userData);
+        
+        // Verificar si tenemos los campos phone y birth_date
+        //console.log('Phone:', userData.phone);
+        //console.log('Birth date:', userData.birth_date);
         
         // Determinar rol y área del usuario
         let roleName = 'Sin rol asignado';
@@ -93,10 +109,11 @@ const UserProfilePage: React.FC = () => {
           joinDate: userData.joinDate || userData.join_date || new Date().toISOString().split('T')[0],
           lastLogin: userData.lastLogin || userData.last_login || new Date().toISOString(),
           profileImage: userData.profileImage || userData.profile_image,
-          // Como la propiedad phone no existe en el tipo User, usamos un valor por defecto
-          phone: '',
-          // Generar actividades recientes simuladas para el ejemplo
-          // En una implementación real, esto vendría del backend
+          bannerImage: userData.bannerImage || userData.banner_image,
+          // Aquí está el cambio importante: usar los valores recibidos
+          phone: userData.phone || '',
+          birthday: userData.birth_date || undefined,
+          location: '',
           recentActivity: [
             { date: new Date().toISOString(), action: 'Inició sesión en el sistema' },
             { 
@@ -110,16 +127,19 @@ const UserProfilePage: React.FC = () => {
           ]
         };
         
+        //console.log('UserProfile creado:', userProfile);
         setUser(userProfile);
         
         // Inicializar los datos del formulario
         setFormData({
-          phone: userProfile.phone || '',
-          birthday: userProfile.birthday ? new Date(userProfile.birthday).toISOString().split('T')[0] : '',
-          location: userProfile.location || ''
+          phone: userData.phone || '',
+          birthday: userData.birth_date ? new Date(userData.birth_date).toISOString().split('T')[0] : '',
+          profileImage: userData.profileImage || userData.profile_image || '',
+          bannerImage: userData.bannerImage || userData.banner_image || ''
         });
+        //console.log('Formulario inicializado:', formData);
       } catch (err) {
-        console.error('Error al obtener datos del usuario:', err);
+        //console.error('Error al obtener datos del usuario:', err);
         setError(err instanceof Error ? err.message : 'Error al cargar el perfil del usuario');
       } finally {
         setIsLoading(false);
@@ -138,43 +158,152 @@ const UserProfilePage: React.FC = () => {
     });
   };
   
-  // Enviar los datos actualizados
   const handleUpdateProfile = async () => {
     if (!user) return;
     
     try {
       setIsSubmitting(true);
       
-      // En una implementación real, aquí se enviarían los datos al backend
-      // Pero como 'phone' y 'birth_date' no están en el tipo UserUpdateRequest,
-      // guardamos los datos localmente por ahora
-      console.log('Datos a actualizar:', {
-        phone: formData.phone,
-        birthday: formData.birthday,
-        location: formData.location
-      });
+      // Preparar los datos para actualizar
+      const updateData: Partial<UserUpdateRequest> = {};
       
-      // Simular actualización con el backend
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Procesar los campos de texto
+      if (formData.phone !== user.phone) updateData.phone = formData.phone;
+      if (formData.birthday !== user.birthday) updateData.birthDate = formData.birthday;
       
-      // Actualizar el estado local
-      setUser({
-        ...user,
-        phone: formData.phone,
-        birthday: formData.birthday,
-        location: formData.location
-      });
+      // Subir imágenes si se han seleccionado
+      if (selectedProfileImage) {
+        try {
+          const profileImageUrl = await fileUploadService.uploadImage(selectedProfileImage, 'profile');
+          console.log('URL de imagen de perfil recibida:', profileImageUrl);
+          updateData.profileImage = profileImageUrl;
+        } catch (imageError) {
+          console.error('Error al subir la imagen de perfil:', imageError);
+          alert('No se pudo subir la imagen de perfil, pero se guardarán los demás cambios.');
+        }
+      }
+      
+      if (selectedBannerImage) {
+        try {
+          const bannerImageUrl = await fileUploadService.uploadImage(selectedBannerImage, 'banner');
+          updateData.bannerImage = bannerImageUrl;
+        } catch (imageError) {
+          console.error('Error al subir la imagen de banner:', imageError);
+          alert('No se pudo subir la imagen de banner, pero se guardarán los demás cambios.');
+        }
+      }
+      
+      //console.log('Datos a actualizar:', updateData);
+      
+      // Solo llamamos a la API si hay datos para actualizar
+      if (Object.keys(updateData).length > 0) {
+        // Llamar al servicio para actualizar
+        await userService.updateUser(parseInt(user.id), updateData);
+        
+        // Recargar los datos completos del usuario después de la actualización
+        const refreshedUserData = await userService.getUserById(parseInt(user.id));
+        //console.log('Datos actualizados del usuario:', refreshedUserData);
+        
+        // Determinar rol y área del usuario nuevamente
+        let roleName = user.role;
+        let areaName = user.area;
+        
+        if (refreshedUserData.roles && refreshedUserData.roles.length > 0) {
+          roleName = refreshedUserData.roles.join(', ');
+        }
+        
+        if (refreshedUserData.areas && refreshedUserData.areas.length > 0) {
+          areaName = refreshedUserData.areas.map(area => area.name).join(', ');
+        }
+        
+        // Actualizar el estado local con los datos completos y actualizados
+        setUser({
+          ...user,
+          phone: refreshedUserData.phone || '',
+          birthday: refreshedUserData.birth_date,
+          profileImage: refreshedUserData.profileImage || refreshedUserData.profile_image,
+          bannerImage: refreshedUserData.bannerImage || refreshedUserData.banner_image,
+          // Mantener el resto de campos actualizados
+          email: refreshedUserData.email,
+          firstName: refreshedUserData.firstName || refreshedUserData.first_name || '',
+          lastName: refreshedUserData.lastName || refreshedUserData.last_name || '',
+          name: `${refreshedUserData.firstName || refreshedUserData.first_name || ''} ${refreshedUserData.lastName || refreshedUserData.last_name || ''}`.trim(),
+          role: roleName,
+          area: areaName,
+          isActive: refreshedUserData.isActive || !!refreshedUserData.is_active,
+        });
+        
+        // Actualizar también el formulario con los nuevos datos
+        setFormData({
+          phone: refreshedUserData.phone || '',
+          birthday: refreshedUserData.birth_date ? new Date(refreshedUserData.birth_date).toISOString().split('T')[0] : '',
+          profileImage: refreshedUserData.profileImage || refreshedUserData.profile_image || '',
+          bannerImage: refreshedUserData.bannerImage || refreshedUserData.banner_image || ''
+        });
+        
+        console.log('Imagen de perfil recibida:', refreshedUserData.profileImage || refreshedUserData.profile_image);
+        console.log('Imagen de banner recibida:', refreshedUserData.bannerImage || refreshedUserData.banner_image);
+        // Mostrar notificación de éxito
+        alert('Perfil actualizado exitosamente');
+      } else {
+        //console.log('No hay cambios para guardar');
+        alert('No se detectaron cambios en la información');
+      }
+      
+      // Limpiar las previsualizaciones y archivos seleccionados
+      setSelectedProfileImage(null);
+      setSelectedBannerImage(null);
+      if (previewProfileImage) URL.revokeObjectURL(previewProfileImage);
+      if (previewBannerImage) URL.revokeObjectURL(previewBannerImage);
+      setPreviewProfileImage(null);
+      setPreviewBannerImage(null);
       
       // Cerrar el modal
       setIsEditModalOpen(false);
-      
-      // Mostrar notificación de éxito
-      alert('Perfil actualizado exitosamente');
     } catch (err) {
       console.error('Error al actualizar perfil:', err);
       setError(err instanceof Error ? err.message : 'Error al actualizar el perfil');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const getFullImageUrl = (imagePath: string | undefined | null): string => {
+    if (!imagePath) return defaultUserImage;
+    
+    // Si la ruta ya comienza con http:// o https://, asumimos que es una URL completa
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // Obtener la URL base del API
+    const baseUrl = new URL(getBaseUrl()).origin;
+    // Asegurarnos de que la ruta de la imagen comience con /
+    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    
+    return `${baseUrl}${path}`;
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'banner') => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      
+      // Verificar el tamaño del archivo (máximo 1MB)
+      if (file.size > 1 * 1024 * 1024) {
+        alert('El archivo es demasiado grande. El tamaño máximo es 1MB.');
+        return;
+      }
+      
+      // Crear una URL para previsualizar la imagen
+      const previewUrl = URL.createObjectURL(file);
+      
+      if (type === 'profile') {
+        setSelectedProfileImage(file);
+        setPreviewProfileImage(previewUrl);
+      } else {
+        setSelectedBannerImage(file);
+        setPreviewBannerImage(previewUrl);
+      }
     }
   };
 
@@ -229,6 +358,24 @@ const UserProfilePage: React.FC = () => {
     if (!dateString) return '-';
     
     try {
+      // Asegurar que la fecha se interprete correctamente sin ajuste de zona horaria
+      const dateParts = dateString.split('-');
+      if (dateParts.length === 3) {
+        // Crear la fecha usando el constructor con año, mes (0-11), día
+        const date = new Date(
+          parseInt(dateParts[0]), 
+          parseInt(dateParts[1]) - 1, // Restar 1 porque los meses en JS son 0-11
+          parseInt(dateParts[2])
+        );
+        
+        return date.toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      }
+      
+      // Si el formato no es YYYY-MM-DD, intentar con el constructor normal
       const date = new Date(dateString);
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
@@ -323,18 +470,26 @@ const UserProfilePage: React.FC = () => {
       <div className="relative mb-8">
         <div className="h-48 w-full overflow-hidden rounded-t-xl">
           <img
-            src={heroBanner}
+            src={user.bannerImage ? getFullImageUrl(user.bannerImage) : heroBanner}
             alt="Perfil banner"
             className="w-full h-full object-cover"
+            onError={(e) => {
+              console.error('Error al cargar el banner:', e);
+              (e.target as HTMLImageElement).src = heroBanner;
+            }}
           />
         </div>
         
         <div className="absolute bottom-0 left-8 transform translate-y-1/2 bg-white p-1 rounded-full shadow-lg">
           <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
             <img 
-              src={user.profileImage || defaultUserImage}
+              src={getFullImageUrl(user.profileImage)}
               alt={user.name}
               className="h-full w-full object-cover"
+              onError={(e) => {
+                console.error('Error al cargar la imagen de perfil:', e);
+                (e.target as HTMLImageElement).src = defaultUserImage;
+              }}
             />
           </div>
         </div>
@@ -396,27 +551,21 @@ const UserProfilePage: React.FC = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-500">Teléfono</p>
-                    <p className="text-base text-gray-900">{user.phone || '-'}</p>
+                    <p className="text-base text-gray-900">
+                      {user.phone ? user.phone : '-'}
+                    </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <CakeIcon className="h-5 w-5 text-gray-400" />
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-500">Fecha de nacimiento</p>
-                    <p className="text-base text-gray-900">{formatDate(user.birthday || '')}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <MapPinIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Ubicación</p>
-                    <p className="text-base text-gray-900">{user.location || '-'}</p>
+                    <p className="text-base text-gray-900">
+                      {user.birthday ? formatDate(user.birthday) : '-'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -536,10 +685,72 @@ const UserProfilePage: React.FC = () => {
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title="Completar información de perfil"
+        title="Actualizar información de perfil"
         size="md"
       >
         <div className="space-y-4">
+          {/* Foto de perfil */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Foto de perfil
+            </label>
+            <div className="flex items-center space-x-4">
+              <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
+                <img
+                  src={previewProfileImage || (user?.profileImage ? getFullImageUrl(user.profileImage) : defaultUserImage)}
+                  alt="Foto de perfil"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div>
+                <label className="cursor-pointer">
+                  <span className="px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cambiar foto
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/jpeg, image/png, image/gif"
+                    onChange={(e) => handleFileChange(e, 'profile')}
+                  />
+                </label>
+                <p className="mt-1 text-xs text-gray-500">
+                  JPG o PNG. Máximo 1MB
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Banner */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Imagen de banner
+            </label>
+            <div className="border border-gray-300 rounded-lg p-2">
+              <div className="h-24 w-full rounded-lg overflow-hidden bg-gray-200">
+                <img
+                  src={previewBannerImage || (user?.bannerImage ? getFullImageUrl(user.bannerImage) : heroBanner)}
+                  alt="Banner"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div className="mt-2 flex justify-end">
+                <label className="cursor-pointer">
+                  <span className="px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cambiar banner
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/jpeg, image/png, image/gif"
+                    onChange={(e) => handleFileChange(e, 'banner')}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Teléfono */}
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
               Teléfono
@@ -555,6 +766,7 @@ const UserProfilePage: React.FC = () => {
             />
           </div>
           
+          {/* Fecha de nacimiento */}
           <div>
             <label htmlFor="birthday" className="block text-sm font-medium text-gray-700 mb-1">
               Fecha de nacimiento
@@ -567,24 +779,6 @@ const UserProfilePage: React.FC = () => {
               onChange={handleInputChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
             />
-          </div>
-          
-          <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-              Ubicación
-            </label>
-            <input
-              type="text"
-              id="location"
-              name="location"
-              value={formData.location}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-              placeholder="Ciudad de Guatemala"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Esta información es opcional y nos ayuda a organizar mejor los eventos y servicios.
-            </p>
           </div>
           
           <div className="flex justify-end space-x-3 pt-4">

@@ -34,12 +34,12 @@ interface SidebarItem {
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
   
-  // Estado para controlar qué menús están expandidos
+  // Estado para manejar la apertura/cierre del menú de administración
   const [menuState, setMenuState] = useState({
     adminOpen: false
   });
   
-  // Toggle para expandir/contraer el menú de administración
+  // Función para alternar el menú de administración
   const toggleAdminMenu = () => {
     setMenuState(prev => ({
       ...prev,
@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     }
   ];
   
-  // Manejador para los elementos del menú en móviles
+  // Función para manejar el clic en un ítem de menú
   const handleMenuItemClick = () => {
     if (onClose) {
       onClose();
@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   
   // Renderizar un ítem de menú
   const renderMenuItem = (item: SidebarItem) => {
-    // Si el ítem tiene hijos (es un dropdown)
+    // Si el ítem tiene hijos, renderizar un botón para expandir/contraer
     if (item.children) {
       return (
         <li key={item.title}>
@@ -153,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       );
     }
     
-    // Para ítems regulares (sin hijos)
+    // Si el ítem no tiene hijos, renderizar un enlace normal
     return (
       <li key={item.path}>
         <Link
