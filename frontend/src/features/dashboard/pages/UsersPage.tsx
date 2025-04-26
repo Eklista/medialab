@@ -212,16 +212,7 @@ const UsersPage: React.FC = () => {
           console.log("Rol asignado exitosamente");
           
           // Recargar todos los usuarios para obtener la información actualizada
-          const updatedUserList = await userService.getUsers();
-          setUsers(updatedUserList.map(user => ({
-            id: user.id.toString(),
-            fullName: `${user.firstName || user.first_name || ''} ${user.lastName || user.last_name || ''}`.trim(),
-            email: user.email || 'Sin email',
-            role: user.roles.join(', ') || 'Sin rol',
-            area: 'Área asignada', // Idealmente esto debería venir de la API
-            isActive: user.isActive || user.is_active || false,
-            lastLogin: user.lastLogin || user.last_login || '-'
-          })));
+          await loadInitialData();
         } catch (roleError) {
           console.error('Error al asignar rol:', roleError);
         }
@@ -237,10 +228,12 @@ const UsersPage: React.FC = () => {
           lastLogin: '-'
         };
         
-        setUsers([...users, newLocalUser]);
+        setUsers(prevUsers => [...prevUsers, newLocalUser]);
       }
       
+      // Cerrar el modal después de todo el proceso
       setIsAddModalOpen(false);
+      
     } catch (err) {
       console.error('Error al crear usuario:', err);
       setError(err instanceof Error ? err.message : 'Error al crear usuario');
@@ -254,7 +247,7 @@ const UsersPage: React.FC = () => {
     
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       // Preparar los datos para la API usando snake_case para el backend
       const userData = {
