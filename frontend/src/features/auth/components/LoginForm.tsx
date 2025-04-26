@@ -124,9 +124,9 @@ const LoginForm: React.FC = () => {
         </div>
         
         <div className="text-sm">
-          <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
-            ¿Olvidaste tu contraseña?
-          </Link>
+        <Link to="/password-recovery" className="font-medium text-blue-600 hover:text-blue-500">
+          ¿Olvidaste tu contraseña?
+        </Link>
         </div>
       </div>
       
