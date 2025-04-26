@@ -10,6 +10,8 @@ const SidebarFooter: React.FC = () => {
   const navigate = useNavigate();
  
   const handleLock = () => {
+    // Guardar la ruta actual antes de bloquear la sesión
+    localStorage.setItem('lastPathBeforeLock', window.location.pathname);
     lockSession();
   };
   

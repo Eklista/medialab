@@ -21,11 +21,6 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const { state, logout, lockSession } = useAuth();
   const navigate = useNavigate();
   
-  // Para depuración - ver qué hay en el estado
-  useEffect(() => {
-    ///////////////console.log("Estado de autenticación en Navbar:", state);
-  }, [state]);
-  
   // Función para alternar el menú de usuario
   const toggleUserMenu = () => {
     setIsUserMenuOpen(!isUserMenuOpen);

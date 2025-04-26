@@ -1,11 +1,12 @@
 // src/features/dashboard/components/layout/DashboardLayout.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import LockScreen from '../../../auth/components/LockScreen';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useLocation } from 'react-router-dom';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,14 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { state } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+  
+  // Guardar la última ruta visitada
+  useEffect(() => {
+    if (state.isAuthenticated && !state.isLocked) {
+      localStorage.setItem('lastPath', location.pathname);
+    }
+  }, [location.pathname, state.isAuthenticated, state.isLocked]);
   
   // Si la sesión está bloqueada, mostrar la pantalla de bloqueo
   if (state.isAuthenticated && state.isLocked) {

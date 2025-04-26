@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import TextInput from '../../service-request/components/TextInput';
 import Button from '../../service-request/components/Button';
 import heroImage from '../../../assets/images/medialab-hero.jpg';
+import defaultUserImage from '../../../assets/images/user.jpg'; // Asegúrate de tener esta imagen
 
 const LockScreen: React.FC = () => {
   const { state, unlockSession } = useAuth();
@@ -39,6 +40,25 @@ const LockScreen: React.FC = () => {
     }
   };
   
+  // Función para obtener la URL completa de la imagen
+  const getProfileImageUrl = () => {
+    // Verificamos si el usuario existe y si tiene alguna de las propiedades de imagen
+    if (!state.user) return defaultUserImage;
+    
+    const profileImage = state.user.profileImage || state.user.profile_image;
+    if (!profileImage) return defaultUserImage;
+    
+    if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
+      return profileImage;
+    }
+    
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const baseUrl = apiUrl.replace('/api/v1', '');
+    const path = profileImage.startsWith('/') ? profileImage : `/${profileImage}`;
+    
+    return `${baseUrl}${path}`;
+  };
+  
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col md:flex-row">
       {/* Imagen lateral (izquierda en desktop, arriba en móvil) */}
@@ -65,10 +85,28 @@ const LockScreen: React.FC = () => {
         <div className="flex-grow flex items-center justify-center p-8">
           <div className="w-full max-w-md">
             <div className="mb-8 text-center">
-              <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-gray-100 mb-4">
-                <span className="text-xl font-bold">
-                  {state.user?.firstName?.charAt(0)}{state.user?.lastName?.charAt(0)}
-                </span>
+              {/* Avatar del usuario imagen de perfil */}
+              <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-gray-100 mb-4 overflow-hidden border-4 border-white shadow-md">
+                {state.user && (state.user.profileImage || state.user.profile_image) ? (
+                  <img 
+                    src={getProfileImageUrl()} 
+                    alt={state.user.firstName} 
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      // Si la imagen falla, mostrar las iniciales
+                      e.currentTarget.style.display = 'none';
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        const initials = `${state.user?.firstName?.charAt(0) || ''}${state.user?.lastName?.charAt(0) || ''}`;
+                        parent.innerHTML = `<span class="text-xl font-bold">${initials}</span>`;
+                      }
+                    }}
+                  />
+                ) : (
+                  <span className="text-xl font-bold">
+                    {state.user?.firstName?.charAt(0)}{state.user?.lastName?.charAt(0)}
+                  </span>
+                )}
               </div>
               <h2 className="text-2xl font-bold text-(--color-text-main)">Sesión Bloqueada</h2>
               <p className="mt-2 text-sm text-(--color-text-secondary)">

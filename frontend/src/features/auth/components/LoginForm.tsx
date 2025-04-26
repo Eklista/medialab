@@ -7,7 +7,7 @@ import Button from '../../service-request/components/Button';
 import { useAuth } from '../hooks/useAuth';
 
 const LoginForm: React.FC = () => {
-  const { login, state } = useAuth();
+  const { login, state: authState } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -39,16 +39,19 @@ const LoginForm: React.FC = () => {
         password: formData.password,
         rememberMe: formData.rememberMe
       });
+      
+      // La redirección ahora se maneja en el componente LoginPage
     } catch (error) {
       // Error ya manejado en el contexto
+      console.error("Error en inicio de sesión:", error);
     }
   };
   
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {state.error && (
+      {authState.error && (
         <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {state.error}
+          {authState.error}
         </div>
       )}
       
@@ -135,12 +138,11 @@ const LoginForm: React.FC = () => {
           type="submit"
           variant="primary"
           fullWidth
-          loading={state.isLoading}
+          loading={authState.isLoading}
         >
           Iniciar Sesión
         </Button>
       </div>
-
     </form>
   );
 };

@@ -10,6 +10,8 @@ export interface User {
   firstName: string;
   lastName: string;
   role: UserRole;
+  profileImage?: string;
+  profile_image?: string;
 }
 
 export interface AuthState {
@@ -18,6 +20,7 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
   isLocked: boolean;
+  lastActivity: number;
 }
 
 export interface LoginCredentials {
@@ -43,7 +46,8 @@ const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   error: null,
-  isLocked: false
+  isLocked: false,
+  lastActivity: Date.now()
 };
 
 // Tipos de acciones
@@ -54,7 +58,14 @@ type AuthAction =
   | { type: 'LOGOUT' }
   | { type: 'RESTORE_SESSION'; payload: User }
   | { type: 'LOCK_SESSION' }
-  | { type: 'UNLOCK_SESSION' };
+  | { type: 'UNLOCK_SESSION' }
+  | { type: 'UPDATE_ACTIVITY' };
+
+// Función para verificar si una ruta es pública
+const isPublicRoute = (path: string) => {
+  const publicRoutes = ['/', '/login', '/password-recovery', '/request'];
+  return publicRoutes.some(route => path === route || path.startsWith(route));
+};
 
 // Reducer
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
@@ -67,22 +78,34 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         isLoading: false, 
         isAuthenticated: true, 
         user: action.payload,
-        error: null 
+        error: null,
+        lastActivity: Date.now() 
       };
     case 'LOGIN_FAIL':
       return { ...state, isLoading: false, error: action.payload };
     case 'LOGOUT':
       return { ...initialState };
     case 'RESTORE_SESSION':
+      // Restaurar también el estado de bloqueo desde localStorage
+      const isLocked = localStorage.getItem('sessionLocked') === 'true';
       return {
         ...state,
         isAuthenticated: true,
-        user: action.payload
+        user: action.payload,
+        isLocked: isLocked,
+        lastActivity: isLocked ? 0 : Date.now() // Si está bloqueado, no actualizar lastActivity
       };
     case 'LOCK_SESSION':
+      // Guardar el estado de bloqueo en localStorage
+      localStorage.setItem('sessionLocked', 'true');
       return { ...state, isLocked: true };
     case 'UNLOCK_SESSION':
-      return { ...state, isLocked: false };
+      // Actualizar el estado de bloqueo en localStorage
+      localStorage.setItem('sessionLocked', 'false');
+      return { ...state, isLocked: false, lastActivity: Date.now() };
+    case 'UPDATE_ACTIVITY':
+      // Solo actualizar si la sesión no está bloqueada
+      return state.isLocked ? state : { ...state, lastActivity: Date.now() };
     default:
       return state;
   }
@@ -154,7 +177,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const user = processUserData(userData);
           
           dispatch({ type: 'RESTORE_SESSION', payload: user });
-          ///////////////console.log('Sesión restaurada:', user);
         } catch (error) {
           console.error('Error al restaurar la sesión:', error);
           authService.logout();
@@ -165,16 +187,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     checkAuth();
   }, []);
 
+    // Detectar actividad del usuario para actualizar lastActivity
+    useEffect(() => {
+      const handleActivity = () => {
+        dispatch({ type: 'UPDATE_ACTIVITY' });
+      };
+  
+      // Eventos para detectar actividad del usuario
+      window.addEventListener('mousemove', handleActivity);
+      window.addEventListener('keypress', handleActivity);
+      window.addEventListener('click', handleActivity);
+      window.addEventListener('scroll', handleActivity);
+  
+      // Verificar inactividad cada minuto
+      const inactivityCheckInterval = setInterval(() => {
+        const inactivityPeriod = 15 * 60 * 1000; // 15 minutos en milisegundos
+        
+        if (
+          state.isAuthenticated && 
+          !state.isLocked && 
+          Date.now() - state.lastActivity > inactivityPeriod
+        ) {
+          lockSession();
+        }
+      }, 60000); // Verificar cada minuto
+  
+      return () => {
+        // Limpiar eventos al desmontar
+        window.removeEventListener('mousemove', handleActivity);
+        window.removeEventListener('keypress', handleActivity);
+        window.removeEventListener('click', handleActivity);
+        window.removeEventListener('scroll', handleActivity);
+        clearInterval(inactivityCheckInterval);
+      };
+    }, [state.isAuthenticated, state.isLocked, state.lastActivity]);
+
   // Función para iniciar sesión
   const login = async (credentials: LoginCredentials): Promise<void> => {
     dispatch({ type: 'LOGIN_START' });
     
     try {
       const userData = await authService.login(credentials);
-     /////////////// console.log('Datos recibidos al iniciar sesión:', userData);
-      
-      // Procesar datos del usuario
       const user = processUserData(userData);
+      
+      // Al iniciar sesión, asegurarse de que no esté bloqueada
+      localStorage.setItem('sessionLocked', 'false');
       
       dispatch({ type: 'LOGIN_SUCCESS', payload: user });
     } catch (error: any) {
@@ -189,6 +246,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Función para cerrar sesión
   const logout = () => {
     authService.logout();
+    localStorage.removeItem('sessionLocked');
     dispatch({ type: 'LOGOUT' });
   };
 
@@ -248,7 +306,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Funciones para bloqueo de sesión
   const lockSession = () => {
-    dispatch({ type: 'LOCK_SESSION' });
+    // Obtener la ruta actual
+    const currentPath = window.location.pathname;
+    
+    // Solo bloqueamos si estamos en una ruta protegida
+    if (!isPublicRoute(currentPath)) {
+      dispatch({ type: 'LOCK_SESSION' });
+    }
   };
 
   const unlockSession = async (password: string): Promise<void> => {
