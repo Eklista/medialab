@@ -1,45 +1,17 @@
 // src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
 import AcademicUnitForm, { AcademicUnitFormData } from '../../components/config/AcademicUnitForm';
 import { PlusIcon } from '@heroicons/react/24/outline';
-
-// Tipos
-interface AcademicUnit {
-  id: string;
-  abbreviation: string;
-  name: string;
-  type: 'faculty' | 'department';
-  description: string;
-}
+import { academicUnitService } from '../../../../services';
+import { AcademicUnit } from '../../../../services/academicUnits.service';
+import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
 const AcademicUnitsSettings: React.FC = () => {
-  // Estado para unidades académicas (facultades y departamentos)
-  const [academicUnits, setAcademicUnits] = useState<AcademicUnit[]>([
-    {
-      id: '1',
-      abbreviation: 'FISICC',
-      name: 'Facultad de Ingeniería de Sistemas, Informática y Ciencias de la Computación',
-      type: 'faculty',
-      description: 'Facultad dedicada a la formación en ciencias de la computación e ingeniería de sistemas'
-    },
-    {
-      id: '2',
-      abbreviation: 'MEDIALAB',
-      name: 'Laboratorio de Multimedia',
-      type: 'department',
-      description: 'Departamento especializado en Producción Audiovisual'
-    },
-    {
-      id: '3',
-      abbreviation: 'FACOM',
-      name: 'Facultad de Comunicación',
-      type: 'faculty',
-      description: 'Facultad para profesionales en comunicación y diseño'
-    }
-  ]);
+  // Estado para unidades académicas
+  const [academicUnits, setAcademicUnits] = useState<AcademicUnit[]>([]);
   
   // Estado para modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -48,8 +20,33 @@ const AcademicUnitsSettings: React.FC = () => {
   const [currentUnit, setCurrentUnit] = useState<AcademicUnit | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Estado para carga y errores
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   // Estado para filtros
   const [filterType, setFilterType] = useState<'all' | 'faculty' | 'department'>('all');
+  
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    fetchAcademicUnits();
+  }, []);
+  
+  // Función para cargar unidades académicas desde la API
+  const fetchAcademicUnits = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const data = await academicUnitService.getAcademicUnits();
+      setAcademicUnits(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar las unidades académicas');
+      console.error('Error al cargar unidades académicas:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Handlers
   const handleAddUnit = () => {
@@ -66,47 +63,64 @@ const AcademicUnitsSettings: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
   
-  const handleDeleteUnit = () => {
-    if (currentUnit) {
+  const handleDeleteUnit = async () => {
+    if (!currentUnit || !currentUnit.id) return;
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      await academicUnitService.deleteAcademicUnit(currentUnit.id);
+      
       setAcademicUnits(academicUnits.filter(unit => unit.id !== currentUnit.id));
       setIsDeleteModalOpen(false);
       setCurrentUnit(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar la unidad académica');
+      console.error('Error al eliminar unidad académica:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
-  const handleAddSubmit = (data: AcademicUnitFormData) => {
+  const handleAddSubmit = async (data: AcademicUnitFormData) => {
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
-      const newUnit: AcademicUnit = {
-        id: Date.now().toString(),
-        ...data
-      };
+    try {
+      const newUnit = await academicUnitService.createAcademicUnit(data);
       
       setAcademicUnits([...academicUnits, newUnit]);
       setIsAddModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear la unidad académica');
+      console.error('Error al crear unidad académica:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
-  const handleEditSubmit = (data: AcademicUnitFormData) => {
-    if (!currentUnit) return;
+  const handleEditSubmit = async (data: AcademicUnitFormData) => {
+    if (!currentUnit || !currentUnit.id) return;
     
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
+    try {
+      const updatedUnit = await academicUnitService.updateAcademicUnit(currentUnit.id, data);
+      
       setAcademicUnits(academicUnits.map(unit => 
-        unit.id === currentUnit.id
-          ? { ...unit, ...data }
-          : unit
+        unit.id === currentUnit.id ? updatedUnit : unit
       ));
       
       setIsEditModalOpen(false);
       setCurrentUnit(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar la unidad académica');
+      console.error('Error al actualizar unidad académica:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
   // Filtramos las unidades por tipo
@@ -143,11 +157,6 @@ const AcademicUnitsSettings: React.FC = () => {
     }
   ];
   
-  // Helper functions for other components to use
-  // const getAllAcademicUnits = () => [...academicUnits];
-  // const getFaculties = () => academicUnits.filter(unit => unit.type === 'faculty');
-  // const getDepartments = () => academicUnits.filter(unit => unit.type === 'department');
-  
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -159,6 +168,15 @@ const AcademicUnitsSettings: React.FC = () => {
           Agregar Nueva Unidad
         </DashboardButton>
       </div>
+      
+      {/* Mostrar errores si los hay */}
+      {error && (
+        <ApiErrorHandler 
+          error={error} 
+          onRetry={fetchAcademicUnits} 
+          resourceName="las unidades académicas"
+        />
+      )}
       
       {/* Filtros */}
       <div className="mb-6">
@@ -199,11 +217,12 @@ const AcademicUnitsSettings: React.FC = () => {
       <DashboardDataTable
         columns={columns}
         data={filteredUnits}
-        keyExtractor={(unit) => unit.id}
+        keyExtractor={(unit) => unit.id.toString()}
         onEdit={handleEditUnit}
         onDelete={handleDeleteClick}
         actionColumn={true}
-        emptyMessage="No hay unidades académicas configuradas"
+        emptyMessage={isLoading ? "Cargando unidades académicas..." : "No hay unidades académicas configuradas"}
+        isLoading={isLoading}
       />
       
       {/* Modal para agregar unidad académica */}
@@ -268,12 +287,15 @@ const AcademicUnitsSettings: React.FC = () => {
               setIsDeleteModalOpen(false);
               setCurrentUnit(null);
             }}
+            disabled={isSubmitting}
           >
             Cancelar
           </DashboardButton>
           <DashboardButton
             variant="danger"
             onClick={handleDeleteUnit}
+            loading={isSubmitting}
+            disabled={isSubmitting}
           >
             Eliminar
           </DashboardButton>

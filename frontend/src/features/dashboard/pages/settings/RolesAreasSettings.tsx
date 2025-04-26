@@ -1,13 +1,16 @@
 // src/features/dashboard/pages/settings/RolesAreasSettings.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
 import RoleForm, { RoleFormData } from '../../components/config/RoleForm';
 import AreaForm, { AreaFormData } from '../../components/config/AreaForm';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { userService } from '../../../../services';
+import { RoleCreateRequest, RoleUpdateRequest } from '../../../../services/users.service';
+import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
-// Tipos
+// Tipos adaptados para ser compatibles con la API y el componente
 interface Role {
   id: string;
   name: string;
@@ -18,42 +21,20 @@ interface Role {
 interface Area {
   id: string;
   name: string;
-  description: string;
+  description: string; // Debe ser string para AreaForm
 }
 
 const RolesAreasSettings: React.FC = () => {
   // Estado para pestañas
   const [activeTab, setActiveTab] = useState<'roles' | 'areas'>('roles');
   
-  // Estado para roles
-  const [roles, setRoles] = useState<Role[]>([
-    {
-      id: '1',
-      name: 'Super Admin',
-      description: 'Acceso completo a todas las funcionalidades del sistema',
-      permissions: ['admin_view', 'admin_create', 'admin_edit', 'admin_delete', 'service_view', 'service_create', 'service_edit', 'service_delete']
-    },
-    {
-      id: '2',
-      name: 'Admin',
-      description: 'Administración del sistema con limitaciones de permisos',
-      permissions: ['admin_view', 'service_view', 'service_create', 'service_edit']
-    }
-  ]);
+  // Estado para roles y áreas
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   
-  // Estado para áreas
-  const [areas, setAreas] = useState<Area[]>([
-    {
-      id: '1',
-      name: 'Producción Audiovisual',
-      description: 'Equipo encargado de la grabación y edición de contenido audiovisual'
-    },
-    {
-      id: '2',
-      name: 'Desarrollo Web',
-      description: 'Equipo responsable del desarrollo y mantenimiento de sitios web'
-    }
-  ]);
+  // Estado para carga de datos
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Estado para modales
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
@@ -67,6 +48,60 @@ const RolesAreasSettings: React.FC = () => {
   const [currentArea, setCurrentArea] = useState<Area | null>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    if (activeTab === 'roles') {
+      fetchRoles();
+    } else {
+      fetchAreas();
+    }
+  }, [activeTab]);
+  
+  // Función para cargar roles desde la API
+  const fetchRoles = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const data = await userService.getRoles();
+      // Convertir los datos de la API al formato local
+      const formattedRoles: Role[] = data.map(role => ({
+        id: role.id,
+        name: role.name,
+        description: role.description || '',
+        permissions: [] // Añadir arreglo vacío de permisos ya que la API no los devuelve
+      }));
+      setRoles(formattedRoles);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar los roles');
+      console.error('Error al cargar roles:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Función para cargar áreas desde la API
+  const fetchAreas = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const data = await userService.getAreas();
+      // Convertir los datos de la API al formato local - asegurarse que description siempre sea string
+      const formattedAreas: Area[] = data.map(area => ({
+        id: area.id,
+        name: area.name,
+        description: area.description || '' // Convertir undefined a string vacío
+      }));
+      setAreas(formattedAreas);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar las áreas');
+      console.error('Error al cargar áreas:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Handlers para roles
   const handleAddRole = () => {
@@ -83,47 +118,118 @@ const RolesAreasSettings: React.FC = () => {
     setIsDeleteRoleModalOpen(true);
   };
   
-  const handleDeleteRole = () => {
-    if (currentRole) {
+  const handleDeleteRole = async () => {
+    if (!currentRole || !currentRole.id) return;
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Convertir id a número para la API
+      const roleId = parseInt(currentRole.id);
+      
+      // Llamada a la API para eliminar el rol
+      await userService.deleteRole(roleId);
+      
+      // Actualizar estado local
       setRoles(roles.filter(role => role.id !== currentRole.id));
       setIsDeleteRoleModalOpen(false);
       setCurrentRole(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar el rol');
+      console.error('Error al eliminar rol:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
-  const handleAddRoleSubmit = (data: RoleFormData) => {
+  const handleAddRoleSubmit = async (data: RoleFormData) => {
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
-      const newRole: Role = {
-        id: Date.now().toString(),
-        ...data
+    try {
+      // Creamos un objeto de solicitud compatible con la API
+      const roleRequest: RoleCreateRequest = {
+        name: data.name,
+        description: data.description
+        // No incluimos permissions aquí porque la API podría no aceptarlos
       };
       
-      setRoles([...roles, newRole]);
+      // Llamada a la API para crear un rol
+      const newRole = await userService.createRole(roleRequest);
+      
+      // Crear un objeto de rol con la estructura esperada por el componente
+      const formattedRole: Role = {
+        id: newRole.id.toString(),
+        name: newRole.name,
+        description: newRole.description || '',
+        permissions: data.permissions || [] // Usamos los permisos del formulario
+      };
+      
+      // Actualizar estado local
+      setRoles([...roles, formattedRole]);
       setIsAddRoleModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear el rol');
+      console.error('Error al crear rol:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
-  const handleEditRoleSubmit = (data: RoleFormData) => {
-    if (!currentRole) return;
+  const handleEditRoleSubmit = async (data: RoleFormData) => {
+    if (!currentRole || !currentRole.id) return;
     
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
+    try {
+      // Convertir id a número para la API
+      const roleId = parseInt(currentRole.id);
+      
+      // Creamos un objeto de solicitud compatible con la API
+      const roleRequest: RoleUpdateRequest = {
+        name: data.name,
+        description: data.description
+        // No incluimos permissions aquí porque la API podría no aceptarlos
+      };
+      
+      // Llamada a la API para actualizar el rol
+      const updatedRole = await userService.updateRole(roleId, roleRequest);
+      
+      // Si hay permisos para asignar, intentamos asignarlos por separado
+      // (si tu API lo soporta)
+      if (data.permissions && data.permissions.length > 0) {
+        try {
+          // Este paso es opcional, depende de si tu API soporta esta operación
+          // await userService.assignPermissionsToRole(roleId, data.permissions);
+          console.log("Asignación de permisos no implementada en la API");
+        } catch (permError) {
+          console.warn("No se pudieron asignar permisos:", permError);
+        }
+      }
+      
+      // Crear un objeto de rol con la estructura esperada por el componente
+      const formattedRole: Role = {
+        id: updatedRole.id.toString(),
+        name: updatedRole.name,
+        description: updatedRole.description || '',
+        permissions: data.permissions || currentRole.permissions || [] // Mantener permisos
+      };
+      
+      // Actualizar estado local
       setRoles(roles.map(role => 
-        role.id === currentRole.id
-          ? { ...role, ...data }
-          : role
+        role.id === currentRole.id ? formattedRole : role
       ));
       
       setIsEditRoleModalOpen(false);
       setCurrentRole(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar el rol');
+      console.error('Error al actualizar rol:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
   // Handlers para áreas
@@ -141,47 +247,90 @@ const RolesAreasSettings: React.FC = () => {
     setIsDeleteAreaModalOpen(true);
   };
   
-  const handleDeleteArea = () => {
-    if (currentArea) {
+  const handleDeleteArea = async () => {
+    if (!currentArea || !currentArea.id) return;
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Convertir id a número para la API
+      const areaId = parseInt(currentArea.id);
+      
+      // Llamada a la API para eliminar el área
+      await userService.deleteArea(areaId);
+      
+      // Actualizar estado local
       setAreas(areas.filter(area => area.id !== currentArea.id));
       setIsDeleteAreaModalOpen(false);
       setCurrentArea(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar el área');
+      console.error('Error al eliminar área:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
-  const handleAddAreaSubmit = (data: AreaFormData) => {
+  const handleAddAreaSubmit = async (data: AreaFormData) => {
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
-      const newArea: Area = {
-        id: Date.now().toString(),
-        ...data
+    try {
+      // Llamada a la API para crear un área
+      const newArea = await userService.createArea(data);
+      
+      // Convertir id a string para la interfaz y asegurar que description es string
+      const formattedArea: Area = {
+        id: newArea.id.toString(),
+        name: newArea.name,
+        description: newArea.description || ''
       };
       
-      setAreas([...areas, newArea]);
+      // Actualizar estado local
+      setAreas([...areas, formattedArea]);
       setIsAddAreaModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear el área');
+      console.error('Error al crear área:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
-  const handleEditAreaSubmit = (data: AreaFormData) => {
-    if (!currentArea) return;
+  const handleEditAreaSubmit = async (data: AreaFormData) => {
+    if (!currentArea || !currentArea.id) return;
     
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
+    try {
+      // Convertir id a número para la API
+      const areaId = parseInt(currentArea.id);
+      
+      // Llamada a la API para actualizar el área
+      const updatedArea = await userService.updateArea(areaId, data);
+      
+      // Convertir id a string para la interfaz y asegurar que description es string
+      const formattedArea: Area = {
+        id: updatedArea.id.toString(),
+        name: updatedArea.name,
+        description: updatedArea.description || ''
+      };
+      
+      // Actualizar estado local
       setAreas(areas.map(area => 
-        area.id === currentArea.id
-          ? { ...area, ...data }
-          : area
+        area.id === currentArea.id ? formattedArea : area
       ));
       
       setIsEditAreaModalOpen(false);
       setCurrentArea(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar el área');
+      console.error('Error al actualizar área:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
   // Columnas para la tabla de roles
@@ -198,12 +347,12 @@ const RolesAreasSettings: React.FC = () => {
       header: 'Permisos',
       accessor: (role: Role) => (
         <div className="flex flex-wrap gap-1">
-          {role.permissions.slice(0, 3).map((permission, index) => (
+          {role.permissions && role.permissions.slice(0, 3).map((permission, index) => (
             <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
               {permission}
             </span>
           ))}
-          {role.permissions.length > 3 && (
+          {role.permissions && role.permissions.length > 3 && (
             <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
               +{role.permissions.length - 3} más
             </span>
@@ -221,7 +370,7 @@ const RolesAreasSettings: React.FC = () => {
     },
     {
       header: 'Descripción',
-      accessor: (area: Area) => area.description
+      accessor: (area: Area) => area.description || '-'
     }
   ];
   
@@ -255,6 +404,14 @@ const RolesAreasSettings: React.FC = () => {
       
       {/* Contenido */}
       <div className="p-6">
+        {error && (
+          <ApiErrorHandler 
+            error={error} 
+            onRetry={activeTab === 'roles' ? fetchRoles : fetchAreas} 
+            resourceName={activeTab === 'roles' ? "los roles" : "las áreas"}
+          />
+        )}
+        
         {activeTab === 'roles' ? (
           <>
             <div className="flex justify-between items-center mb-6">
@@ -274,7 +431,8 @@ const RolesAreasSettings: React.FC = () => {
               onEdit={handleEditRole}
               onDelete={handleDeleteRoleClick}
               actionColumn={true}
-              emptyMessage="No hay roles configurados"
+              emptyMessage={isLoading ? "Cargando roles..." : "No hay roles configurados"}
+              isLoading={isLoading}
             />
           </>
         ) : (
@@ -296,7 +454,8 @@ const RolesAreasSettings: React.FC = () => {
               onEdit={handleEditArea}
               onDelete={handleDeleteAreaClick}
               actionColumn={true}
-              emptyMessage="No hay áreas configuradas"
+              emptyMessage={isLoading ? "Cargando áreas..." : "No hay áreas configuradas"}
+              isLoading={isLoading}
             />
           </>
         )}
@@ -362,12 +521,15 @@ const RolesAreasSettings: React.FC = () => {
               setIsDeleteRoleModalOpen(false);
               setCurrentRole(null);
             }}
+            disabled={isSubmitting}
           >
             Cancelar
           </DashboardButton>
           <DashboardButton
             variant="danger"
             onClick={handleDeleteRole}
+            loading={isSubmitting}
+            disabled={isSubmitting}
           >
             Eliminar
           </DashboardButton>
@@ -397,7 +559,10 @@ const RolesAreasSettings: React.FC = () => {
       >
         {currentArea && (
           <AreaForm
-            initialData={currentArea}
+            initialData={{
+              name: currentArea.name,
+              description: currentArea.description
+            }}
             onSubmit={handleEditAreaSubmit}
             onCancel={() => {
               setIsEditAreaModalOpen(false);
@@ -432,12 +597,15 @@ const RolesAreasSettings: React.FC = () => {
               setIsDeleteAreaModalOpen(false);
               setCurrentArea(null);
             }}
+            disabled={isSubmitting}
           >
             Cancelar
           </DashboardButton>
           <DashboardButton
             variant="danger"
             onClick={handleDeleteArea}
+            loading={isSubmitting}
+            disabled={isSubmitting}
           >
             Eliminar
           </DashboardButton>

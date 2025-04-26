@@ -58,12 +58,38 @@ export interface Role {
   id: string;
   name: string;
   description?: string;
+  permissions?: string[];
 }
 
 export interface Area {
   id: string;
   name: string;
   description?: string;
+}
+
+// Areas
+
+export interface AreaCreateRequest {
+  name: string;
+  description?: string;
+}
+
+export interface AreaUpdateRequest {
+  name?: string;
+  description?: string;
+}
+
+//Roles
+export interface RoleCreateRequest {
+  name: string;
+  description?: string;
+  permissions?: string[];
+}
+
+export interface RoleUpdateRequest {
+  name?: string;
+  description?: string;
+  permissions?: string[];
 }
 
 // Implementación del servicio de usuarios
@@ -210,7 +236,8 @@ class UserService {
       const response = await apiClient.get<Role[]>('/roles');
       return response.data.map(role => ({
         ...role,
-        id: role.id.toString() // Asegurar que el ID sea string
+        id: role.id.toString(), // Asegurar que el ID sea string
+        permissions: role.permissions || [] // Asegurar que permissions siempre existe
       }));
     } catch (error) {
       console.error('Error al obtener roles:', error);
@@ -248,6 +275,96 @@ class UserService {
       throw new Error(handleApiError(error));
     }
   }
+
+  // Métodos para áreas
+  // Crear un área
+  async createArea(areaData: AreaCreateRequest): Promise<Area> {
+    try {
+      const response = await apiClient.post<Area>('/areas', areaData);
+      return {
+        ...response.data,
+        id: response.data.id.toString() // Asegurar que el ID sea string
+      };
+    } catch (error) {
+      console.error('Error al crear área:', error);
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  // Actualizar un área
+  async updateArea(areaId: number, areaData: AreaUpdateRequest): Promise<Area> {
+    try {
+      const response = await apiClient.patch<Area>(`/areas/${areaId}`, areaData);
+      return {
+        ...response.data,
+        id: response.data.id.toString() // Asegurar que el ID sea string
+      };
+    } catch (error) {
+      console.error(`Error al actualizar área con ID ${areaId}:`, error);
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  // Eliminar un área
+  async deleteArea(areaId: number): Promise<void> {
+    try {
+      await apiClient.delete(`/areas/${areaId}`);
+    } catch (error) {
+      console.error(`Error al eliminar área con ID ${areaId}:`, error);
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  // Métodos para roles
+// Crear un rol
+async createRole(roleData: RoleCreateRequest): Promise<Role> {
+  try {
+    const response = await apiClient.post<Role>('/roles', roleData);
+    return {
+      ...response.data,
+      id: response.data.id.toString() // Asegurar que el ID sea string
+    };
+  } catch (error) {
+    console.error('Error al crear rol:', error);
+    throw new Error(handleApiError(error));
+  }
 }
+
+// Actualizar un rol
+async updateRole(roleId: number, roleData: RoleUpdateRequest): Promise<Role> {
+  try {
+    const response = await apiClient.patch<Role>(`/roles/${roleId}`, roleData);
+    return {
+      ...response.data,
+      id: response.data.id.toString() // Asegurar que el ID sea string
+    };
+  } catch (error) {
+    console.error(`Error al actualizar rol con ID ${roleId}:`, error);
+    throw new Error(handleApiError(error));
+  }
+}
+
+// Eliminar un rol
+async deleteRole(roleId: number): Promise<void> {
+  try {
+    await apiClient.delete(`/roles/${roleId}`);
+  } catch (error) {
+    console.error(`Error al eliminar rol con ID ${roleId}:`, error);
+    throw new Error(handleApiError(error));
+  }
+}
+
+// Asignar permisos a un rol
+async assignPermissionsToRole(roleId: number, permissionIds: number[]): Promise<void> {
+  try {
+    await apiClient.post(`/roles/${roleId}/permissions`, permissionIds);
+  } catch (error) {
+    console.error(`Error al asignar permisos al rol con ID ${roleId}:`, error);
+    throw new Error(handleApiError(error));
+  }
+}
+
+}
+
 
 export default new UserService();

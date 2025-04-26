@@ -12,6 +12,7 @@ from app.models.auth.roles import Role
 from app.models.auth.users import User
 from app.models.organization.areas import Area
 
+
 from app.api.v1 import api_router
 
 app = FastAPI(
