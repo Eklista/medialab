@@ -204,42 +204,41 @@ const UsersPage: React.FC = () => {
       const newApiUser = await userService.createUser(userData);
       console.log('Usuario creado:', newApiUser);
       
-      // Asignar rol si se proporcionaron roleId y areaId
-      if (data.roleId && data.areaId) {
-        try {
-          console.log(`Asignando rol ${data.roleId} y área ${data.areaId} al usuario ${newApiUser.id}`);
-          await userService.assignRole(newApiUser.id, data.roleId, data.areaId);
-          console.log("Rol asignado exitosamente");
-          
-          // Recargar todos los usuarios para obtener la información actualizada
-          await loadInitialData();
-        } catch (roleError) {
-          console.error('Error al asignar rol:', roleError);
-        }
-      } else {
-        // Si no hay rol que asignar, solo actualizar la lista con el nuevo usuario
-        const newLocalUser: LocalUser = {
-          id: newApiUser.id.toString(),
-          fullName: `${data.firstName} ${data.lastName}`,
-          email: data.email,
-          role: 'Sin rol',
-          area: 'Sin área',
-          isActive: true,
-          lastLogin: '-'
-        };
-        
-        setUsers(prevUsers => [...prevUsers, newLocalUser]);
-      }
-      
-      // Cerrar el modal después de todo el proceso
+      // Cerrar el modal inmediatamente
       setIsAddModalOpen(false);
+      
+      // Usar setTimeout para desacoplar completamente las operaciones del DOM
+      setTimeout(async () => {
+        try {
+          // Asignar rol si se proporcionaron roleId y areaId
+          if (data.roleId && data.areaId) {
+            console.log(`Asignando rol ${data.roleId} y área ${data.areaId} al usuario ${newApiUser.id}`);
+            await userService.assignRole(newApiUser.id, data.roleId, data.areaId);
+            console.log("Rol asignado exitosamente");
+          }
+          
+          // Usar otro setTimeout para separar la recarga de datos de la asignación de rol
+          setTimeout(() => {
+            loadInitialData();
+          }, 100);
+          
+        } catch (innerError) {
+          console.error('Error en operaciones post-creación:', innerError);
+          // Aquí podemos manejar errores específicos si es necesario
+        }
+      }, 200); // Un retraso más largo para asegurar que el modal se cierra completamente
       
     } catch (err) {
       console.error('Error al crear usuario:', err);
       setError(err instanceof Error ? err.message : 'Error al crear usuario');
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // Solo desactivamos el estado de envío aquí en caso de error
     }
+    
+    // Desactivar el estado de envío fuera del try/catch para garantizar que se ejecute
+    // Sin importar si hay setTimeout en juego
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 300);
   };
   
   const handleEditSubmit = async (data: UserFormData) => {
