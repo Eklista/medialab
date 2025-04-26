@@ -340,11 +340,6 @@ const PasswordRecoveryForm: React.FC = () => {
               </Link>
             </div>
             
-            {/* Ejemplos de correo para pruebas */}
-            <div className="text-center text-sm text-gray-500 mt-4">
-              <p>Para pruebas, usa estos correos:</p>
-              <p>pablo@prueba.com o kohler@prueba.com</p>
-            </div>
           </>
         );
         
@@ -433,10 +428,7 @@ const PasswordRecoveryForm: React.FC = () => {
                 ← Volver al paso anterior
               </button>
             </div>
-            
-            <div className="text-center text-sm text-gray-500 mt-4">
-              <p>Para fines de prueba, usa el código: 123456</p>
-            </div>
+        
           </>
         );
         

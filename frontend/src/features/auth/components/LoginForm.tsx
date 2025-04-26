@@ -140,12 +140,7 @@ const LoginForm: React.FC = () => {
           Iniciar Sesión
         </Button>
       </div>
-      
-      <div className="text-center text-sm text-gray-500 mt-4">
-        <p>Credenciales de prueba:</p>
-        <p>pablo@prueba.com / Admin123</p>
-        <p>kohler@prueba.com / User123</p>
-      </div>
+
     </form>
   );
 };
