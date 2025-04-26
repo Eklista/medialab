@@ -5,6 +5,8 @@ import TextInput from '../../service-request/components/TextInput';
 import Button from '../../service-request/components/Button';
 import heroImage from '../../../assets/images/medialab-hero.jpg';
 import defaultUserImage from '../../../assets/images/user.jpg';
+
+
 const LockScreen: React.FC = () => {
   const { state, unlockSession } = useAuth();
   const [password, setPassword] = useState('');
@@ -31,12 +33,15 @@ const LockScreen: React.FC = () => {
     const profileImage = state.user.profileImage || state.user.profile_image;
     if (!profileImage) return defaultUserImage;
     
+    // Si la URL ya es completa, usarla directamente
     if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
       return profileImage;
     }
     
-    const apiUrl = import.meta.env.VITE_API_URL || '';
-    const baseUrl = apiUrl.replace('/api/v1', '');
+    // Determinar la URL base basada en el entorno
+    const baseUrl = window.location.origin; // Usar el origen del navegador directamente
+    
+    // Asegurar que la ruta comience con /
     const path = profileImage.startsWith('/') ? profileImage : `/${profileImage}`;
     
     return `${baseUrl}${path}`;
@@ -111,19 +116,14 @@ const LockScreen: React.FC = () => {
               <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-gray-100 mb-4 overflow-hidden border-4 border-white shadow-md">
                 {state.user && (state.user.profileImage || state.user.profile_image) ? (
                   <img 
-                    src={getProfileImageUrl()} 
-                    alt={state.user.firstName} 
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      // Si la imagen falla, mostrar las iniciales
-                      e.currentTarget.style.display = 'none';
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        const initials = `${state.user?.firstName?.charAt(0) || ''}${state.user?.lastName?.charAt(0) || ''}`;
-                        parent.innerHTML = `<span class="text-xl font-bold">${initials}</span>`;
-                      }
-                    }}
-                  />
+                  src={getProfileImageUrl()} 
+                  alt={state.user.firstName} 
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    console.error('Error al cargar la imagen de perfil:', e);
+                    (e.target as HTMLImageElement).src = defaultUserImage;
+                  }}
+                />
                 ) : (
                   <span className="text-xl font-bold">
                     {state.user?.firstName?.charAt(0)}{state.user?.lastName?.charAt(0)}
