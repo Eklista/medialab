@@ -64,7 +64,10 @@ type AuthAction =
 // Función para verificar si una ruta es pública
 const isPublicRoute = (path: string) => {
   const publicRoutes = ['/', '/login', '/password-recovery', '/request'];
-  return publicRoutes.some(route => path === route || path.startsWith(route));
+  const isPublic = publicRoutes.some(route => 
+    path === route || path.startsWith(`${route}/`));
+  console.log("Verificando si es ruta pública:", path, "Resultado:", isPublic);
+  return isPublic;
 };
 
 // Reducer
@@ -308,10 +311,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const lockSession = () => {
     // Obtener la ruta actual
     const currentPath = window.location.pathname;
+    console.log("lockSession llamado, ruta actual:", currentPath);
+    console.log("¿Es ruta pública?", isPublicRoute(currentPath));
     
     // Solo bloqueamos si estamos en una ruta protegida
     if (!isPublicRoute(currentPath)) {
+      console.log("Procediendo a bloquear sesión");
       dispatch({ type: 'LOCK_SESSION' });
+    } else {
+      console.log("No se bloquea la sesión porque estamos en una ruta pública");
     }
   };
 

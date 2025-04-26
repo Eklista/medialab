@@ -4,8 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import TextInput from '../../service-request/components/TextInput';
 import Button from '../../service-request/components/Button';
 import heroImage from '../../../assets/images/medialab-hero.jpg';
-import defaultUserImage from '../../../assets/images/user.jpg'; // Asegúrate de tener esta imagen
-
+import defaultUserImage from '../../../assets/images/user.jpg';
 const LockScreen: React.FC = () => {
   const { state, unlockSession } = useAuth();
   const [password, setPassword] = useState('');
@@ -25,24 +24,8 @@ const LockScreen: React.FC = () => {
       document.body.style.overflow = originalOverflow;
     };
   }, []);
-  
-  const handleUnlock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    
-    try {
-      await unlockSession(password);
-    } catch (error) {
-      setError('Contraseña incorrecta. Intenta de nuevo.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Función para obtener la URL completa de la imagen
+
   const getProfileImageUrl = () => {
-    // Verificamos si el usuario existe y si tiene alguna de las propiedades de imagen
     if (!state.user) return defaultUserImage;
     
     const profileImage = state.user.profileImage || state.user.profile_image;
@@ -58,6 +41,45 @@ const LockScreen: React.FC = () => {
     
     return `${baseUrl}${path}`;
   };
+  
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    
+    try {
+      await unlockSession(password);
+      setPassword(''); // Limpiar contraseña después de un desbloqueo exitoso
+    } catch (error) {
+      console.error("Error al desbloquear:", error);
+      setError('Contraseña incorrecta. Intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Si no hay usuario, mostrar mensaje de error
+  if (!state.user) {
+    return (
+      <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="mb-4 text-red-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-2">Error de sesión</h2>
+          <p className="mb-4">No se ha podido recuperar la información del usuario.</p>
+          <Button 
+            variant="primary"
+            onClick={() => window.location.href = '/login'}
+          >
+            Volver a iniciar sesión
+          </Button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col md:flex-row">
@@ -85,7 +107,7 @@ const LockScreen: React.FC = () => {
         <div className="flex-grow flex items-center justify-center p-8">
           <div className="w-full max-w-md">
             <div className="mb-8 text-center">
-              {/* Avatar del usuario imagen de perfil */}
+              {/* Avatar del usuario con imagen de perfil */}
               <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-gray-100 mb-4 overflow-hidden border-4 border-white shadow-md">
                 {state.user && (state.user.profileImage || state.user.profile_image) ? (
                   <img 
@@ -144,7 +166,7 @@ const LockScreen: React.FC = () => {
                 }
               />
               
-              <div className="mt-6">
+              <div className="mt-6 flex flex-col space-y-4">
                 <Button 
                   type="submit"
                   variant="primary"
@@ -152,6 +174,18 @@ const LockScreen: React.FC = () => {
                   loading={isLoading}
                 >
                   Desbloquear
+                </Button>
+                
+                <Button 
+                  type="button"
+                  variant="outline"
+                  fullWidth
+                  onClick={() => {
+                    // Cerrar sesión completamente si el usuario lo desea
+                    window.location.href = '/login';
+                  }}
+                >
+                  Cerrar sesión
                 </Button>
               </div>
             </form>

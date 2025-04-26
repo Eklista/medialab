@@ -10,8 +10,9 @@ const SidebarFooter: React.FC = () => {
   const navigate = useNavigate();
  
   const handleLock = () => {
-    // Guardar la ruta actual antes de bloquear la sesión
+    console.log("Botón de bloqueo presionado en SidebarFooter/Navbar");
     localStorage.setItem('lastPathBeforeLock', window.location.pathname);
+    console.log("Ruta guardada:", window.location.pathname);
     lockSession();
   };
   

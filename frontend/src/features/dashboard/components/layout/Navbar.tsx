@@ -34,6 +34,9 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   
   // Función para bloquear la sesión
   const handleLock = () => {
+    console.log("Botón de bloqueo presionado en SidebarFooter/Navbar");
+    localStorage.setItem('lastPathBeforeLock', window.location.pathname);
+    console.log("Ruta guardada:", window.location.pathname);
     lockSession();
   };
   
