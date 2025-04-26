@@ -1,46 +1,17 @@
 // src/features/dashboard/pages/settings/ServicesSettings.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
-import ServiceForm, { ServiceFormData, SubService } from '../../components/config/ServiceForm';
+import ServiceForm, { ServiceFormData } from '../../components/config/ServiceForm';
 import { PlusIcon } from '@heroicons/react/24/outline';
-
-// Tipos
-interface Service {
-  id: string;
-  name: string;
-  description: string;
-  iconName: string;
-  subServices: SubService[];
-}
+import { servicesService } from '../../../../services';
+import { Service } from '../../../../services/services.service';
+import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
 const ServicesSettings: React.FC = () => {
   // Estado para servicios
-  const [services, setServices] = useState<Service[]>([
-    {
-      id: 'audiovisual',
-      name: 'Producción Audiovisual',
-      description: 'Servicios relacionados con producción de contenido audiovisual',
-      iconName: 'video-camera',
-      subServices: [
-        { id: 'video', name: 'Grabación de Video', description: 'Grabación profesional con equipo de alta calidad' },
-        { id: 'audio', name: 'Grabación de Audio', description: 'Grabación y procesamiento de audio' },
-        { id: 'editing', name: 'Edición de Video', description: 'Montaje y post-producción de contenido audiovisual' },
-        { id: 'streaming', name: 'Transmisión en vivo', description: 'Streaming para eventos y actividades' }
-      ]
-    },
-    {
-      id: 'web',
-      name: 'Desarrollo Web',
-      description: 'Servicios relacionados con desarrollo y diseño web',
-      iconName: 'code',
-      subServices: [
-        { id: 'website', name: 'Desarrollo de Sitios Web', description: 'Creación de sitios web responsivos' },
-        { id: 'webapp', name: 'Aplicaciones Web', description: 'Desarrollo de aplicaciones web interactivas' }
-      ]
-    }
-  ]);
+  const [services, setServices] = useState<Service[]>([]);
   
   // Estado para modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -48,8 +19,33 @@ const ServicesSettings: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentService, setCurrentService] = useState<Service | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estado para carga de datos
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Handlers
+  // Cargar servicios al montar el componente
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  // Función para cargar servicios desde la API
+  const fetchServices = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const data = await servicesService.getServices();
+      setServices(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar los servicios');
+      console.error('Error al cargar servicios:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Handlers para servicios
   const handleAddService = () => {
     setIsAddModalOpen(true);
   };
@@ -64,47 +60,139 @@ const ServicesSettings: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
   
-  const handleDeleteService = () => {
-    if (currentService) {
-      setServices(services.filter(service => service.id !== currentService.id));
+  const handleDeleteService = async () => {
+    if (!currentService || !currentService.id) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      await servicesService.deleteService(currentService.id);
+      
+      // Actualizar la lista local de servicios
+      setServices(services.filter(s => s.id !== currentService.id));
       setIsDeleteModalOpen(false);
       setCurrentService(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar el servicio');
+      console.error('Error al eliminar servicio:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
-  const handleAddSubmit = (data: ServiceFormData) => {
+  const handleAddSubmit = async (data: ServiceFormData) => {
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
-      const newService: Service = {
-        id: data.name.toLowerCase().replace(/\s+/g, '-'),
-        ...data
+    try {
+      // Adaptar los datos al formato esperado por la API
+      const serviceData = {
+        name: data.name,
+        description: data.description,
+        icon_name: data.iconName,
+        sub_services: data.subServices.map(sub => ({
+          name: sub.name,
+          description: sub.description
+        }))
       };
       
+      // Crear el servicio
+      const newService = await servicesService.createService(serviceData);
+      
+      // Actualizar la lista local de servicios
       setServices([...services, newService]);
       setIsAddModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear el servicio');
+      console.error('Error al crear servicio:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
-  const handleEditSubmit = (data: ServiceFormData) => {
-    if (!currentService) return;
+  const handleEditSubmit = async (data: ServiceFormData) => {
+    if (!currentService || !currentService.id) return;
     
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulamos una petición a la API
-    setTimeout(() => {
-      setServices(services.map(service => 
-        service.id === currentService.id
-          ? { ...service, ...data }
-          : service
-      ));
+    try {
+      // Primero actualizar la información básica del servicio
+      const serviceUpdateData = {
+        name: data.name,
+        description: data.description,
+        icon_name: data.iconName
+      };
+      
+      // Actualizar el servicio
+      const updatedService = await servicesService.updateService(
+        currentService.id, 
+        serviceUpdateData
+      );
+      
+      // Actualizar la lista local de servicios
+      setServices(services.map(s => s.id === currentService.id ? updatedService : s));
+      
+      // Ahora manejar cambios en los sub-servicios
+      // 1. Identificar sub-servicios a eliminar (los que están en el servicio actual pero no en los datos enviados)
+      const existingSubServiceIds = new Set(currentService.sub_services.map(sub => sub.id));
+      const newSubServiceIds = new Set(
+        data.subServices
+          .filter(sub => sub.id !== undefined)
+          .map(sub => sub.id)
+      );
+      
+      const subServicesToDelete = currentService.sub_services.filter(
+        sub => sub.id && !newSubServiceIds.has(sub.id)
+      );
+      
+      // 2. Identificar sub-servicios a añadir (los que no tienen ID)
+      const subServicesToAdd = data.subServices.filter(sub => !sub.id);
+      
+      // 3. Identificar sub-servicios a actualizar (los que tienen ID y están en ambos conjuntos)
+      const subServicesToUpdate = data.subServices.filter(
+        sub => sub.id && existingSubServiceIds.has(sub.id)
+      );
+      
+      // Ejecutar las operaciones
+      // Eliminar sub-servicios
+      for (const subService of subServicesToDelete) {
+        if (subService.id) {
+          await servicesService.deleteSubService(subService.id);
+        }
+      }
+      
+      // Añadir nuevos sub-servicios
+      for (const subService of subServicesToAdd) {
+        if (currentService.id) {
+          await servicesService.addSubService(currentService.id, {
+            name: subService.name,
+            description: subService.description
+          });
+        }
+      }
+      
+      // Actualizar sub-servicios existentes
+      for (const subService of subServicesToUpdate) {
+        if (subService.id) {
+          await servicesService.updateSubService(subService.id, {
+            name: subService.name,
+            description: subService.description
+          });
+        }
+      }
+      
+      // Recargar los servicios para obtener los datos actualizados
+      await fetchServices();
       
       setIsEditModalOpen(false);
       setCurrentService(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar el servicio');
+      console.error('Error al actualizar servicio:', err);
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
   
   // Columnas para la tabla
@@ -115,16 +203,16 @@ const ServicesSettings: React.FC = () => {
     },
     {
       header: 'Descripción',
-      accessor: (service: Service) => service.description
+      accessor: (service: Service) => service.description || '-'
     },
     {
       header: 'Icono',
-      accessor: (service: Service) => service.iconName
+      accessor: (service: Service) => service.icon_name || '-'
     },
     {
       header: 'Subservicios',
       accessor: (service: Service) => (
-        <span className="text-gray-600">{service.subServices.length} subservicios</span>
+        <span className="text-gray-600">{service.sub_services.length} subservicios</span>
       )
     }
   ];
@@ -141,14 +229,24 @@ const ServicesSettings: React.FC = () => {
         </DashboardButton>
       </div>
       
+      {/* Mostrar errores si los hay */}
+      {error && (
+        <ApiErrorHandler 
+          error={error} 
+          onRetry={fetchServices} 
+          resourceName="los servicios"
+        />
+      )}
+      
       <DashboardDataTable
         columns={columns}
         data={services}
-        keyExtractor={(service) => service.id}
+        keyExtractor={(service) => service.id?.toString() || ''}
         onEdit={handleEditService}
         onDelete={handleDeleteClick}
         actionColumn={true}
-        emptyMessage="No hay servicios configurados"
+        emptyMessage={isLoading ? "Cargando servicios..." : "No hay servicios configurados"}
+        isLoading={isLoading}
       />
       
       {/* Modal para agregar servicio */}
@@ -177,7 +275,16 @@ const ServicesSettings: React.FC = () => {
       >
         {currentService && (
           <ServiceForm
-            initialData={currentService}
+            initialData={{
+              name: currentService.name,
+              description: currentService.description || '',
+              iconName: currentService.icon_name || '',
+              subServices: currentService.sub_services.map(sub => ({
+                id: sub.id,
+                name: sub.name,
+                description: sub.description || ''
+              }))
+            }}
             onSubmit={handleEditSubmit}
             onCancel={() => {
               setIsEditModalOpen(false);
@@ -213,12 +320,15 @@ const ServicesSettings: React.FC = () => {
               setIsDeleteModalOpen(false);
               setCurrentService(null);
             }}
+            disabled={isSubmitting}
           >
             Cancelar
           </DashboardButton>
           <DashboardButton
             variant="danger"
             onClick={handleDeleteService}
+            loading={isSubmitting}
+            disabled={isSubmitting}
           >
             Eliminar
           </DashboardButton>
