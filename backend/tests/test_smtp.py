@@ -22,11 +22,11 @@ message.attach(MIMEText(body, "plain"))
 
 try:
     # Para puerto 465, usar SMTP_SSL
-    server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+    #server = smtplib.SMTP_SSL(smtp_host, smtp_port)
     
-    # Si usaras el puerto 587, sería así:
-    # server = smtplib.SMTP(smtp_host, smtp_port)
-    # server.starttls()
+    # Para puerto 587, usar SMTP y starttls
+     server = smtplib.SMTP(smtp_host, smtp_port)
+     server.starttls()
     
     server.login(smtp_user, smtp_password)
     text = message.as_string()
