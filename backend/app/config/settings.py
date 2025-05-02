@@ -35,8 +35,8 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 CORS_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "http://medialab.eklista.com",
-    "http://168.231.74.237"
+    "https://medialab.eklista.com",
+    "https://168.231.74.237"
 ]
 
 # Configuración de correo electrónico
