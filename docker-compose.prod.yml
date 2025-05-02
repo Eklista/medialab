@@ -10,9 +10,11 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./scripts:/scripts
+    env_file:
+      - ./.env.prod
     environment:
-      - DATABASE_URL=mysql+pymysql://medialab_user:MediaLab2025Db$$3cur3@db:3306/medialab_db
-      - ENVIRONMENT=production
+      - DATABASE_URL=${DB_URL}
+      - ENVIRONMENT=${ENV}
     depends_on:
       - db
     command: bash -c "apt-get update && apt-get install -y default-mysql-client netcat-traditional && sleep 30 && python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
@@ -23,7 +25,7 @@ services:
       dockerfile: dockerfile 
     restart: always
     environment:
-      - VITE_API_URL=https://medialab.eklista.com/api/v1
+      - VITE_API_URL=${FRONTEND_API_URL}
     volumes:
       - ./frontend/dist:/app/dist
 
@@ -33,10 +35,10 @@ services:
     ports:
       - "127.0.0.1:3307:3306" 
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=medialab_db
-      - MYSQL_USER=medialab_user
-      - MYSQL_PASSWORD=MediaLab2025Db$$3cur3
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
     volumes:
       - medialab-db-data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci

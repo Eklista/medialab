@@ -17,9 +17,9 @@ cd /var/www/medialab/medialab
 echo -e "${YELLOW}Actualizando código desde el repositorio...${NC}"
 git pull
 
-# Construir y levantar contenedores Docker
+# Construir y levantar contenedores Docker con variables de entorno
 echo -e "${YELLOW}Construyendo y levantando servicios Docker...${NC}"
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 
 # Esperar a que los servicios estén listos
 echo -e "${YELLOW}Esperando a que los servicios estén listos...${NC}"
@@ -28,7 +28,7 @@ sleep 10
 # Copiar los archivos del build del frontend al directorio que lee Nginx
 echo -e "${YELLOW}Copiando archivos del frontend a la carpeta servida por Nginx...${NC}"
 mkdir -p /var/www/medialab/medialab/frontend/dist
-docker cp $(docker-compose -f docker-compose.prod.yml ps -q frontend):/app/dist/. /var/www/medialab/medialab/frontend/dist/
+docker cp $(docker compose -f docker-compose.prod.yml ps -q frontend):/app/dist/. /var/www/medialab/medialab/frontend/dist/
 
 # Ajustar permisos
 echo -e "${YELLOW}Ajustando permisos...${NC}"
@@ -39,7 +39,7 @@ echo -e "${YELLOW}Verificando que el backend esté funcionando...${NC}"
 if curl -s http://localhost:8000/api/v1/ > /dev/null; then
     echo -e "${GREEN}Backend funcionando correctamente${NC}"
 else
-    echo -e "${RED}Error: El backend no responde. Verifica los logs con: docker-compose -f docker-compose.prod.yml logs backend${NC}"
+    echo -e "${RED}Error: El backend no responde. Verifica los logs con: docker compose -f docker-compose.prod.yml logs backend${NC}"
 fi
 
 # Recordatorio de verificar Nginx
@@ -55,4 +55,4 @@ else
 fi
 
 echo -e "${GREEN}¡Despliegue completado! MediaLab debería estar accesible en https://medialab.eklista.com${NC}"
-echo -e "${YELLOW}Si encuentras algún problema, verifica los logs con: docker-compose -f docker-compose.prod.yml logs${NC}"
+echo -e "${YELLOW}Si encuentras algún problema, verifica los logs con: docker compose -f docker-compose.prod.yml logs${NC}"
