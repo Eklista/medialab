@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # URL del frontend según el entorno

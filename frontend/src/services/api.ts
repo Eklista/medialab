@@ -3,7 +3,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 // Determinar la URL base según el entorno
 export const getBaseUrl = () => {
   return import.meta.env.MODE === 'production' 
-    ? 'https://168.231.74.237/api/v1'  // URL de producción en Render
+    ? 'http://medialab.eklista.com/api/v1'  // URL de producción en Render
     : 'http://localhost:8000/api/v1';         // URL de desarrollo local
 };
 
