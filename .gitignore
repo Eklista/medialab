@@ -35,3 +35,5 @@ coverage/
 
 venv/
 backend/venv/
+.env.prod
+.env.dev
