@@ -4,29 +4,28 @@ services:
   backend:
     build: 
       context: ./backend
+      dockerfile: dockerfile
     restart: always
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./scripts:/scripts
-    env_file:
-      - ./backend/.env
     environment:
       - DATABASE_URL=mysql+pymysql://medialab_user:MediaLab2025Db$$3cur3@db:3306/medialab_db
       - ENVIRONMENT=production
     depends_on:
       - db
-    command: bash -c "apt-get update && apt-get install -y default-mysql-client netcat-traditional && chmod +x /scripts/check-and-migrate.sh && /scripts/check-and-migrate.sh"
-
+    command: bash -c "apt-get update && apt-get install -y default-mysql-client netcat-traditional && sleep 30 && python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+  
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod
+      dockerfile: dockerfile 
     restart: always
     environment:
       - VITE_API_URL=https://medialab.eklista.com/api/v1
     volumes:
-      - frontend-build:/app/dist
+      - ./frontend/dist:/app/dist
 
   db:
     image: mysql:8.0
