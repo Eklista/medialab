@@ -1,15 +1,17 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 
-// Determinar la URL base según el entorno
+// Usar siempre la URL HTTPS para producción
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://medialab.eklista.com/api/v1';
+console.log('API Base URL:', apiBaseUrl); // Para depuración
+
+// Determinar la URL base según el entorno (simplificado)
 export const getBaseUrl = () => {
-  return import.meta.env.MODE === 'production' 
-    ? 'https://medialab.eklista.com/api/v1'  // URL de producción
-    : 'http://localhost:8000/api/v1';         // URL de desarrollo local
+  return apiBaseUrl;
 };
 
-// Crear instancia de Axios
+// Crear instancia de Axios con URL forzada a HTTPS
 const apiClient: AxiosInstance = axios.create({
-  baseURL: getBaseUrl(),
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,7 +25,8 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
-  },
+  
+},
   (error) => {
     return Promise.reject(error);
   }

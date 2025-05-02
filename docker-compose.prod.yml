@@ -25,9 +25,7 @@ services:
       dockerfile: dockerfile 
     restart: always
     environment:
-      - VITE_API_URL=${FRONTEND_API_URL}
-    volumes:
-      - ./frontend/dist:/app/dist
+      - VITE_API_URL=https://medialab.eklista.com/api/v1
 
   db:
     image: mysql:8.0
