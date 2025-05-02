@@ -7,7 +7,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # URL del frontend según el entorno
 FRONTEND_URL_DEV = os.getenv("FRONTEND_URL_DEV", "http://localhost:5173")
-FRONTEND_URL_PROD = os.getenv("FRONTEND_URL_PROD", "https://medialab.vercel.app")
+FRONTEND_URL_PROD = os.getenv("FRONTEND_URL_PROD", "https://medialab.eklista.com")
 
 FRONTEND_URL = FRONTEND_URL_PROD if ENVIRONMENT == "production" else FRONTEND_URL_DEV
 
@@ -36,7 +36,7 @@ CORS_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
     "https://medialab.eklista.com",
-    "https://168.231.74.237"
+    "http://168.231.74.237"
 ]
 
 # Configuración de correo electrónico

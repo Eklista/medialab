@@ -3,8 +3,8 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 // Determinar la URL base según el entorno
 export const getBaseUrl = () => {
   return import.meta.env.MODE === 'production' 
-    ? 'https://medialab.eklista.com/api/v1'  // URL de producción en Render
-    : 'http://localhost:8000/api/v1';         // URL de desarrollo local
+    ? 'https://medialab.eklista.com/api/v1'  // URL de producción
+    : 'https://localhost:8000/api/v1';         // URL de desarrollo local
 };
 
 // Crear instancia de Axios
@@ -15,7 +15,6 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// El resto del código se mantiene igual...
 // Interceptor para añadir token a las peticiones
 apiClient.interceptors.request.use(
   (config) => {
