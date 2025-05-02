@@ -4,7 +4,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 export const getBaseUrl = () => {
   return import.meta.env.MODE === 'production' 
     ? 'https://medialab.eklista.com/api/v1'  // URL de producción
-    : 'https://localhost:8000/api/v1';         // URL de desarrollo local
+    : 'http://localhost:8000/api/v1';         // URL de desarrollo local
 };
 
 // Crear instancia de Axios
