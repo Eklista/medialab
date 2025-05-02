@@ -1,0 +1,21 @@
+FROM node:20-alpine as build
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY package*.json ./
+
+# Instalar dependencias
+RUN npm install
+
+# Copiar código fuente
+COPY . .
+
+# Variables de entorno para producción
+ENV VITE_API_URL=https://medialab.eklista.com/api/v1
+
+# Construir aplicación para producción
+RUN npm run build
+
+# Limpiar dependencias de desarrollo
+CMD ["cp", "-r", "/app/dist", "/app/dist"]
