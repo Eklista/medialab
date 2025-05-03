@@ -37,44 +37,15 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     }
     
-    // Si el error es 401 (Unauthorized) y no es una petición de refresh
-    if (error.response?.status === 401 && 
-        !originalRequest._retry && 
-        originalRequest.url !== '/auth/refresh-token') {
-      
-      originalRequest._retry = true;
-      
-      try {
-        // Intentar renovar el token
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          // Si no hay refresh token, ir al login
-          localStorage.removeItem('accessToken');
-          window.location.href = '/login';
-          return Promise.reject(error);
-        }
-        
-        // Llamada a refresh token - usar apiClient en lugar de axios
-        const response = await apiClient.post('/auth/refresh-token', {
-          refresh_token: refreshToken
-        });
-        
-        // Guardar el nuevo token
-        const { access_token } = response.data;
-        localStorage.setItem('accessToken', access_token);
-        
-        // Reintentar la petición original con el nuevo token
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        }
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        // Si falla el refresh, limpiar tokens y redirigir a login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+    // Si el error es 401 (Unauthorized), limpiar tokens y redirigir a login
+    if (error.response?.status === 401) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      // Solo redirigir si no estamos ya en la página de login
+      if (!window.location.href.includes('/login')) {
         window.location.href = '/login';
-        return Promise.reject(refreshError);
       }
+      return Promise.reject(error);
     }
     
     // Si el error es de conexión
