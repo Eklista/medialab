@@ -15,13 +15,22 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Interceptor para añadir token a las peticiones
+// Interceptor para añadir token a las peticiones y manejar trailing slashes
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Agregar trailing slash a todas las peticiones GET
+    if (config.method === 'get' && config.url) {
+      // Solo agregar si no tiene trailing slash y no tiene query params
+      if (!config.url.endsWith('/') && !config.url.includes('?')) {
+        config.url = config.url + '/';
+      }
+    }
+    
     return config;
   },
   (error) => {
