@@ -17,7 +17,7 @@ class FileUploadService {
       };
       
       // Enviar la solicitud al endpoint de subida
-      const response = await apiClient.post<{url: string}>('/users/upload-image', formData, config);
+      const response = await apiClient.post<{url: string}>('/users/upload-image/', formData, config);
       
       return response.data.url;
     } catch (error) {

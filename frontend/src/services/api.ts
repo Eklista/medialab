@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 
 // Determinar la URL base según el entorno
 export const getBaseUrl = () => {
@@ -15,97 +15,31 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Interceptor para manejar errores de respuesta
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean, _retry307?: boolean };
-    
-    // Manejar redirecciones 307 - FastAPI trailing slash issue
-    if (error.response?.status === 307 && !originalRequest._retry307) {
-      originalRequest._retry307 = true;
-      
-      // Cambiar la URL según la redirección
-      if (originalRequest.url?.endsWith('/')) {
-        // Si tiene trailing slash, quitarla
-        originalRequest.url = originalRequest.url.slice(0, -1);
-      } else {
-        // Si no tiene trailing slash, agregarla
-        originalRequest.url = originalRequest.url + '/';
-      }
-      
-      return apiClient(originalRequest);
+// Interceptor para añadir token a las peticiones
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    // Si el error es 401 (Unauthorized), limpiar tokens y redirigir a login
-    if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      // Solo redirigir si no estamos ya en la página de login
-      if (!window.location.href.includes('/login')) {
-        window.location.href = '/login';
-      }
-      return Promise.reject(error);
-    }
-    
-    // Si el error es de conexión
-    if (!error.response && error.request) {
-      console.error('Error de conexión:', error);
-      return Promise.reject(new Error('No se pudo conectar con el servidor'));
-    }
-    
-    // Manejar otros errores
+    return config;
+  },
+  (error) => {
     return Promise.reject(error);
   }
 );
 
-// Interceptor para manejar errores de respuesta
+// Interceptor básico para manejar errores
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-    
-    // Si el error es 401 (Unauthorized) y no es una petición de refresh
-    if (error.response?.status === 401 && 
-        !originalRequest._retry && 
-        originalRequest.url !== '/auth/refresh-token') {
-      
-      originalRequest._retry = true;
-      
-      try {
-        // Intentar renovar el token
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          // Si no hay refresh token, ir al login
-          localStorage.removeItem('accessToken');
-          window.location.href = '/login';
-          return Promise.reject(error);
-        }
-        
-        // Llamada a refresh token - usar apiClient en lugar de axios
-        const response = await apiClient.post('/auth/refresh-token', {
-          refresh_token: refreshToken
-        });
-        
-        // Guardar el nuevo token
-        const { access_token } = response.data;
-        localStorage.setItem('accessToken', access_token);
-        
-        // Reintentar la petición original con el nuevo token
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        }
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        // Si falla el refresh, limpiar tokens y redirigir a login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+  (error: AxiosError) => {
+    // Si es error 401, redirigir al login
+    if (error.response?.status === 401) {
+      localStorage.removeItem('accessToken');
+      if (!window.location.href.includes('/login')) {
         window.location.href = '/login';
-        return Promise.reject(refreshError);
       }
     }
-    
-    // Manejar otros errores
     return Promise.reject(error);
   }
 );

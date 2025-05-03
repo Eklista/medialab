@@ -46,7 +46,7 @@ class ServicesService {
    */
   async getServices(): Promise<Service[]> {
     try {
-      const response = await apiClient.get<Service[]>('/services');
+      const response = await apiClient.get<Service[]>('/services/');
       return response.data;
     } catch (error) {
       console.error('Error al obtener servicios:', error);

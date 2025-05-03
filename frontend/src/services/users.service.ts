@@ -98,7 +98,7 @@ class UserService {
   async getUsers(): Promise<User[]> {
     try {
       //console.log('Obteniendo usuarios desde:', `${getBaseUrl()}/users`);
-      const response = await apiClient.get<User[]>('/users');
+      const response = await apiClient.get<User[]>('/users/');
       
       // Asegurarse de que los usuarios tienen un formato consistente
       return response.data.map(user => this.normalizeUser(user));
