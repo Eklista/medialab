@@ -163,7 +163,7 @@ class UserService {
       
       //console.log('Datos enviados a la API:', apiData);
       
-      const response = await apiClient.post<User>('/users', apiData);
+      const response = await apiClient.post<User>('/users/', apiData);
       return this.normalizeUser(response.data);
     } catch (error) {
       // Manejo de errores como lo tenías antes
@@ -233,7 +233,7 @@ class UserService {
   // Obtener todos los roles
   async getRoles(): Promise<Role[]> {
     try {
-      const response = await apiClient.get<Role[]>('/roles');
+      const response = await apiClient.get<Role[]>('/roles/');
       return response.data.map(role => ({
         ...role,
         id: role.id.toString(), // Asegurar que el ID sea string
@@ -248,7 +248,7 @@ class UserService {
   // Obtener todas las áreas
   async getAreas(): Promise<Area[]> {
     try {
-      const response = await apiClient.get<Area[]>('/areas');
+      const response = await apiClient.get<Area[]>('/areas/');
       return response.data.map(area => ({
         ...area,
         id: area.id.toString() // Asegurar que el ID sea string
@@ -280,7 +280,7 @@ class UserService {
   // Crear un área
   async createArea(areaData: AreaCreateRequest): Promise<Area> {
     try {
-      const response = await apiClient.post<Area>('/areas', areaData);
+      const response = await apiClient.post<Area>('/areas/', areaData);
       return {
         ...response.data,
         id: response.data.id.toString() // Asegurar que el ID sea string
@@ -319,7 +319,7 @@ class UserService {
 // Crear un rol
 async createRole(roleData: RoleCreateRequest): Promise<Role> {
   try {
-    const response = await apiClient.post<Role>('/roles', roleData);
+    const response = await apiClient.post<Role>('/roles/', roleData);
     return {
       ...response.data,
       id: response.data.id.toString() // Asegurar que el ID sea string

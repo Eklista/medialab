@@ -55,7 +55,7 @@ class AcademicUnitService {
    */
   async createAcademicUnit(data: AcademicUnitCreateRequest): Promise<AcademicUnit> {
     try {
-      const response = await apiClient.post<AcademicUnit>('/departments', data);
+      const response = await apiClient.post<AcademicUnit>('/departments/', data);
       return response.data;
     } catch (error) {
       console.error('Error al crear unidad académica:', error);
