@@ -72,7 +72,7 @@ class ServicesService {
    */
   async createService(serviceData: ServiceCreateRequest): Promise<Service> {
     try {
-      const response = await apiClient.post<Service>('/services', serviceData);
+      const response = await apiClient.post<Service>('/services/', serviceData);
       return response.data;
     } catch (error) {
       console.error('Error al crear servicio:', error);
