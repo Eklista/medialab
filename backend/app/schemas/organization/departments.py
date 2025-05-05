@@ -1,33 +1,49 @@
-from typing import Optional
-from pydantic import BaseModel, Field
-from enum import Enum
+# app/schemas/organization/departments.py
+from typing import Optional, List
+from pydantic import BaseModel
 
-class DepartmentType(str, Enum):
-    FACULTY = "faculty"
-    DEPARTMENT = "department"
+# Esquemas para tipos de departamentos
+class DepartmentTypeBase(BaseModel):
+    name: str
 
-# Esquema base para departamentos
+class DepartmentTypeCreate(DepartmentTypeBase):
+    pass
+
+class DepartmentTypeUpdate(BaseModel):
+    name: Optional[str] = None
+
+class DepartmentTypeInDB(DepartmentTypeBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+
+# Esquemas para departamentos
 class DepartmentBase(BaseModel):
     name: str
     abbreviation: str
-    type: DepartmentType = DepartmentType.DEPARTMENT
     description: Optional[str] = None
+    type_id: int
 
-# Esquema para crear departamento
 class DepartmentCreate(DepartmentBase):
     pass
 
-# Esquema para actualizar departamento
 class DepartmentUpdate(BaseModel):
     name: Optional[str] = None
     abbreviation: Optional[str] = None
-    type: Optional[DepartmentType] = None
     description: Optional[str] = None
+    type_id: Optional[int] = None
 
-# Esquema para respuesta de departamento
+# Esquema para respuesta de departamento básico
 class DepartmentInDB(DepartmentBase):
     id: int
     
     class Config:
         from_attributes = True
-        orm_mode = True
+
+# Esquema para respuesta de departamento con tipo incluido
+class DepartmentWithType(DepartmentInDB):
+    type: DepartmentTypeInDB
+    
+    class Config:
+        from_attributes = True

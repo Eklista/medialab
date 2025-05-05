@@ -14,6 +14,7 @@ from app.models.associations import user_roles, role_permissions
 from app.models.auth.roles import Role
 from app.models.auth.permissions import Permission
 from app.models.organization.areas import Area
+from app.models.organization.departments import Department, DepartmentType
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

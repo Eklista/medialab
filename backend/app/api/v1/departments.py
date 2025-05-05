@@ -1,33 +1,35 @@
-from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+# app/api/v1/departments.py
+from typing import List, Any, Optional
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
 from app.models.auth.users import User
-from app.schemas.organization.departments import DepartmentCreate, DepartmentUpdate, DepartmentInDB
+from app.schemas.organization.departments import DepartmentCreate, DepartmentUpdate, DepartmentInDB, DepartmentWithType
 from app.services.department_service import DepartmentService
 from app.utils.error_handler import ErrorHandler
 from app.api.deps import get_current_active_superuser, get_current_active_user
 
 router = APIRouter()
 
-@router.get("/", response_model=List[DepartmentInDB])
+@router.get("/", response_model=List[DepartmentWithType])
 def read_departments(
     skip: int = 0,
     limit: int = 100,
-    type: str = Query(None, description="Filtrar por tipo (faculty o department)"),
+    type_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
     Obtiene lista de departamentos (solo para usuarios autenticados)
+    Puede filtrar por tipo de departamento con el parámetro type_id
     """
     try:
-        if type:
-            departments = DepartmentService.get_departments_by_type(db=db, type_value=type)
+        if type_id:
+            departments = DepartmentService.get_departments_by_type(db=db, type_id=type_id, skip=skip, limit=limit)
         else:
-            departments = DepartmentService.get_departments(db=db, skip=skip, limit=limit)
+            departments = DepartmentService.get_departments_with_type(db=db, skip=skip, limit=limit)
         return departments
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "obtener", "departamentos")
@@ -47,7 +49,7 @@ def create_department(
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "crear", "departamento")
 
-@router.get("/{department_id}", response_model=DepartmentInDB)
+@router.get("/{department_id}", response_model=DepartmentWithType)
 def read_department(
     department_id: int,
     db: Session = Depends(get_db),
@@ -57,7 +59,7 @@ def read_department(
     Obtiene un departamento específico por ID (solo para usuarios autenticados)
     """
     try:
-        department = DepartmentService.get_department_by_id(db=db, department_id=department_id)
+        department = DepartmentService.get_department_by_id_with_type(db=db, department_id=department_id)
         return department
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "obtener", "departamento")

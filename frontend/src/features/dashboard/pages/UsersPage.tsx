@@ -40,6 +40,8 @@ const UsersPage: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<LocalUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [modalError, setModalError] = useState<string | null>(null);
   
   // Estado para carga de datos
   const [isLoading, setIsLoading] = useState(true);
@@ -142,10 +144,12 @@ const UsersPage: React.FC = () => {
 
   // Manejadores para CRUD de usuarios
   const handleAddUser = () => {
+    setModalError(null); // Limpiar errores anteriores
     setIsAddModalOpen(true);
   };
   
   const handleEditUser = (user: LocalUser) => {
+    setModalError(null); // Limpiar errores anteriores
     setCurrentUser(user);
     setIsEditModalOpen(true);
   };
@@ -156,6 +160,7 @@ const UsersPage: React.FC = () => {
   };
   
   const handleDeleteClick = (user: LocalUser) => {
+    setModalError(null); // Limpiar errores anteriores
     setCurrentUser(user);
     setIsDeleteModalOpen(true);
   };
@@ -164,6 +169,7 @@ const UsersPage: React.FC = () => {
     if (!currentUser) return;
     
     setIsSubmitting(true);
+    setModalError(null); // Limpiar errores anteriores
     
     try {
       // Llamar a la API para eliminar el usuario
@@ -175,7 +181,7 @@ const UsersPage: React.FC = () => {
       setCurrentUser(null);
     } catch (err) {
       console.error('Error al eliminar usuario:', err);
-      setError(err instanceof Error ? err.message : 'Error al eliminar usuario');
+      setModalError(err instanceof Error ? err.message : 'Error al eliminar usuario');
     } finally {
       setIsSubmitting(false);
     }
@@ -183,7 +189,7 @@ const UsersPage: React.FC = () => {
   
   const handleAddSubmit = async (data: UserFormData) => {
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null); // Limpiar errores anteriores
     
     try {
       // Preparar los datos para la API
@@ -230,7 +236,7 @@ const UsersPage: React.FC = () => {
       
     } catch (err) {
       console.error('Error al crear usuario:', err);
-      setError(err instanceof Error ? err.message : 'Error al crear usuario');
+      setModalError(err instanceof Error ? err.message : 'Error al crear usuario');
       setIsSubmitting(false); // Solo desactivamos el estado de envío aquí en caso de error
     }
     
@@ -245,8 +251,8 @@ const UsersPage: React.FC = () => {
     if (!currentUser) return;
     
     setIsSubmitting(true);
-    setError(null);
-
+    setModalError(null); // Limpiar errores anteriores
+  
     try {
       // Preparar los datos para la API usando snake_case para el backend
       const userData = {
@@ -296,7 +302,7 @@ const UsersPage: React.FC = () => {
       setCurrentUser(null);
     } catch (err) {
       console.error('Error al actualizar usuario:', err);
-      setError(err instanceof Error ? err.message : 'Error al actualizar usuario');
+      setModalError(err instanceof Error ? err.message : 'Error al actualizar usuario');
     } finally {
       setIsSubmitting(false);
     }
@@ -478,6 +484,7 @@ const UsersPage: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         title="Agregar Usuario"
         size="lg"
+        error={modalError}
       >
         <UserForm
           onSubmit={handleAddSubmit}
@@ -487,8 +494,7 @@ const UsersPage: React.FC = () => {
           areas={areas}
         />
       </DashboardModal>
-      
-      {/* Modal para editar usuario */}
+
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -497,15 +503,14 @@ const UsersPage: React.FC = () => {
         }}
         title="Editar Usuario"
         size="lg"
+        error={modalError}
       >
         {currentUser && (
           <UserForm
             initialData={{
-              // Separar el nombre completo en nombre y apellidos
               firstName: currentUser.fullName.split(' ')[0] || '',
               lastName: currentUser.fullName.split(' ').slice(1).join(' ') || '',
               email: currentUser.email,
-              // Encontrar los IDs correspondientes
               roleId: roles.find(r => r.name === currentUser.role)?.id || '',
               areaId: areas.find(a => a.name === currentUser.area)?.id || ''
             }}
@@ -521,8 +526,7 @@ const UsersPage: React.FC = () => {
           />
         )}
       </DashboardModal>
-      
-      {/* Modal para confirmar eliminación */}
+
       <DashboardModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
@@ -530,6 +534,7 @@ const UsersPage: React.FC = () => {
           setCurrentUser(null);
         }}
         title="Confirmar Eliminación"
+        error={modalError}
       >
         <div className="py-3">
           <p className="text-gray-700">

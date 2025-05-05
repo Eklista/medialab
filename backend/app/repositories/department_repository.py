@@ -1,9 +1,7 @@
+# app/repositories/department_repository.py
 from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy.orm import Session, joinedload
 from app.models.organization.departments import Department
-
 
 class DepartmentRepository:
     """
@@ -18,11 +16,25 @@ class DepartmentRepository:
         return db.query(Department).offset(skip).limit(limit).all()
     
     @staticmethod
+    def get_with_type(db: Session, skip: int = 0, limit: int = 100) -> List[Department]:
+        """
+        Obtiene todos los departamentos con sus tipos cargados
+        """
+        return db.query(Department).options(joinedload(Department.type)).offset(skip).limit(limit).all()
+    
+    @staticmethod
     def get_by_id(db: Session, department_id: int) -> Optional[Department]:
         """
         Obtiene un departamento por su ID
         """
         return db.query(Department).filter(Department.id == department_id).first()
+    
+    @staticmethod
+    def get_by_id_with_type(db: Session, department_id: int) -> Optional[Department]:
+        """
+        Obtiene un departamento por su ID con su tipo cargado
+        """
+        return db.query(Department).options(joinedload(Department.type)).filter(Department.id == department_id).first()
     
     @staticmethod
     def get_by_name(db: Session, name: str) -> Optional[Department]:
@@ -34,16 +46,16 @@ class DepartmentRepository:
     @staticmethod
     def get_by_abbreviation(db: Session, abbreviation: str) -> Optional[Department]:
         """
-        Obtiene un departamento por su abreviatura
+        Obtiene un departamento por su abreviación
         """
         return db.query(Department).filter(Department.abbreviation == abbreviation).first()
     
     @staticmethod
-    def get_by_type(db: Session, type_value: str) -> List[Department]:
+    def get_by_type_id(db: Session, type_id: int, skip: int = 0, limit: int = 100) -> List[Department]:
         """
-        Obtiene todos los departamentos de un tipo específico
+        Obtiene departamentos por tipo de departamento
         """
-        return db.query(Department).filter(Department.type == type_value).all()
+        return db.query(Department).filter(Department.type_id == type_id).offset(skip).limit(limit).all()
     
     @staticmethod
     def create(db: Session, department_data: dict) -> Department:

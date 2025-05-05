@@ -10,6 +10,7 @@ export interface DashboardModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   closeOnClickOutside?: boolean;
   preventCloseOnEsc?: boolean;
+  error?: string | null;
 }
 
 const DashboardModal: React.FC<DashboardModalProps> = ({
@@ -21,6 +22,7 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
   size = 'md',
   closeOnClickOutside = true,
   preventCloseOnEsc = false,
+  error = null, // Inicializar con null
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   
@@ -101,6 +103,14 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
         
         {/* Body */}
         <div className="p-6">
+          {/* Mostrar mensaje de error si existe */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              <p className="font-medium">Error</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
+          
           {children}
         </div>
         

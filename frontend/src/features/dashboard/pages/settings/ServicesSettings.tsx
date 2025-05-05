@@ -20,6 +20,8 @@ const ServicesSettings: React.FC = () => {
   const [currentService, setCurrentService] = useState<Service | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [modalError, setModalError] = useState<string | null>(null);
+
   // Estado para carga de datos
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,15 +49,18 @@ const ServicesSettings: React.FC = () => {
   
   // Handlers para servicios
   const handleAddService = () => {
+    setModalError(null);
     setIsAddModalOpen(true);
   };
   
   const handleEditService = (service: Service) => {
+    setModalError(null);
     setCurrentService(service);
     setIsEditModalOpen(true);
   };
   
   const handleDeleteClick = (service: Service) => {
+    setModalError(null);
     setCurrentService(service);
     setIsDeleteModalOpen(true);
   };
@@ -64,16 +69,16 @@ const ServicesSettings: React.FC = () => {
     if (!currentService || !currentService.id) return;
     
     setIsSubmitting(true);
+    setModalError(null);
     
     try {
       await servicesService.deleteService(currentService.id);
       
-      // Actualizar la lista local de servicios
       setServices(services.filter(s => s.id !== currentService.id));
       setIsDeleteModalOpen(false);
       setCurrentService(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar el servicio');
+      setModalError(err instanceof Error ? err.message : 'Error al eliminar el servicio');
       console.error('Error al eliminar servicio:', err);
     } finally {
       setIsSubmitting(false);
@@ -82,10 +87,9 @@ const ServicesSettings: React.FC = () => {
   
   const handleAddSubmit = async (data: ServiceFormData) => {
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     
     try {
-      // Adaptar los datos al formato esperado por la API
       const serviceData = {
         name: data.name,
         description: data.description,
@@ -96,14 +100,12 @@ const ServicesSettings: React.FC = () => {
         }))
       };
       
-      // Crear el servicio
       const newService = await servicesService.createService(serviceData);
       
-      // Actualizar la lista local de servicios
       setServices([...services, newService]);
       setIsAddModalOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear el servicio');
+      setModalError(err instanceof Error ? err.message : 'Error al crear el servicio');
       console.error('Error al crear servicio:', err);
     } finally {
       setIsSubmitting(false);
@@ -114,23 +116,20 @@ const ServicesSettings: React.FC = () => {
     if (!currentService || !currentService.id) return;
     
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     
     try {
-      // Primero actualizar la información básica del servicio
       const serviceUpdateData = {
         name: data.name,
         description: data.description,
         icon_name: data.iconName
       };
       
-      // Actualizar el servicio
       const updatedService = await servicesService.updateService(
         currentService.id, 
         serviceUpdateData
       );
       
-      // Actualizar la lista local de servicios
       setServices(services.map(s => s.id === currentService.id ? updatedService : s));
       
       // Ahora manejar cambios en los sub-servicios
@@ -188,7 +187,7 @@ const ServicesSettings: React.FC = () => {
       setIsEditModalOpen(false);
       setCurrentService(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar el servicio');
+      setModalError(err instanceof Error ? err.message : 'Error al actualizar el servicio');
       console.error('Error al actualizar servicio:', err);
     } finally {
       setIsSubmitting(false);
@@ -255,6 +254,7 @@ const ServicesSettings: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         title="Agregar Servicio"
         size="lg"
+        error={modalError}
       >
         <ServiceForm
           onSubmit={handleAddSubmit}
@@ -272,6 +272,7 @@ const ServicesSettings: React.FC = () => {
         }}
         title="Editar Servicio"
         size="lg"
+        error={modalError}
       >
         {currentService && (
           <ServiceForm
@@ -294,7 +295,7 @@ const ServicesSettings: React.FC = () => {
           />
         )}
       </DashboardModal>
-      
+
       {/* Modal para confirmar eliminación */}
       <DashboardModal
         isOpen={isDeleteModalOpen}
@@ -303,7 +304,8 @@ const ServicesSettings: React.FC = () => {
           setCurrentService(null);
         }}
         title="Confirmar Eliminación"
-      >
+        error={modalError}
+        >
         <div className="py-3">
           <p className="text-gray-700">
             ¿Estás seguro de que deseas eliminar el servicio <span className="font-medium">{currentService?.name}</span>?

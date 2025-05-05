@@ -1,17 +1,19 @@
-// src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx
+// src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx (actualizado)
 import React, { useState, useEffect } from 'react';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
 import AcademicUnitForm, { AcademicUnitFormData } from '../../components/config/AcademicUnitForm';
 import { PlusIcon } from '@heroicons/react/24/outline';
-import { academicUnitService } from '../../../../services';
+import { academicUnitService, departmentTypeService } from '../../../../services';
 import { AcademicUnit } from '../../../../services/academicUnits.service';
+import { DepartmentType } from '../../../../services/departmentTypes.service';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
 const AcademicUnitsSettings: React.FC = () => {
   // Estado para unidades académicas
   const [academicUnits, setAcademicUnits] = useState<AcademicUnit[]>([]);
+  const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
   
   // Estado para modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -23,13 +25,15 @@ const AcademicUnitsSettings: React.FC = () => {
   // Estado para carga y errores
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isTypesLoading, setIsTypesLoading] = useState(true);
   
   // Estado para filtros
-  const [filterType, setFilterType] = useState<'all' | 'faculty' | 'department'>('all');
+  const [filterTypeId, setFilterTypeId] = useState<number | null>(null);
   
   // Cargar datos al montar el componente
   useEffect(() => {
     fetchAcademicUnits();
+    fetchDepartmentTypes();
   }, []);
   
   // Función para cargar unidades académicas desde la API
@@ -45,6 +49,36 @@ const AcademicUnitsSettings: React.FC = () => {
       console.error('Error al cargar unidades académicas:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Función para cargar tipos de departamentos
+  const fetchDepartmentTypes = async () => {
+    setIsTypesLoading(true);
+    
+    try {
+      const data = await departmentTypeService.getDepartmentTypes();
+      setDepartmentTypes(data);
+    } catch (err) {
+      console.error('Error al cargar tipos de departamentos:', err);
+      // No bloqueamos toda la interfaz por este error
+    } finally {
+      setIsTypesLoading(false);
+    }
+  };
+  
+  // Función para agregar nuevo tipo de departamento
+  const handleAddDepartmentType = async (name: string): Promise<DepartmentType> => {
+    try {
+      const newType = await departmentTypeService.createDepartmentType({ name });
+      
+      // Actualizar la lista de tipos
+      setDepartmentTypes(prev => [...prev, newType]);
+      
+      return newType;
+    } catch (err) {
+      console.error('Error al crear tipo de departamento:', err);
+      throw err;
     }
   };
   
@@ -125,8 +159,8 @@ const AcademicUnitsSettings: React.FC = () => {
   
   // Filtramos las unidades por tipo
   const filteredUnits = academicUnits.filter(unit => {
-    if (filterType === 'all') return true;
-    return unit.type === filterType;
+    if (filterTypeId === null) return true;
+    return unit.type_id === filterTypeId;
   });
   
   // Columnas para la tabla
@@ -141,15 +175,14 @@ const AcademicUnitsSettings: React.FC = () => {
     },
     {
       header: 'Tipo',
-      accessor: (unit: AcademicUnit) => (
-        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-          unit.type === 'faculty' 
-            ? 'bg-blue-100 text-blue-800' 
-            : 'bg-purple-100 text-purple-800'
-        }`}>
-          {unit.type === 'faculty' ? 'Facultad' : 'Departamento'}
-        </span>
-      )
+      accessor: (unit: AcademicUnit) => {
+        const type = departmentTypes.find(t => t.id === unit.type_id);
+        return (
+          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+            {type?.name || 'Desconocido'}
+          </span>
+        );
+      }
     },
     {
       header: 'Descripción',
@@ -180,39 +213,40 @@ const AcademicUnitsSettings: React.FC = () => {
       
       {/* Filtros */}
       <div className="mb-6">
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 flex-wrap">
           <button
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
-              filterType === 'all'
+            className={`px-4 py-2 text-sm font-medium rounded-md mb-2 ${
+              filterTypeId === null
                 ? 'bg-black text-white'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
             }`}
-            onClick={() => setFilterType('all')}
+            onClick={() => setFilterTypeId(null)}
           >
             Todas
           </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
-              filterType === 'faculty'
-                ? 'bg-black text-white'
-                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-            }`}
-            onClick={() => setFilterType('faculty')}
-          >
-            Facultades
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
-              filterType === 'department'
-                ? 'bg-black text-white'
-                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-            }`}
-            onClick={() => setFilterType('department')}
-          >
-            Departamentos
-          </button>
+          
+          {departmentTypes.map(type => (
+            <button
+              key={type.id}
+              className={`px-4 py-2 text-sm font-medium rounded-md mb-2 ${
+                filterTypeId === type.id
+                  ? 'bg-black text-white'
+                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+              }`}
+              onClick={() => setFilterTypeId(type.id)}
+            >
+              {type.name}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Mensaje de carga de tipos */}
+      {isTypesLoading && (
+        <div className="bg-blue-50 p-3 rounded-md mb-4 text-blue-700 text-sm">
+          <p>Cargando tipos de departamentos...</p>
+        </div>
+      )}
       
       <DashboardDataTable
         columns={columns}
@@ -236,6 +270,8 @@ const AcademicUnitsSettings: React.FC = () => {
           onSubmit={handleAddSubmit}
           onCancel={() => setIsAddModalOpen(false)}
           isSubmitting={isSubmitting}
+          departmentTypes={departmentTypes}
+          onAddDepartmentType={handleAddDepartmentType}
         />
       </DashboardModal>
       
@@ -258,6 +294,8 @@ const AcademicUnitsSettings: React.FC = () => {
               setCurrentUnit(null);
             }}
             isSubmitting={isSubmitting}
+            departmentTypes={departmentTypes}
+            onAddDepartmentType={handleAddDepartmentType}
           />
         )}
       </DashboardModal>

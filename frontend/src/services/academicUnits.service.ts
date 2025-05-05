@@ -1,3 +1,5 @@
+// src/services/academicUnits.service.ts
+
 import apiClient, { handleApiError } from './api';
 
 // Interfaces para las unidades académicas
@@ -5,21 +7,21 @@ export interface AcademicUnit {
   id: number;
   abbreviation: string;
   name: string;
-  type: 'faculty' | 'department';
+  type_id: number; 
   description: string;
 }
 
 export interface AcademicUnitCreateRequest {
   abbreviation: string;
   name: string;
-  type: 'faculty' | 'department';
+  type_id: number;
   description?: string;
 }
 
 export interface AcademicUnitUpdateRequest {
   abbreviation?: string;
   name?: string;
-  type?: 'faculty' | 'department';
+  type_id?: number;
   description?: string;
 }
 
@@ -91,12 +93,12 @@ class AcademicUnitService {
   /**
    * Filtra unidades académicas por tipo
    */
-  async getAcademicUnitsByType(type: 'faculty' | 'department'): Promise<AcademicUnit[]> {
+  async getAcademicUnitsByTypeId(typeId: number): Promise<AcademicUnit[]> {
     try {
       const units = await this.getAcademicUnits();
-      return units.filter(unit => unit.type === type);
+      return units.filter(unit => unit.type_id === typeId);
     } catch (error) {
-      console.error(`Error al filtrar unidades por tipo ${type}:`, error);
+      console.error(`Error al filtrar unidades por tipo ID ${typeId}:`, error);
       throw new Error(handleApiError(error));
     }
   }

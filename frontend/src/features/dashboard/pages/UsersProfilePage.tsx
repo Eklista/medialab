@@ -61,6 +61,8 @@ const UserProfilePage: React.FC = () => {
   const [previewProfileImage, setPreviewProfileImage] = useState<string | null>(null);
   const [previewBannerImage, setPreviewBannerImage] = useState<string | null>(null);
 
+  const [modalError, setModalError] = useState<string | null>(null);
+
   // Verificar si el usuario actual es el dueño del perfil
   const isCurrentUser = state.user && userId === state.user.id?.toString();
   
@@ -158,28 +160,40 @@ const UserProfilePage: React.FC = () => {
     });
   };
   
+  // Actualizar Usuario
+
   const handleUpdateProfile = async () => {
     if (!user) return;
     
     try {
       setIsSubmitting(true);
+      setModalError(null); // Asumiendo que has añadido estado para errores del modal
       
       // Preparar los datos para actualizar
       const updateData: Partial<UserUpdateRequest> = {};
       
-      // Procesar los campos de texto
+      // Procesar los campos de texto - solo añadir si hay cambios
       if (formData.phone !== user.phone) updateData.phone = formData.phone;
-      if (formData.birthday !== user.birthday) updateData.birthDate = formData.birthday;
       
+      if (formData.birthday) {
+        // Si hay un valor y es diferente al actual, actualizarlo
+        if (formData.birthday !== user.birthday) {
+          updateData.birthDate = formData.birthday;
+        }
+      } else if (user.birthday) {
+        updateData.birthDate = "";
+      }
+
       // Subir imágenes si se han seleccionado
       if (selectedProfileImage) {
         try {
           const profileImageUrl = await fileUploadService.uploadImage(selectedProfileImage, 'profile');
-          console.log('URL de imagen de perfil recibida:', profileImageUrl);
           updateData.profileImage = profileImageUrl;
         } catch (imageError) {
           console.error('Error al subir la imagen de perfil:', imageError);
-          alert('No se pudo subir la imagen de perfil, pero se guardarán los demás cambios.');
+          setModalError('No se pudo subir la imagen de perfil. Por favor, inténtalo de nuevo.');
+          setIsSubmitting(false);
+          return;
         }
       }
       
@@ -189,11 +203,11 @@ const UserProfilePage: React.FC = () => {
           updateData.bannerImage = bannerImageUrl;
         } catch (imageError) {
           console.error('Error al subir la imagen de banner:', imageError);
-          alert('No se pudo subir la imagen de banner, pero se guardarán los demás cambios.');
+          setModalError('No se pudo subir la imagen de banner. Por favor, inténtalo de nuevo.');
+          setIsSubmitting(false);
+          return;
         }
       }
-      
-      //console.log('Datos a actualizar:', updateData);
       
       // Solo llamamos a la API si hay datos para actualizar
       if (Object.keys(updateData).length > 0) {
@@ -202,7 +216,6 @@ const UserProfilePage: React.FC = () => {
         
         // Recargar los datos completos del usuario después de la actualización
         const refreshedUserData = await userService.getUserById(parseInt(user.id));
-        //console.log('Datos actualizados del usuario:', refreshedUserData);
         
         // Determinar rol y área del usuario nuevamente
         let roleName = user.role;
@@ -241,28 +254,25 @@ const UserProfilePage: React.FC = () => {
           bannerImage: refreshedUserData.bannerImage || refreshedUserData.banner_image || ''
         });
         
-        console.log('Imagen de perfil recibida:', refreshedUserData.profileImage || refreshedUserData.profile_image);
-        console.log('Imagen de banner recibida:', refreshedUserData.bannerImage || refreshedUserData.banner_image);
+        // Limpiar las previsualizaciones y archivos seleccionados
+        setSelectedProfileImage(null);
+        setSelectedBannerImage(null);
+        if (previewProfileImage) URL.revokeObjectURL(previewProfileImage);
+        if (previewBannerImage) URL.revokeObjectURL(previewBannerImage);
+        setPreviewProfileImage(null);
+        setPreviewBannerImage(null);
+        
+        // Cerrar el modal
+        setIsEditModalOpen(false);
+        
         // Mostrar notificación de éxito
         alert('Perfil actualizado exitosamente');
       } else {
-        //console.log('No hay cambios para guardar');
-        alert('No se detectaron cambios en la información');
+        setModalError('No se detectaron cambios en la información');
       }
-      
-      // Limpiar las previsualizaciones y archivos seleccionados
-      setSelectedProfileImage(null);
-      setSelectedBannerImage(null);
-      if (previewProfileImage) URL.revokeObjectURL(previewProfileImage);
-      if (previewBannerImage) URL.revokeObjectURL(previewBannerImage);
-      setPreviewProfileImage(null);
-      setPreviewBannerImage(null);
-      
-      // Cerrar el modal
-      setIsEditModalOpen(false);
     } catch (err) {
       console.error('Error al actualizar perfil:', err);
-      setError(err instanceof Error ? err.message : 'Error al actualizar el perfil');
+      setModalError(err instanceof Error ? err.message : 'Error al actualizar el perfil');
     } finally {
       setIsSubmitting(false);
     }
@@ -687,6 +697,7 @@ const UserProfilePage: React.FC = () => {
         onClose={() => setIsEditModalOpen(false)}
         title="Actualizar información de perfil"
         size="md"
+        error={modalError} // Pasamos el error al modal
       >
         <div className="space-y-4">
           {/* Foto de perfil */}
