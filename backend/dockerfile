@@ -17,7 +17,7 @@ COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 
-# Copiar scripts (incluyendo initial_data.py)
+# Copiar scripts (incluyendo los nuevos scripts modulares)
 COPY scripts/ ./scripts/
 RUN chmod +x ./scripts/entrypoint.sh
 
@@ -26,6 +26,10 @@ ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Crear directorio para datos persistentes
+RUN mkdir -p /app/data
+
 EXPOSE 8000
 
+# Usar el nuevo entrypoint.sh como punto de entrada
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]

@@ -1,5 +1,5 @@
 #!/bin/bash
-# deploy.sh
+# deploy.sh - Script mejorado para despliegue de MediaLab
 
 set -e
 
@@ -7,9 +7,28 @@ set -e
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${YELLOW}Iniciando despliegue de MediaLab...${NC}"
+echo -e "${BLUE}====================================${NC}"
+echo -e "${BLUE}    DESPLIEGUE DE MEDIALAB         ${NC}"
+echo -e "${BLUE}====================================${NC}"
+
+# Verificar si los directorios necesarios existen
+echo -e "${YELLOW}Verificando estructura de directorios...${NC}"
+mkdir -p nginx/conf.d
+mkdir -p nginx/ssl
+
+# Verificar si hay certificados SSL
+echo -e "${YELLOW}Verificando certificados SSL...${NC}"
+if [ -f "nginx/ssl/fullchain.pem" ] && [ -f "nginx/ssl/privkey.pem" ]; then
+    echo -e "${GREEN}Certificados SSL encontrados.${NC}"
+    USE_SSL=true
+else
+    echo -e "${YELLOW}No se encontraron certificados SSL.${NC}"
+    echo -e "${YELLOW}El sitio estará disponible solo por HTTP.${NC}"
+    USE_SSL=false
+fi
 
 # Construir imágenes
 echo -e "${YELLOW}Construyendo imágenes Docker...${NC}"
@@ -31,6 +50,35 @@ sleep 20
 echo -e "${YELLOW}Verificando estado de los servicios...${NC}"
 docker compose -f docker-compose.prod.yml ps
 
-echo -e "${GREEN}¡Despliegue completado!${NC}"
+# Si tenemos certificados, copiarlos al contenedor de Nginx
+if [ "$USE_SSL" = true ]; then
+    echo -e "${YELLOW}Copiando certificados SSL al contenedor de Nginx...${NC}"
+    
+    # Obtener el nombre del contenedor de Nginx
+    NGINX_CONTAINER=$(docker compose -f docker-compose.prod.yml ps -q nginx)
+    
+    if [ -n "$NGINX_CONTAINER" ]; then
+        # Copiar certificados
+        docker cp nginx/ssl/fullchain.pem $NGINX_CONTAINER:/etc/nginx/ssl/
+        docker cp nginx/ssl/privkey.pem $NGINX_CONTAINER:/etc/nginx/ssl/
+        
+        # Reiniciar Nginx para aplicar certificados
+        echo -e "${YELLOW}Reiniciando Nginx para aplicar certificados...${NC}"
+        docker exec $NGINX_CONTAINER nginx -s reload
+        
+        echo -e "${GREEN}Certificados SSL aplicados correctamente.${NC}"
+    else
+        echo -e "${RED}No se pudo encontrar el contenedor de Nginx.${NC}"
+    fi
+fi
+
+echo -e "${GREEN}====================================${NC}"
+echo -e "${GREEN}  DESPLIEGUE COMPLETADO CON ÉXITO  ${NC}"
+echo -e "${GREEN}====================================${NC}"
 echo -e "${YELLOW}MediaLab debería estar accesible en http://medialab.eklista.com${NC}"
+
+if [ "$USE_SSL" = true ]; then
+    echo -e "${YELLOW}También disponible en https://medialab.eklista.com${NC}"
+fi
+
 echo -e "${YELLOW}Para ver logs: docker compose -f docker-compose.prod.yml logs -f${NC}"

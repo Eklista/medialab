@@ -7,16 +7,19 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./scripts:/scripts
+      - backend_data:/app/data
     env_file:
       - ./.env.dev
     environment:
       - DATABASE_URL=${DB_URL:-mysql+pymysql://root:rootpassword@db:3306/medialab_db}
       - ENVIRONMENT=${ENV:-development}
-      - INITIALIZE_DATA=${INIT_DATA:-true}
+      - INIT_BASE_STRUCTURE=${INIT_BASE_STRUCTURE:-true}
+      - INIT_DEPARTMENT_DATA=${INIT_DEPARTMENT_DATA:-true}
+      - INTERACTIVE_ADMIN=${INTERACTIVE_ADMIN:-false}
     depends_on:
       - db
-    command: bash -c "apt-get update && apt-get install -y default-mysql-client netcat-traditional && chmod +x /scripts/check-and-migrate.sh && /scripts/check-and-migrate.sh"
+    # Ya no necesitamos instalar netcat ni ejecutar check-and-migrate.sh
+    # porque entrypoint.sh ya maneja todo esto
   
   frontend:
     build:
@@ -47,3 +50,4 @@ services:
 
 volumes:
   medialab_db_data:
+  backend_data:

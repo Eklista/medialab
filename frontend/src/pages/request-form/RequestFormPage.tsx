@@ -7,8 +7,6 @@ export const RequestFormPage: React.FC = () => {
   // Manejador de eventos explícito
   const handleInteraction = () => {
     console.log('Página interactuada');
-    // Este handler no hace nada específico pero a veces
-    // su mera presencia puede "activar" la interactividad
   };
 
   return (

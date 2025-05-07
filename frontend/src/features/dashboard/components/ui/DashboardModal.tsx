@@ -1,5 +1,6 @@
 // src/features/dashboard/components/ui/DashboardModal.tsx
 import React, { useEffect, useRef } from 'react';
+import { CheckCircleIcon } from '@heroicons/react/24/outline';
 
 export interface DashboardModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ export interface DashboardModalProps {
   closeOnClickOutside?: boolean;
   preventCloseOnEsc?: boolean;
   error?: string | null;
+  success?: string | null; // Nueva propiedad para mensajes de éxito
 }
 
 const DashboardModal: React.FC<DashboardModalProps> = ({
@@ -22,7 +24,8 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
   size = 'md',
   closeOnClickOutside = true,
   preventCloseOnEsc = false,
-  error = null, // Inicializar con null
+  error = null,
+  success = null, // Inicializar success con null
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   
@@ -48,6 +51,21 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
       window.removeEventListener('keydown', handleEscKeyPress);
     };
   }, [isOpen, onClose, preventCloseOnEsc]);
+  
+  // Efecto para ocultar automáticamente el mensaje de éxito después de un tiempo
+  useEffect(() => {
+    let timer: number | undefined;
+    
+    if (success) {
+      // Establecer un temporizador para borrar el mensaje de éxito después de 3 segundos
+      timer = window.setTimeout(() => {
+      }, 3000);
+    }
+    
+    return () => {
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [success]);
   
   if (!isOpen) return null;
   
@@ -108,6 +126,17 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
             <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
               <p className="font-medium">Error</p>
               <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
+          
+          {/* Mostrar mensaje de éxito si existe */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-start">
+              <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Operación exitosa</p>
+                <p className="text-sm mt-1">{success}</p>
+              </div>
             </div>
           )}
           

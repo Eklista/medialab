@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
-# app/initial_data.py
+# scripts/init_base_structure.py
+"""
+Script para inicializar la estructura base de la aplicación:
+- Roles (ADMIN, USER)
+- Permisos
+- Áreas (Producción, Transmisión, Camarografía, Dirección)
+"""
 
 import logging
 import sys
-from datetime import datetime, date
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 from sqlalchemy import insert
 
 from app.database import SessionLocal
-from app.models.auth.users import User
-from app.models.associations import user_roles
 from app.models.auth.roles import Role
 from app.models.auth.permissions import Permission
 from app.models.organization.areas import Area
-from app.config.security import get_password_hash
 
-# Configuración de logging más detallada
+# Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -24,16 +27,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def init_db() -> None:
+def init_base_structure() -> None:
+    """Inicializa roles, permisos y áreas básicas."""
     logger.info("Creando conexión a la base de datos...")
     db = SessionLocal()
     
     try:
-        logger.info("Verificando si ya existen datos iniciales...")
+        logger.info("Verificando si ya existen datos de estructura base...")
         # Verificar si ya existen datos para evitar duplicación
         admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
         if admin_role:
-            logger.info("Ya existen datos iniciales. Saltando creación.")
+            logger.info("Ya existe estructura base. Saltando creación.")
             return
         
         logger.info("Creando roles iniciales...")
@@ -81,75 +85,35 @@ def init_db() -> None:
         
         logger.info("Creando áreas iniciales...")
         # Crear áreas iniciales
-        audiovisual = Area(
-            name="Producción Audiovisual",
-            description="Equipo encargado de la grabación y edición de contenido audiovisual"
-        )
+        areas_data = [
+            {
+                "name": "Producción",
+                "description": "Equipo encargado de la planeación y ejecución de proyectos multimedia"
+            },
+            {
+                "name": "Transmisión",
+                "description": "Equipo responsable de la transmisión de eventos en vivo"
+            },
+            {
+                "name": "Camarografía",
+                "description": "Equipo especializado en captura de video profesional"
+            },
+            {
+                "name": "Dirección",
+                "description": "Equipo encargado de la dirección creativa y administrativa"
+            }
+        ]
         
-        desarrollo = Area(
-            name="Desarrollo Web",
-            description="Equipo responsable del desarrollo y mantenimiento de sitios web"
-        )
-        
-        areas = [audiovisual, desarrollo]
-        for area in areas:
+        for area_data in areas_data:
+            area = Area(**area_data)
             db.add(area)
-        db.flush()
-        logger.info(f"Áreas creadas: {audiovisual.name}, {desarrollo.name}")
-        
-        logger.info("Creando usuarios iniciales...")
-        # Crear usuarios iniciales (siguiendo el ejemplo del frontend)
-        admin_user = User(
-            email="pablo@prueba.com",
-            username="placan",
-            password_hash=get_password_hash("Admin123"),
-            first_name="Pablo",
-            last_name="Lacán",
-            join_date=date.today(),
-            is_active=True
-        )
-        
-        normal_user = User(
-            email="kohler@prueba.com",
-            username="ckohler",
-            password_hash=get_password_hash("User123"),
-            first_name="Christian",
-            last_name="Kohler",
-            join_date=date.today(),
-            is_active=True
-        )
-        
-        db.add(admin_user)
-        db.add(normal_user)
-        db.commit()
-        logger.info(f"Usuarios creados: {admin_user.email}, {normal_user.email}")
-        
-        logger.info("Asignando roles a usuarios...")
-        # Agregar usuarios a roles con áreas específicas
-        # Asignar roles a usuarios con áreas específicas
-        db.execute(
-            insert(user_roles).values(
-                user_id=admin_user.id, 
-                role_id=admin_role.id, 
-                area_id=audiovisual.id,
-                assigned_at=datetime.utcnow()
-            )
-        )
-        
-        db.execute(
-            insert(user_roles).values(
-                user_id=normal_user.id, 
-                role_id=user_role.id, 
-                area_id=desarrollo.id,
-                assigned_at=datetime.utcnow()
-            )
-        )
         
         db.commit()
-        logger.info("Datos iniciales creados con éxito")
+        logger.info(f"Áreas creadas: {len(areas_data)} áreas")
+        logger.info("Estructura base creada con éxito")
         
     except Exception as e:
-        logger.error(f"Error al crear datos iniciales: {e}", exc_info=True)
+        logger.error(f"Error al crear estructura base: {e}", exc_info=True)
         db.rollback()
         raise
     finally:
@@ -157,8 +121,8 @@ def init_db() -> None:
         db.close()
 
 def main() -> None:
-    logger.info("Iniciando creación de datos iniciales...")
-    init_db()
+    logger.info("Iniciando creación de estructura base...")
+    init_base_structure()
     logger.info("Script completado.")
 
 if __name__ == "__main__":
