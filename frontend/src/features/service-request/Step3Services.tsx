@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { CheckboxGroup, CheckboxOption } from './components';
 import { MainService } from './data/services';
-// Importar servicio de API
-import { servicesService } from '../../services';
+// Importar servicio de API público en lugar del que requiere autenticación
+import { publicService } from '../../services';
 import { Service } from '../../services/services.service';
 
 // Importar iconos necesarios
@@ -48,12 +48,13 @@ const Step3Services: React.FC<Step3ServicesProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Cargar servicios desde la API
+  // Cargar servicios desde la API (usando el endpoint público)
   useEffect(() => {
     const fetchServices = async () => {
       try {
         setIsLoading(true);
-        const services = await servicesService.getServices();
+        // Usar el método público en lugar del que requiere autenticación
+        const services = await publicService.getPublicServices();
         setApiServices(services);
         setError(null);
       } catch (err) {

@@ -17,18 +17,21 @@ mkdir -p /app/data
 # Verificar modo de inicialización
 INIT_BASE_STRUCTURE=${INIT_BASE_STRUCTURE:-true}
 INIT_DEPARTMENT_DATA=${INIT_DEPARTMENT_DATA:-true}
+INIT_SERVICE_DATA=${INIT_SERVICE_DATA:-true}
 INTERACTIVE_ADMIN=${INTERACTIVE_ADMIN:-false}
-# Nueva variable para controlar si se inicia el servidor
+# Variable para controlar si se inicia el servidor
 START_SERVER=${START_SERVER:-true}
 
 # Flags para seguimiento de inicializaciones
 BASE_STRUCTURE_FLAG="/app/data/.base_structure_initialized"
 DEPARTMENT_DATA_FLAG="/app/data/.department_data_initialized"
+SERVICE_DATA_FLAG="/app/data/.service_data_initialized"
 INTERACTIVE_ADMIN_FLAG="/app/data/.interactive_admin_initialized"
 
 echo "==== Configuración de inicialización ===="
 echo "Inicializar estructura base: $INIT_BASE_STRUCTURE"
 echo "Inicializar datos de departamentos: $INIT_DEPARTMENT_DATA"
+echo "Inicializar datos de servicios: $INIT_SERVICE_DATA"
 echo "Configuración interactiva de administrador: $INTERACTIVE_ADMIN"
 echo "Iniciar servidor después de configuración: $START_SERVER"
 echo "========================================"
@@ -57,6 +60,19 @@ if [ "$INIT_DEPARTMENT_DATA" = "true" ] && [ ! -f "$DEPARTMENT_DATA_FLAG" ]; the
     fi
 else
     echo "Datos de departamentos ya inicializados o desactivados"
+fi
+
+# Inicializar datos de servicios
+if [ "$INIT_SERVICE_DATA" = "true" ] && [ ! -f "$SERVICE_DATA_FLAG" ]; then
+    echo "Inicializando datos de servicios..."
+    if [ -f "/app/scripts/init_services_data.py" ]; then
+        python /app/scripts/init_services_data.py
+        touch "$SERVICE_DATA_FLAG"
+    else
+        echo "Advertencia: No se encontró script de inicialización de servicios"
+    fi
+else
+    echo "Datos de servicios ya inicializados o desactivados"
 fi
 
 # Configuración interactiva de administrador

@@ -1,5 +1,5 @@
 // src/features/service-request/activityDetails/CourseDetails.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CrudList,
   CrudItem,
@@ -9,9 +9,12 @@ import {
   Checkbox,
   TextInput,
   Textarea,
-  RadioButtonOption
+  RadioButtonOption,
+  SelectOption
 } from '../components';
 import { departments } from '../data/faculties';
+import { publicService } from '../../../services';
+import { PublicDepartment } from '../../../services/public.service';
 import { AcademicCapIcon, BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import CourseRecurrenceSettings, { RecurrenceData } from './components/CourseRecurrenceSettings';
 
@@ -53,6 +56,34 @@ const CourseDetails: React.FC = () => {
   const [careerName, setCareerName] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
   const [mainFaculty, setMainFaculty] = useState('');
+
+  // Estado para los departamentos cargados desde la API
+  const [departmentsFromDB, setDepartmentsFromDB] = useState<SelectOption[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+  
+  // useEffect para cargar departamentos
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setIsLoadingDepartments(true);
+        const departments = await publicService.getPublicDepartments();
+        const formattedDepartments = departments.map((dept: PublicDepartment) => ({
+          value: dept.id.toString(),
+          label: dept.abbreviation
+        }));
+        setDepartmentsFromDB(formattedDepartments);
+        setDepartmentsError(null);
+      } catch (error) {
+        console.error('Error al cargar departamentos:', error);
+        setDepartmentsError('No se pudieron cargar los departamentos.');
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+    
+    fetchDepartments();
+  }, []);
 
   // Estados para la ubicación
   const [locationType, setLocationType] = useState('');
@@ -142,8 +173,8 @@ const CourseDetails: React.FC = () => {
     {
       name: 'faculty',
       label: 'Facultad/Departamento',
-      type: 'select' as const, // Usar const assertion para el tipo correcto
-      options: departments,
+      type: 'select' as const, 
+      options: departmentsFromDB.length > 0 ? departmentsFromDB : departments,
       required: true
     },
     {
@@ -173,6 +204,22 @@ const CourseDetails: React.FC = () => {
         </div>
       </div>
 
+      {/* Mensaje de error si no se pueden cargar los departamentos */}
+      {departmentsError && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">{departmentsError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Información básica del curso */}
       <div className="mb-6">
         {/* Nombre y Facultad (primera fila) */}
@@ -187,16 +234,25 @@ const CourseDetails: React.FC = () => {
             required
           />
           
-          <Select
-            id="career-faculty"
-            name="career-faculty"
-            label="Facultad principal"
-            value={mainFaculty}
-            onChange={(e) => setMainFaculty(e.target.value)}
-            options={departments}
-            placeholder="Seleccione la facultad responsable"
-            required
-          />
+          {isLoadingDepartments ? (
+            <div className="flex flex-col space-y-2">
+              <label className="block text-sm font-medium text-black mb-1">
+                Facultad principal<span className="text-red-500 ml-1">*</span>
+              </label>
+              <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
+            </div>
+          ) : (
+            <Select
+              id="career-faculty"
+              name="career-faculty"
+              label="Facultad principal"
+              value={mainFaculty}
+              onChange={(e) => setMainFaculty(e.target.value)}
+              options={departmentsFromDB.length > 0 ? departmentsFromDB : departments}
+              placeholder="Seleccione la facultad responsable"
+              required
+            />
+          )}
         </div>
         
         {/* Descripción (ancho completo) */}
@@ -407,8 +463,8 @@ const CourseDetails: React.FC = () => {
                           {departments.find(d => d.value === courses.find(c => c.id === currentCourse)?.faculty)?.label || 'No especificada'}
                         </p>
                         <p className="text-sm">
-                          <span className="font-medium">Duración de clase:</span>{' '}
-                          {courses.find(c => c.id === currentCourse)?.duration || 'No especificada'}
+                          <span className="font-medium">Facultad:</span>{' '}
+                          {departments.find(d => d.value === courses.find(c => c.id === currentCourse)?.faculty)?.label || 'No especificada'}
                         </p>
                         <p className="text-sm">
                           <span className="font-medium">Fechas programadas:</span>{' '}

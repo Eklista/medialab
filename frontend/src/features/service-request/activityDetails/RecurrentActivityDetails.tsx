@@ -1,5 +1,5 @@
 // src/features/service-request/activityDetails/RecurrentActivityDetails.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TextInput from '../components/TextInput';
 import Select from '../components/Select';
 import DatePicker from '../components/DatePicker';
@@ -8,9 +8,10 @@ import RadioButtonOption from '../components/RadioButtonOption';
 import Textarea from '../components/TextArea';
 import Checkbox from '../components/Checkbox';
 import MultiDayPicker from '../components/MultiDayPicker';
-import { ClockIcon, CalendarDaysIcon, ArrowPathIcon, CalendarIcon } from '@heroicons/react/24/outline';
-// Import departments data
-import { departments } from '../data/faculties';
+import { publicService } from '../../../services';
+import { PublicDepartment } from '../../../services/public.service';
+import { SelectOption } from '../components';
+import { ClockIcon, CalendarDaysIcon, ArrowPathIcon, CalendarIcon, BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 
 // Recurrence type options
 const recurrenceTypeOptions = [
@@ -88,8 +89,6 @@ const locationTypeOptions = [
   }
 ];
 
-import { BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
-
 const RecurrentActivityDetails: React.FC = () => {
   // State for form fields
   const [activityName, setActivityName] = useState('');
@@ -98,6 +97,35 @@ const RecurrentActivityDetails: React.FC = () => {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
+
+  // Estado para los departamentos cargados desde la API
+  const [departments, setDepartments] = useState<SelectOption[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+  
+  // useEffect para cargar departamentos
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setIsLoadingDepartments(true);
+        const departments = await publicService.getPublicDepartments();
+        const formattedDepartments = departments.map((dept: PublicDepartment) => ({
+          value: dept.id.toString(),
+          label: dept.abbreviation
+        }));
+        setDepartments(formattedDepartments);
+        setDepartmentsError(''); // Usar string vacía en lugar de null
+      } catch (error) {
+        console.error('Error al cargar departamentos:', error);
+        setDepartmentsError('No se pudieron cargar los departamentos.');
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+    
+    fetchDepartments();
+  }, []);  
+  
   
   // Recurrence state
   const [recurrenceType, setRecurrenceType] = useState('');
@@ -186,6 +214,22 @@ const RecurrentActivityDetails: React.FC = () => {
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
       {/* Contenedor principal */}
       
+      {/* Mensaje de error si no se pueden cargar los departamentos */}
+      {departmentsError && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">{departmentsError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* 1. Nombre y Facultad (primera fila) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Nombre de la actividad */}
@@ -199,17 +243,27 @@ const RecurrentActivityDetails: React.FC = () => {
           required
         />
         
-        {/* Facultad */}
-        <Select
-          id="recurrent-activity-faculty"
-          name="recurrent-activity-faculty"
-          label="Facultad"
-          value={faculty}
-          onChange={(e) => setFaculty(e.target.value)}
-          options={departments}
-          placeholder="Seleccione una facultad"
-          required
-        />
+        {/* Facultad - Con estado de carga */}
+        {isLoadingDepartments ? (
+          <div className="flex flex-col space-y-2">
+            <label className="block text-sm font-medium text-black mb-1">
+              Facultad<span className="text-red-500 ml-1">*</span>
+            </label>
+            <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
+          </div>
+        ) : (
+          <Select
+            id="recurrent-activity-faculty"
+            name="recurrent-activity-faculty"
+            label="Facultad"
+            value={faculty}
+            onChange={(e) => setFaculty(e.target.value)}
+            options={departments}
+            placeholder="Seleccione una facultad"
+            required
+            error={departmentsError || undefined}
+          />
+        )}
       </div>
       
       {/* 2. Fechas de inicio y fin (segunda fila) */}

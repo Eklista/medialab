@@ -1,5 +1,5 @@
 // src/features/service-request/ServiceRequestForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ActivityTypeStep, { ActivityType } from './ActivityTypeStep';
 import ActivityDetailsStep from './ActivityDetailsStep';
 import Step3Services from './Step3Services';
@@ -8,6 +8,8 @@ import Stepper from './components/Stepper';
 import { Button } from './components';
 import { mainServices } from './data/services';
 import { departments } from './data/faculties';
+import { publicService } from '../../services';
+import { SelectOption } from './components';
 import { CheckIcon, ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 const ServiceRequestForm: React.FC = () => {
@@ -17,10 +19,37 @@ const ServiceRequestForm: React.FC = () => {
   // Estado para almacenar el tipo de actividad seleccionada
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(null);
   
+  // Estado para unidades académicas y departamentos
+  const [departmentsFromDB, setDepartmentsFromDB] = useState<SelectOption[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+
   // Estado para servicios principales y subservicios
   const [selectedMainServices, setSelectedMainServices] = useState<string[]>([]);
   const [selectedSubServices, setSelectedSubServices] = useState<Record<string, string[]>>({});
-  
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setIsLoadingDepartments(true);
+        const departments = await publicService.getPublicDepartments();
+        const formattedDepartments = departments.map(dept => ({
+          value: dept.id.toString(),
+          label: dept.abbreviation
+        }));
+        setDepartmentsFromDB(formattedDepartments);
+        setDepartmentsError(null);
+      } catch (error) {
+        console.error('Error al cargar departamentos:', error);
+        setDepartmentsError('No se pudieron cargar los departamentos.');
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+    
+    fetchDepartments();
+  }, []);
+
   // Estado para datos del solicitante
   const [requesterData, setRequesterData] = useState<RequesterData>({
     name: '',
@@ -219,12 +248,30 @@ const ServiceRequestForm: React.FC = () => {
         );
       case 4:
         return (
-          <Step4ActivityRequester
-            requesterData={requesterData}
-            onRequesterDataChange={handleRequesterDataChange}
-            departments={departments}
-            errors={formErrors.step4}
-          />
+          <>
+            {departmentsError && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">{departmentsError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <Step4ActivityRequester
+              requesterData={requesterData}
+              onRequesterDataChange={handleRequesterDataChange}
+              departments={departmentsFromDB.length > 0 ? departmentsFromDB : departments}
+              errors={formErrors.step4}
+              isLoadingDepartments={isLoadingDepartments}
+            />
+          </>
         );
       default:
         return null;

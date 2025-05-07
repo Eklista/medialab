@@ -368,26 +368,25 @@ const UserProfilePage: React.FC = () => {
     if (!dateString) return '-';
     
     try {
-      // Asegurar que la fecha se interprete correctamente sin ajuste de zona horaria
       const dateParts = dateString.split('-');
       if (dateParts.length === 3) {
-        // Crear la fecha usando el constructor con año, mes (0-11), día
         const date = new Date(
           parseInt(dateParts[0]), 
-          parseInt(dateParts[1]) - 1, // Restar 1 porque los meses en JS son 0-11
+          parseInt(dateParts[1]) - 1,
           parseInt(dateParts[2])
         );
         
-        return date.toLocaleDateString('es-ES', {
+        return date.toLocaleDateString('es-GT', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         });
       }
       
-      // Si el formato no es YYYY-MM-DD, intentar con el constructor normal
       const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
+      const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
+      
+      return guatemalaDate.toLocaleDateString('es-GT', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -402,7 +401,10 @@ const UserProfilePage: React.FC = () => {
     
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
+      // Ajuste manual para Guatemala (UTC-6)
+      const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
+      
+      return guatemalaDate.toLocaleDateString('es-GT', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',

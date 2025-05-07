@@ -313,8 +313,12 @@ const UsersPage: React.FC = () => {
     if (dateString === '-') return '-';
     
     try {
+      // Crear la fecha a partir del string
       const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
+
+      const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
+      
+      return guatemalaDate.toLocaleDateString('es-GT', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',

@@ -16,10 +16,9 @@ services:
       - INIT_BASE_STRUCTURE=${INIT_BASE_STRUCTURE:-true}
       - INIT_DEPARTMENT_DATA=${INIT_DEPARTMENT_DATA:-true}
       - INTERACTIVE_ADMIN=${INTERACTIVE_ADMIN:-false}
+      - TZ=America/Mexico_City
     depends_on:
       - db
-    # Ya no necesitamos instalar netcat ni ejecutar check-and-migrate.sh
-    # porque entrypoint.sh ya maneja todo esto
   
   frontend:
     build:
@@ -32,6 +31,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_URL=${DEV_API_URL:-http://localhost:8000/api/v1}
+      - TZ=America/Mexico_City
     depends_on:
       - backend
   
@@ -43,10 +43,11 @@ services:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootpassword}
       - MYSQL_DATABASE=${DB_NAME:-medialab_db}
       - MYSQL_USER=${DB_USER:-medialab_user}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-MediaLab2025Db$$3cur3} 
+      - MYSQL_PASSWORD=${DB_PASSWORD:-MediaLab2025Db$$3cur3}
+      - TZ=America/Mexico_City
     volumes:
       - medialab_db_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone='-06:00'
 
 volumes:
   medialab_db_data:

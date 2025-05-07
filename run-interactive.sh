@@ -30,45 +30,78 @@ echo "¿Quieres borrar las marcas de inicialización previas? (Útil si hubo err
 read reset_flags
 if [[ "$reset_flags" == "s" || "$reset_flags" == "S" || "$reset_flags" == "y" || "$reset_flags" == "Y" ]]; then
     echo "Eliminando marcas de inicialización..."
-    docker run --rm -v medialab_backend_data:/data alpine sh -c "rm -f /data/.base_structure_initialized /data/.department_data_initialized /data/.interactive_admin_initialized"
+    docker run --rm -v medialab_backend_data:/data alpine sh -c "rm -f /data/.base_structure_initialized /data/.department_data_initialized /data/.service_data_initialized /data/.interactive_admin_initialized"
 fi
 
 # Seleccionar qué inicializar
 echo
 echo "Selecciona qué datos inicializar:"
-echo "1. Todo (estructura base + departamentos + administrador interactivo)"
-echo "2. Solo estructura base y departamentos"
-echo "3. Solo estructura base y administrador interactivo"
-echo "4. Solo administrador interactivo (si ya existe estructura base)"
+echo "1. Todo (estructura base + departamentos + servicios + administrador interactivo)"
+echo "2. Solo estructura base, departamentos y servicios"
+echo "3. Solo estructura base, servicios y administrador interactivo"
+echo "4. Solo estructura base y departamentos"
+echo "5. Solo estructura base y administrador interactivo"
+echo "6. Solo estructura base y servicios"
+echo "7. Solo servicios (si ya existe estructura base)"
+echo "8. Solo administrador interactivo (si ya existe estructura base)"
 echo
-read -p "Opción (1-4): " init_option
+read -p "Opción (1-8): " init_option
 
 # Configurar variables según la opción seleccionada
 case $init_option in
     1)
         INIT_BASE_STRUCTURE=true
         INIT_DEPARTMENT_DATA=true
+        INIT_SERVICE_DATA=true
         INTERACTIVE_ADMIN=true
         ;;
     2)
         INIT_BASE_STRUCTURE=true
         INIT_DEPARTMENT_DATA=true
+        INIT_SERVICE_DATA=true
         INTERACTIVE_ADMIN=false
         ;;
     3)
         INIT_BASE_STRUCTURE=true
         INIT_DEPARTMENT_DATA=false
+        INIT_SERVICE_DATA=true
         INTERACTIVE_ADMIN=true
         ;;
     4)
+        INIT_BASE_STRUCTURE=true
+        INIT_DEPARTMENT_DATA=true
+        INIT_SERVICE_DATA=false
+        INTERACTIVE_ADMIN=false
+        ;;
+    5)
+        INIT_BASE_STRUCTURE=true
+        INIT_DEPARTMENT_DATA=false
+        INIT_SERVICE_DATA=false
+        INTERACTIVE_ADMIN=true
+        ;;
+    6)
+        INIT_BASE_STRUCTURE=true
+        INIT_DEPARTMENT_DATA=false
+        INIT_SERVICE_DATA=true
+        INTERACTIVE_ADMIN=false
+        ;;
+    7)
         INIT_BASE_STRUCTURE=false
         INIT_DEPARTMENT_DATA=false
+        INIT_SERVICE_DATA=true
+        INTERACTIVE_ADMIN=false
+        ;;
+    8)
+        INIT_BASE_STRUCTURE=false
+        INIT_DEPARTMENT_DATA=false
+        INIT_SERVICE_DATA=false
         INTERACTIVE_ADMIN=true
         ;;
     *)
         echo "Opción no válida. Usando configuración por defecto (todo)."
         INIT_BASE_STRUCTURE=true
         INIT_DEPARTMENT_DATA=true
+        INIT_SERVICE_DATA=true
         INTERACTIVE_ADMIN=true
         ;;
 esac
@@ -83,6 +116,7 @@ echo "Iniciando backend en modo interactivo..."
 docker-compose run --rm \
     -e INIT_BASE_STRUCTURE=$INIT_BASE_STRUCTURE \
     -e INIT_DEPARTMENT_DATA=$INIT_DEPARTMENT_DATA \
+    -e INIT_SERVICE_DATA=$INIT_SERVICE_DATA \
     -e INTERACTIVE_ADMIN=$INTERACTIVE_ADMIN \
     -e START_SERVER=false \
     backend
