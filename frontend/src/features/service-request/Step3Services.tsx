@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { CheckboxGroup, CheckboxOption } from './components';
 import { MainService } from './data/services';
-// Importar servicio de API público en lugar del que requiere autenticación
+// Importar servicios
 import { publicService } from '../../services';
 import { Service } from '../../services/services.service';
+import { ServiceTemplate } from '../../services/service-templates.service';
 
 // Importar iconos necesarios
 import { 
@@ -21,7 +22,8 @@ import {
   DocumentTextIcon,
   CloudIcon,
   CommandLineIcon,
-  MicrophoneIcon
+  MicrophoneIcon,
+  BookmarkIcon
 } from '@heroicons/react/24/outline';
 
 // Props del componente Step3Services
@@ -45,28 +47,36 @@ const Step3Services: React.FC<Step3ServicesProps> = ({
   
   // Estado para servicios cargados desde la API
   const [apiServices, setApiServices] = useState<Service[]>([]);
+  // Estado para plantillas cargadas desde la API
+  const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Cargar servicios desde la API (usando el endpoint público)
+  // Cargar servicios y plantillas desde la API
   useEffect(() => {
-    const fetchServices = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        // Usar el método público en lugar del que requiere autenticación
-        const services = await publicService.getPublicServices();
+        // Cargar servicios y plantillas en paralelo
+        const [services, templates] = await Promise.all([
+          publicService.getPublicServices(),
+          publicService.getPublicTemplates()
+        ]);
+        
         setApiServices(services);
+        setTemplates(templates);
         setError(null);
       } catch (err) {
-        console.error('Error al cargar servicios:', err);
-        setError('No se pudieron cargar los servicios. Usando datos predeterminados.');
-        // En caso de error, no actualizamos apiServices para que use los valores por defecto
+        console.error('Error al cargar datos:', err);
+        setError('No se pudieron cargar los servicios o plantillas. Usando datos predeterminados.');
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchServices();
+    fetchData();
   }, []);
   
   // Convertir servicios de la API al formato esperado por el componente
@@ -132,10 +142,58 @@ const Step3Services: React.FC<Step3ServicesProps> = ({
     description: service.description
   }));
 
+  // Manejar cambio de plantilla
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const templateId = e.target.value;
+    setSelectedTemplate(templateId);
+    
+    // Si se selecciona "ninguna", limpiar la selección
+    if (!templateId) {
+      onMainServiceChange([]);
+      return;
+    }
+    
+    // Encontrar la plantilla seleccionada
+    const template = templates.find(t => t.id?.toString() === templateId);
+    if (template && template.services) {
+      // Obtener IDs de los servicios de la plantilla
+      const serviceIds = template.services
+        .map(service => service.id?.toString() || '')
+        .filter(id => id !== '');
+      
+      // Actualizar servicios seleccionados
+      onMainServiceChange(serviceIds);
+      
+      // Limpiar sub-servicios seleccionados para evitar inconsistencias
+      const newSelectedSubServices: Record<string, string[]> = {};
+      serviceIds.forEach(serviceId => {
+        newSelectedSubServices[serviceId] = [];
+      });
+      
+      // Para cada servicio, seleccionar todos sus sub-servicios
+      template.services.forEach(service => {
+        if (service.id) {
+          const serviceId = service.id.toString();
+          const subServiceIds = service.sub_services
+            ?.map(sub => sub.id?.toString() || '')
+            .filter(id => id !== '') || [];
+          
+          if (subServiceIds.length > 0) {
+            newSelectedSubServices[serviceId] = subServiceIds;
+          }
+        }
+      });
+      
+      // Actualizar sub-servicios seleccionados para cada servicio
+      Object.entries(newSelectedSubServices).forEach(([serviceId, subServiceIds]) => {
+        onSubServiceChange(serviceId, subServiceIds);
+      });
+    }
+  };
+
   // Renderizar sección de subservicios para un servicio principal seleccionado
   const renderSubServiceSection = (mainService: MainService) => {
     // Convertir subservicios a formato de opciones para CheckboxGroup
-    // Incluir la descripción para los tooltips
     const subServiceOptions: CheckboxOption[] = mainService.subServices.map(subService => ({
       id: subService.id,
       label: subService.name,
@@ -204,12 +262,50 @@ const Step3Services: React.FC<Step3ServicesProps> = ({
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar - Servicios principales */}
+          {/* Sidebar - Plantillas y Servicios principales */}
           <div className="lg:w-1/3">
+            {/* Selector de plantillas */}
+            {templates.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <BookmarkIcon className="h-6 w-6 text-gray-500 mt-0.5" />
+                  <div>
+                    <h3 className="text-lg font-semibold">Plantillas disponibles</h3>
+                    <p className="text-gray-600 text-sm">
+                      Seleccione una plantilla predefinida o personalice su selección manualmente.
+                    </p>
+                  </div>
+                </div>
+                
+                <select
+                  value={selectedTemplate}
+                  onChange={handleTemplateChange}
+                  className="mt-2 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-black focus:border-black rounded-md"
+                >
+                  <option value="">Seleccione una plantilla</option>
+                  {templates.map(template => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+                
+                {selectedTemplate && (
+                  <p className="mt-3 text-sm text-gray-500">
+                    {templates.find(t => t.id?.toString() === selectedTemplate)?.description || 
+                    'Plantilla seleccionada. Puede personalizar los servicios a continuación.'}
+                  </p>
+                )}
+              </div>
+            )}
+            
+            {/* Servicios principales */}
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-lg font-semibold mb-4">Servicios Principales</h3>
               <p className="text-gray-600 mb-4">
-                Seleccione los servicios principales que necesita para su actividad.
+                {selectedTemplate 
+                  ? 'Personalice su selección marcando o desmarcando servicios.'
+                  : 'Seleccione los servicios principales que necesita para su actividad.'}
               </p>
               
               <CheckboxGroup
@@ -238,7 +334,9 @@ const Step3Services: React.FC<Step3ServicesProps> = ({
                 <PhotoIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-600 mb-2">Ningún servicio seleccionado</h3>
                 <p className="text-gray-500">
-                  Para continuar, seleccione al menos un servicio principal del panel izquierdo.
+                  {templates.length > 0
+                    ? 'Para continuar, seleccione una plantilla predefinida o marque los servicios manualmente.'
+                    : 'Para continuar, seleccione al menos un servicio principal del panel izquierdo.'}
                 </p>
               </div>
             )}

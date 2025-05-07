@@ -16,6 +16,7 @@ from app.models.auth.permissions import Permission
 from app.models.organization.areas import Area
 from app.models.organization.services import Service, SubService
 from app.models.organization.departments import Department, DepartmentType
+from app.models.organization.service_templates import ServiceTemplate, template_services
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

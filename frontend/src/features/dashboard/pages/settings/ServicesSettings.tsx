@@ -4,32 +4,50 @@ import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
 import ServiceForm, { ServiceFormData } from '../../components/config/ServiceForm';
+import TemplateForm, { TemplateFormData } from '../../components/config/TemplateForm';
 import { PlusIcon } from '@heroicons/react/24/outline';
-import { servicesService } from '../../../../services';
+import { servicesService, serviceTemplatesService } from '../../../../services';
 import { Service } from '../../../../services/services.service';
+import { ServiceTemplate } from '../../../../services/service-templates.service';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
 const ServicesSettings: React.FC = () => {
+  // Estado para pestañas
+  const [activeTab, setActiveTab] = useState<'services' | 'templates'>('services');
+  
   // Estado para servicios
   const [services, setServices] = useState<Service[]>([]);
   
-  // Estado para modales
+  // Estado para plantillas
+  const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
+  
+  // Estado para modales de servicios
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentService, setCurrentService] = useState<Service | null>(null);
+  
+  // Estado para modales de plantillas
+  const [isAddTemplateModalOpen, setIsAddTemplateModalOpen] = useState(false);
+  const [isEditTemplateModalOpen, setIsEditTemplateModalOpen] = useState(false);
+  const [isDeleteTemplateModalOpen, setIsDeleteTemplateModalOpen] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState<ServiceTemplate | null>(null);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [modalError, setModalError] = useState<string | null>(null);
 
   // Estado para carga de datos
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Cargar servicios al montar el componente
+  // Cargar datos al montar el componente o cambiar de pestaña
   useEffect(() => {
-    fetchServices();
-  }, []);
+    if (activeTab === 'services') {
+      fetchServices();
+    } else {
+      fetchTemplates();
+    }
+  }, [activeTab]);
 
   // Función para cargar servicios desde la API
   const fetchServices = async () => {
@@ -47,7 +65,23 @@ const ServicesSettings: React.FC = () => {
     }
   };
   
-  // Handlers para servicios
+  // Función para cargar plantillas desde la API
+  const fetchTemplates = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const data = await serviceTemplatesService.getServiceTemplates();
+      setTemplates(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar las plantillas');
+      console.error('Error al cargar plantillas:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // HANDLERS PARA SERVICIOS
   const handleAddService = () => {
     setModalError(null);
     setIsAddModalOpen(true);
@@ -194,8 +228,105 @@ const ServicesSettings: React.FC = () => {
     }
   };
   
-  // Columnas para la tabla
-  const columns = [
+  // HANDLERS PARA PLANTILLAS
+  const handleAddTemplate = () => {
+    setModalError(null);
+    setIsAddTemplateModalOpen(true);
+  };
+  
+  const handleEditTemplate = (template: ServiceTemplate) => {
+    setModalError(null);
+    setCurrentTemplate(template);
+    setIsEditTemplateModalOpen(true);
+  };
+  
+  const handleDeleteTemplateClick = (template: ServiceTemplate) => {
+    setModalError(null);
+    setCurrentTemplate(template);
+    setIsDeleteTemplateModalOpen(true);
+  };
+  
+  const handleDeleteTemplate = async () => {
+    if (!currentTemplate || !currentTemplate.id) return;
+    
+    setIsSubmitting(true);
+    setModalError(null);
+    
+    try {
+      await serviceTemplatesService.deleteServiceTemplate(currentTemplate.id);
+      
+      setTemplates(templates.filter(t => t.id !== currentTemplate.id));
+      setIsDeleteTemplateModalOpen(false);
+      setCurrentTemplate(null);
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Error al eliminar la plantilla');
+      console.error('Error al eliminar plantilla:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleAddTemplateSubmit = async (data: TemplateFormData) => {
+    setIsSubmitting(true);
+    setModalError(null);
+    
+    try {
+      const templateData = {
+        name: data.name,
+        description: data.description,
+        is_public: data.isPublic,
+        service_selections: data.serviceSelections.map(sel => ({
+          service_id: sel.serviceId,
+          sub_service_ids: sel.subServiceIds
+        }))
+      };
+      
+      await serviceTemplatesService.createServiceTemplate(templateData);
+      await fetchTemplates();
+      setIsAddTemplateModalOpen(false);
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Error al crear la plantilla');
+      console.error('Error al crear plantilla:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleEditTemplateSubmit = async (data: TemplateFormData) => {
+    if (!currentTemplate || !currentTemplate.id) return;
+    
+    setIsSubmitting(true);
+    setModalError(null);
+    
+    try {
+      const templateData = {
+        name: data.name,
+        description: data.description,
+        is_public: data.isPublic,
+        service_selections: data.serviceSelections.map(sel => ({
+          service_id: sel.serviceId,
+          sub_service_ids: sel.subServiceIds
+        }))
+      };
+      
+      await serviceTemplatesService.updateServiceTemplate(
+        currentTemplate.id, 
+        templateData
+      );
+      
+      await fetchTemplates();
+      setIsEditTemplateModalOpen(false);
+      setCurrentTemplate(null);
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Error al actualizar la plantilla');
+      console.error('Error al actualizar plantilla:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Columnas para la tabla de servicios
+  const serviceColumns = [
     {
       header: 'Nombre',
       accessor: (service: Service) => service.name
@@ -216,39 +347,134 @@ const ServicesSettings: React.FC = () => {
     }
   ];
   
+  // Columnas para la tabla de plantillas
+  const templateColumns = [
+    {
+      header: 'Nombre',
+      accessor: (template: ServiceTemplate) => template.name
+    },
+    {
+      header: 'Descripción',
+      accessor: (template: ServiceTemplate) => template.description || '-'
+    },
+    {
+      header: 'Estado',
+      accessor: (template: ServiceTemplate) => (
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+          template.is_public 
+            ? 'bg-green-100 text-green-800' 
+            : 'bg-gray-100 text-gray-800'
+        }`}>
+          {template.is_public ? 'Pública' : 'Privada'}
+        </span>
+      )
+    },
+    {
+      header: 'Servicios',
+      accessor: (template: ServiceTemplate) => (
+        <span className="text-gray-600">
+          {template.services ? template.services.length : 0} servicios
+        </span>
+      )
+    }
+  ];
+  
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-medium text-gray-900">Gestión de Servicios</h2>
-        <DashboardButton
-          onClick={handleAddService}
-          leftIcon={<PlusIcon className="w-5 h-5" />}
-        >
-          Agregar Servicio
-        </DashboardButton>
+      {/* Pestañas */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex -mb-px">
+          <button
+            className={`py-4 px-6 border-b-2 text-sm font-medium ${
+              activeTab === 'services'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('services')}
+          >
+            Servicios
+          </button>
+          <button
+            className={`py-4 px-6 border-b-2 text-sm font-medium ${
+              activeTab === 'templates'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('templates')}
+          >
+            Plantillas
+          </button>
+        </nav>
       </div>
       
-      {/* Mostrar errores si los hay */}
-      {error && (
-        <ApiErrorHandler 
-          error={error} 
-          onRetry={fetchServices} 
-          resourceName="los servicios"
-        />
+      {/* Contenido según la pestaña activa */}
+      {activeTab === 'services' ? (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-medium text-gray-900">Gestión de Servicios</h2>
+            <DashboardButton
+              onClick={handleAddService}
+              leftIcon={<PlusIcon className="w-5 h-5" />}
+            >
+              Agregar Servicio
+            </DashboardButton>
+          </div>
+          
+          {/* Mostrar errores si los hay */}
+          {error && (
+            <ApiErrorHandler 
+              error={error} 
+              onRetry={fetchServices} 
+              resourceName="los servicios"
+            />
+          )}
+          
+          <DashboardDataTable
+            columns={serviceColumns}
+            data={services}
+            keyExtractor={(service) => service.id?.toString() || ''}
+            onEdit={handleEditService}
+            onDelete={handleDeleteClick}
+            actionColumn={true}
+            emptyMessage={isLoading ? "Cargando servicios..." : "No hay servicios configurados"}
+            isLoading={isLoading}
+          />
+        </>
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-medium text-gray-900">Gestión de Plantillas</h2>
+            <DashboardButton
+              onClick={handleAddTemplate}
+              leftIcon={<PlusIcon className="w-5 h-5" />}
+            >
+              Crear Plantilla
+            </DashboardButton>
+          </div>
+          
+          {/* Mostrar errores si los hay */}
+          {error && (
+            <ApiErrorHandler 
+              error={error} 
+              onRetry={fetchTemplates} 
+              resourceName="las plantillas"
+            />
+          )}
+          
+          <DashboardDataTable
+            columns={templateColumns}
+            data={templates}
+            keyExtractor={(template) => template.id?.toString() || ''}
+            onEdit={handleEditTemplate}
+            onDelete={handleDeleteTemplateClick}
+            actionColumn={true}
+            emptyMessage={isLoading ? "Cargando plantillas..." : "No hay plantillas configuradas"}
+            isLoading={isLoading}
+          />
+        </>
       )}
       
-      <DashboardDataTable
-        columns={columns}
-        data={services}
-        keyExtractor={(service) => service.id?.toString() || ''}
-        onEdit={handleEditService}
-        onDelete={handleDeleteClick}
-        actionColumn={true}
-        emptyMessage={isLoading ? "Cargando servicios..." : "No hay servicios configurados"}
-        isLoading={isLoading}
-      />
-      
-      {/* Modal para agregar servicio */}
+      {/* Modales para Servicios */}
       <DashboardModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -263,7 +489,6 @@ const ServicesSettings: React.FC = () => {
         />
       </DashboardModal>
       
-      {/* Modal para editar servicio */}
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -296,7 +521,6 @@ const ServicesSettings: React.FC = () => {
         )}
       </DashboardModal>
 
-      {/* Modal para confirmar eliminación */}
       <DashboardModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
@@ -305,7 +529,7 @@ const ServicesSettings: React.FC = () => {
         }}
         title="Confirmar Eliminación"
         error={modalError}
-        >
+      >
         <div className="py-3">
           <p className="text-gray-700">
             ¿Estás seguro de que deseas eliminar el servicio <span className="font-medium">{currentService?.name}</span>?
@@ -329,6 +553,96 @@ const ServicesSettings: React.FC = () => {
           <DashboardButton
             variant="danger"
             onClick={handleDeleteService}
+            loading={isSubmitting}
+            disabled={isSubmitting}
+          >
+            Eliminar
+          </DashboardButton>
+        </div>
+      </DashboardModal>
+      
+      {/* Modales para Plantillas */}
+      <DashboardModal
+        isOpen={isAddTemplateModalOpen}
+        onClose={() => setIsAddTemplateModalOpen(false)}
+        title="Crear Plantilla de Servicios"
+        size="lg"
+        error={modalError}
+      >
+        <TemplateForm
+          services={services}
+          onSubmit={handleAddTemplateSubmit}
+          onCancel={() => setIsAddTemplateModalOpen(false)}
+          isSubmitting={isSubmitting}
+        />
+      </DashboardModal>
+      
+      <DashboardModal
+        isOpen={isEditTemplateModalOpen}
+        onClose={() => {
+          setIsEditTemplateModalOpen(false);
+          setCurrentTemplate(null);
+        }}
+        title="Editar Plantilla de Servicios"
+        size="lg"
+        error={modalError}
+      >
+        {currentTemplate && (
+          <TemplateForm
+            services={services}
+            initialData={{
+              name: currentTemplate.name,
+              description: currentTemplate.description || '',
+              isPublic: currentTemplate.is_public,
+              serviceSelections: currentTemplate.services 
+                ? currentTemplate.services.map(service => ({
+                    serviceId: service.id!,
+                    subServiceIds: [] // Aquí necesitarás añadir lógica para determinar qué subservicios están seleccionados
+                  }))
+                : []
+            }}
+            onSubmit={handleEditTemplateSubmit}
+            onCancel={() => {
+              setIsEditTemplateModalOpen(false);
+              setCurrentTemplate(null);
+            }}
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </DashboardModal>
+
+      <DashboardModal
+        isOpen={isDeleteTemplateModalOpen}
+        onClose={() => {
+          setIsDeleteTemplateModalOpen(false);
+          setCurrentTemplate(null);
+        }}
+        title="Confirmar Eliminación"
+        error={modalError}
+      >
+        <div className="py-3">
+          <p className="text-gray-700">
+            ¿Estás seguro de que deseas eliminar la plantilla <span className="font-medium">{currentTemplate?.name}</span>?
+          </p>
+          <p className="text-gray-500 text-sm mt-2">
+            Esta acción no se puede deshacer.
+          </p>
+        </div>
+        
+        <div className="flex justify-end space-x-3 mt-6">
+          <DashboardButton
+            variant="outline"
+            onClick={() => {
+              setIsDeleteTemplateModalOpen(false);
+              setCurrentTemplate(null);
+            }}
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </DashboardButton>
+          <DashboardButton
+            variant="danger"
+            onClick={handleDeleteTemplate}
             loading={isSubmitting}
             disabled={isSubmitting}
           >

@@ -19,3 +19,7 @@ export type { DashboardDataTableProps, Column } from './DashboardDataTable';
 
 export { default as DashboardCard } from './DashboardCard';
 export type { DashboardCardProps } from './DashboardCard';
+
+export { default as Switch } from './Switch';
+
+export { default as Badge } from './Badge';

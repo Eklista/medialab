@@ -8,6 +8,8 @@ from app.models.organization.departments import Department
 from app.schemas.organization.departments import DepartmentInDB
 from app.models.organization.services import Service
 from app.schemas.organization.services import ServiceWithSubServices
+from app.schemas.organization.service_templates import ServiceTemplateWithServices
+from app.services.service_template_service import ServiceTemplateService
 
 router = APIRouter()
 
@@ -47,3 +49,15 @@ def read_public_services(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener servicios: {str(e)}"
         )
+
+@router.get("/templates", response_model=List[ServiceTemplateWithServices])
+def read_public_templates(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Obtiene lista de plantillas de servicios públicas (sin autenticación)
+    """
+    templates = ServiceTemplateService.get_public_templates(db=db, skip=skip, limit=limit)
+    return templates
