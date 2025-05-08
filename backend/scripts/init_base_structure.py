@@ -3,7 +3,6 @@
 """
 Script para inicializar la estructura base de la aplicación:
 - Roles (ADMIN, USER)
-- Permisos
 - Áreas (Producción, Transmisión, Camarografía, Dirección)
 """
 
@@ -16,7 +15,6 @@ from sqlalchemy import insert
 
 from app.database import SessionLocal
 from app.models.auth.roles import Role
-from app.models.auth.permissions import Permission
 from app.models.organization.areas import Area
 
 # Configuración de logging
@@ -28,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def init_base_structure() -> None:
-    """Inicializa roles, permisos y áreas básicas."""
+    """Inicializa roles y áreas básicas."""
     logger.info("Creando conexión a la base de datos...")
     db = SessionLocal()
     
@@ -55,33 +53,6 @@ def init_base_structure() -> None:
         db.add(user_role)
         db.flush()
         logger.info(f"Roles creados: {admin_role.name}, {user_role.name}")
-        
-        logger.info("Creando permisos iniciales...")
-        # Crear permisos iniciales
-        admin_view = Permission(name="admin_view", description="Ver administradores")
-        admin_create = Permission(name="admin_create", description="Crear administradores")
-        admin_edit = Permission(name="admin_edit", description="Editar administradores")
-        admin_delete = Permission(name="admin_delete", description="Eliminar administradores")
-        
-        service_view = Permission(name="service_view", description="Ver servicios")
-        service_create = Permission(name="service_create", description="Crear servicios")
-        service_edit = Permission(name="service_edit", description="Editar servicios")
-        service_delete = Permission(name="service_delete", description="Eliminar servicios")
-        
-        permissions = [
-            admin_view, admin_create, admin_edit, admin_delete,
-            service_view, service_create, service_edit, service_delete
-        ]
-        
-        for permission in permissions:
-            db.add(permission)
-        db.flush()
-        logger.info(f"Permisos creados: {len(permissions)} permisos")
-        
-        logger.info("Asignando permisos a roles...")
-        # Asignar permisos a roles
-        admin_role.permissions = permissions
-        user_role.permissions = [service_view]
         
         logger.info("Creando áreas iniciales...")
         # Crear áreas iniciales

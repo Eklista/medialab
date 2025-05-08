@@ -1,6 +1,5 @@
-from typing import Generator, Optional
-
-from fastapi import Depends, HTTPException, status
+from typing import Generator, Optional, List, Callable
+from fastapi import Depends, HTTPException, status, Security
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -61,3 +60,106 @@ def get_current_active_superuser(
         raise ErrorHandler.handle_permission_error()
         
     return current_user
+
+def has_permission(required_permission: str) -> Callable:
+    """
+    Verifica si el usuario tiene un permiso específico
+    """
+    def _has_permission(current_user: User = Security(get_current_active_user)) -> User:
+        # Obtener todos los permisos del usuario a través de sus roles
+        user_permissions = []
+        for role in current_user.roles:
+            for permission in role.permissions:
+                user_permissions.append(permission.name)
+        
+        # Verificar si el usuario tiene el permiso requerido o es ADMIN
+        is_admin = any(role.name == "ADMIN" for role in current_user.roles)
+        
+        if required_permission not in user_permissions and not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permiso requerido: {required_permission}"
+            )
+        
+        return current_user
+    
+    return _has_permission
+
+def has_any_permission(permissions: List[str]) -> Callable:
+    """
+    Verifica si el usuario tiene al menos uno de los permisos especificados
+    """
+    def _has_any_permission(current_user: User = Security(get_current_active_user)) -> User:
+        # Obtener todos los permisos del usuario a través de sus roles
+        user_permissions = []
+        for role in current_user.roles:
+            for permission in role.permissions:
+                user_permissions.append(permission.name)
+        
+        # Verificar si el usuario tiene al menos uno de los permisos requeridos o es ADMIN
+        is_admin = any(role.name == "ADMIN" for role in current_user.roles)
+        
+        if not any(perm in user_permissions for perm in permissions) and not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Se requiere uno de estos permisos: {', '.join(permissions)}"
+            )
+        
+        return current_user
+    
+    return _has_any_permission
+
+def has_all_permissions(permissions: List[str]) -> Callable:
+    """
+    Verifica si el usuario tiene todos los permisos especificados
+    """
+    def _has_all_permissions(current_user: User = Security(get_current_active_user)) -> User:
+        # Obtener todos los permisos del usuario a través de sus roles
+        user_permissions = []
+        for role in current_user.roles:
+            for permission in role.permissions:
+                user_permissions.append(permission.name)
+        
+        # Verificar si el usuario tiene todos los permisos requeridos o es ADMIN
+        is_admin = any(role.name == "ADMIN" for role in current_user.roles)
+        
+        if not all(perm in user_permissions for perm in permissions) and not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Se requieren todos estos permisos: {', '.join(permissions)}"
+            )
+        
+        return current_user
+    
+    return _has_all_permissions
+
+def is_self_or_has_permission(user_id_param: str, required_permission: str) -> Callable:
+    """
+    Permite acceso si es el propio usuario o tiene un permiso específico
+    """
+    def _is_self_or_has_permission(
+        current_user: User = Security(get_current_active_user),
+        user_id: int = None
+    ) -> User:
+        # Verificar si es el propio usuario
+        if user_id and current_user.id == user_id:
+            return current_user
+        
+        # Si no es el propio usuario, verificar permiso
+        user_permissions = []
+        for role in current_user.roles:
+            for permission in role.permissions:
+                user_permissions.append(permission.name)
+        
+        # Verificar si el usuario tiene el permiso requerido o es ADMIN
+        is_admin = any(role.name == "ADMIN" for role in current_user.roles)
+        
+        if required_permission not in user_permissions and not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permiso requerido para modificar otros usuarios: {required_permission}"
+            )
+        
+        return current_user
+    
+    return _is_self_or_has_permission

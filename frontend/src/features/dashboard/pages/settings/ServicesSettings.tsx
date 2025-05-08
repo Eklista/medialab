@@ -11,10 +11,32 @@ import { servicesService, serviceTemplatesService } from '../../../../services';
 import { Service } from '../../../../services/services.service';
 import { ServiceTemplate } from '../../../../services/service-templates.service';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
+import { useAuth } from '../../../auth/hooks/useAuth';
 
 const ServicesSettings: React.FC = () => {
+  // Obtener estado de autenticación y funciones para verificar permisos
+  const { hasPermission } = useAuth();
+  
+  // Verificar permisos para servicios y plantillas
+  const canViewServices = hasPermission('service_view');
+  const canCreateService = hasPermission('service_create');
+  const canEditService = hasPermission('service_edit');
+  const canDeleteService = hasPermission('service_delete');
+  
+  const canViewTemplates = hasPermission('template_view');
+  const canCreateTemplate = hasPermission('template_create');
+  const canEditTemplate = hasPermission('template_edit');
+  const canDeleteTemplate = hasPermission('template_delete');
+  
+  // Determinar la pestaña inicial basada en permisos
+  const getInitialTab = () => {
+    if (canViewServices) return 'services';
+    if (canViewTemplates) return 'templates';
+    return 'services'; // Default fallback
+  };
+  
   // Estado para pestañas
-  const [activeTab, setActiveTab] = useState<'services' | 'templates'>('services');
+  const [activeTab, setActiveTab] = useState<'services' | 'templates'>(getInitialTab());
   
   // Estado para servicios
   const [services, setServices] = useState<Service[]>([]);
@@ -43,12 +65,12 @@ const ServicesSettings: React.FC = () => {
   
   // Cargar datos al montar el componente o cambiar de pestaña
   useEffect(() => {
-    if (activeTab === 'services') {
+    if (activeTab === 'services' && canViewServices) {
       fetchServices();
-    } else {
+    } else if (activeTab === 'templates' && canViewTemplates) {
       fetchTemplates();
     }
-  }, [activeTab]);
+  }, [activeTab, canViewServices, canViewTemplates]);
 
   // Función para cargar servicios desde la API
   const fetchServices = async () => {
@@ -150,24 +172,30 @@ const ServicesSettings: React.FC = () => {
   
   // HANDLERS PARA SERVICIOS
   const handleAddService = () => {
+    if (!canCreateService) return;
+    
     setModalError(null);
     setIsAddModalOpen(true);
   };
   
   const handleEditService = (service: Service) => {
+    if (!canEditService) return;
+    
     setModalError(null);
     setCurrentService(service);
     setIsEditModalOpen(true);
   };
   
   const handleDeleteClick = (service: Service) => {
+    if (!canDeleteService) return;
+    
     setModalError(null);
     setCurrentService(service);
     setIsDeleteModalOpen(true);
   };
   
   const handleDeleteService = async () => {
-    if (!currentService || !currentService.id) return;
+    if (!currentService || !currentService.id || !canDeleteService) return;
     
     setIsSubmitting(true);
     setModalError(null);
@@ -187,6 +215,8 @@ const ServicesSettings: React.FC = () => {
   };
   
   const handleAddSubmit = async (data: ServiceFormData) => {
+    if (!canCreateService) return;
+    
     setIsSubmitting(true);
     setModalError(null);
     
@@ -214,7 +244,7 @@ const ServicesSettings: React.FC = () => {
   };
   
   const handleEditSubmit = async (data: ServiceFormData) => {
-    if (!currentService || !currentService.id) return;
+    if (!currentService || !currentService.id || !canEditService) return;
     
     setIsSubmitting(true);
     setModalError(null);
@@ -297,23 +327,29 @@ const ServicesSettings: React.FC = () => {
   
   // HANDLERS PARA PLANTILLAS
   const handleAddTemplate = () => {
+    if (!canCreateTemplate) return;
+    
     setModalError(null);
     setIsAddTemplateModalOpen(true);
   };
   
   const handleEditTemplate = (template: ServiceTemplate) => {
+    if (!canEditTemplate) return;
+    
     setModalError(null);
     fetchTemplateDetails(template.id!);
   };
   
   const handleDeleteTemplateClick = (template: ServiceTemplate) => {
+    if (!canDeleteTemplate) return;
+    
     setModalError(null);
     setCurrentTemplate(template);
     setIsDeleteTemplateModalOpen(true);
   };
   
   const handleDeleteTemplate = async () => {
-    if (!currentTemplate || !currentTemplate.id) return;
+    if (!currentTemplate || !currentTemplate.id || !canDeleteTemplate) return;
     
     setIsSubmitting(true);
     setModalError(null);
@@ -333,6 +369,8 @@ const ServicesSettings: React.FC = () => {
   };
   
   const handleAddTemplateSubmit = async (data: TemplateFormData) => {
+    if (!canCreateTemplate) return;
+    
     setIsSubmitting(true);
     setModalError(null);
     
@@ -359,7 +397,7 @@ const ServicesSettings: React.FC = () => {
   };
   
   const handleEditTemplateSubmit = async (data: TemplateFormData) => {
-    if (!currentTemplate || !currentTemplate.id) return;
+    if (!currentTemplate || !currentTemplate.id || !canEditTemplate) return;
     
     setIsSubmitting(true);
     setModalError(null);
@@ -453,32 +491,55 @@ const ServicesSettings: React.FC = () => {
     }
   ];
 
-  // Configuración de las pestañas para el componente ConfigPageTemplate
-  const tabs = [
-    {
+  // Filtrar pestañas basadas en permisos
+  const availableTabs = [
+    canViewServices && {
       id: 'services',
       label: 'Servicios',
       isActive: activeTab === 'services',
       onClick: () => setActiveTab('services')
     },
-    {
+    canViewTemplates && {
       id: 'templates',
       label: 'Plantillas',
       isActive: activeTab === 'templates',
       onClick: () => setActiveTab('templates')
     }
-  ];
+  ].filter(Boolean) as Array<{
+    id: string;
+    label: string;
+    isActive: boolean;
+    onClick: () => void;
+  }>;
 
-  // Configuración del botón de acción para el componente ConfigPageTemplate
-  const actionButton = (
-    <DashboardButton
-      onClick={activeTab === 'services' ? handleAddService : handleAddTemplate}
-      leftIcon={<PlusIcon className="w-5 h-5" />}
-      className="w-full sm:w-auto"
-    >
-      {activeTab === 'services' ? 'Agregar Servicio' : 'Crear Plantilla'}
-    </DashboardButton>
-  );
+  // Configuración del botón de acción basado en permisos
+  const actionButton = (() => {
+    if (activeTab === 'services' && canCreateService) {
+      return (
+        <DashboardButton
+          onClick={handleAddService}
+          leftIcon={<PlusIcon className="w-5 h-5" />}
+          className="w-full sm:w-auto"
+        >
+          Agregar Servicio
+        </DashboardButton>
+      );
+    }
+    
+    if (activeTab === 'templates' && canCreateTemplate) {
+      return (
+        <DashboardButton
+          onClick={handleAddTemplate}
+          leftIcon={<PlusIcon className="w-5 h-5" />}
+          className="w-full sm:w-auto"
+        >
+          Crear Plantilla
+        </DashboardButton>
+      );
+    }
+    
+    return null;
+  })();
 
   // Preparar el mensaje de error para el ConfigPageTemplate
   const errorComponent = error ? (
@@ -489,11 +550,23 @@ const ServicesSettings: React.FC = () => {
     />
   ) : null;
   
+  // Mostrar un mensaje si el usuario no tiene permisos para ninguna pestaña
+  if (availableTabs.length === 0) {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Acceso Restringido</h2>
+        <p className="text-gray-600">
+          No tienes permisos para acceder a esta sección. Contacta con el administrador si crees que esto es un error.
+        </p>
+      </div>
+    );
+  }
+  
   return (
     <ConfigPageTemplate
       title="Gestión de Servicios y Plantillas"
       actionButton={actionButton}
-      tabs={tabs}
+      tabs={availableTabs}
       error={errorComponent}
     >
       <div className="p-0">
@@ -502,9 +575,9 @@ const ServicesSettings: React.FC = () => {
             columns={serviceColumns}
             data={services}
             keyExtractor={(service) => service.id?.toString() || ''}
-            onEdit={handleEditService}
-            onDelete={handleDeleteClick}
-            actionColumn={true}
+            onEdit={canEditService ? handleEditService : undefined}
+            onDelete={canDeleteService ? handleDeleteClick : undefined}
+            actionColumn={canEditService || canDeleteService}
             emptyMessage={isLoading ? "Cargando servicios..." : "No hay servicios configurados"}
             isLoading={isLoading}
           />
@@ -513,9 +586,9 @@ const ServicesSettings: React.FC = () => {
             columns={templateColumns}
             data={templates}
             keyExtractor={(template) => template.id?.toString() || ''}
-            onEdit={handleEditTemplate}
-            onDelete={handleDeleteTemplateClick}
-            actionColumn={true}
+            onEdit={canEditTemplate ? handleEditTemplate : undefined}
+            onDelete={canDeleteTemplate ? handleDeleteTemplateClick : undefined}
+            actionColumn={canEditTemplate || canDeleteTemplate}
             emptyMessage={isLoading ? "Cargando plantillas..." : "No hay plantillas configuradas"}
             isLoading={isLoading}
           />

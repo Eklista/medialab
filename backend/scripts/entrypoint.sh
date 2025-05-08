@@ -18,6 +18,7 @@ mkdir -p /app/data
 INIT_BASE_STRUCTURE=${INIT_BASE_STRUCTURE:-true}
 INIT_DEPARTMENT_DATA=${INIT_DEPARTMENT_DATA:-true}
 INIT_SERVICE_DATA=${INIT_SERVICE_DATA:-true}
+INIT_PERMISSIONS=${INIT_PERMISSIONS:-true}
 INTERACTIVE_ADMIN=${INTERACTIVE_ADMIN:-false}
 # Variable para controlar si se inicia el servidor
 START_SERVER=${START_SERVER:-true}
@@ -26,17 +27,19 @@ START_SERVER=${START_SERVER:-true}
 BASE_STRUCTURE_FLAG="/app/data/.base_structure_initialized"
 DEPARTMENT_DATA_FLAG="/app/data/.department_data_initialized"
 SERVICE_DATA_FLAG="/app/data/.service_data_initialized"
+PERMISSIONS_FLAG="/app/data/.permissions_initialized"
 INTERACTIVE_ADMIN_FLAG="/app/data/.interactive_admin_initialized"
 
 echo "==== Configuración de inicialización ===="
 echo "Inicializar estructura base: $INIT_BASE_STRUCTURE"
 echo "Inicializar datos de departamentos: $INIT_DEPARTMENT_DATA"
 echo "Inicializar datos de servicios: $INIT_SERVICE_DATA"
+echo "Inicializar permisos extendidos: $INIT_PERMISSIONS"
 echo "Configuración interactiva de administrador: $INTERACTIVE_ADMIN"
 echo "Iniciar servidor después de configuración: $START_SERVER"
 echo "========================================"
 
-# Inicializar estructura base (roles, permisos, áreas)
+# Inicializar estructura base (roles, áreas)
 if [ "$INIT_BASE_STRUCTURE" = "true" ] && [ ! -f "$BASE_STRUCTURE_FLAG" ]; then
     echo "Inicializando estructura base..."
     if [ -f "/app/scripts/init_base_structure.py" ]; then
@@ -47,6 +50,19 @@ if [ "$INIT_BASE_STRUCTURE" = "true" ] && [ ! -f "$BASE_STRUCTURE_FLAG" ]; then
     fi
 else
     echo "Estructura base ya inicializada o desactivada"
+fi
+
+# Inicializar permisos extendidos
+if [ "$INIT_PERMISSIONS" = "true" ] && [ ! -f "$PERMISSIONS_FLAG" ]; then
+    echo "Inicializando permisos extendidos..."
+    if [ -f "/app/scripts/add_permissions.py" ]; then
+        python /app/scripts/add_permissions.py
+        touch "$PERMISSIONS_FLAG"
+    else
+        echo "Advertencia: No se encontró script de inicialización de permisos"
+    fi
+else
+    echo "Permisos ya inicializados o desactivados"
 fi
 
 # Inicializar datos de departamentos

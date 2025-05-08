@@ -1,5 +1,5 @@
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -8,7 +8,11 @@ from app.models.auth.users import User
 from app.schemas.auth.roles import RoleCreate, RoleUpdate, RoleInDB, RoleWithPermissions
 from app.services.role_service import RoleService
 from app.utils.error_handler import ErrorHandler
-from app.api.deps import get_current_active_superuser
+from app.api.deps import (
+    get_current_active_user,
+    has_permission,
+    has_any_permission
+)
 
 router = APIRouter()
 
@@ -17,10 +21,10 @@ def read_roles(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("role_view"))
 ) -> Any:
     """
-    Obtiene lista de roles (solo para superusuarios)
+    Obtiene lista de roles (requiere permiso role_view)
     """
     try:
         roles = RoleService.get_roles(db=db, skip=skip, limit=limit)
@@ -32,10 +36,10 @@ def read_roles(
 def create_role(
     role_in: RoleCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("role_create"))
 ) -> Any:
     """
-    Crea un nuevo rol (solo para superusuarios)
+    Crea un nuevo rol (requiere permiso role_create)
     """
     try:
         role = RoleService.create_role(db=db, role_data=role_in.dict())
@@ -45,28 +49,37 @@ def create_role(
 
 @router.get("/{role_id}", response_model=RoleWithPermissions)
 def read_role(
-    role_id: int,
+    role_id: int = Path(..., title="ID del rol"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("role_view"))
 ) -> Any:
     """
-    Obtiene un rol específico por ID (solo para superusuarios)
+    Obtiene un rol específico por ID (requiere permiso role_view)
     """
     try:
-        role = RoleService.get_role_with_permissions(db=db, role_id=role_id)
-        return role
+        # Obtener el rol con permisos desde el servicio
+        role_db = RoleService.get_role_with_permissions(db=db, role_id=role_id)
+        
+        role_response = {
+            "id": role_db.id,
+            "name": role_db.name,
+            "description": role_db.description,
+            "permissions": [permission.name for permission in role_db.permissions] if role_db.permissions else []
+        }
+        
+        return role_response
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "obtener", "rol")
 
 @router.patch("/{role_id}", response_model=RoleInDB)
 def update_role(
-    role_id: int,
-    role_in: RoleUpdate,
+    role_id: int = Path(..., title="ID del rol"),
+    role_in: RoleUpdate = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("role_edit"))
 ) -> Any:
     """
-    Actualiza un rol existente (solo para superusuarios)
+    Actualiza un rol existente (requiere permiso role_edit)
     """
     try:
         role = RoleService.update_role(
@@ -80,12 +93,12 @@ def update_role(
 
 @router.delete("/{role_id}", response_model=RoleInDB)
 def delete_role(
-    role_id: int,
+    role_id: int = Path(..., title="ID del rol"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("role_delete"))
 ) -> Any:
     """
-    Elimina un rol (solo para superusuarios)
+    Elimina un rol (requiere permiso role_delete)
     """
     try:
         role = RoleService.delete_role(db=db, role_id=role_id)
@@ -95,13 +108,13 @@ def delete_role(
 
 @router.post("/{role_id}/permissions", status_code=status.HTTP_200_OK)
 def assign_permissions_to_role(
-    role_id: int,
-    permission_ids: List[int],
+    role_id: int = Path(..., title="ID del rol"),
+    permission_ids: List[int] = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("role_edit"))
 ) -> Any:
     """
-    Asigna permisos a un rol (solo para superusuarios)
+    Asigna permisos a un rol (requiere permiso role_edit)
     """
     try:
         success = RoleService.assign_permissions(

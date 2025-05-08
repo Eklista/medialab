@@ -66,15 +66,39 @@ const RolesAreasSettings: React.FC = () => {
     setError(null);
     
     try {
-      const data = await userService.getRoles();
-      // Convertir los datos de la API al formato local
-      const formattedRoles: Role[] = data.map(role => ({
-        id: role.id,
-        name: role.name,
-        description: role.description || '',
-        permissions: [] // Añadir arreglo vacío de permisos ya que la API no los devuelve
-      }));
-      setRoles(formattedRoles);
+      // Obtener lista básica de roles
+      const rolesData = await userService.getRoles();
+      console.log("Roles básicos obtenidos:", rolesData);
+      
+      // Para cada rol, cargar sus permisos
+      const rolesWithPermissions = await Promise.all(
+        rolesData.map(async (role) => {
+          try {
+            // Cargar detalles del rol con permisos
+            const roleDetails = await userService.getRoleWithPermissions(parseInt(role.id));
+            
+            return {
+              id: role.id,
+              name: role.name,
+              description: role.description || '',
+              // Usar los permisos del rol detallado
+              permissions: Array.isArray(roleDetails.permissions) ? roleDetails.permissions : []
+            };
+          } catch (error) {
+            console.warn(`No se pudieron cargar permisos para el rol ${role.id}:`, error);
+            // En caso de error, devolver el rol sin permisos
+            return {
+              id: role.id,
+              name: role.name,
+              description: role.description || '',
+              permissions: []
+            };
+          }
+        })
+      );
+      
+      console.log("Roles con permisos:", rolesWithPermissions);
+      setRoles(rolesWithPermissions);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar los roles');
       console.error('Error al cargar roles:', err);
@@ -110,11 +134,33 @@ const RolesAreasSettings: React.FC = () => {
     setModalError(null);
     setIsAddRoleModalOpen(true);
   };
-  
-  const handleEditRole = (role: Role) => {
+
+  const handleEditRole = async (role: Role) => {
     setModalError(null);
-    setCurrentRole(role);
-    setIsEditRoleModalOpen(true);
+    
+    try {
+      // Cargar el rol con todos sus permisos
+      const roleWithPermissions = await userService.getRoleWithPermissions(parseInt(role.id));
+      
+      console.log('Rol cargado con permisos:', roleWithPermissions);
+      
+      // Formatear los datos para el formulario
+      const updatedRole: Role = {
+        id: role.id,
+        name: roleWithPermissions.name,
+        description: roleWithPermissions.description || '',
+        // Asegurar que los permisos estén en el formato esperado (array de strings)
+        permissions: Array.isArray(roleWithPermissions.permissions) 
+          ? roleWithPermissions.permissions 
+          : []
+      };
+      
+      setCurrentRole(updatedRole);
+      setIsEditRoleModalOpen(true);
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Error al cargar el rol');
+      console.error('Error al cargar rol:', err);
+    }
   };
   
   const handleDeleteRoleClick = (role: Role) => {
@@ -183,35 +229,49 @@ const RolesAreasSettings: React.FC = () => {
     try {
       const roleId = parseInt(currentRole.id);
       
+      // Actualizar información básica del rol
       const roleRequest: RoleUpdateRequest = {
         name: data.name,
         description: data.description
       };
       
+      console.log("Actualizando rol con datos:", roleRequest);
+      console.log("Permisos a asignar:", data.permissions);
+      
       const updatedRole = await userService.updateRole(roleId, roleRequest);
       
-      if (data.permissions && data.permissions.length > 0) {
-        try {
-          // Este paso es opcional, depende de si tu API soporta esta operación
-          console.log("Asignación de permisos no implementada en la API");
-        } catch (permError) {
-          console.warn("No se pudieron asignar permisos:", permError);
+      // Asignar permisos al rol
+      try {
+        const success = await userService.assignPermissionsToRole(roleId, data.permissions);
+        
+        if (!success) {
+          console.warn("Hubo un problema al asignar permisos");
+          setModalError("El rol se actualizó, pero hubo un problema al actualizar los permisos");
+        } else {
+          console.log("Permisos asignados exitosamente");
         }
+      } catch (permError) {
+        console.error("Error al asignar permisos:", permError);
+        setModalError("El rol se actualizó, pero hubo un problema al actualizar los permisos");
       }
       
+      // Actualizar el estado local
       const formattedRole: Role = {
         id: updatedRole.id.toString(),
         name: updatedRole.name,
         description: updatedRole.description || '',
-        permissions: data.permissions || currentRole.permissions || []
+        permissions: data.permissions
       };
       
       setRoles(roles.map(role => 
         role.id === currentRole.id ? formattedRole : role
       ));
       
-      setIsEditRoleModalOpen(false);
-      setCurrentRole(null);
+      // Si no hay error grave, cerrar el modal
+      if (!modalError) {
+        setIsEditRoleModalOpen(false);
+        setCurrentRole(null);
+      }
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Error al actualizar el rol');
       console.error('Error al actualizar rol:', err);
@@ -321,24 +381,53 @@ const RolesAreasSettings: React.FC = () => {
     },
     {
       header: 'Descripción',
-      accessor: (role: Role) => role.description
+      accessor: (role: Role) => role.description || '-'
     },
     {
       header: 'Permisos',
-      accessor: (role: Role) => (
-        <div className="flex flex-wrap gap-1">
-          {role.permissions && role.permissions.slice(0, 3).map((permission, index) => (
-            <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-              {permission}
+      accessor: (role: Role) => {
+        const permissionCount = role.permissions?.length || 0;
+        
+        // Si no hay permisos, mostrar mensaje
+        if (permissionCount === 0) {
+          return (
+            <span className="text-gray-400 text-sm italic">Sin permisos</span>
+          );
+        }
+        
+        // Categorizar los permisos
+        const categoryCounts: Record<string, number> = {};
+        
+        role.permissions.forEach(permission => {
+          const category = permission.split('_')[0];
+          categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        });
+        
+        // Ordenar categorías por cantidad (de mayor a menor)
+        const sortedCategories = Object.entries(categoryCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3);  // Mostrar máximo 3 categorías
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {sortedCategories.map(([category, count], index) => (
+              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                {category}: {count}
+              </span>
+            ))}
+            
+            {Object.keys(categoryCounts).length > 3 && (
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                +{Object.keys(categoryCounts).length - 3} más
+              </span>
+            )}
+            
+            <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full font-medium">
+              Total: {permissionCount}
             </span>
-          ))}
-          {role.permissions && role.permissions.length > 3 && (
-            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-              +{role.permissions.length - 3} más
-            </span>
-          )}
-        </div>
-      )
+          </div>
+        );
+      }
     }
   ];
   

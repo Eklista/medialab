@@ -61,3 +61,65 @@ def read_public_templates(
     """
     templates = ServiceTemplateService.get_public_templates(db=db, skip=skip, limit=limit)
     return templates
+
+@router.get("/templates/{template_id}/services")
+def get_public_template_services(
+    template_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Obtiene los servicios asociados a una plantilla pública (sin autenticación)
+    """
+    try:
+        # Verificar que la plantilla sea pública
+        template = db.query(ServiceTemplate).filter(
+            ServiceTemplate.id == template_id,
+            ServiceTemplate.is_public == True
+        ).first()
+        
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Plantilla no encontrada o no es pública"
+            )
+        
+        # Usar el mismo servicio de templates pero añadiendo validación de plantilla pública
+        return ServiceTemplateService.get_template_service_relations(db=db, template_id=template_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener servicios de plantilla: {str(e)}"
+        )
+
+@router.get("/templates/{template_id}/subservices")
+def get_public_template_subservices(
+    template_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Obtiene los subservicios asociados a una plantilla pública (sin autenticación)
+    """
+    try:
+        # Verificar que la plantilla sea pública
+        template = db.query(ServiceTemplate).filter(
+            ServiceTemplate.id == template_id,
+            ServiceTemplate.is_public == True
+        ).first()
+        
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Plantilla no encontrada o no es pública"
+            )
+        
+        # Usar el mismo servicio de templates pero añadiendo validación de plantilla pública
+        return ServiceTemplateService.get_template_subservice_relations(db=db, template_id=template_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener subservicios de plantilla: {str(e)}"
+        )

@@ -1,6 +1,6 @@
 # app/api/v1/service_templates.py
 from typing import List, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
@@ -15,7 +15,11 @@ from app.schemas.organization.service_templates import (
 )
 from app.services.service_template_service import ServiceTemplateService
 from app.utils.error_handler import ErrorHandler
-from app.api.deps import get_current_active_superuser, get_current_active_user
+from app.api.deps import (
+    get_current_active_user,
+    has_permission,
+    has_any_permission
+)
 
 router = APIRouter()
 
@@ -24,10 +28,10 @@ def read_templates(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("template_view"))
 ) -> Any:
     """
-    Obtiene lista de plantillas de servicios
+    Obtiene lista de plantillas de servicios (requiere permiso template_view)
     """
     try:
         templates = ServiceTemplateService.get_templates(db=db, skip=skip, limit=limit)
@@ -39,10 +43,10 @@ def read_templates(
 def create_template(
     template_in: ServiceTemplateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("template_create"))
 ) -> Any:
     """
-    Crea una nueva plantilla de servicios
+    Crea una nueva plantilla de servicios (requiere permiso template_create)
     """
     try:
         print(f"Datos recibidos en el endpoint: {template_in.dict()}")
@@ -53,12 +57,12 @@ def create_template(
 
 @router.get("/{template_id}", response_model=ServiceTemplateWithServices)
 def read_template(
-    template_id: int,
+    template_id: int = Path(..., title="ID de la plantilla"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("template_view"))
 ) -> Any:
     """
-    Obtiene una plantilla específica por ID
+    Obtiene una plantilla específica por ID (requiere permiso template_view)
     """
     try:
         template = ServiceTemplateService.get_template_with_services(db=db, template_id=template_id)
@@ -68,13 +72,13 @@ def read_template(
 
 @router.patch("/{template_id}", response_model=ServiceTemplateInDB)
 def update_template(
-    template_id: int,
-    template_in: ServiceTemplateUpdate,
+    template_id: int = Path(..., title="ID de la plantilla"),
+    template_in: ServiceTemplateUpdate = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("template_edit"))
 ) -> Any:
     """
-    Actualiza una plantilla existente
+    Actualiza una plantilla existente (requiere permiso template_edit)
     """
     try:
         template = ServiceTemplateService.update_template(
@@ -88,12 +92,12 @@ def update_template(
 
 @router.delete("/{template_id}", response_model=ServiceTemplateInDB)
 def delete_template(
-    template_id: int,
+    template_id: int = Path(..., title="ID de la plantilla"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("template_delete"))
 ) -> Any:
     """
-    Elimina una plantilla
+    Elimina una plantilla (requiere permiso template_delete)
     """
     try:
         template = ServiceTemplateService.delete_template(db=db, template_id=template_id)
@@ -103,12 +107,12 @@ def delete_template(
 
 @router.get("/{template_id}/services", response_model=List[Dict[str, Any]])
 def get_template_services(
-    template_id: int,
+    template_id: int = Path(..., title="ID de la plantilla"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("template_view"))
 ) -> Any:
     """
-    Obtiene los servicios asociados a una plantilla
+    Obtiene los servicios asociados a una plantilla (requiere permiso template_view)
     """
     try:
         # Ejecutar consulta directa
@@ -129,12 +133,12 @@ def get_template_services(
 
 @router.get("/{template_id}/subservices", response_model=List[Dict[str, Any]])
 def get_template_subservices(
-    template_id: int,
+    template_id: int = Path(..., title="ID de la plantilla"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("template_view"))
 ) -> Any:
     """
-    Obtiene los subservicios asociados a una plantilla
+    Obtiene los subservicios asociados a una plantilla (requiere permiso template_view)
     """
     try:
         # Ejecutar consulta directa para obtener subservicios

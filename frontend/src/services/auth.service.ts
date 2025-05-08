@@ -17,7 +17,6 @@ export interface User {
   id: number;
   email: string;
   username: string;
-  // Soportamos ambas estructuras - name o firstName/lastName
   name?: string;
   firstName?: string;
   lastName?: string;
@@ -30,6 +29,7 @@ export interface User {
   isActive: boolean;
   isOnline: boolean;
   roles: string[];
+  permissions?: string[];
 }
 
 export interface ForgotPasswordRequest {
@@ -83,7 +83,15 @@ class AuthService {
       
       // Obtener información del usuario usando la instancia apiClient
       const userData = await this.getCurrentUser();
-      
+
+      try {
+        const userPermissions = await this.getUserPermissions();
+        userData.permissions = userPermissions;
+      } catch (permissionsError) {
+        console.warn('No se pudieron cargar los permisos:', permissionsError);
+        userData.permissions = [];
+      }
+
       // Normalizar datos del usuario para asegurar compatibilidad
       this.normalizeUserData(userData);
       
@@ -143,6 +151,16 @@ class AuthService {
       if (!userData.lastName) {
         userData.lastName = nameParts.slice(1).join(' ') || '';
       }
+    }
+  }
+
+  async getUserPermissions(): Promise<string[]> {
+    try {
+      const response = await apiClient.get<string[]>('/users/me/permissions');
+      return response.data || [];
+    } catch (error) {
+      console.error('Error al obtener permisos del usuario:', error);
+      return []; // Retornar array vacío en caso de error
     }
   }
   

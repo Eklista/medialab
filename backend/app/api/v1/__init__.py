@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import users, roles, areas, services, departments, department_types, public, service_templates
+from app.api.v1 import users, roles, areas, services, departments, department_types, public, service_templates, permissions
 from app.api.v1.auth import auth_router
 
 api_router = APIRouter()
@@ -14,4 +14,5 @@ api_router.include_router(services.router, prefix="/services", tags=["services"]
 api_router.include_router(departments.router, prefix="/departments", tags=["departments"])
 api_router.include_router(department_types.router, prefix="/department-types", tags=["department_types"])
 api_router.include_router(service_templates.router, prefix="/service-templates", tags=["service_templates"])
+api_router.include_router(permissions.router, prefix="/permissions", tags=["permissions"])
 api_router.include_router(public.router, prefix="/public", tags=["public"])

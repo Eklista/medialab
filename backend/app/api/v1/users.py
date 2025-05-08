@@ -1,8 +1,9 @@
+# app/api/v1/users.py
 from typing import List, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, status, Body, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Body, UploadFile, File, Form, Path
 import os
 import shutil
-from pathlib import Path
+from pathlib import Path as FilePath
 from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,7 +19,14 @@ from app.schemas.auth.users import UserCreate, UserUpdate, UserInDB, UserWithRol
 from app.services.user_service import UserService
 from app.utils.error_handler import ErrorHandler
 from app.utils.user_transforms import transform_user_with_roles
-from app.api.deps import get_current_user, get_current_active_superuser, get_current_active_user
+from app.api.deps import (
+    get_current_user, 
+    get_current_active_superuser, 
+    get_current_active_user,
+    has_permission,
+    has_any_permission,
+    is_self_or_has_permission
+)
 
 router = APIRouter()
 
@@ -34,15 +42,14 @@ def read_current_user(
 @router.patch("/me", response_model=UserInDB)
 def update_current_user(
     user_data: UserUpdate,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(has_permission("profile_edit"))
 ) -> Any:
     """
     Actualiza información del usuario actual
     """
     try:
         updated_user = UserService.update_user(
-            db=db,
+            db=Depends(get_db),
             user_id=current_user.id,
             user_data=user_data.dict(exclude_unset=True)
         )
@@ -54,11 +61,11 @@ def update_current_user(
 def read_users(
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(has_permission("user_view"))
 ) -> Any:
     """
-    Obtiene lista de usuarios (solo para superusuarios)
+    Obtiene lista de usuarios (requiere permiso user_view)
     """
     try:
         users = UserService.get_users(db=db, skip=skip, limit=limit)
@@ -69,11 +76,11 @@ def read_users(
 @router.post("/", response_model=UserInDB, status_code=status.HTTP_201_CREATED)
 def create_new_user(
     user_in: UserCreate,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(has_permission("user_create"))
 ) -> Any:
     """
-    Crea un nuevo usuario (solo para superusuarios)
+    Crea un nuevo usuario (requiere permiso user_create)
     """
     try:
         # Extraer los datos básicos de usuario
@@ -104,37 +111,44 @@ def create_new_user(
 
 @router.get("/{user_id}", response_model=UserWithRoles)
 def read_user_by_id(
-    user_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    user_id: int = Path(..., title="ID del usuario"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(is_self_or_has_permission("user_id", "user_view"))
 ) -> Any:
     """
-    Obtiene un usuario por ID
+    Obtiene un usuario por ID (propio usuario o requiere permiso user_view)
     """
     try:
         user = UserService.get_user_by_id(db=db, user_id=user_id)
-        
-        # Solo superusuarios pueden ver otros usuarios
-        # Verificar roles en lugar de atributo is_superuser
-        is_superuser = any(role.name == "ADMIN" for role in current_user.roles)
-        if user.id != current_user.id and not is_superuser:
-            raise ErrorHandler.handle_permission_error()
-        
         return transform_user_with_roles(user)
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "obtener", "usuario")
 
 @router.patch("/{user_id}", response_model=UserInDB)
 def update_user(
-    user_id: int,
-    user_data: UserUpdate,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_db)
+    user_id: int = Path(..., title="ID del usuario"),
+    user_data: UserUpdate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(is_self_or_has_permission("user_id", "user_edit"))
 ) -> Any:
     """
-    Actualiza información de un usuario (solo para superusuarios)
+    Actualiza información de un usuario (propio usuario o requiere permiso user_edit)
     """
     try:
+        # Si es el propio usuario, solo permitir actualizar ciertos campos
+        if current_user.id == user_id and not any(role.name == "ADMIN" for role in current_user.roles):
+            # Filtrar campos que el usuario normal puede actualizar de sí mismo
+            allowed_fields = ["firstName", "lastName", "phone", "birth_date", "profile_image", "banner_image"]
+            filtered_data = {k: v for k, v in user_data.dict(exclude_unset=True).items() if k in allowed_fields}
+            
+            if not filtered_data:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No tienes permisos para actualizar estos campos"
+                )
+            
+            user_data = UserUpdate(**filtered_data)
+        
         updated_user = UserService.update_user(
             db=db,
             user_id=user_id,
@@ -146,12 +160,12 @@ def update_user(
 
 @router.delete("/{user_id}", response_model=UserInDB)
 def delete_user(
-    user_id: int,
-    current_user: User = Depends(get_current_active_superuser),
-    db: Session = Depends(get_db)
+    user_id: int = Path(..., title="ID del usuario"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(has_permission("user_delete"))
 ) -> Any:
     """
-    Elimina un usuario (solo para superusuarios)
+    Elimina un usuario (requiere permiso user_delete)
     """
     try:
         if user_id == current_user.id:
@@ -167,14 +181,14 @@ def delete_user(
 
 @router.post("/{user_id}/roles", status_code=status.HTTP_200_OK)
 def assign_role_to_user(
-    user_id: int,
+    user_id: int = Path(..., title="ID del usuario"),
     roleId: str = Body(...),
     areaId: str = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("user_edit"))
 ) -> Any:
     """
-    Asigna un rol a un usuario (solo para superusuarios)
+    Asigna un rol a un usuario (requiere permiso user_edit)
     """
     try:
         # Primero obtener el usuario para poder usar full_name en la respuesta
@@ -198,14 +212,14 @@ def assign_role_to_user(
         raise ErrorHandler.handle_db_error(e, "asignar rol a", "usuario")
 
 @router.post("/upload-image", status_code=status.HTTP_200_OK)
-async def upload_user_image(
+def upload_user_image(
     file: UploadFile = File(...),
     type: str = Form(...),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(has_permission("profile_edit")),
     db: Session = Depends(get_db)
 ) -> Any:
     """
-    Sube una imagen de perfil o banner para el usuario
+    Sube una imagen de perfil o banner para el usuario (requiere permiso profile_edit)
     """
     try:
         # Verificar el tipo de archivo
@@ -231,7 +245,7 @@ async def upload_user_image(
         filename = f"{uuid4().hex}{extension}"
         
         # Asegurar que el directorio de subida existe
-        upload_dir = Path("static/uploads/users")
+        upload_dir = FilePath("static/uploads/users")
         upload_dir.mkdir(parents=True, exist_ok=True)
         
         # Ruta completa del archivo
@@ -268,4 +282,26 @@ async def upload_user_image(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al subir la imagen: {str(e)}"
+        )
+
+@router.get("/me/permissions", response_model=List[str])
+def get_current_user_permissions(
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    Obtiene los permisos del usuario actualmente autenticado
+    """
+    try:
+        # Extraer los permisos de todos los roles del usuario
+        permissions = []
+        for role in current_user.roles:
+            for permission in role.permissions:
+                if permission.name not in permissions:
+                    permissions.append(permission.name)
+        
+        return permissions
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener permisos: {str(e)}"
         )

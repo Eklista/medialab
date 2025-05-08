@@ -1,5 +1,3 @@
-// src/features/auth/hooks/useAuth.ts
-
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
@@ -10,5 +8,29 @@ export const useAuth = () => {
     throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
   
-  return context;
+  const { 
+    state, 
+    login, 
+    logout, 
+    forgotPassword, 
+    verifyCode, 
+    resetPassword, 
+    lockSession, 
+    unlockSession,
+    hasPermission,
+    hasAnyPermission
+  } = context;
+  
+  return {
+    state,
+    login,
+    logout,
+    forgotPassword,
+    verifyCode,
+    resetPassword,
+    lockSession,
+    unlockSession,
+    hasPermission, // Añadir función de verificación de permiso
+    hasAnyPermission // Añadir función de verificación de múltiples permisos
+  };
 };

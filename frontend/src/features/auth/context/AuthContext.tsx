@@ -12,6 +12,7 @@ export interface User {
   role: UserRole;
   profileImage?: string;
   profile_image?: string;
+  permissions?: string[]; // Añadir campo para permisos
 }
 
 export interface AuthState {
@@ -21,6 +22,7 @@ export interface AuthState {
   error: string | null;
   isLocked: boolean;
   lastActivity: number;
+  permissions: string[]; // Añadir permisos en el estado
 }
 
 export interface LoginCredentials {
@@ -38,6 +40,8 @@ interface AuthContextType {
   resetPassword: (password: string, confirmPassword: string, code: string, email: string) => Promise<void>;
   lockSession: () => void;
   unlockSession: (password: string) => Promise<void>;
+  hasPermission: (permission: string) => boolean; // Función para verificar permisos
+  hasAnyPermission: (permissions: string[]) => boolean; // Función para verificar múltiples permisos
 }
 
 // Estado inicial
@@ -47,19 +51,21 @@ const initialState: AuthState = {
   isLoading: false,
   error: null,
   isLocked: false,
-  lastActivity: Date.now()
+  lastActivity: Date.now(),
+  permissions: [] // Inicialmente no hay permisos
 };
 
 // Tipos de acciones
 type AuthAction =
   | { type: 'LOGIN_START' }
-  | { type: 'LOGIN_SUCCESS'; payload: User }
+  | { type: 'LOGIN_SUCCESS'; payload: { user: User, permissions: string[] } }
   | { type: 'LOGIN_FAIL'; payload: string }
   | { type: 'LOGOUT' }
-  | { type: 'RESTORE_SESSION'; payload: User }
+  | { type: 'RESTORE_SESSION'; payload: { user: User, permissions: string[] } }
   | { type: 'LOCK_SESSION' }
   | { type: 'UNLOCK_SESSION' }
-  | { type: 'UPDATE_ACTIVITY' };
+  | { type: 'UPDATE_ACTIVITY' }
+  | { type: 'UPDATE_PERMISSIONS'; payload: string[] };
 
 // Función para verificar si una ruta es pública
 const isPublicRoute = (path: string) => {
@@ -80,7 +86,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         ...state, 
         isLoading: false, 
         isAuthenticated: true, 
-        user: action.payload,
+        user: action.payload.user,
+        permissions: action.payload.permissions,
         error: null,
         lastActivity: Date.now() 
       };
@@ -94,7 +101,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return {
         ...state,
         isAuthenticated: true,
-        user: action.payload,
+        user: action.payload.user,
+        permissions: action.payload.permissions,
         isLocked: isLocked,
         lastActivity: isLocked ? 0 : Date.now() // Si está bloqueado, no actualizar lastActivity
       };
@@ -109,6 +117,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'UPDATE_ACTIVITY':
       // Solo actualizar si la sesión no está bloqueada
       return state.isLocked ? state : { ...state, lastActivity: Date.now() };
+    case 'UPDATE_PERMISSIONS':
+      return { ...state, permissions: action.payload };
     default:
       return state;
   }
@@ -118,9 +128,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Función para procesar y normalizar los datos del usuario
-const processUserData = (userData: any): User => {
- ///////////////console.log('Datos de usuario recibidos:', userData);
-  
+const processUserData = (userData: any): { user: User, permissions: string[] } => {
   // Extraer nombre y apellido de forma más robusta
   let firstName = '';
   let lastName = '';
@@ -151,17 +159,49 @@ const processUserData = (userData: any): User => {
     ? UserRole.ADMIN 
     : UserRole.USER;
   
+  // Extraer permisos o usar array vacío
+  const permissions = Array.isArray(userData.permissions) ? userData.permissions : [];
+  
   // Construir y devolver el objeto User normalizado
   const user: User = {
     id: String(userData.id || ''),
     email: userData.email || '',
     firstName,
     lastName,
-    role
+    role,
+    profileImage: userData.profileImage || userData.profile_image,
+    permissions // Añadir permisos al objeto usuario también
   };
   
-  ///////////////console.log('Usuario procesado:', user);
-  return user;
+  // Añadir permisos implícitos basados en roles
+  if (role === UserRole.ADMIN) {
+    // Si es admin, asegurarse de que tenga todos los permisos básicos
+    const adminImplicitPermissions = [
+      'user_view', 'user_create', 'user_edit', 'user_delete',
+      'profile_edit',
+      'service_view', 'service_create', 'service_edit', 'service_delete',
+      'area_view', 'area_create', 'area_edit', 'area_delete',
+      'department_view', 'department_create', 'department_edit', 'department_delete',
+      'department_type_view', 'department_type_create', 'department_type_edit', 'department_type_delete',
+      'template_view', 'template_create', 'template_edit', 'template_delete',
+      'role_view', 'role_create', 'role_edit', 'role_delete',
+      'request_view', 'request_create', 'request_edit', 'request_approve', 'request_reject', 'request_cancel'
+    ];
+    
+    // Añadir los permisos que no estén ya incluidos
+    for (const perm of adminImplicitPermissions) {
+      if (!permissions.includes(perm)) {
+        permissions.push(perm);
+      }
+    }
+  } else {
+    // Para usuarios normales, añadir permiso profile_edit si no lo tienen
+    if (!permissions.includes('profile_edit')) {
+      permissions.push('profile_edit');
+    }
+  }
+  
+  return { user, permissions };
 };
 
 // Proveedor del contexto
@@ -174,12 +214,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (authService.isAuthenticated()) {
         try {
           const userData = await authService.getCurrentUser();
-          ///////////////console.log('Datos al restaurar sesión:', userData);
+          
+          // Intentar obtener permisos del usuario
+          let userPermissions: string[] = [];
+          try {
+            userPermissions = await authService.getUserPermissions();
+          } catch (permError) {
+            console.warn('Error al obtener permisos del usuario:', permError);
+          }
+          
+          // Agregar permisos al objeto userData antes de procesarlo
+          const userDataWithPermissions = {
+            ...userData,
+            permissions: userPermissions
+          };
           
           // Procesar datos del usuario
-          const user = processUserData(userData);
+          const { user, permissions } = processUserData(userDataWithPermissions);
           
-          dispatch({ type: 'RESTORE_SESSION', payload: user });
+          dispatch({ 
+            type: 'RESTORE_SESSION', 
+            payload: { user, permissions } 
+          });
         } catch (error) {
           console.error('Error al restaurar la sesión:', error);
           authService.logout();
@@ -190,40 +246,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     checkAuth();
   }, []);
 
-    // Detectar actividad del usuario para actualizar lastActivity
-    useEffect(() => {
-      const handleActivity = () => {
-        dispatch({ type: 'UPDATE_ACTIVITY' });
-      };
-  
-      // Eventos para detectar actividad del usuario
-      window.addEventListener('mousemove', handleActivity);
-      window.addEventListener('keypress', handleActivity);
-      window.addEventListener('click', handleActivity);
-      window.addEventListener('scroll', handleActivity);
-  
-      // Verificar inactividad cada minuto
-      const inactivityCheckInterval = setInterval(() => {
-        const inactivityPeriod = 15 * 60 * 1000; // 15 minutos en milisegundos
-        
-        if (
-          state.isAuthenticated && 
-          !state.isLocked && 
-          Date.now() - state.lastActivity > inactivityPeriod
-        ) {
-          lockSession();
-        }
-      }, 60000); // Verificar cada minuto
-  
-      return () => {
-        // Limpiar eventos al desmontar
-        window.removeEventListener('mousemove', handleActivity);
-        window.removeEventListener('keypress', handleActivity);
-        window.removeEventListener('click', handleActivity);
-        window.removeEventListener('scroll', handleActivity);
-        clearInterval(inactivityCheckInterval);
-      };
-    }, [state.isAuthenticated, state.isLocked, state.lastActivity]);
+  // Detectar actividad del usuario para actualizar lastActivity
+  useEffect(() => {
+    const handleActivity = () => {
+      dispatch({ type: 'UPDATE_ACTIVITY' });
+    };
+
+    // Eventos para detectar actividad del usuario
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keypress', handleActivity);
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+
+    // Verificar inactividad cada minuto
+    const inactivityCheckInterval = setInterval(() => {
+      const inactivityPeriod = 15 * 60 * 1000; // 15 minutos en milisegundos
+      
+      if (
+        state.isAuthenticated && 
+        !state.isLocked && 
+        Date.now() - state.lastActivity > inactivityPeriod
+      ) {
+        lockSession();
+      }
+    }, 60000); // Verificar cada minuto
+
+    return () => {
+      // Limpiar eventos al desmontar
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keypress', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      clearInterval(inactivityCheckInterval);
+    };
+  }, [state.isAuthenticated, state.isLocked, state.lastActivity]);
 
   // Función para iniciar sesión
   const login = async (credentials: LoginCredentials): Promise<void> => {
@@ -231,12 +287,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     try {
       const userData = await authService.login(credentials);
-      const user = processUserData(userData);
+      
+      // Intentar obtener permisos del usuario
+      let userPermissions: string[] = [];
+      try {
+        userPermissions = await authService.getUserPermissions();
+      } catch (permError) {
+        console.warn('Error al obtener permisos del usuario:', permError);
+      }
+      
+      // Agregar permisos al objeto userData antes de procesarlo
+      const userDataWithPermissions = {
+        ...userData,
+        permissions: userPermissions
+      };
+      
+      // Procesar datos del usuario
+      const { user, permissions } = processUserData(userDataWithPermissions);
       
       // Al iniciar sesión, asegurarse de que no esté bloqueada
       localStorage.setItem('sessionLocked', 'false');
       
-      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+      dispatch({ 
+        type: 'LOGIN_SUCCESS', 
+        payload: { user, permissions } 
+      });
     } catch (error: any) {
       dispatch({ 
         type: 'LOGIN_FAIL', 
@@ -340,6 +415,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Funciones para verificar permisos
+  const hasPermission = (permission: string): boolean => {
+    // Si el usuario es ADMIN, tiene todos los permisos
+    if (state.user?.role === UserRole.ADMIN) {
+      return true;
+    }
+    
+    // Verificar si el permiso está en el array de permisos
+    return state.permissions.includes(permission);
+  };
+
+  const hasAnyPermission = (permissions: string[]): boolean => {
+    // Si el usuario es ADMIN, tiene todos los permisos
+    if (state.user?.role === UserRole.ADMIN) {
+      return true;
+    }
+    
+    // Verificar si al menos uno de los permisos está en el array
+    return permissions.some(perm => state.permissions.includes(perm));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -350,7 +446,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         verifyCode,
         resetPassword,
         lockSession,
-        unlockSession
+        unlockSession,
+        hasPermission,
+        hasAnyPermission
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardTextInput from '../ui/DashboardTextInput';
 import DashboardTextarea from '../ui/DashboardTextArea';
 import DashboardButton from '../ui/DashboardButton';
+import { userService } from '../../../../services'; // Ajusta la ruta según tu estructura
 
 export interface RoleFormData {
   name: string;
@@ -15,6 +16,13 @@ interface RoleFormProps {
   onSubmit: (data: RoleFormData) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
+}
+
+// Interfaz para los permisos cargados del backend
+interface PermissionItem {
+  id: number;
+  name: string;
+  description?: string;
 }
 
 const RoleForm: React.FC<RoleFormProps> = ({
@@ -31,10 +39,42 @@ const RoleForm: React.FC<RoleFormProps> = ({
   
   const [errors, setErrors] = useState<Partial<Record<keyof RoleFormData, string>>>({});
   
+  // Estado para almacenar los permisos cargados desde el backend
+  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(true);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  
+  // Cargar permisos al montar el componente
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      try {
+        setLoadingPermissions(true);
+        setPermissionError(null);
+        
+        const permissionsData = await userService.getAllPermissions();
+        console.log("Permisos cargados para el formulario:", permissionsData);
+        
+        setPermissions(permissionsData);
+      } catch (error) {
+        console.error("Error al cargar permisos:", error);
+        setPermissionError("No se pudieron cargar los permisos. Por favor, intenta de nuevo más tarde.");
+      } finally {
+        setLoadingPermissions(false);
+      }
+    };
+    
+    fetchPermissions();
+  }, []);
+  
   // Populate form with initial data if provided
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      console.log('Inicializando formulario con:', initialData);
+      setFormData({
+        name: initialData.name || '',
+        description: initialData.description || '',
+        permissions: Array.isArray(initialData.permissions) ? initialData.permissions : []
+      });
     }
   }, [initialData]);
   
@@ -79,17 +119,30 @@ const RoleForm: React.FC<RoleFormProps> = ({
     }
   };
   
-  // Available permissions
-  const availablePermissions = [
-    { id: 'admin_view', label: 'Ver administradores' },
-    { id: 'admin_create', label: 'Crear administradores' },
-    { id: 'admin_edit', label: 'Editar administradores' },
-    { id: 'admin_delete', label: 'Eliminar administradores' },
-    { id: 'service_view', label: 'Ver servicios' },
-    { id: 'service_create', label: 'Crear servicios' },
-    { id: 'service_edit', label: 'Editar servicios' },
-    { id: 'service_delete', label: 'Eliminar servicios' },
-  ];
+  // Agrupar permisos por categoría
+  const groupPermissionsByCategory = () => {
+    const grouped: Record<string, PermissionItem[]> = {};
+    
+    permissions.forEach(permission => {
+      // Obtener la categoría del nombre del permiso (parte antes del "_")
+      const category = permission.name.split('_')[0];
+      
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      
+      grouped[category].push(permission);
+    });
+    
+    return grouped;
+  };
+  
+  const groupedPermissions = groupPermissionsByCategory();
+  
+  // Para depuración - mostrar permisos del formulario
+  useEffect(() => {
+    console.log('Estado actual de permisos en formulario:', formData.permissions);
+  }, [formData.permissions]);
   
   return (
     <form onSubmit={handleSubmit}>
@@ -120,27 +173,47 @@ const RoleForm: React.FC<RoleFormProps> = ({
             Permisos
           </label>
           
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {availablePermissions.map((permission) => (
-                <div key={permission.id} className="flex items-center">
-                  <input
-                    id={`permission-${permission.id}`}
-                    type="checkbox"
-                    checked={formData.permissions.includes(permission.id)}
-                    onChange={() => handlePermissionChange(permission.id)}
-                    className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
-                  />
-                  <label 
-                    htmlFor={`permission-${permission.id}`}
-                    className="ml-2 block text-sm text-gray-700"
-                  >
-                    {permission.label}
-                  </label>
+          {loadingPermissions && (
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mr-2"></div>
+              <span>Cargando permisos...</span>
+            </div>
+          )}
+          
+          {permissionError && (
+            <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700">
+              {permissionError}
+            </div>
+          )}
+          
+          {!loadingPermissions && !permissionError && (
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              {Object.entries(groupedPermissions).map(([category, perms]) => (
+                <div key={category} className="mb-4">
+                  <h3 className="font-medium text-gray-800 mb-2 capitalize">{category}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {perms.map((permission) => (
+                      <div key={permission.id} className="flex items-center">
+                        <input
+                          id={`permission-${permission.name}`}
+                          type="checkbox"
+                          checked={formData.permissions.includes(permission.name)}
+                          onChange={() => handlePermissionChange(permission.name)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <label 
+                          htmlFor={`permission-${permission.name}`}
+                          className="ml-2 block text-sm text-gray-700"
+                        >
+                          {permission.description || permission.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
       
@@ -149,7 +222,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
           type="button"
           variant="outline"
           onClick={onCancel}
-          disabled={isSubmitting}
+          disabled={isSubmitting || loadingPermissions}
         >
           Cancelar
         </DashboardButton>
@@ -157,7 +230,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
         <DashboardButton
           type="submit"
           loading={isSubmitting}
-          disabled={isSubmitting}
+          disabled={isSubmitting || loadingPermissions}
         >
           {initialData ? 'Actualizar' : 'Crear'}
         </DashboardButton>

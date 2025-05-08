@@ -1,6 +1,5 @@
-# app/api/v1/departments.py
 from typing import List, Any, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Path, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -9,7 +8,11 @@ from app.models.auth.users import User
 from app.schemas.organization.departments import DepartmentCreate, DepartmentUpdate, DepartmentInDB, DepartmentWithType
 from app.services.department_service import DepartmentService
 from app.utils.error_handler import ErrorHandler
-from app.api.deps import get_current_active_superuser, get_current_active_user
+from app.api.deps import (
+    get_current_active_user,
+    has_permission,
+    has_any_permission
+)
 
 router = APIRouter()
 
@@ -19,10 +22,10 @@ def read_departments(
     limit: int = 100,
     type_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("department_view"))
 ) -> Any:
     """
-    Obtiene lista de departamentos (solo para usuarios autenticados)
+    Obtiene lista de departamentos (requiere permiso department_view)
     Puede filtrar por tipo de departamento con el parámetro type_id
     """
     try:
@@ -38,10 +41,10 @@ def read_departments(
 def create_department(
     department_in: DepartmentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("department_create"))
 ) -> Any:
     """
-    Crea un nuevo departamento (solo para superusuarios)
+    Crea un nuevo departamento (requiere permiso department_create)
     """
     try:
         department = DepartmentService.create_department(db=db, department_data=department_in.dict())
@@ -51,12 +54,12 @@ def create_department(
 
 @router.get("/{department_id}", response_model=DepartmentWithType)
 def read_department(
-    department_id: int,
+    department_id: int = Path(..., title="ID del departamento"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("department_view"))
 ) -> Any:
     """
-    Obtiene un departamento específico por ID (solo para usuarios autenticados)
+    Obtiene un departamento específico por ID (requiere permiso department_view)
     """
     try:
         department = DepartmentService.get_department_by_id_with_type(db=db, department_id=department_id)
@@ -66,13 +69,13 @@ def read_department(
 
 @router.patch("/{department_id}", response_model=DepartmentInDB)
 def update_department(
-    department_id: int,
-    department_in: DepartmentUpdate,
+    department_id: int = Path(..., title="ID del departamento"),
+    department_in: DepartmentUpdate = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("department_edit"))
 ) -> Any:
     """
-    Actualiza un departamento existente (solo para superusuarios)
+    Actualiza un departamento existente (requiere permiso department_edit)
     """
     try:
         department = DepartmentService.update_department(
@@ -86,12 +89,12 @@ def update_department(
 
 @router.delete("/{department_id}", response_model=DepartmentInDB)
 def delete_department(
-    department_id: int,
+    department_id: int = Path(..., title="ID del departamento"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("department_delete"))
 ) -> Any:
     """
-    Elimina un departamento (solo para superusuarios)
+    Elimina un departamento (requiere permiso department_delete)
     """
     try:
         department = DepartmentService.delete_department(db=db, department_id=department_id)

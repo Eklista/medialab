@@ -1,6 +1,5 @@
-# app/api/v1/department_types.py
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -9,7 +8,11 @@ from app.models.auth.users import User
 from app.schemas.organization.departments import DepartmentTypeCreate, DepartmentTypeUpdate, DepartmentTypeInDB
 from app.services.department_type_service import DepartmentTypeService
 from app.utils.error_handler import ErrorHandler
-from app.api.deps import get_current_active_superuser, get_current_active_user
+from app.api.deps import (
+    get_current_active_user,
+    has_permission,
+    has_any_permission
+)
 
 router = APIRouter()
 
@@ -18,10 +21,10 @@ def read_department_types(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("department_type_view"))
 ) -> Any:
     """
-    Obtiene lista de tipos de departamentos (solo para usuarios autenticados)
+    Obtiene lista de tipos de departamentos (requiere permiso department_type_view)
     """
     try:
         department_types = DepartmentTypeService.get_department_types(db=db, skip=skip, limit=limit)
@@ -33,10 +36,10 @@ def read_department_types(
 def create_department_type(
     department_type_in: DepartmentTypeCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("department_type_create"))
 ) -> Any:
     """
-    Crea un nuevo tipo de departamento (solo para superusuarios)
+    Crea un nuevo tipo de departamento (requiere permiso department_type_create)
     """
     try:
         department_type = DepartmentTypeService.create_department_type(db=db, type_data=department_type_in.dict())
@@ -46,12 +49,12 @@ def create_department_type(
 
 @router.get("/{type_id}", response_model=DepartmentTypeInDB)
 def read_department_type(
-    type_id: int,
+    type_id: int = Path(..., title="ID del tipo de departamento"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(has_permission("department_type_view"))
 ) -> Any:
     """
-    Obtiene un tipo de departamento específico por ID (solo para usuarios autenticados)
+    Obtiene un tipo de departamento específico por ID (requiere permiso department_type_view)
     """
     try:
         department_type = DepartmentTypeService.get_department_type_by_id(db=db, type_id=type_id)
@@ -61,13 +64,13 @@ def read_department_type(
 
 @router.patch("/{type_id}", response_model=DepartmentTypeInDB)
 def update_department_type(
-    type_id: int,
-    department_type_in: DepartmentTypeUpdate,
+    type_id: int = Path(..., title="ID del tipo de departamento"),
+    department_type_in: DepartmentTypeUpdate = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("department_type_edit"))
 ) -> Any:
     """
-    Actualiza un tipo de departamento existente (solo para superusuarios)
+    Actualiza un tipo de departamento existente (requiere permiso department_type_edit)
     """
     try:
         department_type = DepartmentTypeService.update_department_type(
@@ -81,12 +84,12 @@ def update_department_type(
 
 @router.delete("/{type_id}", response_model=DepartmentTypeInDB)
 def delete_department_type(
-    type_id: int,
+    type_id: int = Path(..., title="ID del tipo de departamento"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_superuser)
+    current_user: User = Depends(has_permission("department_type_delete"))
 ) -> Any:
     """
-    Elimina un tipo de departamento (solo para superusuarios)
+    Elimina un tipo de departamento (requiere permiso department_type_delete)
     """
     try:
         department_type = DepartmentTypeService.delete_department_type(db=db, type_id=type_id)

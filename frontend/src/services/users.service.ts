@@ -53,12 +53,30 @@ export interface UserUpdateRequest {
   bannerImage?: string;
 }
 
-// Interfaces para Roles y Áreas
+export interface Permission {
+  id: number;
+  name: string;
+  description?: string;
+}
+
 export interface Role {
   id: string;
   name: string;
+  description: string;
+  permissions: string[];
+}
+
+interface ApiPermission {
+  id: number;
+  name: string;
   description?: string;
-  permissions?: string[];
+}
+
+interface ApiRoleResponse {
+  id: number | string;
+  name: string;
+  description?: string;
+  permissions?: ApiPermission[] | string[];
 }
 
 export interface Area {
@@ -244,6 +262,50 @@ class UserService {
       throw new Error(`No se pudieron obtener los roles: ${handleApiError(error)}`);
     }
   }
+
+  async getRoleWithPermissions(roleId: number): Promise<Role> {
+    try {
+      console.log(`Obteniendo rol ${roleId} con permisos`);
+      const response = await apiClient.get<ApiRoleResponse>(`/roles/${roleId}`);
+      
+      console.log('Respuesta original de la API:', response.data);
+      
+      // Extraer y transformar los permisos según el tipo de datos que recibimos
+      let permissionNames: string[] = [];
+      
+      if (Array.isArray(response.data.permissions)) {
+        permissionNames = response.data.permissions.map(p => {
+          // Si es un objeto con propiedad name, extraer el nombre
+          if (typeof p === 'object' && p !== null && 'name' in p) {
+            return p.name.toString();
+          }
+          // Si ya es un string, usarlo directamente
+          else if (typeof p === 'string') {
+            return p;
+          }
+          // Si es otro tipo, convertirlo a string
+          return String(p);
+        });
+      }
+      
+      console.log('Permisos transformados a nombres:', permissionNames);
+      
+      // Formatear el rol para el frontend
+      const formattedRole: Role = {
+        id: response.data.id.toString(),
+        name: response.data.name,
+        description: response.data.description || '',
+        permissions: permissionNames
+      };
+      
+      console.log('Rol formateado final:', formattedRole);
+      
+      return formattedRole;
+    } catch (error) {
+      console.error(`Error al obtener rol con permisos, ID ${roleId}:`, error);
+      throw new Error(handleApiError(error));
+    }
+  }
   
   // Obtener todas las áreas
   async getAreas(): Promise<Area[]> {
@@ -316,53 +378,99 @@ class UserService {
   }
 
   // Métodos para roles
-// Crear un rol
-async createRole(roleData: RoleCreateRequest): Promise<Role> {
-  try {
-    const response = await apiClient.post<Role>('/roles/', roleData);
-    return {
-      ...response.data,
-      id: response.data.id.toString() // Asegurar que el ID sea string
-    };
-  } catch (error) {
-    console.error('Error al crear rol:', error);
-    throw new Error(handleApiError(error));
+  // Crear un rol
+  async createRole(roleData: RoleCreateRequest): Promise<Role> {
+    try {
+      const response = await apiClient.post<Role>('/roles/', roleData);
+      return {
+        ...response.data,
+        id: response.data.id.toString() // Asegurar que el ID sea string
+      };
+    } catch (error) {
+      console.error('Error al crear rol:', error);
+      throw new Error(handleApiError(error));
+    }
   }
-}
 
-// Actualizar un rol
-async updateRole(roleId: number, roleData: RoleUpdateRequest): Promise<Role> {
-  try {
-    const response = await apiClient.patch<Role>(`/roles/${roleId}`, roleData);
-    return {
-      ...response.data,
-      id: response.data.id.toString() // Asegurar que el ID sea string
-    };
-  } catch (error) {
-    console.error(`Error al actualizar rol con ID ${roleId}:`, error);
-    throw new Error(handleApiError(error));
+  // Actualizar un rol
+  async updateRole(roleId: number, roleData: RoleUpdateRequest): Promise<Role> {
+    try {
+      const response = await apiClient.patch<Role>(`/roles/${roleId}`, roleData);
+      return {
+        ...response.data,
+        id: response.data.id.toString() // Asegurar que el ID sea string
+      };
+    } catch (error) {
+      console.error(`Error al actualizar rol con ID ${roleId}:`, error);
+      throw new Error(handleApiError(error));
+    }
   }
-}
 
-// Eliminar un rol
-async deleteRole(roleId: number): Promise<void> {
-  try {
-    await apiClient.delete(`/roles/${roleId}`);
-  } catch (error) {
-    console.error(`Error al eliminar rol con ID ${roleId}:`, error);
-    throw new Error(handleApiError(error));
+  // Eliminar un rol
+  async deleteRole(roleId: number): Promise<void> {
+    try {
+      await apiClient.delete(`/roles/${roleId}`);
+    } catch (error) {
+      console.error(`Error al eliminar rol con ID ${roleId}:`, error);
+      throw new Error(handleApiError(error));
+    }
   }
-}
 
-// Asignar permisos a un rol
-async assignPermissionsToRole(roleId: number, permissionIds: number[]): Promise<void> {
-  try {
-    await apiClient.post(`/roles/${roleId}/permissions`, permissionIds);
-  } catch (error) {
-    console.error(`Error al asignar permisos al rol con ID ${roleId}:`, error);
-    throw new Error(handleApiError(error));
+  /**
+   * Obtiene todos los permisos disponibles en el sistema
+   * @returns Array de objetos Permission
+   */
+  async getAllPermissions(): Promise<Permission[]> {
+    try {
+      // Intenta obtener los permisos desde el backend
+      console.log("Obteniendo permisos desde la API...");
+      const response = await apiClient.get<Permission[]>('/permissions/');
+      console.log("Permisos obtenidos correctamente:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error al obtener permisos:', error);
+      throw new Error(handleApiError(error));
+    }
   }
-}
+
+  /**
+   * Asigna permisos a un rol específico
+   * @param roleId ID del rol
+   * @param permissionNames Nombres de los permisos a asignar
+   * @returns true si la operación fue exitosa, false en caso contrario
+   */
+  async assignPermissionsToRole(roleId: number, permissionNames: string[]): Promise<boolean> {
+    try {
+      console.log(`Asignando permisos al rol ${roleId}. Permisos seleccionados:`, permissionNames);
+
+      // Obtener todos los permisos disponibles
+      const allPermissions = await this.getAllPermissions();
+      
+      // Mapear nombres de permisos a IDs
+      const permissionIdsMapping = permissionNames.map(name => {
+        const permission = allPermissions.find(p => p.name === name);
+        
+        if (!permission) {
+          console.warn(`No se encontró ID para el permiso: "${name}"`);
+          return null;
+        }
+        
+        return permission.id;
+      }).filter(id => id !== null) as number[];
+      
+      console.log('IDs de permisos a asignar:', permissionIdsMapping);
+      
+      // Llamar al endpoint para asignar permisos
+      const response = await apiClient.post(`/roles/${roleId}/permissions`, permissionIdsMapping);
+      
+      console.log("Respuesta del servidor:", response.data);
+      
+      return response.status === 200;
+    } catch (error) {
+      console.error(`Error al asignar permisos al rol ${roleId}:`, error);
+      throw new Error(handleApiError(error));
+    }
+  }
 
 }
 
