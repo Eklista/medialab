@@ -5,6 +5,7 @@ import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
 import ServiceForm, { ServiceFormData } from '../../components/config/ServiceForm';
 import TemplateForm, { TemplateFormData } from '../../components/config/TemplateForm';
+import ConfigPageTemplate from '../../components/config/ConfigPageTemplate';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { servicesService, serviceTemplatesService } from '../../../../services';
 import { Service } from '../../../../services/services.service';
@@ -451,57 +452,52 @@ const ServicesSettings: React.FC = () => {
       )
     }
   ];
+
+  // Configuración de las pestañas para el componente ConfigPageTemplate
+  const tabs = [
+    {
+      id: 'services',
+      label: 'Servicios',
+      isActive: activeTab === 'services',
+      onClick: () => setActiveTab('services')
+    },
+    {
+      id: 'templates',
+      label: 'Plantillas',
+      isActive: activeTab === 'templates',
+      onClick: () => setActiveTab('templates')
+    }
+  ];
+
+  // Configuración del botón de acción para el componente ConfigPageTemplate
+  const actionButton = (
+    <DashboardButton
+      onClick={activeTab === 'services' ? handleAddService : handleAddTemplate}
+      leftIcon={<PlusIcon className="w-5 h-5" />}
+      className="w-full sm:w-auto"
+    >
+      {activeTab === 'services' ? 'Agregar Servicio' : 'Crear Plantilla'}
+    </DashboardButton>
+  );
+
+  // Preparar el mensaje de error para el ConfigPageTemplate
+  const errorComponent = error ? (
+    <ApiErrorHandler 
+      error={error} 
+      onRetry={activeTab === 'services' ? fetchServices : fetchTemplates} 
+      resourceName={activeTab === 'services' ? "los servicios" : "las plantillas"}
+    />
+  ) : null;
   
   return (
-    <div className="p-6">
-      {/* Pestañas */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex -mb-px">
-          <button
-            className={`py-4 px-6 border-b-2 text-sm font-medium ${
-              activeTab === 'services'
-                ? 'border-black text-black'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setActiveTab('services')}
-          >
-            Servicios
-          </button>
-          <button
-            className={`py-4 px-6 border-b-2 text-sm font-medium ${
-              activeTab === 'templates'
-                ? 'border-black text-black'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setActiveTab('templates')}
-          >
-            Plantillas
-          </button>
-        </nav>
-      </div>
-      
-      {/* Contenido según la pestaña activa */}
-      {activeTab === 'services' ? (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-medium text-gray-900">Gestión de Servicios</h2>
-            <DashboardButton
-              onClick={handleAddService}
-              leftIcon={<PlusIcon className="w-5 h-5" />}
-            >
-              Agregar Servicio
-            </DashboardButton>
-          </div>
-          
-          {/* Mostrar errores si los hay */}
-          {error && (
-            <ApiErrorHandler 
-              error={error} 
-              onRetry={fetchServices} 
-              resourceName="los servicios"
-            />
-          )}
-          
+    <ConfigPageTemplate
+      title="Gestión de Servicios y Plantillas"
+      actionButton={actionButton}
+      tabs={tabs}
+      error={errorComponent}
+    >
+      <div className="p-0">
+        {activeTab === 'services' ? (
           <DashboardDataTable
             columns={serviceColumns}
             data={services}
@@ -512,28 +508,7 @@ const ServicesSettings: React.FC = () => {
             emptyMessage={isLoading ? "Cargando servicios..." : "No hay servicios configurados"}
             isLoading={isLoading}
           />
-        </>
-      ) : (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-medium text-gray-900">Gestión de Plantillas</h2>
-            <DashboardButton
-              onClick={handleAddTemplate}
-              leftIcon={<PlusIcon className="w-5 h-5" />}
-            >
-              Crear Plantilla
-            </DashboardButton>
-          </div>
-          
-          {/* Mostrar errores si los hay */}
-          {error && (
-            <ApiErrorHandler 
-              error={error} 
-              onRetry={fetchTemplates} 
-              resourceName="las plantillas"
-            />
-          )}
-          
+        ) : (
           <DashboardDataTable
             columns={templateColumns}
             data={templates}
@@ -544,8 +519,8 @@ const ServicesSettings: React.FC = () => {
             emptyMessage={isLoading ? "Cargando plantillas..." : "No hay plantillas configuradas"}
             isLoading={isLoading}
           />
-        </>
-      )}
+        )}
+      </div>
       
       {/* Modales para Servicios */}
       <DashboardModal
@@ -746,7 +721,7 @@ const ServicesSettings: React.FC = () => {
           </DashboardButton>
         </div>
       </DashboardModal>
-    </div>
+    </ConfigPageTemplate>
   );
 };
 

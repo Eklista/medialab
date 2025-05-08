@@ -34,19 +34,26 @@ def send_email(
     )
     
     try:
-        # Log: Antes de enviar el correo
-        print(f"Configuración SMTP: {SMTP_HOST}:{SMTP_PORT}, TLS: {SMTP_TLS}, Usuario: {SMTP_USER}")
+        # Configuración SMTP
+        smtp_config = {
+            "host": SMTP_HOST,
+            "port": SMTP_PORT,
+            "user": SMTP_USER,
+            "password": SMTP_PASSWORD,
+        }
+        
+        # Si el puerto es 465, usar SSL directo en lugar de TLS
+        if SMTP_PORT == 465:
+            smtp_config["ssl"] = True
+            print(f"Configuración SMTP: {SMTP_HOST}:{SMTP_PORT}, SSL: True, Usuario: {SMTP_USER}")
+        else:
+            smtp_config["tls"] = SMTP_TLS
+            print(f"Configuración SMTP: {SMTP_HOST}:{SMTP_PORT}, TLS: {SMTP_TLS}, Usuario: {SMTP_USER}")
         
         response = message.send(
             to=email_to,
             render=environment,
-            smtp={
-                "host": SMTP_HOST,
-                "port": SMTP_PORT,
-                "tls": SMTP_TLS,
-                "user": SMTP_USER,
-                "password": SMTP_PASSWORD,
-            }
+            smtp=smtp_config
         )
         
         # Log: Después de intentar enviar el correo
@@ -62,7 +69,6 @@ def send_email(
         # Log de error si algo falla al intentar enviar el correo
         print(f"Error en el envío del correo a {email_to}: {str(e)}")
         return False
-
 
 def send_reset_password_email(email_to: str, username: str, token: str) -> bool:
     """

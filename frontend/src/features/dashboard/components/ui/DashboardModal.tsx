@@ -1,4 +1,4 @@
-// src/features/dashboard/components/ui/DashboardModal.tsx
+// src/features/dashboard/components/ui/DashboardModal.tsx modificado
 import React, { useEffect, useRef } from 'react';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 
@@ -12,7 +12,7 @@ export interface DashboardModalProps {
   closeOnClickOutside?: boolean;
   preventCloseOnEsc?: boolean;
   error?: string | null;
-  success?: string | null; // Nueva propiedad para mensajes de éxito
+  success?: string | null;
 }
 
 const DashboardModal: React.FC<DashboardModalProps> = ({
@@ -25,7 +25,7 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
   closeOnClickOutside = true,
   preventCloseOnEsc = false,
   error = null,
-  success = null, // Inicializar success con null
+  success = null,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   
@@ -57,7 +57,6 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
     let timer: number | undefined;
     
     if (success) {
-      // Establecer un temporizador para borrar el mensaje de éxito después de 3 segundos
       timer = window.setTimeout(() => {
       }, 3000);
     }
@@ -86,69 +85,72 @@ const DashboardModal: React.FC<DashboardModalProps> = ({
   
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto"
+      className="fixed inset-0 z-50 overflow-y-auto"
       onClick={handleBackdropClick}
     >
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
       
-      {/* Modal content */}
-      <div
-        ref={modalRef}
-        className={`relative bg-white rounded-lg shadow-xl transform transition-all w-full m-4 ${sizeClasses}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between p-4 border-b border-gray-200">
-          <h3 
-            id="modal-title" 
-            className="text-lg font-medium text-gray-900"
-          >
-            {title}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-500 hover:text-black p-1 rounded-full transition duration-150 ease-in-out"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Body */}
-        <div className="p-6">
-          {/* Mostrar mensaje de error si existe */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-              <p className="font-medium">Error</p>
-              <p className="text-sm mt-1">{error}</p>
-            </div>
-          )}
-          
-          {/* Mostrar mensaje de éxito si existe */}
-          {success && (
-            <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-start">
-              <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium">Operación exitosa</p>
-                <p className="text-sm mt-1">{success}</p>
-              </div>
-            </div>
-          )}
-          
-          {children}
-        </div>
-        
-        {/* Footer with action buttons */}
-        {footer && (
-          <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-            {footer}
+      {/* Modal dialog alignment */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        {/* Modal content */}
+        <div
+          ref={modalRef}
+          className={`relative bg-white rounded-lg shadow-xl transform transition-all w-full ${sizeClasses} max-h-[90vh] flex flex-col`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between p-4 border-b border-gray-200">
+            <h3 
+              id="modal-title" 
+              className="text-lg font-medium text-gray-900"
+            >
+              {title}
+            </h3>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-500 hover:text-black p-1 rounded-full transition duration-150 ease-in-out"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        )}
+          
+          {/* Body with scrolling */}
+          <div className="p-6 overflow-y-auto">
+            {/* Mostrar mensaje de error si existe */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <p className="font-medium">Error</p>
+                <p className="text-sm mt-1">{error}</p>
+              </div>
+            )}
+            
+            {/* Mostrar mensaje de éxito si existe */}
+            {success && (
+              <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-start">
+                <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Operación exitosa</p>
+                  <p className="text-sm mt-1">{success}</p>
+                </div>
+              </div>
+            )}
+            
+            {children}
+          </div>
+          
+          {/* Footer with action buttons */}
+          {footer && (
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+              {footer}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

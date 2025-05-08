@@ -101,27 +101,26 @@ class UserService:
         """
         Envía un correo de bienvenida después de crear el usuario
         """
-        base_url = os.getenv("FRONTEND_URL_PROD") if os.getenv("ENVIRONMENT") == "production" else os.getenv("FRONTEND_URL_DEV")
-        login_link = f"{base_url}/login"
-
+        # URL directa en producción para evitar problemas con variables de entorno
+        recovery_link = "https://medialab.eklista.com/password-recovery"
         subject = "Bienvenido a MediaLab Sistema"
-
+        
         html_template = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fb; border-radius: 8px; border: 1px solid #e5e7eb;">
             <h2 style="color: #181c24;">¡Bienvenido a <span style="color: #7758ff;">MediaLab</span>, {username}!</h2>
-
+            
             <div style="background-color: #eff6ff; padding: 16px; border-left: 4px solid #7758ff; margin: 20px 0; border-radius: 4px;">
                 <p style="margin: 0; color: #181c24;">
                     Te informamos que tu cuenta en la plataforma MediaLab ha sido creada exitosamente. Para poder ingresar por primera vez, sigue estos sencillos pasos:
                 </p>
                 <ol style="margin: 10px 0 0 20px; color: #6b7280;">
-                    <li>Haz clic en el botón de abajo para dirigirte a la página de inicio de sesión.</li>
-                    <li>Una vez allí, selecciona la opción <strong>"¿Olvidaste tu contraseña?"</strong>.</li>
-                    <li>Sigue las instrucciones que te indicaremos para restablecer tu contraseña.</li>
-                    <li>Después de crear tu nueva contraseña, podrás iniciar sesión en MediaLab.</li>
+                    <li>Haz clic en el botón de abajo para ir a la página de recuperación de contraseña.</li>
+                    <li>Ingresa el correo electrónico con el que te registraste ({email}).</li>
+                    <li>Sigue las instrucciones para crear tu contraseña.</li>
+                    <li>Una vez creada tu contraseña, podrás iniciar sesión en MediaLab.</li>
                 </ol>
             </div>
-
+            
             <p style="color: #181c24; margin-bottom: 20px;">
                 Una vez que hayas ingresado al sistema, es importante que completes tu perfil de la siguiente manera:
             </p>
@@ -133,24 +132,28 @@ class UserService:
                 <li>Tu número de teléfono es opcional.</li>
                 <li><strong>Es obligatorio</strong> que ingreses tu fecha de nacimiento.</li>
             </ol>
-
+            
             <div style="text-align: center; margin-top: 30px;">
-                <a href="{login_link}" style="background-color: #7758ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 16px; --color-hover: #b5cf15;">
-                    Ir a la página de inicio de sesión
+                <a href="{recovery_link}" style="background-color: #7758ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 16px; display: inline-block;">
+                    Crear mi contraseña
                 </a>
             </div>
-
+            
             <p style="margin-top: 40px; font-size: 14px; color: #6b7280;">
                 Si tienes alguna pregunta o necesitas ayuda en cualquier momento, no dudes en contactar a nuestro equipo de soporte de MediaLab.
             </p>
         </div>
         """
-
-        send_email(
-            email_to=email,
-            subject=subject,
-            html_template=html_template
-        )
+        
+        try:
+            print(f"Enviando correo de bienvenida a {email} con enlace de recuperación directo")
+            send_email(
+                email_to=email,
+                subject=subject,
+                html_template=html_template
+            )
+        except Exception as e:
+            print(f"Error al enviar correo de bienvenida: {str(e)}")
 
     
     @staticmethod

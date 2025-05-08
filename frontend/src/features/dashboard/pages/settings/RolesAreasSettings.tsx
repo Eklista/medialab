@@ -5,6 +5,7 @@ import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
 import RoleForm, { RoleFormData } from '../../components/config/RoleForm';
 import AreaForm, { AreaFormData } from '../../components/config/AreaForm';
+import ConfigPageTemplate from '../../components/config/ConfigPageTemplate';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { userService } from '../../../../services';
 import { RoleCreateRequest, RoleUpdateRequest } from '../../../../services/users.service';
@@ -352,91 +353,73 @@ const RolesAreasSettings: React.FC = () => {
       accessor: (area: Area) => area.description || '-'
     }
   ];
+
+  // Configuración de las pestañas para el componente ConfigPageTemplate
+  const tabs = [
+    {
+      id: 'roles',
+      label: 'Roles',
+      isActive: activeTab === 'roles',
+      onClick: () => setActiveTab('roles')
+    },
+    {
+      id: 'areas',
+      label: 'Áreas',
+      isActive: activeTab === 'areas',
+      onClick: () => setActiveTab('areas')
+    }
+  ];
+
+  // Configuración del botón de acción para el componente ConfigPageTemplate
+  const actionButton = (
+    <DashboardButton
+      onClick={activeTab === 'roles' ? handleAddRole : handleAddArea}
+      leftIcon={<PlusIcon className="w-5 h-5" />}
+      className="w-full sm:w-auto"
+    >
+      {activeTab === 'roles' ? 'Agregar Rol' : 'Agregar Área'}
+    </DashboardButton>
+  );
+
+  // Preparar el mensaje de error para el ConfigPageTemplate
+  const errorComponent = error ? (
+    <ApiErrorHandler 
+      error={error} 
+      onRetry={activeTab === 'roles' ? fetchRoles : fetchAreas} 
+      resourceName={activeTab === 'roles' ? "los roles" : "las áreas"}
+    />
+  ) : null;
   
   return (
-    <div>
-      {/* Pestañas */}
-      <div className="border-b border-gray-200">
-        <nav className="flex -mb-px">
-          <button
-            className={`py-4 px-6 border-b-2 text-sm font-medium ${
-              activeTab === 'roles'
-                ? 'border-black text-black'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setActiveTab('roles')}
-          >
-            Roles
-          </button>
-          <button
-            className={`py-4 px-6 border-b-2 text-sm font-medium ${
-              activeTab === 'areas'
-                ? 'border-black text-black'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setActiveTab('areas')}
-          >
-            Áreas
-          </button>
-        </nav>
-      </div>
-      
-      {/* Contenido */}
-      <div className="p-6">
-        {error && (
-          <ApiErrorHandler 
-            error={error} 
-            onRetry={activeTab === 'roles' ? fetchRoles : fetchAreas} 
-            resourceName={activeTab === 'roles' ? "los roles" : "las áreas"}
-          />
-        )}
-        
+    <ConfigPageTemplate
+      title="Gestión de Roles y Áreas"
+      actionButton={actionButton}
+      tabs={tabs}
+      error={errorComponent}
+    >
+      <div className="p-0">
         {activeTab === 'roles' ? (
-          <>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Gestión de Roles</h2>
-              <DashboardButton
-                onClick={handleAddRole}
-                leftIcon={<PlusIcon className="w-5 h-5" />}
-              >
-                Agregar Rol
-              </DashboardButton>
-            </div>
-            
-            <DashboardDataTable
-              columns={roleColumns}
-              data={roles}
-              keyExtractor={(role) => role.id}
-              onEdit={handleEditRole}
-              onDelete={handleDeleteRoleClick}
-              actionColumn={true}
-              emptyMessage={isLoading ? "Cargando roles..." : "No hay roles configurados"}
-              isLoading={isLoading}
-            />
-          </>
+          <DashboardDataTable
+            columns={roleColumns}
+            data={roles}
+            keyExtractor={(role) => role.id}
+            onEdit={handleEditRole}
+            onDelete={handleDeleteRoleClick}
+            actionColumn={true}
+            emptyMessage={isLoading ? "Cargando roles..." : "No hay roles configurados"}
+            isLoading={isLoading}
+          />
         ) : (
-          <>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Gestión de Áreas</h2>
-              <DashboardButton
-                onClick={handleAddArea}
-                leftIcon={<PlusIcon className="w-5 h-5" />}
-              >
-                Agregar Área
-              </DashboardButton>
-            </div>
-            
-            <DashboardDataTable
-              columns={areaColumns}
-              data={areas}
-              keyExtractor={(area) => area.id}
-              onEdit={handleEditArea}
-              onDelete={handleDeleteAreaClick}
-              actionColumn={true}
-              emptyMessage={isLoading ? "Cargando áreas..." : "No hay áreas configuradas"}
-              isLoading={isLoading}
-            />
-          </>
+          <DashboardDataTable
+            columns={areaColumns}
+            data={areas}
+            keyExtractor={(area) => area.id}
+            onEdit={handleEditArea}
+            onDelete={handleDeleteAreaClick}
+            actionColumn={true}
+            emptyMessage={isLoading ? "Cargando áreas..." : "No hay áreas configuradas"}
+            isLoading={isLoading}
+          />
         )}
       </div>
       
@@ -596,7 +579,7 @@ const RolesAreasSettings: React.FC = () => {
           </DashboardButton>
         </div>
       </DashboardModal>
-    </div>
+    </ConfigPageTemplate>
   );
 };
 

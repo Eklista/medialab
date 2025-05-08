@@ -5,6 +5,7 @@ import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
 import AcademicUnitForm, { AcademicUnitFormData } from '../../components/config/AcademicUnitForm';
 import DashboardInputWithButton from '../../components/ui/DashboardInputWithButton';
+import ConfigPageTemplate from '../../components/config/ConfigPageTemplate';
 import { PlusIcon, AdjustmentsHorizontalIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { academicUnitService, departmentTypeService } from '../../../../services';
 import { AcademicUnit } from '../../../../services/academicUnits.service';
@@ -293,74 +294,63 @@ const AcademicUnitsSettings: React.FC = () => {
       width: '35%'
     }
   ];
+
+  // Crear tabs para los filtros de tipo
+  const filterTabs = isTypesLoading 
+    ? [{ id: 'all', label: 'Cargando..', isActive: true, onClick: () => {} }] 
+    : [
+        {
+          id: 'all',
+          label: 'Todas',
+          isActive: filterTypeId === null,
+          onClick: () => setFilterTypeId(null)
+        },
+        ...departmentTypes.map(type => ({
+          id: `type-${type.id}`,
+          label: type.name,
+          isActive: filterTypeId === type.id,
+          onClick: () => setFilterTypeId(type.id)
+        }))
+      ];
+
+  // Configuración del botón de acción para el componente ConfigPageTemplate
+  const actionButtons = (
+    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-3 w-full sm:w-auto">
+      <DashboardButton
+        variant="outline"
+        onClick={handleOpenTypesManager}
+        leftIcon={<AdjustmentsHorizontalIcon className="w-5 h-5" />}
+        className="w-full sm:w-auto mb-2 sm:mb-0"
+      >
+        {window.innerWidth < 480 ? "Gestionar Tipos" : "Gestionar Tipos de Unidad"}
+      </DashboardButton>
+      <DashboardButton
+        onClick={handleAddUnit}
+        leftIcon={<PlusIcon className="w-5 h-5" />}
+        className="w-full sm:w-auto"
+      >
+        {window.innerWidth < 480 ? "Agregar" : "Agregar Unidad"}
+      </DashboardButton>
+    </div>
+  );
+
+  // Preparar el mensaje de error para el ConfigPageTemplate
+  const errorComponent = error ? (
+    <ApiErrorHandler 
+      error={error} 
+      onRetry={fetchAcademicUnits} 
+      resourceName="las unidades académicas"
+    />
+  ) : null;
   
   return (
-    <div>
-      {/* Cabecera con botones de acción */}
-      <div className="border-b border-gray-200">
-        <div className="px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-lg font-medium text-gray-900">Gestión de Unidades Académicas</h2>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-3 w-full sm:w-auto">
-            <DashboardButton
-              variant="outline"
-              onClick={handleOpenTypesManager}
-              leftIcon={<AdjustmentsHorizontalIcon className="w-5 h-5" />}
-              fullWidth={window.innerWidth < 640}
-              className="mb-2 sm:mb-0"
-            >
-              {window.innerWidth < 480 ? "Gestionar Tipos" : "Gestionar Tipos de Unidad"}
-            </DashboardButton>
-            <DashboardButton
-              onClick={handleAddUnit}
-              leftIcon={<PlusIcon className="w-5 h-5" />}
-              fullWidth={window.innerWidth < 640}
-            >
-              {window.innerWidth < 480 ? "Agregar" : "Agregar Unidad"}
-            </DashboardButton>
-          </div>
-        </div>
-      </div>
-      
-      <div className="p-6">
-        {/* Mostrar errores si los hay */}
-        {error && (
-          <ApiErrorHandler 
-            error={error} 
-            onRetry={fetchAcademicUnits} 
-            resourceName="las unidades académicas"
-          />
-        )}
-        
-        {/* Filtros en formato de pestañas con scroll horizontal en móvil */}
-        <div className="-mb-px border-b border-gray-200 overflow-x-auto pb-px scrollbar-thin">
-          <nav className="flex space-x-2 min-w-max">
-            <button
-              className={`py-3 px-4 border-b-2 text-sm font-medium ${
-                filterTypeId === null
-                  ? 'border-black text-black'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => setFilterTypeId(null)}
-            >
-              Todas
-            </button>
-            
-            {departmentTypes.map(type => (
-              <button
-                key={type.id}
-                className={`py-3 px-4 border-b-2 text-sm font-medium whitespace-nowrap ${
-                  filterTypeId === type.id
-                    ? 'border-black text-black'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => setFilterTypeId(type.id)}
-              >
-                {type.name}
-              </button>
-            ))}
-          </nav>
-        </div>
-        
+    <ConfigPageTemplate
+      title="Gestión de Unidades Académicas"
+      actionButton={actionButtons}
+      tabs={filterTabs}
+      error={errorComponent}
+    >
+      <div className="p-0">
         {/* Mensaje de carga de tipos */}
         {isTypesLoading && (
           <div className="bg-blue-50 p-3 rounded-md mt-4 mb-4 text-blue-700 text-sm">
@@ -368,27 +358,27 @@ const AcademicUnitsSettings: React.FC = () => {
           </div>
         )}
         
-        {/* Tabla optimizada */}
-        <div className="mt-4">
-        <DashboardDataTable
-          columns={columns}
-          data={filteredUnits}
-          keyExtractor={(unit) => unit.id.toString()}
-          actionColumn={true}
-          emptyMessage={isLoading ? "Cargando unidades académicas..." : "No hay unidades académicas configuradas"}
-          isLoading={isLoading}
-          className="max-h-[calc(100vh-280px)] scrollbar-thin"
-          renderActions={(unit) => (
-            <DashboardButton
-              variant="text"
-              size="sm"
-              onClick={() => handleViewUnit(unit)}
-              className="text-blue-600 hover:text-blue-900"
-            >
-              Ver
-            </DashboardButton>
-          )}
-        />
+        {/* Tabla */}
+        <div>
+          <DashboardDataTable
+            columns={columns}
+            data={filteredUnits}
+            keyExtractor={(unit) => unit.id.toString()}
+            actionColumn={true}
+            emptyMessage={isLoading ? "Cargando unidades académicas..." : "No hay unidades académicas configuradas"}
+            isLoading={isLoading}
+            className="max-h-[calc(100vh-280px)] scrollbar-thin"
+            renderActions={(unit) => (
+              <DashboardButton
+                variant="text"
+                size="sm"
+                onClick={() => handleViewUnit(unit)}
+                className="text-blue-600 hover:text-blue-900"
+              >
+                Ver
+              </DashboardButton>
+            )}
+          />
         </div>
       </div>
       
@@ -671,7 +661,7 @@ const AcademicUnitsSettings: React.FC = () => {
           </>
         )}
       </DashboardModal>
-    </div>
+    </ConfigPageTemplate>
   );
 };
 
