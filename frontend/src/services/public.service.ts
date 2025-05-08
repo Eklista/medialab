@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getBaseUrl } from './api';
 import { Service } from './services.service';
 import { ServiceTemplate } from './service-templates.service';
+import { TemplateServiceRelation, TemplateSubServiceRelation } from './service-templates.service';
 
 export interface PublicDepartment {
   id: number;
@@ -52,6 +53,36 @@ class PublicService {
     } catch (error) {
       console.error('Error al obtener plantillas públicas:', error);
       throw new Error('No se pudieron cargar las plantillas');
+    }
+  }
+
+    /**
+   * Obtiene la relación entre plantilla y servicios
+   */
+  async getTemplateServiceRelations(templateId: number): Promise<TemplateServiceRelation[]> {
+    try {
+      const response = await axios.get<TemplateServiceRelation[]>(
+        `${getBaseUrl()}/public/templates/${templateId}/services`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error al obtener relaciones de servicios:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Obtiene la relación entre plantilla y subservicios
+   */
+  async getTemplateSubServiceRelations(templateId: number): Promise<TemplateSubServiceRelation[]> {
+    try {
+      const response = await axios.get<TemplateSubServiceRelation[]>(
+        `${getBaseUrl()}/public/templates/${templateId}/subservices`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error al obtener relaciones de subservicios:', error);
+      return [];
     }
   }
 }

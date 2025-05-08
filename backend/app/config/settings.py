@@ -2,12 +2,15 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .env
-env_path = Path(__file__).parent.parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
-
 # Detectar si estamos en Docker
 in_docker = os.path.exists('/.dockerenv')
+
+# Primero intentar cargar desde el entorno del sistema
+# Luego, cargar variables de entorno desde .env solo como respaldo
+env_path = Path(__file__).parent.parent.parent / '.env'
+if env_path.exists():
+    # Cargar variables solo si el archivo existe
+    load_dotenv(dotenv_path=env_path)
 
 # Configuración de la aplicación
 APP_NAME = "MediaLab API"
@@ -45,11 +48,12 @@ CORS_ORIGINS = [
     "http://168.231.74.237"
 ]
 
-# Configuración de correo electrónico
-EMAIL_ENABLED = os.getenv("EMAIL_ENABLED") == "True"
+# Configuración de correo electrónico - Modificar esta parte
+# Verificar EMAIL_ENABLED usando un enfoque más flexible
+EMAIL_ENABLED = os.getenv("EMAIL_ENABLED", "").lower() in ["true", "1", "yes"]
 SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))  # Valor predeterminado si no existe
-SMTP_TLS = os.getenv("SMTP_TLS") == "True"
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_TLS = os.getenv("SMTP_TLS", "").lower() in ["true", "1", "yes"]
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 EMAILS_FROM_EMAIL = os.getenv("EMAILS_FROM_EMAIL")

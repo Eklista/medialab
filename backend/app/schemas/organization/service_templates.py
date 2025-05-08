@@ -32,3 +32,5 @@ class ServiceTemplateInDB(ServiceTemplateBase):
 
 class ServiceTemplateWithServices(ServiceTemplateInDB):
     services: List[Dict[str, Any]] = []
+    subservices: List[Dict[str, Any]] = []
+    service_selections: List[Dict[str, Any]] = []

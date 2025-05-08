@@ -1,8 +1,9 @@
 # app/api/v1/service_templates.py
-from typing import List, Any
+from typing import List, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 
 from app.database import get_db
 from app.models.auth.users import User
@@ -99,3 +100,65 @@ def delete_template(
         return template
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "eliminar", "plantilla")
+
+@router.get("/{template_id}/services", response_model=List[Dict[str, Any]])
+def get_template_services(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    Obtiene los servicios asociados a una plantilla
+    """
+    try:
+        # Ejecutar consulta directa
+        query = text("""
+            SELECT template_id, service_id 
+            FROM template_services 
+            WHERE template_id = :template_id
+        """)
+        result = db.execute(query, {"template_id": template_id}).fetchall()
+        
+        # Convertir a lista de diccionarios
+        return [{"template_id": row[0], "service_id": row[1]} for row in result]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener servicios de plantilla: {str(e)}"
+        )
+
+@router.get("/{template_id}/subservices", response_model=List[Dict[str, Any]])
+def get_template_subservices(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    Obtiene los subservicios asociados a una plantilla
+    """
+    try:
+        # Ejecutar consulta directa para obtener subservicios
+        query = text("""
+            SELECT ss.id, ss.name, ss.description, ss.service_id
+            FROM sub_services ss
+            JOIN template_subservices ts ON ss.id = ts.subservice_id
+            WHERE ts.template_id = :template_id
+        """)
+        result = db.execute(query, {"template_id": template_id}).fetchall()
+        
+        # Convertir a lista de diccionarios
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "description": row[2],
+                "service_id": row[3],
+                "template_id": template_id
+            } 
+            for row in result
+        ]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener subservicios de plantilla: {str(e)}"
+        )

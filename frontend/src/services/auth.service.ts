@@ -55,7 +55,7 @@ export interface ChangePasswordRequest {
 class AuthService {
   async login(credentials: LoginRequest): Promise<User> {
     try {
-      console.log('Intentando login con:', credentials.email);
+      //console.log('Intentando login con:', credentials.email);
       
       // Necesitamos enviar los datos en formato x-www-form-urlencoded
       const formData = new URLSearchParams();
@@ -73,7 +73,7 @@ class AuthService {
         }
       );  
       
-      console.log('Login exitoso, respuesta:', response.data);
+      //console.log('Login exitoso, respuesta:', response.data);
       
       // Guardar tokens
       localStorage.setItem('accessToken', response.data.access_token);

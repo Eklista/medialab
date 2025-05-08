@@ -6,7 +6,7 @@ import ServiceRequestForm from '../../features/service-request/ServiceRequestFor
 export const RequestFormPage: React.FC = () => {
   // Manejador de eventos explícito
   const handleInteraction = () => {
-    console.log('Página interactuada');
+    //('Página interactuada');
   };
 
   return (

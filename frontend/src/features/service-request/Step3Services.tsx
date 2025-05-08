@@ -153,41 +153,100 @@ const Step3Services: React.FC<Step3ServicesProps> = ({
       return;
     }
     
-    // Encontrar la plantilla seleccionada
-    const template = templates.find(t => t.id?.toString() === templateId);
-    if (template && template.services) {
-      // Obtener IDs de los servicios de la plantilla
-      const serviceIds = template.services
-        .map(service => service.id?.toString() || '')
-        .filter(id => id !== '');
+    try {
+      //console.log("Templates disponibles:", templates);
+      
+      // Encontrar la plantilla seleccionada
+      const template = templates.find(t => t.id?.toString() === templateId);
+      
+      if (!template) {
+        console.error("No se encontró la plantilla con ID:", templateId);
+        setError("No se pudo encontrar la plantilla seleccionada");
+        return;
+      }
+      
+      //console.log("Plantilla seleccionada:", template);
+      
+      // Extraer los IDs de los servicios de la plantilla
+      const serviceIds: string[] = [];
+      
+      if (template.services && template.services.length > 0) {
+        template.services.forEach(service => {
+          if (service.id) {
+            serviceIds.push(service.id.toString());
+          }
+        });
+      }
+      
+      //console.log("Servicios seleccionados:", serviceIds);
       
       // Actualizar servicios seleccionados
       onMainServiceChange(serviceIds);
       
-      // Limpiar sub-servicios seleccionados para evitar inconsistencias
+      // Preparar el objeto para los subservicios seleccionados
       const newSelectedSubServices: Record<string, string[]> = {};
+      
+      // Inicializar cada servicio con un array vacío de subservicios
       serviceIds.forEach(serviceId => {
         newSelectedSubServices[serviceId] = [];
       });
       
-      // Para cada servicio, seleccionar todos sus sub-servicios
-      template.services.forEach(service => {
-        if (service.id) {
-          const serviceId = service.id.toString();
-          const subServiceIds = service.sub_services
-            ?.map(sub => sub.id?.toString() || '')
-            .filter(id => id !== '') || [];
-          
-          if (subServiceIds.length > 0) {
-            newSelectedSubServices[serviceId] = subServiceIds;
+      // Verificar si la plantilla contiene service_selections
+      if (template.service_selections && Array.isArray(template.service_selections)) {
+        //console.log("Usando service_selections para determinar subservicios:", template.service_selections);
+        
+        // Para cada service_selection, obtener los subservicios seleccionados
+        template.service_selections.forEach(selection => {
+          if (selection.service_id && selection.sub_service_ids) {
+            const serviceId = selection.service_id.toString();
+            
+            // Extraer los IDs de subservicios y filtrar valores inválidos
+            const subServiceIds = selection.sub_service_ids
+              .map(id => id.toString())
+              .filter(Boolean);
+            
+            //console.log(`Servicio ${serviceId}: subservicios seleccionados =`, subServiceIds);
+            
+            // Asignar subservicios al servicio correspondiente
+            if (serviceIds.includes(serviceId)) {
+              newSelectedSubServices[serviceId] = subServiceIds;
+            }
           }
-        }
+        });
+      }
+      // Verificar si la plantilla contiene subservices directamente
+      else if (template.subservices && Array.isArray(template.subservices)) {
+        //console.log("Usando subservices para determinar selecciones:", template.subservices);
+        
+        // Agrupar subservicios por service_id
+        serviceIds.forEach(serviceId => {
+          const serviceSubservices = template.subservices!
+            .filter(sub => sub.service_id?.toString() === serviceId)
+            .map(sub => sub.id?.toString() || '')
+            .filter(id => id !== '');
+          
+          //console.log(`Servicio ${serviceId}: subservicios filtrados =`, serviceSubservices);
+          
+          if (serviceSubservices.length > 0) {
+            newSelectedSubServices[serviceId] = serviceSubservices;
+          }
+        });
+      }
+      // Si no hay información específica, dejamos los arrays vacíos
+      else {
+        //console.log("No se encontró información específica de subservicios seleccionados");
+      }
+      
+      //console.log("Subservicios finalmente seleccionados:", newSelectedSubServices);
+      
+      // Actualizar subservicios seleccionados para cada servicio
+      Object.entries(newSelectedSubServices).forEach(([svcId, subSvcIds]) => {
+        onSubServiceChange(svcId, subSvcIds);
       });
       
-      // Actualizar sub-servicios seleccionados para cada servicio
-      Object.entries(newSelectedSubServices).forEach(([serviceId, subServiceIds]) => {
-        onSubServiceChange(serviceId, subServiceIds);
-      });
+    } catch (error) {
+      console.error("Error al procesar la plantilla:", error);
+      setError("No se pudieron cargar los detalles de la plantilla seleccionada.");
     }
   };
 

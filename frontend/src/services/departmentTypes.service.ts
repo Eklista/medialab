@@ -47,9 +47,9 @@ class DepartmentTypeService {
    */
   async createDepartmentType(data: DepartmentTypeCreateRequest): Promise<DepartmentType> {
     try {
-      console.log('Creando nuevo tipo de departamento:', data);
+      //console.log('Creando nuevo tipo de departamento:', data);
       const response = await apiClient.post<DepartmentType>('/department-types/', data);
-      console.log('Respuesta del servidor:', response.data);
+      //console.log('Respuesta del servidor:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error al crear tipo de departamento:', error);

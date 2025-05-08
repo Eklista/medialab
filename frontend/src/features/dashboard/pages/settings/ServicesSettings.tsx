@@ -71,8 +71,30 @@ const ServicesSettings: React.FC = () => {
     setError(null);
     
     try {
+      // Obtener la lista básica de plantillas
       const data = await serviceTemplatesService.getServiceTemplates();
-      setTemplates(data);
+      
+      // Para cada plantilla, enriquecer con datos de servicios
+      const enrichedTemplates = await Promise.all(
+        data.map(async (template) => {
+          // Obtener los servicios relacionados
+          const serviceRelations = await serviceTemplatesService.getTemplateServiceRelations(template.id!);
+          
+          // Retornar plantilla enriquecida
+          return {
+            ...template,
+            services: serviceRelations.map(rel => ({
+              id: rel.service_id,
+              name: '', // El nombre no es importante para el conteo
+              description: '',
+              icon_name: '',
+              sub_services: []
+            }))
+          };
+        })
+      );
+      
+      setTemplates(enrichedTemplates);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar las plantillas');
       console.error('Error al cargar plantillas:', err);
@@ -80,6 +102,50 @@ const ServicesSettings: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const fetchTemplateDetails = async (templateId: number) => {
+    setIsSubmitting(true);
+    try {
+      // 1. Cargar la plantilla básica
+      const template = await serviceTemplatesService.getServiceTemplateById(templateId);
+      
+      // 2. Obtener los servicios seleccionados para esta plantilla
+      const tempServiceRelations = await serviceTemplatesService.getTemplateServiceRelations(templateId);
+      
+      // 3. Obtener los subservicios seleccionados para esta plantilla
+      const tempSubServiceRelations = await serviceTemplatesService.getTemplateSubServiceRelations(templateId);
+      
+      // 4. Crear un objeto enriquecido con toda la información
+      const enrichedTemplate = {
+        ...template,
+        // Asegurarse de que services existe
+        services: tempServiceRelations.map(rel => 
+          services.find(s => s.id === rel.service_id) || { 
+            id: rel.service_id, 
+            name: `Servicio ${rel.service_id}`,
+            sub_services: []
+          }
+        ),
+        // Añadir subservicios
+        subservices: tempSubServiceRelations,
+        // Crear service_selections
+        service_selections: tempServiceRelations.map(rel => ({
+          service_id: rel.service_id,
+          sub_service_ids: tempSubServiceRelations
+            .filter(sub => sub.service_id === rel.service_id)
+            .map(sub => sub.id)
+        }))
+      };
+      
+      setCurrentTemplate(enrichedTemplate);
+      setIsEditTemplateModalOpen(true);
+    } catch (err) {
+      console.error('Error al cargar detalles de plantilla:', err);
+      setModalError(err instanceof Error ? err.message : 'Error al cargar detalles de la plantilla');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };  
   
   // HANDLERS PARA SERVICIOS
   const handleAddService = () => {
@@ -236,8 +302,7 @@ const ServicesSettings: React.FC = () => {
   
   const handleEditTemplate = (template: ServiceTemplate) => {
     setModalError(null);
-    setCurrentTemplate(template);
-    setIsEditTemplateModalOpen(true);
+    fetchTemplateDetails(template.id!);
   };
   
   const handleDeleteTemplateClick = (template: ServiceTemplate) => {
@@ -299,21 +364,29 @@ const ServicesSettings: React.FC = () => {
     setModalError(null);
     
     try {
+      console.log('Datos del formulario:', data);
+      
+      // Preparar datos para enviar al backend
       const templateData = {
         name: data.name,
         description: data.description,
         is_public: data.isPublic,
+        // Convertir al formato que espera el backend
         service_selections: data.serviceSelections.map(sel => ({
           service_id: sel.serviceId,
           sub_service_ids: sel.subServiceIds
         }))
       };
       
+      console.log('Datos a enviar al backend:', templateData);
+      
+      // Llamar al servicio de actualización
       await serviceTemplatesService.updateServiceTemplate(
         currentTemplate.id, 
         templateData
       );
       
+      // Recargamos las plantillas después de actualizar
       await fetchTemplates();
       setIsEditTemplateModalOpen(false);
       setCurrentTemplate(null);
@@ -594,12 +667,35 @@ const ServicesSettings: React.FC = () => {
               name: currentTemplate.name,
               description: currentTemplate.description || '',
               isPublic: currentTemplate.is_public,
-              serviceSelections: currentTemplate.services 
-                ? currentTemplate.services.map(service => ({
-                    serviceId: service.id!,
-                    subServiceIds: [] // Aquí necesitarás añadir lógica para determinar qué subservicios están seleccionados
-                  }))
-                : []
+              serviceSelections: 
+                // Si hay service_selections directamente en la respuesta, úsalos
+                currentTemplate.service_selections 
+                  ? currentTemplate.service_selections.map(sel => ({
+                      serviceId: sel.service_id,
+                      subServiceIds: sel.sub_service_ids || []
+                    }))
+                  : // Si no hay service_selections, construirlos desde services y subservices
+                    currentTemplate.services 
+                      ? currentTemplate.services.map(service => {
+                          // Buscar los subservicios asociados a este servicio
+                          let subServiceIds: number[] = [];
+                          
+                          // Si hay subservices directamente en la plantilla
+                          if (currentTemplate.subservices && Array.isArray(currentTemplate.subservices)) {
+                            subServiceIds = currentTemplate.subservices
+                              .filter(sub => sub.service_id === service.id)
+                              .map(sub => sub.id!)
+                              .filter(Boolean);
+                          }
+                          
+                          console.log(`Servicio ${service.id} - subservicios:`, subServiceIds);
+                          
+                          return {
+                            serviceId: service.id!,
+                            subServiceIds: subServiceIds
+                          };
+                        })
+                      : []
             }}
             onSubmit={handleEditTemplateSubmit}
             onCancel={() => {

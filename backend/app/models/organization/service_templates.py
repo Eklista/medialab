@@ -11,6 +11,13 @@ template_services = Table(
     Column('service_id', Integer, ForeignKey('services.id'), primary_key=True)
 )
 
+template_subservices = Table(
+    'template_subservices',
+    Base.metadata,
+    Column('template_id', Integer, ForeignKey('service_templates.id'), primary_key=True),
+    Column('subservice_id', Integer, ForeignKey('sub_services.id'), primary_key=True)
+)
+
 class ServiceTemplate(Base):
     """
     Modelo para plantillas de servicios
@@ -24,3 +31,6 @@ class ServiceTemplate(Base):
     
     # Relación con servicios
     services = relationship("Service", secondary=template_services, backref="templates")
+
+    # Relación con subservicios
+    subservices = relationship("SubService", secondary=template_subservices, backref="templates")
