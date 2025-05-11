@@ -1,0 +1,122 @@
+/* src/styles/global.css */
+@import "tailwindcss";
+
+/* Definición de variables de tema - igual que en tu frontend principal */
+:root {
+  /* Paleta principal */
+  --color-bg-main: #f8f9fb;
+  --color-bg-secondary: #ffffff;
+  --color-text-main: #181c24;
+  --color-text-secondary: #6b7280;
+ 
+  /* Acentos */
+  --color-accent-1: #cbe81a;
+  --color-accent-2: #7758ff;
+ 
+  /* Colores de estado */
+  --color-success: #22c55e;
+  --color-warning: #fbbf24;
+  --color-error: #ef4444;
+ 
+  /* Elementos estructurales */
+  --color-border: #e5e7eb;
+  --color-hover: #b5cf15;
+  --color-btn-secondary: #f3f4f6;
+  --color-shadow: rgba(0, 0, 0, 0.05);
+ 
+  /* Gradientes */
+  --gradient-accent: linear-gradient(135deg, #cbe81a, #b5cf15);
+ 
+  /* Tipografía */
+  --font-sans: "Poppins", "Inter", system-ui, sans-serif;
+  --font-heading: "Poppins", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  /* Variables para scrollbar */
+  --scrollbar-width: 6px;
+  --scrollbar-track: #f1f1f1;
+  --scrollbar-thumb: #c5c5c5;
+  --scrollbar-thumb-hover: #a0a0a0;
+}
+
+/* Base de Tailwind */
+@layer base {
+  html {
+    font-family: var(--font-body);
+  }
+ 
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+/* Estilos globales para scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Scrollbar vertical */
+::-webkit-scrollbar {
+  width: var(--scrollbar-width) !important;
+}
+
+/* Scrollbar horizontal */
+::-webkit-scrollbar:horizontal {
+  height: var(--scrollbar-width) !important;
+}
+
+/* Track (fondo del scrollbar) */
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track) !important;
+  border-radius: 10px !important;
+}
+
+/* Handle (la barra deslizante) */
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb) !important;
+  border-radius: 10px !important;
+  transition: background 0.2s ease !important;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover) !important;
+}
+
+/* Esquinas del scrollbar */
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track) !important;
+}
+
+/* Utilidades scrollbar */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px !important;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar:horizontal {
+    height: 4px !important;
+  }
+  
+  .dark-scrollbar::-webkit-scrollbar-track {
+    background: #2d3748 !important;
+  }
+  
+  .dark-scrollbar::-webkit-scrollbar-thumb {
+    background: #4a5568 !important;
+  }
+  
+  .dark-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #718096 !important;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none !important;
+  }
+}

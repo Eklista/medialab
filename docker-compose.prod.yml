@@ -58,6 +58,20 @@ services:
     networks:
       - medialab-network
 
+  portal-frontend:
+    build:
+      context: ./portal-frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api/v1
+    restart: always
+    environment:
+      - TZ=America/Guatemala
+    depends_on:
+      - backend
+    networks:
+      - medialab-network
+
   nginx:
     build:
       context: ./nginx
