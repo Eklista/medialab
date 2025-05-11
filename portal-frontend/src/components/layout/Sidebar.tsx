@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   HomeIcon, 
   ClipboardDocumentListIcon, 
@@ -9,6 +10,8 @@ import {
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
+  const { state, logout } = useAuth();
+  const navigate = useNavigate();
   
   const navigation = [
     { name: 'Inicio', href: '/', icon: HomeIcon },
@@ -16,6 +19,11 @@ const Sidebar: React.FC = () => {
     { name: 'Mis Proyectos', href: '/projects', icon: FolderIcon },
     { name: 'Mi Perfil', href: '/profile', icon: UserIcon },
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
   
   return (
     <div className="h-full flex flex-col bg-gray-800">
@@ -52,12 +60,19 @@ const Sidebar: React.FC = () => {
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <span className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-gray-700">
-              <span className="text-sm font-medium text-white">UC</span>
+              <span className="text-sm font-medium text-white">
+                {state.user?.name?.charAt(0) || 'U'}
+              </span>
             </span>
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-white">Usuario Colaborador</p>
-            <p className="text-xs font-medium text-gray-400">Ver perfil</p>
+          <div className="ml-3 flex-1">
+            <p className="text-sm font-medium text-white">{state.user?.name || 'Usuario'}</p>
+            <button 
+              onClick={handleLogout}
+              className="text-xs font-medium text-gray-400 hover:text-white cursor-pointer"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>
       </div>
