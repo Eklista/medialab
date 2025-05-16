@@ -8,7 +8,7 @@ const ProtectedRoute: React.FC = () => {
 
   if (!state.isAuthenticated) {
     // Redirigir a la página de login, pero guardar la ubicación actual
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/portal/login" state={{ from: location }} replace />;
   }
 
   // Si el usuario está autenticado, renderizar los hijos (rutas anidadas)

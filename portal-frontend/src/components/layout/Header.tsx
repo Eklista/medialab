@@ -8,7 +8,7 @@ const Header: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/portal/login'); // Cambiado de /login a /portal/login
   };
 
   return (
@@ -16,7 +16,7 @@ const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 flex items-center">
+            <Link to="/portal" className="flex-shrink-0 flex items-center"> {/* Cambiado de / a /portal */}
               <span className="text-xl font-bold text-gray-900">Portal MediaLab</span>
             </Link>
           </div>

@@ -15,7 +15,7 @@ const LoginPage: React.FC = () => {
   // Redireccionar si ya está autenticado
   useEffect(() => {
     if (state.isAuthenticated) {
-      navigate('/dashboard');
+      navigate('/portal'); // Cambiado de /dashboard a /portal
     }
   }, [state.isAuthenticated, navigate]);
 
@@ -35,7 +35,7 @@ const LoginPage: React.FC = () => {
       await login(email, password);
       
       // Si llega aquí, la autenticación fue exitosa
-      navigate('/dashboard');
+      navigate('/portal'); // Cambiado de /dashboard a /portal
     } catch (err) {
       setError('Credenciales incorrectas. Por favor intenta de nuevo.');
       console.error('Error de login:', err);

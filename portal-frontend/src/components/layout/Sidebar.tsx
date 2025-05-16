@@ -14,15 +14,15 @@ const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   
   const navigation = [
-    { name: 'Inicio', href: '/', icon: HomeIcon },
-    { name: 'Mis Solicitudes', href: '/requests', icon: ClipboardDocumentListIcon },
-    { name: 'Mis Proyectos', href: '/projects', icon: FolderIcon },
-    { name: 'Mi Perfil', href: '/profile', icon: UserIcon },
+    { name: 'Inicio', href: '/portal', icon: HomeIcon }, // Cambiado de / a /portal
+    { name: 'Mis Solicitudes', href: '/portal/requests', icon: ClipboardDocumentListIcon }, // Cambiado de /requests a /portal/requests
+    { name: 'Mis Proyectos', href: '/portal/projects', icon: FolderIcon }, // Cambiado de /projects a /portal/projects
+    { name: 'Mi Perfil', href: '/portal/profile', icon: UserIcon }, // Cambiado de /profile a /portal/profile
   ];
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/portal/login'); // Cambiado de /login a /portal/login
   };
   
   return (
