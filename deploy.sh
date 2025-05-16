@@ -30,13 +30,13 @@ else
     USE_SSL=false
 fi
 
+# Detener servicios existentes antes de construir (para liberar recursos)
+echo -e "${YELLOW}Deteniendo servicios existentes si están en ejecución...${NC}"
+docker compose -f docker-compose.prod.yml down || true
+
 # Construir imágenes
 echo -e "${YELLOW}Construyendo imágenes Docker...${NC}"
 docker compose -f docker-compose.prod.yml build
-
-# Detener servicios existentes
-echo -e "${YELLOW}Deteniendo servicios existentes...${NC}"
-docker compose -f docker-compose.prod.yml down
 
 # Levantar servicios
 echo -e "${YELLOW}Levantando servicios...${NC}"
@@ -50,6 +50,28 @@ sleep 20
 echo -e "${YELLOW}Verificando estado de los servicios...${NC}"
 docker compose -f docker-compose.prod.yml ps
 
+# Verificar si el backend está respondiendo
+echo -e "${YELLOW}Verificando que el backend esté respondiendo...${NC}"
+BACKEND_READY=false
+RETRY_COUNT=0
+MAX_RETRIES=10
+
+while [ $BACKEND_READY = false ] && [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -s "http://localhost:8000/api/v1/health" | grep -q "healthy"; then
+        BACKEND_READY=true
+        echo -e "${GREEN}Backend está respondiendo correctamente.${NC}"
+    else
+        RETRY_COUNT=$((RETRY_COUNT+1))
+        echo -e "${YELLOW}Esperando a que el backend esté listo (intento $RETRY_COUNT de $MAX_RETRIES)...${NC}"
+        sleep 10
+    fi
+done
+
+if [ $BACKEND_READY = false ]; then
+    echo -e "${RED}¡Advertencia! El backend no parece estar respondiendo.${NC}"
+    echo -e "${YELLOW}El despliegue continuará, pero podría haber problemas.${NC}"
+fi
+
 # Si tenemos certificados, copiarlos al contenedor de Nginx
 if [ "$USE_SSL" = true ]; then
     echo -e "${YELLOW}Copiando certificados SSL al contenedor de Nginx...${NC}"
@@ -58,6 +80,9 @@ if [ "$USE_SSL" = true ]; then
     NGINX_CONTAINER=$(docker compose -f docker-compose.prod.yml ps -q nginx)
     
     if [ -n "$NGINX_CONTAINER" ]; then
+        # Crear directorio SSL si no existe en el contenedor
+        docker exec $NGINX_CONTAINER mkdir -p /etc/nginx/ssl
+        
         # Copiar certificados
         docker cp nginx/ssl/fullchain.pem $NGINX_CONTAINER:/etc/nginx/ssl/
         docker cp nginx/ssl/privkey.pem $NGINX_CONTAINER:/etc/nginx/ssl/
@@ -80,5 +105,12 @@ echo -e "${YELLOW}MediaLab debería estar accesible en http://medialab.eklista.c
 if [ "$USE_SSL" = true ]; then
     echo -e "${YELLOW}También disponible en https://medialab.eklista.com${NC}"
 fi
+
+echo -e "${YELLOW}Frontend principal:${NC}"
+echo -e "${YELLOW}- Panel admin: http://medialab.eklista.com/ml-admin/login${NC}"
+echo -e "${YELLOW}- Dashboard: http://medialab.eklista.com/dashboard${NC}"
+
+echo -e "${YELLOW}Portal externo:${NC}"
+echo -e "${YELLOW}- Portal: http://medialab.eklista.com/portal${NC}"
 
 echo -e "${YELLOW}Para ver logs: docker compose -f docker-compose.prod.yml logs -f${NC}"

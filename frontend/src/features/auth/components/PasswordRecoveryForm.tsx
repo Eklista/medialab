@@ -237,7 +237,7 @@ const PasswordRecoveryForm: React.FC = () => {
           
           // Redirigir después de unos segundos
           setTimeout(() => {
-            navigate('/login');
+            navigate('/ml-admin/login');
           }, 5000);
           break;
       }
@@ -335,7 +335,7 @@ const PasswordRecoveryForm: React.FC = () => {
                 Enviar código de verificación
               </Button>
               
-              <Link to="/login" className="text-center py-2 text-blue-600 hover:underline sm:self-center">
+              <Link to="/ml-admin/login" className="text-center py-2 text-blue-600 hover:underline sm:self-center">
                 ← Volver al inicio
               </Link>
             </div>
@@ -595,7 +595,7 @@ const PasswordRecoveryForm: React.FC = () => {
             
             <div className="mt-4">
               <Link 
-                to="/login" 
+                to="/ml-admin/login" 
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Ir a iniciar sesión

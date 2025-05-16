@@ -46,6 +46,7 @@ read build_dev
 if [[ "$build_dev" == "s" || "$build_dev" == "S" ]]; then
     # Construir imágenes de desarrollo
     build_and_tag "docker-compose.yml" "frontend" "frontend" "VITE_API_URL=http://localhost:8000/api/v1"
+    build_and_tag "docker-compose.yml" "portal-frontend" "portal-frontend" "VITE_API_URL=http://localhost:8000/api/v1"
     build_and_tag "docker-compose.yml" "backend" "backend" ""
     
     echo -e "${GREEN}Imágenes de desarrollo construidas correctamente${NC}"
@@ -57,6 +58,7 @@ read build_prod
 if [[ "$build_prod" == "s" || "$build_prod" == "S" ]]; then
     # Construir imágenes de producción
     build_and_tag "docker-compose.prod.yml" "frontend" "frontend-prod" "VITE_API_URL=/api/v1"
+    build_and_tag "docker-compose.prod.yml" "portal-frontend" "portal-frontend-prod" "VITE_API_URL=/api/v1"
     build_and_tag "docker-compose.prod.yml" "backend" "backend-prod" ""
     build_and_tag "docker-compose.prod.yml" "nginx" "nginx-prod" ""
     
@@ -74,12 +76,14 @@ if [[ "$do_push" == "s" || "$do_push" == "S" ]]; then
     # Push de imágenes de desarrollo si se construyeron
     if [[ "$build_dev" == "s" || "$build_dev" == "S" ]]; then
         push_image "frontend"
+        push_image "portal-frontend"
         push_image "backend"
     fi
     
     # Push de imágenes de producción si se construyeron
     if [[ "$build_prod" == "s" || "$build_prod" == "S" ]]; then
         push_image "frontend-prod"
+        push_image "portal-frontend-prod"
         push_image "backend-prod"
         push_image "nginx-prod"
     fi

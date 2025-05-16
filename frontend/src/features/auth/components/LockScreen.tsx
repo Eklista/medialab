@@ -77,7 +77,7 @@ const LockScreen: React.FC = () => {
           <p className="mb-4">No se ha podido recuperar la información del usuario.</p>
           <Button 
             variant="primary"
-            onClick={() => window.location.href = '/login'}
+            onClick={() => window.location.href = '/ml-admin/login'}
           >
             Volver a iniciar sesión
           </Button>
@@ -182,7 +182,7 @@ const LockScreen: React.FC = () => {
                   fullWidth
                   onClick={() => {
                     // Cerrar sesión completamente si el usuario lo desea
-                    window.location.href = '/login';
+                    window.location.href = '/ml-admin/login';
                   }}
                 >
                   Cerrar sesión

@@ -69,7 +69,7 @@ type AuthAction =
 
 // Función para verificar si una ruta es pública
 const isPublicRoute = (path: string) => {
-  const publicRoutes = ['/', '/login', '/password-recovery', '/request'];
+  const publicRoutes = ['/', '/ml-admin/login', '/password-recovery', '/request'];
   const isPublic = publicRoutes.some(route => 
     path === route || path.startsWith(`${route}/`));
   console.log("Verificando si es ruta pública:", path, "Resultado:", isPublic);

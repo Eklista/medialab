@@ -120,6 +120,8 @@ class AuthService {
   async logout(): Promise<void> {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    
+    window.location.href = '/ml-admin/login';
   }
   
   async getCurrentUser(): Promise<User> {
