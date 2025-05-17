@@ -1,6 +1,4 @@
-# docker-compose.prod.yml
 version: '3.8'
-
 services:
   db:
     image: mysql:8.0
@@ -10,88 +8,68 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      TZ: America/Mexico_City
     volumes:
       - db_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone='-06:00'
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
     networks:
       - medialab-network
-
+      
   backend:
-    build: 
-      context: ./backend
-      dockerfile: Dockerfile
+    image: eklista/medialab:backend-prod
     restart: always
     volumes:
       - backend_data:/app/data
-      - ./.env:/app/.env
-    env_file:
-      - .env.prod
     environment:
       - DATABASE_URL=mysql+pymysql://${DB_USER}:${DB_PASSWORD}@db:3306/${DB_NAME}
       - ENVIRONMENT=production
-      - INIT_BASE_STRUCTURE=${INIT_BASE_STRUCTURE:-true}
-      - INIT_DEPARTMENT_DATA=${INIT_DEPARTMENT_DATA:-true}
+      - INIT_BASE_STRUCTURE=true
+      - INIT_DEPARTMENT_DATA=true
       - INTERACTIVE_ADMIN=false
-      - TZ=America/Mexico_City
+      # Variables para email
+      - EMAIL_ENABLED=true
+      - SMTP_HOST=smtp.hostinger.com
+      - SMTP_PORT=465
+      - SMTP_TLS=true
+      - SMTP_USER=medialab@byblnk.com
+      - SMTP_PASSWORD=V0rt3x2025*
+      - EMAILS_FROM_EMAIL=medialab@byblnk.com
+      - EMAILS_FROM_NAME=MediaLab Sistema
     depends_on:
       db:
         condition: service_healthy
     networks:
       - medialab-network
-
+      
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=/api/v1
+    image: eklista/medialab:frontend-prod
     restart: always
-    environment:
-      - TZ=America/Guatemala
     depends_on:
       - backend
     networks:
       - medialab-network
-
-  portal-frontend:
-    build:
-      context: ./portal-frontend
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=/api/v1
-    restart: always
-    environment:
-      - TZ=America/Mexico_City
-    depends_on:
-      - backend
-    networks:
-      - medialab-network
-
+      
   nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
+    image: eklista/medialab:nginx-prod
     restart: always
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      - TZ=America/Mexico_City
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl
     depends_on:
       - frontend
       - backend
     networks:
       - medialab-network
-
+      
 networks:
   medialab-network:
     driver: bridge
-
+    
 volumes:
   db_data:
   backend_data:

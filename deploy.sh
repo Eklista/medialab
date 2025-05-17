@@ -1,5 +1,5 @@
 #!/bin/bash
-# deploy.sh - Script mejorado para despliegue de MediaLab
+# deploy.sh - Script mejorado para despliegue de MediaLab (versión unificada)
 
 set -e
 
@@ -106,11 +106,18 @@ if [ "$USE_SSL" = true ]; then
     echo -e "${YELLOW}También disponible en https://medialab.eklista.com${NC}"
 fi
 
-echo -e "${YELLOW}Frontend principal:${NC}"
+echo -e "${YELLOW}Aplicación:${NC}"
 echo -e "${YELLOW}- Panel admin: http://medialab.eklista.com/ml-admin/login${NC}"
 echo -e "${YELLOW}- Dashboard: http://medialab.eklista.com/dashboard${NC}"
-
-echo -e "${YELLOW}Portal externo:${NC}"
 echo -e "${YELLOW}- Portal: http://medialab.eklista.com/portal${NC}"
 
 echo -e "${YELLOW}Para ver logs: docker compose -f docker-compose.prod.yml logs -f${NC}"
+
+# Limpiar imágenes antiguas (opcional)
+echo -e "${YELLOW}¿Desea limpiar imágenes antiguas no utilizadas? (s/n)${NC}"
+read clean_images
+if [[ "$clean_images" == "s" || "$clean_images" == "S" ]]; then
+    echo -e "${YELLOW}Limpiando imágenes antiguas...${NC}"
+    docker image prune -f
+    echo -e "${GREEN}Limpieza completada.${NC}"
+fi
