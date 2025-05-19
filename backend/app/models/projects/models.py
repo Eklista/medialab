@@ -37,7 +37,7 @@ class Project(WorkItem):
     
     # Relación con solicitud (si proviene de una)
     request_id = Column(Integer, ForeignKey('requests.id'), nullable=True)
-    originating_request = relationship("Request", foreign_keys=[request_id], back_populates="project")
+    originating_request = relationship("Request", back_populates="project", foreign_keys=[request_id])
     
     # Configuración del mapper
     __mapper_args__ = {

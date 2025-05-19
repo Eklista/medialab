@@ -1,6 +1,6 @@
 # app/models/requests/models.py
 from sqlalchemy import (Column, String, Integer, Text, Boolean, DateTime, ForeignKey, 
-                        Index, JSON, Enum, func)
+                        Index, JSON, Enum, func, Date)
 from sqlalchemy.orm import relationship, validates
 from datetime import datetime, date, time
 
@@ -49,9 +49,8 @@ class Request(WorkItem):
     services = relationship("Service", secondary="request_services", viewonly=True)
     sub_services = relationship("SubService", secondary="request_sub_services", viewonly=True)
     
-    # Relación con proyecto (cuando se convierte)
-    converted_to_project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
-    project = relationship("Project", foreign_keys=[converted_to_project_id], back_populates="originating_request")
+    # Relación con proyecto (cuando se convierte) - sin referencia circular
+    project = relationship("Project", back_populates="originating_request", uselist=False)
     
     # Configuración del mapper
     __mapper_args__ = {
@@ -259,7 +258,7 @@ class Request(WorkItem):
             status_id=status_id or self.status_id,
             client_id=self.requester_id,
             department_id=self.department_id,
-            request_id=self.id
+            request_id=self.id  # Establecer la referencia al request
         )
         
         session.add(project)
@@ -267,7 +266,6 @@ class Request(WorkItem):
         
         # Actualizar esta solicitud
         self.is_processed = True
-        self.converted_to_project_id = project.id
         self.processing_notes = f"Convertido a proyecto en {datetime.utcnow()}"
         
         return project

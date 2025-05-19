@@ -1,7 +1,9 @@
 # app/models/__init__.py
 
-# Importamos modelos base y asociaciones
+# Importar la clase Base
 from app.models.base import Base
+
+# Importamos modelos base y asociaciones
 from app.models.associations import user_roles, role_permissions
 
 # Importamos módulos auth

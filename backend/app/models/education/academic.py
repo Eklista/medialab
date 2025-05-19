@@ -78,7 +78,7 @@ class Course(Base):
     
     # Relación con solicitud de curso (si proviene de una)
     course_request_id = Column(Integer, ForeignKey('course_requests.id'), nullable=True)
-    course_request = relationship("CourseRequest", back_populates="academic_course")
+    course_request = relationship("CourseRequest", back_populates="academic_courses")
     
     # Relaciones
     classes = relationship("CourseClass", back_populates="course")

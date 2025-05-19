@@ -8,25 +8,59 @@ from alembic import context
 from app.config.settings import DATABASE_URL
 from app.models.base import Base
 
-# Importar todos los modelos aquí para que Alembic los reconozca
-from app.models.auth.users import User
+"""""
+
+Importar todos los modelos aquí para que Alembic los reconozca
+
+"""""
+
+# Modelos base y asociaciones
+from app.models.base import Base
 from app.models.associations import user_roles, role_permissions
+
+# Modelos de autenticación
+from app.models.auth.users import User
 from app.models.auth.roles import Role
 from app.models.auth.permissions import Permission
+
+# Modelos de organización
 from app.models.organization.areas import Area
-from app.models.organization.services import Service, SubService
 from app.models.organization.departments import Department, DepartmentType
-from app.models.organization.service_templates import ServiceTemplate, template_services
+from app.models.organization.services import Service, SubService
+from app.models.organization.service_templates import ServiceTemplate, template_services, template_subservices
+
+# Modelos comunes
 from app.models.common.workflow import Status, WorkItem, StatusHistory
 from app.models.common.metadata import Priority, Tag, TagAssignment, ActivityType
 from app.models.common.platforms import Platform
+from app.models.common.attachments import Attachment
+from app.models.common.email_config import SmtpConfiguration, EmailTemplate
+
+# Modelos de comunicación
 from app.models.communications.links import Link
 from app.models.communications.comments import Comment
+
+# Modelos de educación
 from app.models.education.academic import Faculty, Career, Course, CourseClass
+from app.models.education.professors import Professor
+
+# Modelos de multimedia
 from app.models.multimedia.podcasts import PodcastSeries, PodcastEpisode
-from app.models.projects.models import Request, Project, Task
-from app.models.settings.email_config import SmtpConfiguration, EmailTemplate
+
+# Modelos de proyectos
+from app.models.projects.models import Project, Task
+
+# Modelos de seguridad
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
+from app.models.security.audit_log import AuditLog
+
+# Modelos de solicitudes (requests)
+from app.models.requests.models import Request
+from app.models.requests.associations import request_services, request_sub_services
+from app.models.requests.single_events import SingleEvent
+from app.models.requests.recurrent_events import RecurrentEvent, EventDate
+from app.models.requests.podcast_requests import PodcastRequest, PodcastModerator, PodcastEpisode as PodcastRequestEpisode, PodcastGuest
+from app.models.requests.course_requests import CourseRequest, CourseItem, CourseRecordingDate
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -66,7 +100,9 @@ def run_migrations_online():
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True
         )
 
         with context.begin_transaction():

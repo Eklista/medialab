@@ -29,14 +29,12 @@ class PodcastRequest(Base):
     moderators = relationship("PodcastModerator", back_populates="podcast", cascade="all, delete-orphan")
     episodes = relationship("PodcastEpisode", back_populates="podcast", cascade="all, delete-orphan")
     
-    # Relación opcional con una serie de podcast (si se convierte)
-    podcast_series_id = Column(Integer, ForeignKey('podcast_series.id'), nullable=True)
-    podcast_series = relationship("PodcastSeries", back_populates="podcast_request")
+    # Relación con una serie de podcast (si se convierte) - sin referencia circular
+    podcast_series = relationship("PodcastSeries", back_populates="podcast_request", uselist=False)
     
     # Índices
     __table_args__ = (
         Index('idx_podcast_request_request', 'request_id'),
-        Index('idx_podcast_request_series', 'podcast_series_id'),
     )
     
     @property

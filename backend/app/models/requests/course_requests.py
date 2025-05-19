@@ -30,15 +30,13 @@ class CourseRequest(Base):
     faculty = relationship("Department")
     courses = relationship("CourseItem", back_populates="course_request", cascade="all, delete-orphan")
     
-    # Relación con el curso académico (si se convierte)
-    academic_course_id = Column(Integer, ForeignKey('courses.id'), nullable=True)
-    academic_course = relationship("Course", back_populates="course_request")
+    # Relación con el curso académico (si se convierte) - sin referencia circular
+    academic_courses = relationship("Course", back_populates="course_request")
     
     # Índices
     __table_args__ = (
         Index('idx_course_request_request', 'request_id'),
         Index('idx_course_request_faculty', 'faculty_id'),
-        Index('idx_course_request_academic', 'academic_course_id'),
     )
     
     @property
