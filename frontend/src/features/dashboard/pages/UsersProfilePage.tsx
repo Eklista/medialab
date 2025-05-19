@@ -5,13 +5,14 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardCard from '../components/ui/DashboardCard';
 import DashboardButton from '../components/ui/DashboardButton';
 import DashboardModal from '../components/ui/DashboardModal';
-import { CalendarDaysIcon, BriefcaseIcon, EnvelopeIcon, PhoneIcon, UserCircleIcon, CakeIcon, ArrowLeftIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, BriefcaseIcon, EnvelopeIcon, PhoneIcon, CakeIcon, ArrowLeftIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { userService } from '../../../services';
 import { UserUpdateRequest } from '../../../services/users.service';
 import { getBaseUrl } from '../../../services/api';
 import fileUploadService from '../../../services/fileUpload.service';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
+import { formatFullDate } from '../../../utils/dateUtils';
 
 // Importar imágenes
 import heroBanner from '../../../assets/images/medialab-hero.jpg';
@@ -33,10 +34,6 @@ interface UserProfile {
   birthday?: string;
   phone?: string;
   location?: string;
-  recentActivity?: {
-    date: string;
-    action: string;
-  }[];
 }
 
 const UserProfilePage: React.FC = () => {
@@ -55,7 +52,6 @@ const UserProfilePage: React.FC = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [selectedBannerImage, setSelectedBannerImage] = useState<File | null>(null);
   const [previewProfileImage, setPreviewProfileImage] = useState<string | null>(null);
@@ -65,6 +61,24 @@ const UserProfilePage: React.FC = () => {
 
   // Verificar si el usuario actual es el dueño del perfil
   const isCurrentUser = state.user && userId === state.user.id?.toString();
+  
+  // Calcular el porcentaje de completitud del perfil
+  const calculateProfileCompleteness = (user: UserProfile | null): number => {
+    if (!user) return 0;
+    
+    let totalFields = 4; // Campos básicos que siempre están (nombre, email, rol, área)
+    let completedFields = 4; // Estos campos son obligatorios
+    
+    // Verificar campos opcionales
+    if (user.profileImage) completedFields += 1;
+    if (user.phone) completedFields += 1;
+    if (user.birthday) completedFields += 1;
+    if (user.bannerImage) completedFields += 1;
+    
+    totalFields += 4; // Añadir los campos opcionales al total
+    
+    return Math.round((completedFields / totalFields) * 100);
+  };
   
   // Cargar datos del usuario desde la API
   useEffect(() => {
@@ -80,11 +94,6 @@ const UserProfilePage: React.FC = () => {
       try {
         // Obtener el usuario desde la API
         const userData = await userService.getUserById(parseInt(userId));
-        //console.log('Datos recibidos de getUserById:', userData);
-        
-        // Verificar si tenemos los campos phone y birth_date
-        //console.log('Phone:', userData.phone);
-        //console.log('Birth date:', userData.birth_date);
         
         // Determinar rol y área del usuario
         let roleName = 'Sin rol asignado';
@@ -112,24 +121,11 @@ const UserProfilePage: React.FC = () => {
           lastLogin: userData.lastLogin || userData.last_login || new Date().toISOString(),
           profileImage: userData.profileImage || userData.profile_image,
           bannerImage: userData.bannerImage || userData.banner_image,
-          // Aquí está el cambio importante: usar los valores recibidos
           phone: userData.phone || '',
           birthday: userData.birth_date || undefined,
           location: '',
-          recentActivity: [
-            { date: new Date().toISOString(), action: 'Inició sesión en el sistema' },
-            { 
-              date: new Date(Date.now() - 86400000).toISOString(), 
-              action: 'Actualizó su perfil' 
-            },
-            { 
-              date: new Date(Date.now() - 172800000).toISOString(), 
-              action: 'Creó una nueva solicitud' 
-            }
-          ]
         };
         
-        //console.log('UserProfile creado:', userProfile);
         setUser(userProfile);
         
         // Inicializar los datos del formulario
@@ -139,9 +135,7 @@ const UserProfilePage: React.FC = () => {
           profileImage: userData.profileImage || userData.profile_image || '',
           bannerImage: userData.bannerImage || userData.banner_image || ''
         });
-        //console.log('Formulario inicializado:', formData);
       } catch (err) {
-        //console.error('Error al obtener datos del usuario:', err);
         setError(err instanceof Error ? err.message : 'Error al cargar el perfil del usuario');
       } finally {
         setIsLoading(false);
@@ -161,13 +155,12 @@ const UserProfilePage: React.FC = () => {
   };
   
   // Actualizar Usuario
-
   const handleUpdateProfile = async () => {
     if (!user) return;
     
     try {
       setIsSubmitting(true);
-      setModalError(null); // Asumiendo que has añadido estado para errores del modal
+      setModalError(null);
       
       // Preparar los datos para actualizar
       const updateData: Partial<UserUpdateRequest> = {};
@@ -196,7 +189,6 @@ const UserProfilePage: React.FC = () => {
           return;
         }
       }
-      
       if (selectedBannerImage) {
         try {
           const bannerImageUrl = await fileUploadService.uploadImage(selectedBannerImage, 'banner');
@@ -316,104 +308,26 @@ const UserProfilePage: React.FC = () => {
       }
     }
   };
-
-  // Manejar la activación/desactivación de un usuario
-  const handleToggleUserStatus = async () => {
-    if (!user) return;
-    
-    try {
-      setIsLoading(true);
-      
-      // Llamar a la API para actualizar el estado del usuario
-      await userService.updateUser(parseInt(user.id), {
-        isActive: !user.isActive
-      });
-      
-      // Actualizar el estado local
-      setUser({
-        ...user,
-        isActive: !user.isActive
-      });
-      
-      // Mostrar notificación de éxito (podría implementarse con un sistema de notificaciones)
-      alert(`Usuario ${!user.isActive ? 'activado' : 'desactivado'} exitosamente`);
-    } catch (err) {
-      console.error('Error al cambiar estado del usuario:', err);
-      setError(err instanceof Error ? err.message : 'Error al actualizar el estado del usuario');
-    } finally {
-      setIsLoading(false);
+  
+  // Generar iniciales para el avatar si no hay imagen de perfil
+  const getInitials = (name: string): string => {
+    if (!name) return 'U';
+    const nameParts = name.split(' ');
+    if (nameParts.length >= 2) {
+      return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
     }
+    return name.charAt(0).toUpperCase();
   };
   
-  // Manejar el restablecimiento de contraseña
-  const handleResetPassword = async () => {
-    if (!user) return;
+  // Generar color de fondo para el avatar basado en las iniciales
+  const getInitialBackgroundColor = (initials: string): string => {
+    const colors = [
+      'bg-gray-800', 'bg-blue-800', 'bg-green-800', 'bg-red-800', 
+      'bg-purple-800', 'bg-pink-800', 'bg-indigo-800', 'bg-yellow-800'
+    ];
     
-    // Confirmar acción con el usuario
-    if (!confirm(`¿Estás seguro de que deseas restablecer la contraseña de ${user.name}?`)) {
-      return;
-    }
-    
-    try {
-      // En un sistema real, aquí se llamaría a la API para enviar el correo de restablecimiento
-      // Por ahora simulamos con un mensaje de éxito
-      alert(`Se ha enviado un correo a ${user.email} con instrucciones para restablecer la contraseña.`);
-    } catch (err) {
-      console.error('Error al restablecer contraseña:', err);
-      setError(err instanceof Error ? err.message : 'Error al restablecer la contraseña');
-    }
-  };
-  
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    
-    try {
-      const dateParts = dateString.split('-');
-      if (dateParts.length === 3) {
-        const date = new Date(
-          parseInt(dateParts[0]), 
-          parseInt(dateParts[1]) - 1,
-          parseInt(dateParts[2])
-        );
-        
-        return date.toLocaleDateString('es-GT', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-      }
-      
-      const date = new Date(dateString);
-      const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
-      
-      return guatemalaDate.toLocaleDateString('es-GT', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-  
-  const formatDateTime = (dateString: string) => {
-    if (!dateString) return '-';
-    
-    try {
-      const date = new Date(dateString);
-      // Ajuste manual para Guatemala (UTC-6)
-      const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
-      
-      return guatemalaDate.toLocaleDateString('es-GT', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (e) {
-      return dateString;
-    }
+    const charCode = initials.charCodeAt(0) || 65;
+    return colors[charCode % colors.length];
   };
   
   if (isLoading) {
@@ -456,7 +370,7 @@ const UserProfilePage: React.FC = () => {
     );
   }
   
-  return (
+    return (
     <DashboardLayout>
       <div className="mb-4 flex justify-between items-center">
         <DashboardButton
@@ -467,7 +381,7 @@ const UserProfilePage: React.FC = () => {
           Volver a la lista
         </DashboardButton>
         
-        {/* Botón de editar perfil - solo visible para el propio usuario */}
+        {/* Botón de completar perfil - visible para el propio usuario */}
         {isCurrentUser && (
           <DashboardButton
             onClick={() => setIsEditModalOpen(true)}
@@ -486,24 +400,28 @@ const UserProfilePage: React.FC = () => {
             alt="Perfil banner"
             className="w-full h-full object-cover"
             onError={(e) => {
-              console.error('Error al cargar el banner:', e);
               (e.target as HTMLImageElement).src = heroBanner;
             }}
           />
         </div>
         
         <div className="absolute bottom-0 left-8 transform translate-y-1/2 bg-white p-1 rounded-full shadow-lg">
-          <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
-            <img 
-              src={getFullImageUrl(user.profileImage)}
-              alt={user.name}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                console.error('Error al cargar la imagen de perfil:', e);
-                (e.target as HTMLImageElement).src = defaultUserImage;
-              }}
-            />
-          </div>
+          {user.profileImage ? (
+            <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
+              <img 
+                src={getFullImageUrl(user.profileImage)}
+                alt={user.name}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = defaultUserImage;
+                }}
+              />
+            </div>
+          ) : (
+            <div className={`h-32 w-32 rounded-full overflow-hidden border-4 border-white flex items-center justify-center text-white font-bold text-3xl ${getInitialBackgroundColor(getInitials(user.name))}`}>
+              {getInitials(user.name)}
+            </div>
+          )}
         </div>
       </div>
       
@@ -543,7 +461,7 @@ const UserProfilePage: React.FC = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-500">Fecha de ingreso</p>
-                    <p className="text-base text-gray-900">{formatDate(user.joinDate)}</p>
+                    <p className="text-base text-gray-900">{formatFullDate(user.joinDate)}</p>
                   </div>
                 </div>
                 
@@ -564,131 +482,142 @@ const UserProfilePage: React.FC = () => {
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-500">Teléfono</p>
                     <p className="text-base text-gray-900">
-                      {user.phone ? user.phone : '-'}
+                      {user.phone ? user.phone : 'No registrado'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <CakeIcon className="h-5 w-5 text-gray-400" />
+                {user.birthday && (
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CakeIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-gray-500">Fecha de nacimiento</p>
+                      <p className="text-base text-gray-900">
+                        {user.birthday ? formatFullDate(user.birthday) : 'No registrada'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Fecha de nacimiento</p>
-                    <p className="text-base text-gray-900">
-                      {user.birthday ? formatDate(user.birthday) : '-'}
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
-            </DashboardCard>
-            
-            {/* Actividad reciente */}
-            <DashboardCard
-              title="Actividad reciente"
-              subtitle="Últimas acciones realizadas por el usuario"
-            >
-              {user.recentActivity && user.recentActivity.length > 0 ? (
-                <div className="flow-root">
-                  <ul className="-mb-8">
-                    {user.recentActivity.map((activity, index) => (
-                      <li key={index}>
-                        <div className="relative pb-8">
-                          {index !== user.recentActivity!.length - 1 && (
-                            <span
-                              className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                              aria-hidden="true"
-                            />
-                          )}
-                          <div className="relative flex space-x-3">
-                            <div>
-                              <span className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                <UserCircleIcon className="h-5 w-5 text-gray-500" />
-                              </span>
-                            </div>
-                            <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                              <div>
-                                <p className="text-sm text-gray-900">
-                                  {activity.action}
-                                </p>
-                              </div>
-                              <div className="text-sm text-gray-500 whitespace-nowrap">
-                                {formatDateTime(activity.date)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-4">No hay actividad reciente</p>
-              )}
             </DashboardCard>
           </div>
           
-          {/* Información adicional */}
+          {/* Columna derecha - Con contenido alternativo si no es el usuario actual */}
           <div className="lg:col-span-1 space-y-6">
-            <DashboardCard
-              title="Información de usuario"
-              subtitle="Detalles del perfil"
-            >
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Último acceso</p>
-                  <p className="text-base text-gray-900">{formatDateTime(user.lastLogin)}</p>
+            {isCurrentUser ? (
+              /* Estado de completitud - Solo visible para el propio usuario */
+              <DashboardCard
+                title="Estado del perfil"
+                subtitle="Información de completitud"
+              >
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium text-gray-700">Completitud del perfil</span>
+                      <span className="text-sm font-medium text-black">{calculateProfileCompleteness(user)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-black h-2 rounded-full" style={{ width: `${calculateProfileCompleteness(user)}%` }}></div>
+                    </div>
+                  </div>
+                  
+                  <ul className="space-y-3 mt-4">
+                    <li className="flex items-center text-sm">
+                      <div className="flex-shrink-0 h-5 w-5 text-green-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="ml-2 text-gray-700">Información básica</span>
+                    </li>
+                    <li className="flex items-center text-sm">
+                      <div className={`flex-shrink-0 h-5 w-5 ${user.profileImage ? 'text-green-500' : 'text-gray-400'}`}>
+                        {user.profileImage ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`ml-2 ${user.profileImage ? 'text-gray-700' : 'text-gray-400'}`}>Foto de perfil</span>
+                    </li>
+                    <li className="flex items-center text-sm">
+                      <div className={`flex-shrink-0 h-5 w-5 ${user.phone ? 'text-green-500' : 'text-gray-400'}`}>
+                        {user.phone ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`ml-2 ${user.phone ? 'text-gray-700' : 'text-gray-400'}`}>Teléfono</span>
+                    </li>
+                    <li className="flex items-center text-sm">
+                      <div className={`flex-shrink-0 h-5 w-5 ${user.bannerImage ? 'text-green-500' : 'text-gray-400'}`}>
+                        {user.bannerImage ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`ml-2 ${user.bannerImage ? 'text-gray-700' : 'text-gray-400'}`}>Imagen de banner</span>
+                    </li>
+                    <li className="flex items-center text-sm">
+                      <div className={`flex-shrink-0 h-5 w-5 ${user.birthday ? 'text-green-500' : 'text-gray-400'}`}>
+                        {user.birthday ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`ml-2 ${user.birthday ? 'text-gray-700' : 'text-gray-400'}`}>Fecha de nacimiento</span>
+                    </li>
+                  </ul>
+                  
+                  <div className="mt-6">
+                    <DashboardButton
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="w-full"
+                    >
+                      Completar perfil
+                    </DashboardButton>
+                  </div>
                 </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Rol</p>
-                  <p className="text-base text-gray-900">{user.role}</p>
+              </DashboardCard>
+            ) : (
+              /* Información alternativa para usuarios que no son el propietario del perfil */
+              <DashboardCard
+                title="Información del miembro"
+              >
+                <div className="p-4 bg-gray-50 rounded-lg mt-2">
+                  <p className="text-gray-600">
+                    {user.name} forma parte del equipo de <span className="font-medium text-black">{user.area}</span> desde el {formatFullDate(user.joinDate).split(',')[0]}.
+                  </p>
+                  
+                  <p className="text-gray-500 text-sm mt-4">
+                    {user.isActive 
+                      ? 'Actualmente se encuentra activo en la plataforma.' 
+                      : 'Actualmente no se encuentra activo en la plataforma.'}
+                  </p>
                 </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Estado</p>
-                  <p className="text-base text-gray-900">{user.isActive ? 'Activo' : 'Inactivo'}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-gray-500">ID de usuario</p>
-                  <p className="text-base text-gray-900">{user.id}</p>
-                </div>
-              </div>
-            </DashboardCard>
-            
-            <DashboardCard
-              title="Acciones"
-              subtitle="Acciones disponibles para este usuario"
-            >
-              <div className="space-y-3">
-                {isCurrentUser && (
-                  <DashboardButton
-                    variant="outline"
-                    fullWidth
-                    onClick={() => setIsEditModalOpen(true)}
-                  >
-                    Editar información
-                  </DashboardButton>
-                )}
-                
-                <DashboardButton
-                  variant="outline"
-                  fullWidth
-                  onClick={handleResetPassword}
-                >
-                  Restablecer contraseña
-                </DashboardButton>
-                
-                <DashboardButton
-                  variant={user.isActive ? 'danger' : 'primary'}
-                  fullWidth
-                  onClick={handleToggleUserStatus}
-                >
-                  {user.isActive ? 'Desactivar usuario' : 'Activar usuario'}
-                </DashboardButton>
-              </div>
-            </DashboardCard>
+              </DashboardCard>
+            )}
           </div>
         </div>
       </div>
@@ -699,7 +628,7 @@ const UserProfilePage: React.FC = () => {
         onClose={() => setIsEditModalOpen(false)}
         title="Actualizar información de perfil"
         size="md"
-        error={modalError} // Pasamos el error al modal
+        error={modalError}
       >
         <div className="space-y-4">
           {/* Foto de perfil */}
@@ -708,13 +637,19 @@ const UserProfilePage: React.FC = () => {
               Foto de perfil
             </label>
             <div className="flex items-center space-x-4">
-              <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
-                <img
-                  src={previewProfileImage || (user?.profileImage ? getFullImageUrl(user.profileImage) : defaultUserImage)}
-                  alt="Foto de perfil"
-                  className="h-full w-full object-cover"
-                />
-              </div>
+              {previewProfileImage || user?.profileImage ? (
+                <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
+                  <img
+                    src={previewProfileImage || (user?.profileImage ? getFullImageUrl(user.profileImage) : defaultUserImage)}
+                    alt="Foto de perfil"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className={`h-32 w-32 rounded-full overflow-hidden border-4 border-white flex items-center justify-center text-white font-bold text-3xl ${getInitialBackgroundColor(getInitials(user?.name || ''))}`}>
+                  {getInitials(user?.name || '')}
+                </div>
+              )}
               <div>
                 <label className="cursor-pointer">
                   <span className="px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">

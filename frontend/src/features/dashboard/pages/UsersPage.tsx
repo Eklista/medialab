@@ -1,4 +1,5 @@
-// src/features/dashboard/pages/UsersPage.tsx
+// src/features/dashboard/pages/UsersPage.tsx (actualizado)
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -252,17 +253,29 @@ const UsersPage: React.FC = () => {
     
     setIsSubmitting(true);
     setModalError(null); // Limpiar errores anteriores
-  
+
     try {
-      // Preparar los datos para la API usando snake_case para el backend
-      const userData = {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        email: data.email
-      };
+      // Preparar los datos para la API - Verificar qué campos han cambiado
+      const userData: any = {};
       
-      // Llamar a la API para actualizar el usuario
-      const updatedApiUser = await userService.updateUser(parseInt(currentUser.id), userData);
+      // Comparar con los valores actuales para añadir solo lo que ha cambiado
+      const currentFirstName = currentUser.fullName.split(' ')[0] || '';
+      const currentLastName = currentUser.fullName.split(' ').slice(1).join(' ') || '';
+      
+      // Añadir campos solo si son diferentes de los actuales
+      if (data.firstName !== currentFirstName) userData.first_name = data.firstName;
+      if (data.lastName !== currentLastName) userData.last_name = data.lastName;
+      if (data.email !== currentUser.email) userData.email = data.email;
+      if (data.isActive !== currentUser.isActive) userData.is_active = data.isActive;
+      
+      console.log('Enviando datos para actualizar usuario:', userData);
+      
+      // Solo actualizar si hay cambios
+      if (Object.keys(userData).length > 0) {
+        // Llamar a la API para actualizar el usuario
+        const updatedApiUser = await userService.updateUser(parseInt(currentUser.id), userData);
+        console.log('Usuario actualizado:', updatedApiUser);
+      }
       
       // Si se proporcionaron roleId y areaId y son diferentes a los actuales, actualizar rol
       if (data.roleId && data.areaId) {
@@ -272,7 +285,7 @@ const UsersPage: React.FC = () => {
         if (data.roleId !== currentRoleId || data.areaId !== currentAreaId) {
           try {
             console.log(`Actualizando rol a ${data.roleId} y área a ${data.areaId} para usuario ${currentUser.id}`);
-            await userService.assignRole(updatedApiUser.id, data.roleId, data.areaId);
+            await userService.assignRole(parseInt(currentUser.id), data.roleId, data.areaId);
           } catch (roleError) {
             console.error('Error al actualizar rol:', roleError);
             // Continuamos aunque falle la actualización de rol
@@ -293,7 +306,7 @@ const UsersPage: React.FC = () => {
               email: data.email,
               role: roleName,
               area: areaName,
-              isActive: updatedApiUser.isActive || updatedApiUser.is_active || user.isActive
+              isActive: data.isActive !== undefined ? data.isActive : user.isActive // Usar el valor del formulario
             }
           : user
       ));
@@ -307,6 +320,8 @@ const UsersPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+  
+  // Resto del código igual...
   
   // Formatear fecha para mostrar en un formato legible
   const formatDate = (dateString: string) => {
@@ -516,7 +531,8 @@ const UsersPage: React.FC = () => {
               lastName: currentUser.fullName.split(' ').slice(1).join(' ') || '',
               email: currentUser.email,
               roleId: roles.find(r => r.name === currentUser.role)?.id || '',
-              areaId: areas.find(a => a.name === currentUser.area)?.id || ''
+              areaId: areas.find(a => a.name === currentUser.area)?.id || '',
+              isActive: currentUser.isActive // Añadir el estado isActive
             }}
             onSubmit={handleEditSubmit}
             onCancel={() => {

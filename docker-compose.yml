@@ -34,21 +34,6 @@ services:
       - TZ=America/Mexico_City
     depends_on:
       - backend
-  
-  portal-frontend:
-    build:
-      context: ./portal-frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5174:5173"
-    volumes:
-      - ./portal-frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=${DEV_API_URL:-http://localhost:8000/api/v1}
-      - TZ=America/Guatemala
-    depends_on:
-      - backend
 
   db:
     image: mysql:8.0
