@@ -247,6 +247,27 @@ const UsersPage: React.FC = () => {
       setIsSubmitting(false);
     }, 300);
   };
+
+  const formatDate = (dateString: string) => {
+    if (dateString === '-') return '-';
+    
+    try {
+      // Crear la fecha a partir del string
+      const date = new Date(dateString);
+
+      const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
+      
+      return guatemalaDate.toLocaleDateString('es-GT', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
   
   const handleEditSubmit = async (data: UserFormData) => {
     if (!currentUser) return;
@@ -255,7 +276,7 @@ const UsersPage: React.FC = () => {
     setModalError(null); // Limpiar errores anteriores
 
     try {
-      // Preparar los datos para la API - Verificar qué campos han cambiado
+      // Preparar los datos para la API en formato camelCase
       const userData: any = {};
       
       // Comparar con los valores actuales para añadir solo lo que ha cambiado
@@ -263,12 +284,12 @@ const UsersPage: React.FC = () => {
       const currentLastName = currentUser.fullName.split(' ').slice(1).join(' ') || '';
       
       // Añadir campos solo si son diferentes de los actuales
-      if (data.firstName !== currentFirstName) userData.first_name = data.firstName;
-      if (data.lastName !== currentLastName) userData.last_name = data.lastName;
+      if (data.firstName !== currentFirstName) userData.firstName = data.firstName;
+      if (data.lastName !== currentLastName) userData.lastName = data.lastName;
       if (data.email !== currentUser.email) userData.email = data.email;
-      if (data.isActive !== currentUser.isActive) userData.is_active = data.isActive;
+      if (data.isActive !== currentUser.isActive) userData.isActive = data.isActive;
       
-      console.log('Enviando datos para actualizar usuario:', userData);
+      console.log('Enviando datos para actualizar usuario (camelCase):', userData);
       
       // Solo actualizar si hay cambios
       if (Object.keys(userData).length > 0) {
@@ -318,30 +339,6 @@ const UsersPage: React.FC = () => {
       setModalError(err instanceof Error ? err.message : 'Error al actualizar usuario');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-  
-  // Resto del código igual...
-  
-  // Formatear fecha para mostrar en un formato legible
-  const formatDate = (dateString: string) => {
-    if (dateString === '-') return '-';
-    
-    try {
-      // Crear la fecha a partir del string
-      const date = new Date(dateString);
-
-      const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
-      
-      return guatemalaDate.toLocaleDateString('es-GT', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (e) {
-      return dateString;
     }
   };
   
