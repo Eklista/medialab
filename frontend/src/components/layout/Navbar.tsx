@@ -7,8 +7,7 @@ import LockScreen from '../../features/auth/components/LockScreen'
 export const Navbar = () => {
   // Estado para controlar el menú móvil
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const { state, logout, lockSession } = useAuth();
+  const { state, logout } = useAuth();
   const navigate = useNavigate();
 
   // Función para alternar el estado del menú
@@ -16,36 +15,10 @@ export const Navbar = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  // Función para alternar el menú de usuario
-  const toggleUserMenu = () => {
-    setIsUserMenuOpen(!isUserMenuOpen);
-  };
-
-  // Cerrar el menú de usuario al hacer clic fuera de él
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isUserMenuOpen && !((event.target as Element).closest('.user-menu-container'))) {
-        setIsUserMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isUserMenuOpen]);
-
   // Función para cerrar sesión
   const handleLogout = () => {
     logout();
-    navigate('/login');
-    setIsUserMenuOpen(false);
-  };
-  
-  // Función para bloquear la sesión
-  const handleLock = () => {
-    lockSession();
-    setIsUserMenuOpen(false);
+    navigate('/ml-admin/login');
   };
 
   // Prevenir el scroll cuando el menú está abierto
@@ -93,71 +66,26 @@ export const Navbar = () => {
               </a>
               <div className="h-4 w-px bg-white/30 mx-1"></div>
               
-              {/* Botón de login o menú de usuario */}
+              {/* Botón de login o dashboard simplificado */}
               {state.isAuthenticated ? (
-                <div className="relative user-menu-container">
-                  <button 
-                    onClick={toggleUserMenu}
-                    className="text-white hover:text-(--color-accent-1) transition-colors flex items-center"
-                  >
-                    <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center mr-1 text-xs text-gray-800">
-                      {state.user?.firstName.charAt(0)}{state.user?.lastName.charAt(0)}
-                    </div>
-                    <span className="hidden sm:inline">{state.user?.firstName}</span>
-                  </button>
-                  
-                  {/* Menú desplegable de usuario */}
-                  {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                      <div className="px-4 py-2 text-xs text-gray-500">
-                        Conectado como <span className="font-medium">{state.user?.email}</span>
-                      </div>
-                      
-                      {/* Enlace de perfil - ajustar según necesidades */}
-                      <Link
-                        to="/profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        Mi perfil
-                      </Link>
-                      
-                      {/* Opción de bloquear */}
-                      <button
-                        onClick={handleLock}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <div className="flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                          Bloquear sesión
-                        </div>
-                      </button>
-                      
-                      {/* Opción de salir */}
-                      <button
-                        onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <div className="flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                          </svg>
-                          Cerrar sesión
-                        </div>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <Link 
+                  to="/dashboard" 
+                  className="text-white hover:text-(--color-accent-1) transition-colors flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Ir a Dashboard</span>
+                </Link>
               ) : (
                 <Link 
-                  to="/login" 
+                  to="/ml-admin/login" 
                   className="text-white hover:text-(--color-accent-1) transition-colors flex items-center"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
+                  <span className="hidden sm:inline">Iniciar Sesión</span>
                 </Link>
               )}
             </div>
@@ -285,7 +213,7 @@ export const Navbar = () => {
                 Solicitar Servicio
               </Link>
               
-              {/* Opciones de usuario en menú móvil */}
+              {/* Opciones simplificadas en el menú móvil */}
               {state.isAuthenticated ? (
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center p-2 border-b border-(--color-border)">
@@ -298,15 +226,16 @@ export const Navbar = () => {
                     </div>
                   </div>
                   
-                  <button
-                    onClick={handleLock}
+                  <Link 
+                    to="/dashboard"
                     className="w-full flex items-center py-2 px-6 text-left"
+                    onClick={() => setIsMenuOpen(false)}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
-                    Bloquear sesión
-                  </button>
+                    Ir a Dashboard
+                  </Link>
                   
                   <button
                     onClick={handleLogout}
@@ -320,7 +249,7 @@ export const Navbar = () => {
                 </div>
               ) : (
                 <Link
-                  to="/login"
+                  to="/ml-admin/login"
                   className="mt-4 flex items-center justify-center w-full py-2 px-6 border border-(--color-border) rounded-lg"
                   onClick={() => setIsMenuOpen(false)}
                 >

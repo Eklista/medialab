@@ -10,6 +10,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
+      - user_uploads:/app/static/uploads
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
@@ -79,3 +80,4 @@ networks:
 volumes:
   db_data:
   backend_data:
+  user_uploads:

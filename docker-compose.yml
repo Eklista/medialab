@@ -8,6 +8,7 @@ services:
     volumes:
       - ./backend:/app
       - backend_data:/app/data
+      - user_uploads:/app/static/uploads
     env_file:
       - ./.env.dev
     environment:
@@ -52,3 +53,4 @@ services:
 volumes:
   medialab_db_data:
   backend_data:
+  user_uploads:

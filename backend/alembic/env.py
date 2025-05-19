@@ -17,6 +17,16 @@ from app.models.organization.areas import Area
 from app.models.organization.services import Service, SubService
 from app.models.organization.departments import Department, DepartmentType
 from app.models.organization.service_templates import ServiceTemplate, template_services
+from app.models.common.workflow import Status, WorkItem, StatusHistory
+from app.models.common.metadata import Priority, Tag, TagAssignment, ActivityType
+from app.models.common.platforms import Platform
+from app.models.communications.links import Link
+from app.models.communications.comments import Comment
+from app.models.education.academic import Faculty, Career, Course, CourseClass
+from app.models.multimedia.podcasts import PodcastSeries, PodcastEpisode
+from app.models.projects.models import Request, Project, Task
+from app.models.settings.email_config import SmtpConfiguration, EmailTemplate
+from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
