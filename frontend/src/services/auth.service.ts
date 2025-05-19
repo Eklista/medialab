@@ -53,16 +53,17 @@ export interface ChangePasswordRequest {
 }
 
 class AuthService {
+  // Claves para almacenamiento seguro
+  private readonly ACCESS_TOKEN_KEY = 'accessToken';
+  private readonly REFRESH_TOKEN_KEY = 'refreshToken';
+  private readonly USER_ID_KEY = 'userId';
+  
   async login(credentials: LoginRequest): Promise<User> {
     try {
-      //console.log('Intentando login con:', credentials.email);
-      
-      // Necesitamos enviar los datos en formato x-www-form-urlencoded
       const formData = new URLSearchParams();
       formData.append('username', credentials.email);
       formData.append('password', credentials.password);
       
-      // Usa axios directamente pero con la URL correcta y headers adecuados
       const response = await axios.post<TokenResponse>(
         `${getBaseUrl()}/auth/login`,
         formData.toString(),
@@ -73,15 +74,13 @@ class AuthService {
         }
       );  
       
-      //console.log('Login exitoso, respuesta:', response.data);
-      
-      // Guardar tokens
-      localStorage.setItem('accessToken', response.data.access_token);
+      // Guardar solo tokens, no datos personales
+      localStorage.setItem(this.ACCESS_TOKEN_KEY, response.data.access_token);
       if (response.data.refresh_token) {
-        localStorage.setItem('refreshToken', response.data.refresh_token);
+        localStorage.setItem(this.REFRESH_TOKEN_KEY, response.data.refresh_token);
       }
       
-      // Obtener información del usuario usando la instancia apiClient
+      // Obtener información del usuario
       const userData = await this.getCurrentUser();
 
       try {
@@ -92,34 +91,31 @@ class AuthService {
         userData.permissions = [];
       }
 
-      // Normalizar datos del usuario para asegurar compatibilidad
-      this.normalizeUserData(userData);
+      // Guardar solo ID en localStorage, no datos sensibles
+      if (userData && userData.id) {
+        localStorage.setItem(this.USER_ID_KEY, userData.id.toString());
+      }
       
       return userData;
     } catch (error) {
-      console.error('Error en login:', error);
-      
       if (axios.isAxiosError(error) && error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Response data:', error.response.data);
-        
-        // Mensaje de error específico según el tipo de error
         if (error.response.status === 401) {
           throw new Error(error.response.data.detail || 'Credenciales incorrectas');
         }
-        
         if (error.response.status === 422) {
           throw new Error('Formato de solicitud incorrecto');
         }
       }
-      
       throw new Error(handleApiError(error));
     }
   }
   
   async logout(): Promise<void> {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    // Limpiar solo tokens y datos mínimos
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.USER_ID_KEY);
+    localStorage.removeItem('sessionLocked');
     
     window.location.href = '/ml-admin/login';
   }
@@ -127,24 +123,17 @@ class AuthService {
   async getCurrentUser(): Promise<User> {
     try {
       const response = await apiClient.get<User>('/users/me');
-      
-      // Normalizar datos del usuario para asegurar compatibilidad
-      this.normalizeUserData(response.data);
-      
-      return response.data;
+      return this.normalizeUserData(response.data);
     } catch (error) {
       throw new Error(handleApiError(error));
     }
   }
   
-  // Método auxiliar para asegurar que los datos de usuario tienen ambos formatos disponibles
-  private normalizeUserData(userData: User): void {
-    // Si tenemos firstName/lastName pero no name, crear name
+  private normalizeUserData(userData: User): User {
     if (!userData.name && (userData.firstName || userData.lastName)) {
       userData.name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
     }
     
-    // Si tenemos name pero no firstName/lastName, dividir name
     if (userData.name && (!userData.firstName || !userData.lastName)) {
       const nameParts = userData.name.split(' ');
       if (!userData.firstName) {
@@ -154,6 +143,8 @@ class AuthService {
         userData.lastName = nameParts.slice(1).join(' ') || '';
       }
     }
+    
+    return userData;
   }
 
   async getUserPermissions(): Promise<string[]> {
@@ -161,12 +152,10 @@ class AuthService {
       const response = await apiClient.get<string[]>('/users/me/permissions');
       return response.data || [];
     } catch (error) {
-      console.error('Error al obtener permisos del usuario:', error);
-      return []; // Retornar array vacío en caso de error
+      return [];
     }
   }
   
-  // Nuevo método para solicitar código de recuperación
   async forgotPassword(email: string): Promise<{ message: string }> {
     try {
       const response = await apiClient.post<{ message: string }>(
@@ -179,7 +168,6 @@ class AuthService {
     }
   }
   
-  // Nuevo método para verificar código
   async verifyCode(email: string, code: string): Promise<{ valid: boolean }> {
     try {
       const response = await apiClient.post<{ valid: boolean }>(
@@ -192,15 +180,12 @@ class AuthService {
     }
   }
   
-  // Nuevo método para restablecer contraseña con código
   async resetPassword(password: string, confirmPassword: string, code?: string, email?: string): Promise<{ message: string }> {
     try {
-      // Verificar que contraseñas coincidan
       if (password !== confirmPassword) {
         throw new Error('Las contraseñas no coinciden');
       }
       
-      // Si tenemos email y código, usar el nuevo flujo
       if (email && code) {
         const response = await apiClient.post<{ message: string }>(
           `/auth/reset-password`,
@@ -212,7 +197,6 @@ class AuthService {
         );
         return response.data;
       } 
-      // Si solo tenemos código (token), usar el flujo antiguo para compatibilidad
       else if (code) {
         const response = await apiClient.post<{ message: string }>(
           `/auth/reset-password/${code}`,
@@ -251,7 +235,15 @@ class AuthService {
   }
   
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('accessToken');
+    return !!localStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+  
+  getAccessToken(): string | null {
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+  
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 }
 

@@ -45,13 +45,19 @@ services:
       - medialab-network
       
   frontend:
-    image: eklista/medialab:frontend-prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api/v1
     restart: always
+    environment:
+      - TZ=America/Guatemala
     depends_on:
       - backend
     networks:
       - medialab-network
-      
+
   nginx:
     image: eklista/medialab:nginx-prod
     restart: always

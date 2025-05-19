@@ -13,6 +13,7 @@ export interface UserFormData {
   areaId: string;
   username?: string;
   password?: string;
+  isActive?: boolean; // Agregamos isActive al tipo UserFormData
 }
 
 interface UserFormProps {
@@ -41,7 +42,8 @@ const UserForm: React.FC<UserFormProps> = ({
     roleId: '',
     areaId: '',
     username: '',
-    password: ''
+    password: '',
+    isActive: true // Por defecto, el usuario estará activo
   });
   
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
@@ -81,6 +83,14 @@ const UserForm: React.FC<UserFormProps> = ({
     if (errors[name as keyof UserFormData]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
+  };
+  
+  // Nuevo manejador para el toggle de estado activo
+  const handleToggleActive = () => {
+    setFormData(prev => ({ 
+      ...prev, 
+      isActive: !prev.isActive 
+    }));
   };
   
   const validateForm = (): boolean => {
@@ -324,6 +334,29 @@ const UserForm: React.FC<UserFormProps> = ({
               </div>
             )}
           </>
+        )}
+        
+        {/* Nuevo campo para activar/desactivar usuario */}
+        {isEditMode && (
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">Estado del usuario</h3>
+              <p className="text-sm text-gray-500">
+                {formData.isActive ? 'El usuario está activo en el sistema' : 'El usuario está inactivo en el sistema'}
+              </p>
+            </div>
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                formData.isActive 
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200 focus:ring-red-500' 
+                  : 'bg-green-100 text-green-700 hover:bg-green-200 focus:ring-green-500'
+              }`}
+              onClick={handleToggleActive}
+            >
+              {formData.isActive ? 'Desactivar usuario' : 'Activar usuario'}
+            </button>
+          </div>
         )}
         
         {!isEditMode && formData.username && (
