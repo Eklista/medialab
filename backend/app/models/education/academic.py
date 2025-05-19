@@ -1,9 +1,10 @@
 # app/models/education/academic.py
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, UniqueConstraint, DateTime, Boolean
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, UniqueConstraint, DateTime, Boolean, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.models.base import Base
 import sqlalchemy as sa
+
+from app.models.base import Base
 
 class Faculty(Base):
     """
@@ -75,6 +76,9 @@ class Course(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_active = Column(Boolean, default=True)
     
+    # Relación con solicitud de curso (si proviene de una)
+    course_request_id = Column(Integer, ForeignKey('course_requests.id'), nullable=True)
+    
     # Relaciones
     classes = relationship("CourseClass", back_populates="course")
     
@@ -87,7 +91,8 @@ class Course(Base):
         UniqueConstraint('code', 'career_id', name='uix_course_code_career'),
         sa.Index('idx_course_career', 'career_id'),
         sa.Index('idx_course_status', 'status_id'),
-        sa.Index('idx_course_is_active', 'is_active')
+        sa.Index('idx_course_is_active', 'is_active'),
+        sa.Index('idx_course_request', 'course_request_id')
     )
     
     def __repr__(self):
@@ -109,6 +114,13 @@ class CourseClass(Base):
     course_id = Column(Integer, ForeignKey('courses.id'), nullable=False)
     course = relationship("Course", back_populates="classes")
     
+    # Relación con profesor
+    professor_id = Column(Integer, ForeignKey('professors.id'), nullable=True)
+    professor = relationship("Professor")
+    
+    # Relación con solicitud de curso (para trazabilidad)
+    course_item_id = Column(Integer, ForeignKey('course_items.id'), nullable=True)
+    
     # Fechas
     scheduled_date = Column(DateTime, nullable=True)
     recording_date = Column(DateTime, nullable=True)
@@ -121,7 +133,9 @@ class CourseClass(Base):
     __table_args__ = (
         sa.Index('idx_course_class_course', 'course_id'),
         sa.Index('idx_course_class_status', 'status_id'),
-        sa.Index('idx_course_class_scheduled', 'scheduled_date')
+        sa.Index('idx_course_class_scheduled', 'scheduled_date'),
+        sa.Index('idx_course_class_professor', 'professor_id'),
+        sa.Index('idx_course_class_item', 'course_item_id')
     )
     
     def __repr__(self):

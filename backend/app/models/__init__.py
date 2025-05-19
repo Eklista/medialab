@@ -26,12 +26,21 @@ from app.models.communications.links import Link
 
 # Importamos módulos de educación
 from app.models.education.academic import Faculty, Career, Course, CourseClass
+from app.models.education.professors import Professor  # Nuevo modelo
 
 # Importamos módulos de multimedia
 from app.models.multimedia.podcasts import PodcastSeries, PodcastEpisode
 
 # Importamos módulos de proyectos
-from app.models.projects.models import Request, Project, Task
+from app.models.projects.models import Project, Task
+
+# Importamos módulos de solicitudes (Requests) - Nuevo paquete
+from app.models.requests import (
+    Request, request_services, request_sub_services,
+    SingleEvent, RecurrentEvent, EventDate,
+    PodcastRequest, PodcastModerator, PodcastEpisode as PodcastRequestEpisode, PodcastGuest,
+    CourseRequest, CourseItem, CourseRecordingDate
+)
 
 # Importamos módulos de seguridad
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
@@ -45,8 +54,12 @@ __all__ = [
     'SmtpConfiguration', 'EmailTemplate', 'Priority', 'Tag', 'TagAssignment', 'ActivityType',
     'Platform', 'Status', 'WorkItem', 'StatusHistory', 'Attachment',
     'Comment', 'Link',
-    'Faculty', 'Career', 'Course', 'CourseClass',
-    'PodcastSeries', 'PodcastEpisode', 
-    'Request', 'Project', 'Task',
-    'TwoFactorMethod', 'UserTwoFactor', 'AuditLog'
+    'Faculty', 'Career', 'Course', 'CourseClass', 'Professor',
+    'PodcastSeries', 'PodcastEpisode',
+    'Project', 'Task',
+    'TwoFactorMethod', 'UserTwoFactor', 'AuditLog',
+    'Request', 'request_services', 'request_sub_services',
+    'SingleEvent', 'RecurrentEvent', 'EventDate',
+    'PodcastRequest', 'PodcastModerator', 'PodcastRequestEpisode', 'PodcastGuest',
+    'CourseRequest', 'CourseItem', 'CourseRecordingDate'
 ]

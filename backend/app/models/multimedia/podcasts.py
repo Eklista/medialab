@@ -1,7 +1,8 @@
 # app/models/multimedia/podcasts.py
-from sqlalchemy import Column, String, Integer, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Text, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import sqlalchemy as sa
 from app.models.base import Base
 
 class PodcastSeries(Base):
@@ -25,9 +26,20 @@ class PodcastSeries(Base):
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)
     
+    # Relación con solicitud de podcast (si proviene de una)
+    podcast_request_id = Column(Integer, ForeignKey('podcast_requests.id'), nullable=True)
+    
     # Relaciones
     main_platform = relationship("Platform")
+    status = relationship("Status")
     episodes = relationship("PodcastEpisode", back_populates="series")
+    
+    # Índices
+    __table_args__ = (
+        Index('idx_podcast_series_platform', 'main_platform_id'),
+        Index('idx_podcast_series_status', 'status_id'),
+        Index('idx_podcast_series_request', 'podcast_request_id')
+    )
     
     def __repr__(self):
         return f"<PodcastSeries(title='{self.title}')>"
@@ -56,6 +68,17 @@ class PodcastEpisode(Base):
     
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)
+    status = relationship("Status")
+    
+    # Relación con episodio de solicitud (si proviene de uno)
+    request_episode_id = Column(Integer, ForeignKey('podcast_request_episodes.id'), nullable=True)
+    
+    # Índices
+    __table_args__ = (
+        Index('idx_podcast_episode_series', 'series_id'),
+        Index('idx_podcast_episode_status', 'status_id'),
+        Index('idx_podcast_episode_request', 'request_episode_id')
+    )
     
     def __repr__(self):
         return f"<PodcastEpisode(title='{self.title}', series_id={self.series_id})>"
