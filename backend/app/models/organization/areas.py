@@ -12,3 +12,9 @@ class Area(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text, nullable=True)
+    
+    # Relaciones inversas con user_roles
+    users = relationship("User", secondary="user_roles", viewonly=True)
+    
+    def __repr__(self):
+        return f"<Area(id={self.id}, name='{self.name}')>"

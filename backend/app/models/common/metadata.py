@@ -1,8 +1,9 @@
 # app/models/common/metadata.py
 from sqlalchemy import Column, String, Integer, Text, Boolean, ForeignKey, UniqueConstraint, Index
-from sqlalchemy.orm import relationship
-from app.models.base import Base
+from sqlalchemy.orm import relationship, validates
 import sqlalchemy as sa
+
+from app.models.base import Base
 
 class Priority(Base):
     """
@@ -15,6 +16,18 @@ class Priority(Base):
     description = Column(Text, nullable=True)
     color = Column(String(20), nullable=False)  # Color para UI
     order = Column(Integer, default=0)  # Para ordenar en listas (menor = más alta)
+    
+    # Índices
+    __table_args__ = (
+        sa.Index('idx_priority_order', 'order'),
+    )
+    
+    @validates('color')
+    def validate_color(self, key, color):
+        import re
+        if not re.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color):
+            raise ValueError("El formato de color debe ser un código hexadecimal válido (#RGB o #RRGGBB)")
+        return color
     
     def __repr__(self):
         return f"<Priority(name='{self.name}', order={self.order})>"
@@ -30,6 +43,16 @@ class Tag(Base):
     name = Column(String(50), unique=True, nullable=False)
     color = Column(String(20), nullable=False, default="#E5E7EB")
     description = Column(Text, nullable=True)
+    
+    # Relaciones
+    assignments = relationship("TagAssignment", back_populates="tag", cascade="all, delete-orphan")
+    
+    @validates('color')
+    def validate_color(self, key, color):
+        import re
+        if not re.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color):
+            raise ValueError("El formato de color debe ser un código hexadecimal válido (#RGB o #RRGGBB)")
+        return color
     
     def __repr__(self):
         return f"<Tag(name='{self.name}')>"
@@ -51,11 +74,12 @@ class TagAssignment(Base):
     # Índices y restricciones
     __table_args__ = (
         UniqueConstraint('tag_id', 'entity_id', 'entity_type', name='uix_tag_entity'),
-        Index('idx_tag_assignment_entity', 'entity_type', 'entity_id')
+        sa.Index('idx_tag_assignment_entity', 'entity_type', 'entity_id'),
+        sa.Index('idx_tag_assignment_tag', 'tag_id')
     )
     
     # Relación
-    tag = relationship("Tag")
+    tag = relationship("Tag", back_populates="assignments")
     
     def __repr__(self):
         return f"<TagAssignment(tag_id={self.tag_id}, entity_type='{self.entity_type}', entity_id={self.entity_id})>"
@@ -75,6 +99,18 @@ class ActivityType(Base):
     # Campos para organización y UI
     category = Column(String(50), nullable=True)  # Para agrupar tipos relacionados
     icon = Column(String(50), nullable=True)
+    
+    # Índices
+    __table_args__ = (
+        sa.Index('idx_activity_type_category', 'category'),
+    )
+    
+    @validates('color')
+    def validate_color(self, key, color):
+        import re
+        if not re.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color):
+            raise ValueError("El formato de color debe ser un código hexadecimal válido (#RGB o #RRGGBB)")
+        return color
     
     def __repr__(self):
         return f"<ActivityType(name='{self.name}')>"

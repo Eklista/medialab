@@ -1,6 +1,7 @@
 # app/models/education/academic.py
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, UniqueConstraint, DateTime, Boolean
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from app.models.base import Base
 import sqlalchemy as sa
 
@@ -44,9 +45,11 @@ class Career(Base):
     # Relaciones
     courses = relationship("Course", back_populates="career")
     
-    # Restricciones
+    # Restricciones e índices
     __table_args__ = (
         UniqueConstraint('name', 'faculty_id', name='uix_career_name_faculty'),
+        sa.Index('idx_career_faculty', 'faculty_id'),
+        sa.Index('idx_career_code', 'code')
     )
     
     def __repr__(self):
@@ -77,10 +80,14 @@ class Course(Base):
     
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)
+    status = relationship("Status")
     
-    # Restricciones
+    # Restricciones e índices
     __table_args__ = (
         UniqueConstraint('code', 'career_id', name='uix_course_code_career'),
+        sa.Index('idx_course_career', 'career_id'),
+        sa.Index('idx_course_status', 'status_id'),
+        sa.Index('idx_course_is_active', 'is_active')
     )
     
     def __repr__(self):
@@ -108,6 +115,14 @@ class CourseClass(Base):
     
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)
+    status = relationship("Status")
+    
+    # Índices
+    __table_args__ = (
+        sa.Index('idx_course_class_course', 'course_id'),
+        sa.Index('idx_course_class_status', 'status_id'),
+        sa.Index('idx_course_class_scheduled', 'scheduled_date')
+    )
     
     def __repr__(self):
         return f"<CourseClass(title='{self.title}', course_id={self.course_id})>"

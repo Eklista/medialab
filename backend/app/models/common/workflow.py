@@ -1,7 +1,8 @@
 # app/models/common/workflow.py
-from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import sqlalchemy as sa
 
 from app.models.base import Base
 
@@ -23,6 +24,8 @@ class Status(Base):
     # Clave compuesta natural para búsquedas
     __table_args__ = (
         sa.UniqueConstraint('name', 'entity_type', name='uix_status_name_entity'),
+        sa.Index('idx_status_entity_type', 'entity_type'),
+        sa.Index('idx_status_level', 'level')
     )
     
     # Campos para UI/UX
@@ -53,12 +56,14 @@ class WorkItem(Base):
     
     # Relación con estado
     status_id = Column(Integer, ForeignKey("statuses.id"), nullable=False)
+    status = relationship("Status")
     
     # Nivel actual (derivado del estado pero almacenado para consultas rápidas)
     level = Column(Integer, default=1)
     
     # Campos básicos para tracking
-    priority = Column(Integer, default=2)  # 1=baja, 2=media, 3=alta
+    priority_id = Column(Integer, ForeignKey("priorities.id"), nullable=True)  # Relación con prioridad
+    priority = relationship("Priority")
     due_date = Column(DateTime, nullable=True)
     estimated_hours = Column(Integer, nullable=True)  # Horas estimadas
     
@@ -72,6 +77,18 @@ class WorkItem(Base):
     # Etiquetas para categorización (separadas por comas)
     tags = Column(String(255), nullable=True)
     
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # Índices
+    __table_args__ = (
+        sa.Index('idx_work_item_status', 'status_id'),
+        sa.Index('idx_work_item_priority', 'priority_id'),
+        sa.Index('idx_work_item_entity_type', 'entity_type')
+    )
+    
     # Implementación del patrón Table-per-hierarchy con discriminador
     __mapper_args__ = {
         'polymorphic_on': entity_type,
@@ -80,6 +97,11 @@ class WorkItem(Base):
     
     def __repr__(self):
         return f"<WorkItem(id={self.id}, title='{self.title}', type='{self.entity_type}')>"
+    
+    @property
+    def is_completed(self):
+        """Verifica si el ítem está completado basado en el estado"""
+        return self.completed_at is not None
 
 
 class StatusHistory(Base):
@@ -107,9 +129,15 @@ class StatusHistory(Base):
     change_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     comment = Column(Text, nullable=True)
     
+    # Relaciones
+    old_status = relationship("Status", foreign_keys=[old_status_id])
+    new_status = relationship("Status", foreign_keys=[new_status_id])
+    
     # Índice para búsquedas rápidas por entidad
     __table_args__ = (
         sa.Index('idx_status_history_entity', 'entity_type', 'entity_id'),
+        sa.Index('idx_status_history_date', 'change_date'),
+        sa.Index('idx_status_history_user', 'changed_by_id')
     )
     
     def __repr__(self):
