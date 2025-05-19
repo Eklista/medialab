@@ -28,6 +28,7 @@ class PodcastSeries(Base):
     
     # Relación con solicitud de podcast (si proviene de una)
     podcast_request_id = Column(Integer, ForeignKey('podcast_requests.id'), nullable=True)
+    podcast_request = relationship("PodcastRequest", back_populates="podcast_series")
     
     # Relaciones
     main_platform = relationship("Platform")
@@ -40,6 +41,59 @@ class PodcastSeries(Base):
         Index('idx_podcast_series_status', 'status_id'),
         Index('idx_podcast_series_request', 'podcast_request_id')
     )
+    
+    @property
+    def links(self):
+        """
+        Obtiene los enlaces asociados a esta serie de podcast
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return session.query(Link).filter(
+            Link.entity_type == 'podcast_series',
+            Link.entity_id == self.id
+        ).all()
+    
+    @property
+    def all_links(self):
+        """
+        Obtiene todos los enlaces asociados a esta serie y sus episodios
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        # Enlaces directos de la serie
+        series_links = session.query(Link).filter(
+            Link.entity_type == 'podcast_series',
+            Link.entity_id == self.id
+        ).all()
+        
+        # Enlaces de todos los episodios
+        episode_ids = [episode.id for episode in self.episodes]
+        episode_links = [] if not episode_ids else session.query(Link).filter(
+            Link.entity_type == 'podcast_episode',
+            Link.entity_id.in_(episode_ids)
+        ).all()
+        
+        return series_links + episode_links
+    
+    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
+        """
+        Añade un enlace a esta serie de podcast
+        """
+        from app.models.communications.links import Link
+        return Link.create_for_entity(
+            session, self, url, platform_id, title, description, created_by
+        )
     
     def __repr__(self):
         return f"<PodcastSeries(title='{self.title}')>"
@@ -79,6 +133,32 @@ class PodcastEpisode(Base):
         Index('idx_podcast_episode_status', 'status_id'),
         Index('idx_podcast_episode_request', 'request_episode_id')
     )
+    
+    @property
+    def links(self):
+        """
+        Obtiene los enlaces asociados a este episodio
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return session.query(Link).filter(
+            Link.entity_type == 'podcast_episode',
+            Link.entity_id == self.id
+        ).all()
+    
+    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
+        """
+        Añade un enlace a este episodio
+        """
+        from app.models.communications.links import Link
+        return Link.create_for_entity(
+            session, self, url, platform_id, title, description, created_by
+        )
     
     def __repr__(self):
         return f"<PodcastEpisode(title='{self.title}', series_id={self.series_id})>"

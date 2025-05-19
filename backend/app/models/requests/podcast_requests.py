@@ -25,18 +25,45 @@ class PodcastRequest(Base):
     end_date = Column(Date, nullable=True)
     
     # Relaciones
-    request = relationship("Request", backref="podcast_request")
+    request = relationship("Request", back_populates="podcast_request")
     moderators = relationship("PodcastModerator", back_populates="podcast", cascade="all, delete-orphan")
     episodes = relationship("PodcastEpisode", back_populates="podcast", cascade="all, delete-orphan")
     
     # Relación opcional con una serie de podcast (si se convierte)
     podcast_series_id = Column(Integer, ForeignKey('podcast_series.id'), nullable=True)
+    podcast_series = relationship("PodcastSeries", back_populates="podcast_request")
     
     # Índices
     __table_args__ = (
         Index('idx_podcast_request_request', 'request_id'),
         Index('idx_podcast_request_series', 'podcast_series_id'),
     )
+    
+    @property
+    def links(self):
+        """
+        Obtiene los enlaces asociados a esta solicitud de podcast
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return session.query(Link).filter(
+            Link.entity_type == 'podcast_request',
+            Link.entity_id == self.id
+        ).all()
+    
+    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
+        """
+        Añade un enlace a esta solicitud de podcast
+        """
+        from app.models.communications.links import Link
+        return Link.create_for_entity(
+            session, self, url, platform_id, title, description, created_by
+        )
     
     def __repr__(self):
         return f"<PodcastRequest(id={self.id}, name='{self.podcast_name}')>"
@@ -91,6 +118,32 @@ class PodcastEpisode(Base):
         Index('idx_podcast_episode_podcast', 'podcast_id'),
         Index('idx_podcast_episode_department', 'department_id'),
     )
+    
+    @property
+    def links(self):
+        """
+        Obtiene los enlaces asociados a este episodio de solicitud
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return session.query(Link).filter(
+            Link.entity_type == 'podcast_request_episode',
+            Link.entity_id == self.id
+        ).all()
+    
+    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
+        """
+        Añade un enlace a este episodio de solicitud
+        """
+        from app.models.communications.links import Link
+        return Link.create_for_entity(
+            session, self, url, platform_id, title, description, created_by
+        )
     
     def __repr__(self):
         return f"<PodcastEpisode(id={self.id}, title='{self.title}')>"

@@ -60,6 +60,70 @@ class Project(WorkItem):
             raise ValueError("El código del proyecto no puede estar vacío")
         return code
     
+    @property
+    def links(self):
+        """
+        Obtiene los enlaces asociados a este proyecto
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return session.query(Link).filter(
+            Link.entity_type == 'project',
+            Link.entity_id == self.id
+        ).all()
+    
+    @property
+    def all_links(self):
+        """
+        Obtiene todos los enlaces asociados a este proyecto y sus tareas
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        # Enlaces directos del proyecto
+        project_links = session.query(Link).filter(
+            Link.entity_type == 'project',
+            Link.entity_id == self.id
+        ).all()
+        
+        # Enlaces de todas las tareas del proyecto
+        task_ids = [task.id for task in self.tasks]
+        task_links = [] if not task_ids else session.query(Link).filter(
+            Link.entity_type == 'task',
+            Link.entity_id.in_(task_ids)
+        ).all()
+        
+        return project_links + task_links
+    
+    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
+        """
+        Añade un enlace a este proyecto
+        
+        Args:
+            session: Sesión SQLAlchemy
+            url: URL del enlace
+            platform_id: ID de la plataforma (opcional)
+            title: Título del enlace (opcional)
+            description: Descripción del enlace (opcional)
+            created_by: ID del usuario que crea el enlace (opcional)
+            
+        Returns:
+            Link: Instancia del enlace creado
+        """
+        from app.models.communications.links import Link
+        return Link.create_for_entity(
+            session, self, url, platform_id, title, description, created_by
+        )
+    
     def __repr__(self):
         return f"<Project(id={self.id}, title='{self.title}', code='{self.code}')>"
 
@@ -106,6 +170,43 @@ class Task(WorkItem):
         if value < 0 or value > 100:
             raise ValueError("El porcentaje de progreso debe estar entre 0 y 100")
         return value
+    
+    @property
+    def links(self):
+        """
+        Obtiene los enlaces asociados a esta tarea
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return session.query(Link).filter(
+            Link.entity_type == 'task',
+            Link.entity_id == self.id
+        ).all()
+    
+    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
+        """
+        Añade un enlace a esta tarea
+        
+        Args:
+            session: Sesión SQLAlchemy
+            url: URL del enlace
+            platform_id: ID de la plataforma (opcional)
+            title: Título del enlace (opcional)
+            description: Descripción del enlace (opcional)
+            created_by: ID del usuario que crea el enlace (opcional)
+            
+        Returns:
+            Link: Instancia del enlace creado
+        """
+        from app.models.communications.links import Link
+        return Link.create_for_entity(
+            session, self, url, platform_id, title, description, created_by
+        )
     
     def __repr__(self):
         return f"<Task(id={self.id}, title='{self.title}', project_id={self.project_id})>"

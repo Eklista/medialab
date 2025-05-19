@@ -81,6 +81,32 @@ class Request(WorkItem):
                 raise ValueError(f"El tipo de ubicación debe ser uno de: {', '.join(valid_types)}")
         return value
     
+    @property
+    def links(self):
+        """
+        Obtiene los enlaces asociados a esta solicitud
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.communications.links import Link
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return session.query(Link).filter(
+            Link.entity_type == 'request',
+            Link.entity_id == self.id
+        ).all()
+    
+    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
+        """
+        Añade un enlace a esta solicitud
+        """
+        from app.models.communications.links import Link
+        return Link.create_for_entity(
+            session, self, url, platform_id, title, description, created_by
+        )
+    
     def get_location_info(self):
         """
         Retorna información de la ubicación en formato amigable
