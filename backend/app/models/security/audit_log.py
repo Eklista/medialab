@@ -53,10 +53,8 @@ class AuditLog(Base):
         sa.Index('idx_audit_log_importance', 'importance'),
         sa.Index('idx_audit_log_department', 'department_id'),
         sa.Index('idx_audit_log_batch', 'batch_id'),
-        sa.Index('idx_audit_log_task_assignment', 'entity_type', 'action_type', 'assignee_id', 
-         postgresql_where=sa.text("entity_type = 'task' AND action_type = 'assignment'")),
-        sa.Index('idx_audit_log_task_status', 'entity_type', 'action_type',
-                postgresql_where=sa.text("entity_type IN ('task', 'project') AND action_type = 'status_change'"))
+        sa.Index('idx_audit_log_task_assignment', 'entity_type', 'action_type', 'assignee_id'),
+        sa.Index('idx_audit_log_task_status', 'entity_type', 'action_type')
     )
     
     def __repr__(self):
