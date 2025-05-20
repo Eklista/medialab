@@ -26,6 +26,12 @@ class PodcastSeries(Base, EntityMixin):
     
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)
+
+    # Auditoria
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Relación con solicitud de podcast (si proviene de una)
     podcast_request_id = Column(Integer, ForeignKey('podcast_requests.id'), nullable=True)
@@ -120,10 +126,14 @@ class PodcastEpisode(Base, EntityMixin):
     series_id = Column(Integer, ForeignKey('podcast_series.id'), nullable=False)
     series = relationship("PodcastSeries", back_populates="episodes")
     
-    # Metadatos
+    # Auditoria
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     published_at = Column(DateTime, nullable=True)
     recording_date = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)

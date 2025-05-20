@@ -30,7 +30,13 @@ class Project(WorkItem, EntityMixin):
     # Flags
     is_recurrent = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    
+
+    # Auditoría
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+
     # Relaciones
     activity_type = relationship("ActivityType")
     department = relationship("Department")
@@ -156,16 +162,18 @@ class Task(WorkItem, EntityMixin):
     # Asignación
     assignee_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     assignee = relationship("User", back_populates="assigned_tasks")
-
-    # Prioridad
-    priority_id = Column(Integer, ForeignKey('priorities.id'), nullable=True)
-    priority = relationship("Priority", back_populates="tasks")
     
     # Fechas específicas
     start_date = Column(DateTime, nullable=True)
     
     # Progreso
     progress_percentage = Column(Integer, default=0)
+
+    # Auditoría
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Configuración del mapper
     __mapper_args__ = {

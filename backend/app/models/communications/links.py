@@ -24,7 +24,11 @@ class Link(Base):
     
     # Metadatos
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    created_by = Column(Integer, nullable=True)  # ID del usuario que creó el enlace
+    created_by = Column(Integer, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Índices
     __table_args__ = (

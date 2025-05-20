@@ -19,6 +19,10 @@ class Comment(Base):
     # Metadatos
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Relaciones polimórficas
     entity_id = Column(Integer, nullable=False)

@@ -35,7 +35,13 @@ class Request(WorkItem, EntityMixin):
     # Estado del procesamiento
     is_processed = Column(Boolean, default=False)  # Indica si la solicitud ya fue procesada/convertida
     processing_notes = Column(Text, nullable=True)  # Notas sobre el procesamiento
-    
+
+    # Auditoría
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+
     # Relaciones
     requester = relationship("User", foreign_keys=[requester_id])
     department = relationship("Department")

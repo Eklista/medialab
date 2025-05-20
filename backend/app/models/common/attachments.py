@@ -23,7 +23,11 @@ class Attachment(Base):
     # Metadatos
     description = Column(Text, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    uploaded_by = Column(Integer, nullable=True)  # ID del usuario que subió el archivo
+    uploaded_by = Column(Integer, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Entidad relacionada (polimórfica)
     entity_id = Column(Integer, nullable=False)

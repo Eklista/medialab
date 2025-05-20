@@ -5,6 +5,7 @@ from datetime import datetime
 import sqlalchemy as sa
 
 from app.models.base import Base
+from app.models.common.audit_mixin import AuditMixin
 
 class Status(Base):
     """
@@ -40,7 +41,7 @@ class Status(Base):
         return f"<Status(name='{self.name}', entity_type='{self.entity_type}', level={self.level})>"
 
 
-class WorkItem(Base):
+class WorkItem(Base, AuditMixin):
     """
     Elemento de trabajo genérico (base abstracta)
     Proporciona campos comunes para tareas, proyectos, etc.
@@ -81,6 +82,10 @@ class WorkItem(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Índices
     __table_args__ = (

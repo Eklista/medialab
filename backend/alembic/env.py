@@ -56,6 +56,10 @@ from app.models.projects.models import Project, Task
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
 from app.models.security.audit_log import AuditLog
 
+# Modelos de notificaciones
+from app.models.notifications import Notification
+from app.models.notifications import NotificationTrigger
+
 # Modelos de solicitudes (requests)
 from app.models.requests.models import Request
 from app.models.requests.associations import request_services, request_sub_services

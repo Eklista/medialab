@@ -61,6 +61,10 @@ class Course(Base, EntityMixin):
     # Metadatos
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_active = Column(Boolean, default=True)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Relación con solicitud de curso (si proviene de una)
     course_request_id = Column(Integer, ForeignKey('course_requests.id'), nullable=True)
@@ -169,6 +173,12 @@ class CourseClass(Base, EntityMixin):
     # Fechas
     scheduled_date = Column(DateTime, nullable=True)
     recording_date = Column(DateTime, nullable=True)
+
+    # Auditoría
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)

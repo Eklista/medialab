@@ -1,46 +1,46 @@
 # app/models/__init__.py
 
-# Importar la clase Base
+# Base
 from app.models.base import Base
 
-# Importamos modelos base y asociaciones
+# Modelos base y asociaciones
 from app.models.associations import user_roles, role_permissions
 
-# Importamos módulos auth
+# Módulos auth
 from app.models.auth import User, Role, Permission
 
-# Importamos módulos de usuarios institucionales
+# Módulos de usuarios institucionales
 from app.models.organization.institutional_users import InstitutionalUser
 
-# Importamos módulos de organización
+# Módulos de organización
 from app.models.organization.areas import Area
 from app.models.organization.departments import Department, DepartmentType
 from app.models.organization.services import Service, SubService
 from app.models.organization.service_templates import ServiceTemplate
 
-# Importamos módulos comunes
+# Módulos comunes
 from app.models.common.email_config import SmtpConfiguration, EmailTemplate
 from app.models.common.metadata import Priority, Tag, TagAssignment, ActivityType
 from app.models.common.platforms import Platform
 from app.models.common.workflow import Status, WorkItem, StatusHistory
 from app.models.common.attachments import Attachment
 
-# Importamos módulos de comunicación
+# Comunicación
 from app.models.communications.comments import Comment
 from app.models.communications.links import Link
 
-# Importamos módulos de educación
+# Educación
 from app.models.education.academic import Career, Course, CourseClass
 from app.models.education.professors import Professor
 from app.models.education.academic_periods import AcademicPeriod
 
-# Importamos módulos de multimedia
+# Módulos de multimedia
 from app.models.multimedia.podcasts import PodcastSeries, PodcastEpisode
 
 # Importamos módulos de proyectos
 from app.models.projects.models import Project, Task
 
-# Importamos módulos de solicitudes
+# Módulos de solicitudes
 from app.models.requests import (
     Request, request_services, request_sub_services,
     SingleEvent, RecurrentEvent, EventDate,
@@ -48,11 +48,15 @@ from app.models.requests import (
     CourseRequest, CourseItem, CourseRecordingDate
 )
 
-# Importamos módulos de seguridad
+# Notificaciones
+from app.models.notifications import Notification
+from app.models.notifications import NotificationTrigger
+
+# Módulos de seguridad
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
 from app.models.security.audit_log import AuditLog
 
-# Lista de todos los modelos disponibles
+# Lista de todos los modelos
 __all__ = [
     'Base', 'user_roles', 'role_permissions',
     'User', 'Role', 'Permission',
@@ -68,5 +72,6 @@ __all__ = [
     'SingleEvent', 'RecurrentEvent', 'EventDate',
     'PodcastRequest', 'PodcastModerator', 'PodcastRequestEpisode', 'PodcastGuest',
     'CourseRequest', 'CourseItem', 'CourseRecordingDate',
-    'InstitutionalUser'
+    'InstitutionalUser',
+    'Notification', 'NotificationTrigger'
 ]

@@ -19,7 +19,6 @@ class Priority(Base):
 
     # Relacion para tareas, proyectos, etc.
     work_items = relationship("WorkItem", back_populates="priority")
-    tasks = relationship("Task", back_populates="priority")
     
     # Índices
     __table_args__ = (
