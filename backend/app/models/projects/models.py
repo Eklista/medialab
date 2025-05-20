@@ -31,12 +31,6 @@ class Project(WorkItem, EntityMixin):
     is_recurrent = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
 
-    # Auditoría
-    deleted_at = Column(DateTime, nullable=True)
-    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-
     # Relaciones
     activity_type = relationship("ActivityType")
     department = relationship("Department")
@@ -71,70 +65,6 @@ class Project(WorkItem, EntityMixin):
             raise ValueError("El código del proyecto no puede estar vacío")
         return code
     
-    @property
-    def links(self):
-        """
-        Obtiene los enlaces asociados a este proyecto
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.communications.links import Link
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        return session.query(Link).filter(
-            Link.entity_type == 'project',
-            Link.entity_id == self.id
-        ).all()
-    
-    @property
-    def all_links(self):
-        """
-        Obtiene todos los enlaces asociados a este proyecto y sus tareas
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.communications.links import Link
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        # Enlaces directos del proyecto
-        project_links = session.query(Link).filter(
-            Link.entity_type == 'project',
-            Link.entity_id == self.id
-        ).all()
-        
-        # Enlaces de todas las tareas del proyecto
-        task_ids = [task.id for task in self.tasks]
-        task_links = [] if not task_ids else session.query(Link).filter(
-            Link.entity_type == 'task',
-            Link.entity_id.in_(task_ids)
-        ).all()
-        
-        return project_links + task_links
-    
-    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
-        """
-        Añade un enlace a este proyecto
-        
-        Args:
-            session: Sesión SQLAlchemy
-            url: URL del enlace
-            platform_id: ID de la plataforma (opcional)
-            title: Título del enlace (opcional)
-            description: Descripción del enlace (opcional)
-            created_by: ID del usuario que crea el enlace (opcional)
-            
-        Returns:
-            Link: Instancia del enlace creado
-        """
-        from app.models.communications.links import Link
-        return Link.create_for_entity(
-            session, self, url, platform_id, title, description, created_by
-        )
-    
     def __repr__(self):
         return f"<Project(id={self.id}, title='{self.title}', code='{self.code}')>"
 
@@ -168,12 +98,6 @@ class Task(WorkItem, EntityMixin):
     
     # Progreso
     progress_percentage = Column(Integer, default=0)
-
-    # Auditoría
-    deleted_at = Column(DateTime, nullable=True)
-    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     # Configuración del mapper
     __mapper_args__ = {
@@ -192,61 +116,6 @@ class Task(WorkItem, EntityMixin):
         if value < 0 or value > 100:
             raise ValueError("El porcentaje de progreso debe estar entre 0 y 100")
         return value
-    
-    @classmethod
-    def get_for_activity(cls, session, activity_type, activity_id):
-        """
-        Obtiene todas las tareas asociadas a una actividad específica
-        
-        Args:
-            session: Sesión SQLAlchemy
-            activity_type: Tipo de actividad ('podcast', 'course', etc.)
-            activity_id: ID de la actividad
-            
-        Returns:
-            list: Lista de tareas asociadas a la actividad
-        """
-        return session.query(cls).filter(
-            cls.activity_entity_type == activity_type,
-            cls.activity_entity_id == activity_id
-        ).all()
-
-    @property
-    def links(self):
-        """
-        Obtiene los enlaces asociados a esta tarea
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.communications.links import Link
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        return session.query(Link).filter(
-            Link.entity_type == 'task',
-            Link.entity_id == self.id
-        ).all()
-    
-    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
-        """
-        Añade un enlace a esta tarea
-        
-        Args:
-            session: Sesión SQLAlchemy
-            url: URL del enlace
-            platform_id: ID de la plataforma (opcional)
-            title: Título del enlace (opcional)
-            description: Descripción del enlace (opcional)
-            created_by: ID del usuario que crea el enlace (opcional)
-            
-        Returns:
-            Link: Instancia del enlace creado
-        """
-        from app.models.communications.links import Link
-        return Link.create_for_entity(
-            session, self, url, platform_id, title, description, created_by
-        )
     
     def __repr__(self):
         return f"<Task(id={self.id}, title='{self.title}', project_id={self.project_id})>"

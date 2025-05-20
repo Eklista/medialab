@@ -49,8 +49,8 @@ from app.models.requests import (
 )
 
 # Notificaciones
-from app.models.notifications import Notification
-from app.models.notifications import NotificationTrigger
+from app.models.notifications.models import Notification
+from app.models.notifications.triggers import NotificationTrigger
 
 # Módulos de seguridad
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor

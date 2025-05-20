@@ -39,48 +39,6 @@ class CourseRequest(Base, EntityMixin):
         Index('idx_course_request_request', 'request_id'),
         Index('idx_course_request_faculty', 'faculty_id'),
     )
-
-    @property
-    def tasks(self):
-        """Obtiene las tareas asociadas a esta actividad"""
-        from sqlalchemy.orm import object_session
-        from app.models.projects.models import Task
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        entity_type = self.__tablename__
-        if entity_type.endswith('s'):
-            entity_type = entity_type[:-1]
-        
-        return Task.get_for_activity(session, entity_type, self.id)
-    
-    @property
-    def links(self):
-        """
-        Obtiene los enlaces asociados a esta solicitud de curso
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.communications.links import Link
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        return session.query(Link).filter(
-            Link.entity_type == 'course_request',
-            Link.entity_id == self.id
-        ).all()
-    
-    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
-        """
-        Añade un enlace a esta solicitud de curso
-        """
-        from app.models.communications.links import Link
-        return Link.create_for_entity(
-            session, self, url, platform_id, title, description, created_by
-        )
     
     def __repr__(self):
         return f"<CourseRequest(id={self.id}, career='{self.career_name}')>"
@@ -119,32 +77,6 @@ class CourseItem(Base):
         Index('idx_course_item_faculty', 'faculty_id'),
         Index('idx_course_item_professor', 'professor_id'),
     )
-    
-    @property
-    def links(self):
-        """
-        Obtiene los enlaces asociados a este ítem de curso
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.communications.links import Link
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        return session.query(Link).filter(
-            Link.entity_type == 'course_item',
-            Link.entity_id == self.id
-        ).all()
-    
-    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
-        """
-        Añade un enlace a este ítem de curso
-        """
-        from app.models.communications.links import Link
-        return Link.create_for_entity(
-            session, self, url, platform_id, title, description, created_by
-        )
     
     def __repr__(self):
         return f"<CourseItem(id={self.id}, name='{self.name}')>"

@@ -57,8 +57,8 @@ from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
 from app.models.security.audit_log import AuditLog
 
 # Modelos de notificaciones
-from app.models.notifications import Notification
-from app.models.notifications import NotificationTrigger
+from app.models.notifications.models import Notification
+from app.models.notifications.triggers import NotificationTrigger
 
 # Modelos de solicitudes (requests)
 from app.models.requests.models import Request

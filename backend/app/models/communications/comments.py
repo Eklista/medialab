@@ -52,37 +52,3 @@ class Comment(Base):
     
     def __repr__(self):
         return f"<Comment(id={self.id}, entity_type='{self.entity_type}', entity_id={self.entity_id})>"
-    
-    ## Métodos de clase para crear y obtener comentarios
-    @classmethod
-    def get_for_entity(cls, session, entity_type, entity_id):
-        """
-        Obtiene todos los comentarios asociados a una entidad específica
-        
-        Args:
-            session: Sesión SQLAlchemy
-            entity_type: Tipo de entidad ('project', 'podcast', 'course', etc.)
-            entity_id: ID de la entidad
-            
-        Returns:
-            list: Lista de comentarios ordenados por fecha
-        """
-        return session.query(cls).filter(
-            cls.entity_type == entity_type,
-            cls.entity_id == entity_id
-        ).order_by(cls.created_at).all()
-    
-    # Método para obtener adjuntos de un comentario
-    @property
-    def attachments(self):
-        """
-        Obtiene los adjuntos asociados a este comentario
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.common.attachments import Attachment
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        return Attachment.get_for_entity(session, 'comment', self.id)

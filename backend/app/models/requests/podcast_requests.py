@@ -37,48 +37,6 @@ class PodcastRequest(Base, EntityMixin):
     __table_args__ = (
         Index('idx_podcast_request_request', 'request_id'),
     )
-
-    @property
-    def tasks(self):
-        """Obtiene las tareas asociadas a esta actividad"""
-        from sqlalchemy.orm import object_session
-        from app.models.projects.models import Task
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        entity_type = self.__tablename__
-        if entity_type.endswith('s'):
-            entity_type = entity_type[:-1]
-        
-        return Task.get_for_activity(session, entity_type, self.id)
-    
-    @property
-    def links(self):
-        """
-        Obtiene los enlaces asociados a esta solicitud de podcast
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.communications.links import Link
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        return session.query(Link).filter(
-            Link.entity_type == 'podcast_request',
-            Link.entity_id == self.id
-        ).all()
-    
-    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
-        """
-        Añade un enlace a esta solicitud de podcast
-        """
-        from app.models.communications.links import Link
-        return Link.create_for_entity(
-            session, self, url, platform_id, title, description, created_by
-        )
     
     def __repr__(self):
         return f"<PodcastRequest(id={self.id}, name='{self.podcast_name}')>"
@@ -133,32 +91,6 @@ class PodcastEpisode(Base):
         Index('idx_podcast_episode_podcast', 'podcast_id'),
         Index('idx_podcast_episode_department', 'department_id'),
     )
-    
-    @property
-    def links(self):
-        """
-        Obtiene los enlaces asociados a este episodio de solicitud
-        """
-        from sqlalchemy.orm import object_session
-        from app.models.communications.links import Link
-        
-        session = object_session(self)
-        if not session:
-            return []
-        
-        return session.query(Link).filter(
-            Link.entity_type == 'podcast_request_episode',
-            Link.entity_id == self.id
-        ).all()
-    
-    def add_link(self, session, url, platform_id=None, title=None, description=None, created_by=None):
-        """
-        Añade un enlace a este episodio de solicitud
-        """
-        from app.models.communications.links import Link
-        return Link.create_for_entity(
-            session, self, url, platform_id, title, description, created_by
-        )
     
     def __repr__(self):
         return f"<PodcastEpisode(id={self.id}, title='{self.title}')>"

@@ -43,45 +43,6 @@ class Attachment(Base):
     def __repr__(self):
         return f"<Attachment(id={self.id}, filename='{self.filename}', entity_type='{self.entity_type}', entity_id={self.entity_id})>"
 
-    @classmethod
-    def get_for_entity(cls, session, entity_type, entity_id):
-        """
-        Obtiene todos los adjuntos para una entidad específica
-        """
-        return session.query(cls).filter(
-            cls.entity_type == entity_type,
-            cls.entity_id == entity_id
-        ).all()
-    
-    @classmethod
-    def get_for_comment(cls, session, comment_id):
-        """
-        Método específico para obtener adjuntos de un comentario
-        """
-        return cls.get_for_entity(session, 'comment', comment_id)
-    
-    @property
-    def file_url(self):
-        """Retorna la URL para acceder al archivo"""
-        return f"/api/attachments/{self.id}/{self.original_filename}"
-    
-    @property
-    def is_image(self):
-        """Verifica si el archivo es una imagen"""
-        return self.mime_type.startswith('image/')
-    
-    @property
-    def is_document(self):
-        """Verifica si el archivo es un documento"""
-        document_types = ['application/pdf', 'application/msword', 
-                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                         'application/vnd.ms-excel',
-                         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                         'application/vnd.ms-powerpoint',
-                         'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                         'text/plain']
-        return self.mime_type in document_types
-    
     @validates('file_size')
     def validate_file_size(self, key, size):
         if size <= 0:
