@@ -30,6 +30,10 @@ class PodcastSeries(Base, EntityMixin):
     # Relación con solicitud de podcast (si proviene de una)
     podcast_request_id = Column(Integer, ForeignKey('podcast_requests.id'), nullable=True)
     podcast_request = relationship("PodcastRequest", back_populates="podcast_series")
+
+    # Relación con usuario institucional (si aplica)
+    institutional_user_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
+    institutional_user = relationship("InstitutionalUser", back_populates="podcast_series")
     
     # Relaciones
     main_platform = relationship("Platform")

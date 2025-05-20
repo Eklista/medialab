@@ -7,28 +7,6 @@ import sqlalchemy as sa
 from app.models.base import Base
 from app.models.common.entity_mixin import EntityMixin
 
-class Faculty(Base):
-    """
-    Facultades (agrupaciones de carreras)
-    """
-    __tablename__ = 'faculties'
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
-    abbreviation = Column(String(20), nullable=True)
-    description = Column(Text, nullable=True)
-    
-    # Campos para UI
-    color = Column(String(20), nullable=True)
-    logo_url = Column(String(255), nullable=True)
-    
-    # Relaciones
-    careers = relationship("Career", back_populates="faculty")
-    
-    def __repr__(self):
-        return f"<Faculty(name='{self.name}')>"
-
-
 class Career(Base):
     """
     Carreras académicas
@@ -37,21 +15,28 @@ class Career(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    code = Column(String(20), nullable=True)  # Código de carrera
+    code = Column(String(20), nullable=True)
     description = Column(Text, nullable=True)
     
-    # Relación con facultad
-    faculty_id = Column(Integer, ForeignKey('faculties.id'), nullable=False)
-    faculty = relationship("Faculty", back_populates="careers")
+    # Relación con departamento (antes era faculty_id)
+    department_id = Column(Integer, ForeignKey('departments.id'), nullable=False)
+    department = relationship("Department", back_populates="careers")
+    
+    # Relación con periodo académico
+    academic_period_id = Column(Integer, ForeignKey('academic_periods.id'), nullable=True)
+    academic_period = relationship("AcademicPeriod", back_populates="careers")
+    
+    is_active_in_period = Column(Boolean, default=True)
     
     # Relaciones
     courses = relationship("Course", back_populates="career")
     
-    # Restricciones e índices
+    # Índices actualizados (cambiado de faculty a department)
     __table_args__ = (
-        UniqueConstraint('name', 'faculty_id', name='uix_career_name_faculty'),
-        sa.Index('idx_career_faculty', 'faculty_id'),
-        sa.Index('idx_career_code', 'code')
+        UniqueConstraint('name', 'department_id', name='uix_career_name_department'),
+        sa.Index('idx_career_department', 'department_id'),
+        sa.Index('idx_career_code', 'code'),
+        sa.Index('idx_career_period', 'academic_period_id')
     )
     
     def __repr__(self):
@@ -83,6 +68,10 @@ class Course(Base, EntityMixin):
     
     # Relaciones
     classes = relationship("CourseClass", back_populates="course")
+
+    # Relación con usuario institucional (si aplica)
+    institutional_user_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
+    institutional_user = relationship("InstitutionalUser", back_populates="courses")
     
     # Estado
     status_id = Column(Integer, ForeignKey('statuses.id'), nullable=True)
@@ -91,6 +80,7 @@ class Course(Base, EntityMixin):
     # Restricciones e índices
     __table_args__ = (
         UniqueConstraint('code', 'career_id', name='uix_course_code_career'),
+        sa.Index('idx_course_institutional_user', 'institutional_user_id'),
         sa.Index('idx_course_career', 'career_id'),
         sa.Index('idx_course_status', 'status_id'),
         sa.Index('idx_course_is_active', 'is_active'),

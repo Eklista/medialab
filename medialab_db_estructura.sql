@@ -17,6 +17,30 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `academic_periods`
+--
+
+DROP TABLE IF EXISTS `academic_periods`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `academic_periods` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `code` varchar(20) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `start_date` date NOT NULL,
+  `end_date` date NOT NULL,
+  `is_active` tinyint(1) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_academic_periods_code` (`code`),
+  KEY `idx_academic_period_active` (`is_active`),
+  KEY `idx_academic_period_code` (`code`),
+  KEY `ix_academic_periods_id` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `activity_types`
 --
 
@@ -142,15 +166,19 @@ CREATE TABLE `careers` (
   `name` varchar(100) NOT NULL,
   `code` varchar(20) DEFAULT NULL,
   `description` text DEFAULT NULL,
-  `faculty_id` int(11) NOT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `department_id` int(11) NOT NULL,
+  `academic_period_id` int(11) DEFAULT NULL,
+  `is_active_in_period` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uix_career_name_faculty` (`name`,`faculty_id`),
+  UNIQUE KEY `uix_career_name_department` (`name`,`department_id`),
   KEY `idx_career_code` (`code`),
-  KEY `idx_career_faculty` (`faculty_id`),
   KEY `ix_careers_id` (`id`),
-  CONSTRAINT `fk_careers_faculty_id_faculties` FOREIGN KEY (`faculty_id`) REFERENCES `faculties` (`id`)
+  KEY `idx_career_department` (`department_id`),
+  KEY `idx_career_period` (`academic_period_id`),
+  CONSTRAINT `fk_careers_academic_period_id_academic_periods` FOREIGN KEY (`academic_period_id`) REFERENCES `academic_periods` (`id`),
+  CONSTRAINT `fk_careers_department_id_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -171,11 +199,14 @@ CREATE TABLE `comments` (
   `author_id` int(11) NOT NULL,
   `is_client_comment` tinyint(1) DEFAULT NULL,
   `parent_id` int(11) DEFAULT NULL,
+  `institutional_user_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_comments_parent_id_comments` (`parent_id`),
   KEY `idx_comments_author` (`author_id`),
   KEY `idx_comments_entity` (`entity_type`,`entity_id`),
   KEY `ix_comments_id` (`id`),
+  KEY `fk_comments_institutional_user_id_institutional_users` (`institutional_user_id`),
+  CONSTRAINT `fk_comments_institutional_user_id_institutional_users` FOREIGN KEY (`institutional_user_id`) REFERENCES `institutional_users` (`id`),
   CONSTRAINT `fk_comments_parent_id_comments` FOREIGN KEY (`parent_id`) REFERENCES `comments` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -311,6 +342,7 @@ CREATE TABLE `courses` (
   `course_request_id` int(11) DEFAULT NULL,
   `status_id` int(11) DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `institutional_user_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uix_course_code_career` (`code`,`career_id`),
   KEY `idx_course_career` (`career_id`),
@@ -318,8 +350,10 @@ CREATE TABLE `courses` (
   KEY `idx_course_request` (`course_request_id`),
   KEY `idx_course_status` (`status_id`),
   KEY `ix_courses_id` (`id`),
+  KEY `idx_course_institutional_user` (`institutional_user_id`),
   CONSTRAINT `fk_courses_career_id_careers` FOREIGN KEY (`career_id`) REFERENCES `careers` (`id`),
   CONSTRAINT `fk_courses_course_request_id_course_requests` FOREIGN KEY (`course_request_id`) REFERENCES `course_requests` (`id`),
+  CONSTRAINT `fk_courses_institutional_user_id_institutional_users` FOREIGN KEY (`institutional_user_id`) REFERENCES `institutional_users` (`id`),
   CONSTRAINT `fk_courses_status_id_statuses` FOREIGN KEY (`status_id`) REFERENCES `statuses` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -414,24 +448,37 @@ CREATE TABLE `event_dates` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `faculties`
+-- Table structure for table `institutional_users`
 --
 
-DROP TABLE IF EXISTS `faculties`;
+DROP TABLE IF EXISTS `institutional_users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `faculties` (
+CREATE TABLE `institutional_users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) NOT NULL,
-  `abbreviation` varchar(20) DEFAULT NULL,
-  `description` text DEFAULT NULL,
-  `color` varchar(20) DEFAULT NULL,
-  `logo_url` varchar(255) DEFAULT NULL,
-  `created_at` datetime DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `department_id` int(11) DEFAULT NULL,
+  `position` varchar(255) DEFAULT NULL,
+  `username` varchar(100) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `is_active` tinyint(1) DEFAULT NULL,
+  `verified_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `last_login` datetime DEFAULT NULL,
+  `reset_token` varchar(255) DEFAULT NULL,
+  `reset_token_expires` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_faculties_name` (`name`),
-  KEY `ix_faculties_id` (`id`)
+  UNIQUE KEY `uq_institutional_users_email` (`email`),
+  UNIQUE KEY `uq_institutional_users_username` (`username`),
+  KEY `idx_institutional_user_department` (`department_id`),
+  KEY `idx_institutional_user_email` (`email`),
+  KEY `idx_institutional_user_is_active` (`is_active`),
+  KEY `idx_institutional_user_username` (`username`),
+  KEY `ix_institutional_users_id` (`id`),
+  CONSTRAINT `fk_institutional_users_department_id_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -648,11 +695,14 @@ CREATE TABLE `podcast_series` (
   `status_id` int(11) DEFAULT NULL,
   `podcast_request_id` int(11) DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `institutional_user_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_podcast_series_platform` (`main_platform_id`),
   KEY `idx_podcast_series_request` (`podcast_request_id`),
   KEY `idx_podcast_series_status` (`status_id`),
   KEY `ix_podcast_series_id` (`id`),
+  KEY `fk_podcast_series_institutional_user_id_institutional_users` (`institutional_user_id`),
+  CONSTRAINT `fk_podcast_series_institutional_user_id_institutional_users` FOREIGN KEY (`institutional_user_id`) REFERENCES `institutional_users` (`id`),
   CONSTRAINT `fk_podcast_series_main_platform_id_platforms` FOREIGN KEY (`main_platform_id`) REFERENCES `platforms` (`id`),
   CONSTRAINT `fk_podcast_series_podcast_request_id_podcast_requests` FOREIGN KEY (`podcast_request_id`) REFERENCES `podcast_requests` (`id`),
   CONSTRAINT `fk_podcast_series_status_id_statuses` FOREIGN KEY (`status_id`) REFERENCES `statuses` (`id`)
@@ -695,15 +745,12 @@ CREATE TABLE `professors` (
   `phone` varchar(50) DEFAULT NULL,
   `position` varchar(255) DEFAULT NULL,
   `department_id` int(11) DEFAULT NULL,
-  `user_id` int(11) DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_professor_department` (`department_id`),
-  KEY `idx_professor_user` (`user_id`),
   KEY `ix_professors_id` (`id`),
-  CONSTRAINT `fk_professors_department_id_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
-  CONSTRAINT `fk_professors_user_id_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `fk_professors_department_id_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -724,6 +771,7 @@ CREATE TABLE `projects` (
   `is_recurrent` tinyint(1) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT NULL,
   `request_id` int(11) DEFAULT NULL,
+  `institutional_user_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_projects_code` (`code`),
   KEY `idx_project_activity_type` (`activity_type_id`),
@@ -732,9 +780,11 @@ CREATE TABLE `projects` (
   KEY `idx_project_department` (`department_id`),
   KEY `idx_project_is_active` (`is_active`),
   KEY `idx_project_request` (`request_id`),
+  KEY `fk_projects_institutional_user_id_institutional_users` (`institutional_user_id`),
   CONSTRAINT `fk_projects_activity_type_id_activity_types` FOREIGN KEY (`activity_type_id`) REFERENCES `activity_types` (`id`),
   CONSTRAINT `fk_projects_department_id_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
   CONSTRAINT `fk_projects_id_work_items` FOREIGN KEY (`id`) REFERENCES `work_items` (`id`),
+  CONSTRAINT `fk_projects_institutional_user_id_institutional_users` FOREIGN KEY (`institutional_user_id`) REFERENCES `institutional_users` (`id`),
   CONSTRAINT `fk_projects_request_id_requests` FOREIGN KEY (`request_id`) REFERENCES `requests` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -829,14 +879,17 @@ CREATE TABLE `requests` (
   `location_details` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`location_details`)),
   `is_processed` tinyint(1) DEFAULT NULL,
   `processing_notes` text DEFAULT NULL,
+  `requester_institutional_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_request_activity_type` (`activity_type`),
   KEY `idx_request_department` (`department_id`),
   KEY `idx_request_is_processed` (`is_processed`),
   KEY `idx_request_requester` (`requester_id`),
+  KEY `fk_requests_requester_institutional_id_institutional_users` (`requester_institutional_id`),
   CONSTRAINT `fk_requests_department_id_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
   CONSTRAINT `fk_requests_id_work_items` FOREIGN KEY (`id`) REFERENCES `work_items` (`id`),
-  CONSTRAINT `fk_requests_requester_id_users` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `fk_requests_requester_id_users` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_requests_requester_institutional_id_institutional_users` FOREIGN KEY (`requester_institutional_id`) REFERENCES `institutional_users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1104,12 +1157,18 @@ CREATE TABLE `tasks` (
   `assignee_id` int(11) DEFAULT NULL,
   `start_date` datetime DEFAULT NULL,
   `progress_percentage` int(11) DEFAULT NULL,
+  `activity_entity_type` varchar(50) DEFAULT NULL,
+  `activity_entity_id` int(11) DEFAULT NULL,
+  `priority_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_task_activity_type` (`activity_type_id`),
   KEY `idx_task_assignee` (`assignee_id`),
   KEY `idx_task_project` (`project_id`),
+  KEY `fk_tasks_priority_id_priorities` (`priority_id`),
   CONSTRAINT `fk_tasks_activity_type_id_activity_types` FOREIGN KEY (`activity_type_id`) REFERENCES `activity_types` (`id`),
+  CONSTRAINT `fk_tasks_assignee_id_users` FOREIGN KEY (`assignee_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_tasks_id_work_items` FOREIGN KEY (`id`) REFERENCES `work_items` (`id`),
+  CONSTRAINT `fk_tasks_priority_id_priorities` FOREIGN KEY (`priority_id`) REFERENCES `priorities` (`id`),
   CONSTRAINT `fk_tasks_project_id_projects` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1302,4 +1361,4 @@ CREATE TABLE `work_items` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-05-19 17:49:58
+-- Dump completed on 2025-05-19 23:49:37

@@ -9,6 +9,9 @@ from app.models.associations import user_roles, role_permissions
 # Importamos módulos auth
 from app.models.auth import User, Role, Permission
 
+# Importamos módulos de usuarios institucionales
+from app.models.organization.institutional_users import InstitutionalUser
+
 # Importamos módulos de organización
 from app.models.organization.areas import Area
 from app.models.organization.departments import Department, DepartmentType
@@ -20,15 +23,16 @@ from app.models.common.email_config import SmtpConfiguration, EmailTemplate
 from app.models.common.metadata import Priority, Tag, TagAssignment, ActivityType
 from app.models.common.platforms import Platform
 from app.models.common.workflow import Status, WorkItem, StatusHistory
-from app.models.common.attachments import Attachment  # Nuevo modelo
+from app.models.common.attachments import Attachment
 
 # Importamos módulos de comunicación
 from app.models.communications.comments import Comment
 from app.models.communications.links import Link
 
 # Importamos módulos de educación
-from app.models.education.academic import Faculty, Career, Course, CourseClass
-from app.models.education.professors import Professor  # Nuevo modelo
+from app.models.education.academic import Career, Course, CourseClass
+from app.models.education.professors import Professor
+from app.models.education.academic_periods import AcademicPeriod
 
 # Importamos módulos de multimedia
 from app.models.multimedia.podcasts import PodcastSeries, PodcastEpisode
@@ -36,7 +40,7 @@ from app.models.multimedia.podcasts import PodcastSeries, PodcastEpisode
 # Importamos módulos de proyectos
 from app.models.projects.models import Project, Task
 
-# Importamos módulos de solicitudes (Requests) - Nuevo paquete
+# Importamos módulos de solicitudes
 from app.models.requests import (
     Request, request_services, request_sub_services,
     SingleEvent, RecurrentEvent, EventDate,
@@ -46,7 +50,7 @@ from app.models.requests import (
 
 # Importamos módulos de seguridad
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
-from app.models.security.audit_log import AuditLog  # Nuevo modelo
+from app.models.security.audit_log import AuditLog
 
 # Lista de todos los modelos disponibles
 __all__ = [
@@ -56,12 +60,13 @@ __all__ = [
     'SmtpConfiguration', 'EmailTemplate', 'Priority', 'Tag', 'TagAssignment', 'ActivityType',
     'Platform', 'Status', 'WorkItem', 'StatusHistory', 'Attachment',
     'Comment', 'Link',
-    'Faculty', 'Career', 'Course', 'CourseClass', 'Professor',
+    'Career', 'Course', 'CourseClass', 'Professor', 'AcademicPeriod',
     'PodcastSeries', 'PodcastEpisode',
     'Project', 'Task',
     'TwoFactorMethod', 'UserTwoFactor', 'AuditLog',
     'Request', 'request_services', 'request_sub_services',
     'SingleEvent', 'RecurrentEvent', 'EventDate',
     'PodcastRequest', 'PodcastModerator', 'PodcastRequestEpisode', 'PodcastGuest',
-    'CourseRequest', 'CourseItem', 'CourseRecordingDate'
+    'CourseRequest', 'CourseItem', 'CourseRecordingDate',
+    'InstitutionalUser'
 ]

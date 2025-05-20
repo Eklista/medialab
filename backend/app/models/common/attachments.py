@@ -38,6 +38,23 @@ class Attachment(Base):
     
     def __repr__(self):
         return f"<Attachment(id={self.id}, filename='{self.filename}', entity_type='{self.entity_type}', entity_id={self.entity_id})>"
+
+    @classmethod
+    def get_for_entity(cls, session, entity_type, entity_id):
+        """
+        Obtiene todos los adjuntos para una entidad específica
+        """
+        return session.query(cls).filter(
+            cls.entity_type == entity_type,
+            cls.entity_id == entity_id
+        ).all()
+    
+    @classmethod
+    def get_for_comment(cls, session, comment_id):
+        """
+        Método específico para obtener adjuntos de un comentario
+        """
+        return cls.get_for_entity(session, 'comment', comment_id)
     
     @property
     def file_url(self):

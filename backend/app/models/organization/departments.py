@@ -32,6 +32,9 @@ class Department(Base):
     
     # Relación al tipo de departamento
     type = relationship("DepartmentType", back_populates="departments")
-   
+    
+    # Relación con carreras
+    careers = relationship("Career", back_populates="department")
+    
     def __repr__(self):
         return f"<Department(id={self.id}, name='{self.name}')>"

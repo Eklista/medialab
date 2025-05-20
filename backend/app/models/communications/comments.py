@@ -26,7 +26,11 @@ class Comment(Base):
     
     # Autor
     author_id = Column(Integer, nullable=False)
-    is_client_comment = Column(Boolean, default=False)  # Si proviene de un cliente
+    is_client_comment = Column(Boolean, default=False)
+
+    # Relación con el usuario institucional (si aplica)
+    institutional_user_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
+    institutional_user = relationship("InstitutionalUser")
     
     # Comentario padre (para hilos)
     parent_id = Column(Integer, ForeignKey('comments.id'), nullable=True)
@@ -63,3 +67,18 @@ class Comment(Base):
             cls.entity_type == entity_type,
             cls.entity_id == entity_id
         ).order_by(cls.created_at).all()
+    
+    # Método para obtener adjuntos de un comentario
+    @property
+    def attachments(self):
+        """
+        Obtiene los adjuntos asociados a este comentario
+        """
+        from sqlalchemy.orm import object_session
+        from app.models.common.attachments import Attachment
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        return Attachment.get_for_entity(session, 'comment', self.id)

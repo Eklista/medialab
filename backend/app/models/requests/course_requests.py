@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 from app.models.common.entity_mixin import EntityMixin
 
-class CourseRequest(Basel, EntityMixin):
+class CourseRequest(Base, EntityMixin):
     """
     Solicitud para cursos académicos
     """

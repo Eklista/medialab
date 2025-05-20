@@ -96,7 +96,7 @@ class PodcastModerator(Base):
     position = Column(String(255), nullable=True)
     role = Column(String(100), nullable=True)
     
-    # Relaciones
+    # Relación
     podcast = relationship("PodcastRequest", back_populates="moderators")
     
     # Índices

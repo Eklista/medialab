@@ -35,6 +35,10 @@ class Project(WorkItem, EntityMixin):
     activity_type = relationship("ActivityType")
     department = relationship("Department")
     tasks = relationship("Task", back_populates="project")
+
+    # Relación con el usuario institucional (si aplica)
+    institutional_user_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
+    institutional_user = relationship("InstitutionalUser", back_populates="projects")
     
     # Relación con solicitud (si proviene de una)
     request_id = Column(Integer, ForeignKey('requests.id'), nullable=True)
@@ -152,6 +156,10 @@ class Task(WorkItem, EntityMixin):
     # Asignación
     assignee_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     assignee = relationship("User", back_populates="assigned_tasks")
+
+    # Prioridad
+    priority_id = Column(Integer, ForeignKey('priorities.id'), nullable=True)
+    priority = relationship("Priority", back_populates="tasks")
     
     # Fechas específicas
     start_date = Column(DateTime, nullable=True)

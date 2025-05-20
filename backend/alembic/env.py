@@ -28,6 +28,7 @@ from app.models.organization.areas import Area
 from app.models.organization.departments import Department, DepartmentType
 from app.models.organization.services import Service, SubService
 from app.models.organization.service_templates import ServiceTemplate, template_services, template_subservices
+from app.models.organization.institutional_users import InstitutionalUser
 
 # Modelos comunes
 from app.models.common.workflow import Status, WorkItem, StatusHistory
@@ -41,7 +42,8 @@ from app.models.communications.links import Link
 from app.models.communications.comments import Comment
 
 # Modelos de educación
-from app.models.education.academic import Faculty, Career, Course, CourseClass
+from app.models.education.academic import Career, Course, CourseClass
+from app.models.education.academic_periods import AcademicPeriod
 from app.models.education.professors import Professor
 
 # Modelos de multimedia

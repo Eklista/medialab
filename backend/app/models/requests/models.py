@@ -39,6 +39,10 @@ class Request(WorkItem, EntityMixin):
     # Relaciones
     requester = relationship("User", foreign_keys=[requester_id])
     department = relationship("Department")
+
+    # Relación con el usuario institucional (si aplica)
+    requester_institutional_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
+    institutional_requester = relationship("InstitutionalUser", back_populates="requests")
     
     # Relaciones con tipos específicos
     single_event = relationship("SingleEvent", back_populates="request", uselist=False, cascade="all, delete-orphan")
