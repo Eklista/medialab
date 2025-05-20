@@ -3,8 +3,9 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date, Time, JS
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
+from app.models.common.entity_mixin import EntityMixin
 
-class PodcastRequest(Base):
+class PodcastRequest(Base, EntityMixin):
     """
     Detalles para solicitud de podcast
     """
@@ -36,6 +37,22 @@ class PodcastRequest(Base):
     __table_args__ = (
         Index('idx_podcast_request_request', 'request_id'),
     )
+
+    @property
+    def tasks(self):
+        """Obtiene las tareas asociadas a esta actividad"""
+        from sqlalchemy.orm import object_session
+        from app.models.projects.models import Task
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        entity_type = self.__tablename__
+        if entity_type.endswith('s'):
+            entity_type = entity_type[:-1]
+        
+        return Task.get_for_activity(session, entity_type, self.id)
     
     @property
     def links(self):

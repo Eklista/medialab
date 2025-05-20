@@ -6,8 +6,9 @@ from datetime import datetime, date, time
 
 from app.models.base import Base
 from app.models.common.workflow import WorkItem
+from app.models.common.entity_mixin import EntityMixin
 
-class Request(WorkItem):
+class Request(WorkItem, EntityMixin):
     """
     Solicitudes de trabajo/servicios - Punto de entrada para todas las solicitudes
     """

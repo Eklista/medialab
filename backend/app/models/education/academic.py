@@ -5,6 +5,7 @@ from datetime import datetime
 import sqlalchemy as sa
 
 from app.models.base import Base
+from app.models.common.entity_mixin import EntityMixin
 
 class Faculty(Base):
     """
@@ -57,7 +58,7 @@ class Career(Base):
         return f"<Career(name='{self.name}')>"
 
 
-class Course(Base):
+class Course(Base, EntityMixin):
     """
     Cursos académicos
     """
@@ -153,7 +154,7 @@ class Course(Base):
         return f"<Course(name='{self.name}', career_id={self.career_id})>"
 
 
-class CourseClass(Base):
+class CourseClass(Base, EntityMixin):
     """
     Clases/sesiones de un curso
     """

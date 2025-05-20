@@ -62,8 +62,8 @@ class WorkItem(Base):
     level = Column(Integer, default=1)
     
     # Campos básicos para tracking
-    priority_id = Column(Integer, ForeignKey("priorities.id"), nullable=True)  # Relación con prioridad
-    priority = relationship("Priority")
+    priority_id = Column(Integer, ForeignKey("priorities.id"), nullable=True)
+    priority = relationship("Priority", back_populates="work_items")
     due_date = Column(DateTime, nullable=True)
     estimated_hours = Column(Integer, nullable=True)  # Horas estimadas
     

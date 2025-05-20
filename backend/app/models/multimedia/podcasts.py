@@ -4,8 +4,9 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import sqlalchemy as sa
 from app.models.base import Base
+from app.models.common.entity_mixin import EntityMixin
 
-class PodcastSeries(Base):
+class PodcastSeries(Base, EntityMixin):
     """
     Series de podcasts
     """
@@ -99,7 +100,7 @@ class PodcastSeries(Base):
         return f"<PodcastSeries(title='{self.title}')>"
 
 
-class PodcastEpisode(Base):
+class PodcastEpisode(Base, EntityMixin):
     """
     Episodios de podcast
     """

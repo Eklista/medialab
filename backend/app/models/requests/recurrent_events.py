@@ -4,8 +4,9 @@ from sqlalchemy.orm import relationship, validates
 from datetime import datetime, timedelta, date
 
 from app.models.base import Base
+from app.models.common.entity_mixin import EntityMixin
 
-class RecurrentEvent(Base):
+class RecurrentEvent(Base, EntityMixin):
     """
     Detalles para una actividad recurrente
     """
@@ -34,6 +35,22 @@ class RecurrentEvent(Base):
         Index('idx_recurrent_event_start_date', 'start_date'),
         Index('idx_recurrent_event_end_date', 'end_date'),
     )
+
+    @property
+    def tasks(self):
+        """Obtiene las tareas asociadas a esta actividad"""
+        from sqlalchemy.orm import object_session
+        from app.models.projects.models import Task
+        
+        session = object_session(self)
+        if not session:
+            return []
+        
+        entity_type = self.__tablename__
+        if entity_type.endswith('s'):
+            entity_type = entity_type[:-1]
+        
+        return Task.get_for_activity(session, entity_type, self.id)
     
     @validates('recurrence_type')
     def validate_recurrence_type(self, key, value):

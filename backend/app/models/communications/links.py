@@ -71,6 +71,24 @@ class Link(Base):
         
         session.add(link)
         return link
+
+    # Métodos de clase para obtener enlaces
+    @classmethod
+    def get_for_task(cls, session, task_id):
+        """
+        Obtiene todos los enlaces asociados a una tarea específica
+        
+        Args:
+            session: Sesión SQLAlchemy
+            task_id: ID de la tarea
+            
+        Returns:
+            list: Lista de enlaces asociados a la tarea
+        """
+        return session.query(cls).filter(
+            cls.entity_type == 'task',
+            cls.entity_id == task_id
+        ).all()
     
     @classmethod
     def get_for_entity(cls, session, entity):

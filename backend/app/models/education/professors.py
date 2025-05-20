@@ -5,9 +5,10 @@ import re
 
 from app.models.base import Base
 
+
 class Professor(Base):
     """
-    Catedráticos/Profesores
+    Catedráticos/Profesores - Simplemente información de contacto, no son usuarios del sistema
     """
     __tablename__ = 'professors'
     
@@ -20,17 +21,13 @@ class Professor(Base):
     # Departamento/Facultad principal
     department_id = Column(Integer, ForeignKey('departments.id'), nullable=True)
     
-    # Usuario asociado (opcional)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    
     # Relaciones
     department = relationship("Department")
-    user = relationship("User")
+    course_classes = relationship("CourseClass", back_populates="professor")
     
     # Índices
     __table_args__ = (
         Index('idx_professor_department', 'department_id'),
-        Index('idx_professor_user', 'user_id')
     )
     
     @validates('email')

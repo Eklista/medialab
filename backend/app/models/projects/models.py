@@ -6,8 +6,9 @@ import sqlalchemy as sa
 
 from app.models.base import Base
 from app.models.common.workflow import WorkItem
+from app.models.common.entity_mixin import EntityMixin
 
-class Project(WorkItem):
+class Project(WorkItem, EntityMixin):
     """
     Proyectos de trabajo
     """
@@ -128,7 +129,7 @@ class Project(WorkItem):
         return f"<Project(id={self.id}, title='{self.title}', code='{self.code}')>"
 
 
-class Task(WorkItem):
+class Task(WorkItem, EntityMixin):
     """
     Tareas de un proyecto
     """
@@ -143,9 +144,14 @@ class Task(WorkItem):
     # Clasificación
     activity_type_id = Column(Integer, ForeignKey('activity_types.id'), nullable=True)
     activity_type = relationship("ActivityType")
+
+    # Descripción
+    activity_entity_type = Column(String(50), nullable=True)
+    activity_entity_id = Column(Integer, nullable=True)
     
     # Asignación
-    assignee_id = Column(Integer, nullable=True)
+    assignee_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    assignee = relationship("User", back_populates="assigned_tasks")
     
     # Fechas específicas
     start_date = Column(DateTime, nullable=True)
@@ -171,6 +177,24 @@ class Task(WorkItem):
             raise ValueError("El porcentaje de progreso debe estar entre 0 y 100")
         return value
     
+    @classmethod
+    def get_for_activity(cls, session, activity_type, activity_id):
+        """
+        Obtiene todas las tareas asociadas a una actividad específica
+        
+        Args:
+            session: Sesión SQLAlchemy
+            activity_type: Tipo de actividad ('podcast', 'course', etc.)
+            activity_id: ID de la actividad
+            
+        Returns:
+            list: Lista de tareas asociadas a la actividad
+        """
+        return session.query(cls).filter(
+            cls.activity_entity_type == activity_type,
+            cls.activity_entity_id == activity_id
+        ).all()
+
     @property
     def links(self):
         """

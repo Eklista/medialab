@@ -33,6 +33,7 @@ class User(Base):
     # Relaciones - usando strings para evitar problemas de importación circular
     roles = relationship("Role", secondary="user_roles", back_populates="users")
     areas = relationship("Area", secondary="user_roles")
+    assigned_tasks = relationship("Task", back_populates="assignee")
     
     # Índices adicionales
     __table_args__ = (

@@ -14,8 +14,11 @@ class Priority(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), unique=True, nullable=False)
     description = Column(Text, nullable=True)
-    color = Column(String(20), nullable=False)  # Color para UI
-    order = Column(Integer, default=0)  # Para ordenar en listas (menor = más alta)
+    color = Column(String(20), nullable=False)
+    order = Column(Integer, default=0) 
+
+    # Relacion para tareas, proyectos, etc.
+    work_items = relationship("WorkItem", back_populates="priority")
     
     # Índices
     __table_args__ = (
