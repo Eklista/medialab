@@ -4,9 +4,8 @@ from sqlalchemy.orm import relationship, validates
 from datetime import datetime, time, timedelta
 
 from app.models.base import Base
-from app.models.common.entity_mixin import EntityMixin
 
-class SingleEvent(Base, EntityMixin):
+class SingleEvent(Base):
     """
     Detalles para una actividad única
     """
@@ -28,13 +27,6 @@ class SingleEvent(Base, EntityMixin):
         Index('idx_single_event_request', 'request_id'),
         Index('idx_single_event_date', 'event_date'),
     )
-    
-    @validates('end_time')
-    def validate_end_time(self, key, value):
-        """Validar que la hora de fin sea posterior a la hora de inicio"""
-        if hasattr(self, 'start_time') and self.start_time and value <= self.start_time:
-            raise ValueError("La hora de fin debe ser posterior a la hora de inicio")
-        return value
     
     def __repr__(self):
         return f"<SingleEvent(id={self.id}, event_date={self.event_date})>"

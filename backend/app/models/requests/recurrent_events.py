@@ -4,9 +4,8 @@ from sqlalchemy.orm import relationship, validates
 from datetime import datetime, timedelta, date
 
 from app.models.base import Base
-from app.models.common.entity_mixin import EntityMixin
 
-class RecurrentEvent(Base, EntityMixin):
+class RecurrentEvent(Base):
     """
     Detalles para una actividad recurrente
     """
@@ -35,26 +34,7 @@ class RecurrentEvent(Base, EntityMixin):
         Index('idx_recurrent_event_start_date', 'start_date'),
         Index('idx_recurrent_event_end_date', 'end_date'),
     )
-    
-    @validates('recurrence_type')
-    def validate_recurrence_type(self, key, value):
-        valid_types = ['daily', 'weekly', 'monthly', 'manual']
-        if value not in valid_types:
-            raise ValueError(f"El tipo de recurrencia debe ser uno de: {', '.join(valid_types)}")
-        return value
-    
-    @validates('end_date')
-    def validate_end_date(self, key, value):
-        if hasattr(self, 'start_date') and self.start_date and value < self.start_date:
-            raise ValueError("La fecha de fin debe ser posterior o igual a la fecha de inicio")
-        return value
-    
-    @validates('end_time')
-    def validate_end_time(self, key, value):
-        if hasattr(self, 'start_time') and self.start_time and value <= self.start_time:
-            raise ValueError("La hora de fin debe ser posterior a la hora de inicio")
-        return value
-    
+
     def __repr__(self):
         return f"<RecurrentEvent(id={self.id}, type={self.recurrence_type})>"
 

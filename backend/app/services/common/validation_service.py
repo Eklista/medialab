@@ -129,3 +129,126 @@ class ValidationService:
             return True, None
         except (ValueError, TypeError):
             return False, "El valor debe ser un número"
+            
+    @staticmethod
+    def validate_project_code(code: str) -> Tuple[bool, Optional[str]]:
+        """
+        Valida un código de proyecto
+        
+        Args:
+            code: Código de proyecto a validar
+            
+        Returns:
+            Tuple[bool, Optional[str]]: (Es válido, Mensaje de error si no es válido)
+        """
+        if not code:
+            return True, None  # Código opcional
+            
+        if not code.strip():
+            return False, "El código del proyecto no puede estar vacío o solo espacios"
+            
+        return True, None
+    
+    @staticmethod
+    def validate_activity_type(activity_type: str) -> Tuple[bool, Optional[str]]:
+        """
+        Valida un tipo de actividad para solicitudes
+        
+        Args:
+            activity_type: Tipo de actividad ('single', 'recurrent', 'podcast', 'course')
+            
+        Returns:
+            Tuple[bool, Optional[str]]: (Es válido, Mensaje de error si no es válido)
+        """
+        valid_types = ['single', 'recurrent', 'podcast', 'course']
+        
+        if not activity_type:
+            return False, "El tipo de actividad es obligatorio"
+            
+        if activity_type not in valid_types:
+            return False, f"El tipo de actividad debe ser uno de: {', '.join(valid_types)}"
+            
+        return True, None
+    
+    @staticmethod
+    def validate_location_type(location_type: str) -> Tuple[bool, Optional[str]]:
+        """
+        Valida un tipo de ubicación para solicitudes
+        
+        Args:
+            location_type: Tipo de ubicación ('university', 'external', 'virtual')
+            
+        Returns:
+            Tuple[bool, Optional[str]]: (Es válido, Mensaje de error si no es válido)
+        """
+        # Si es None, es válido (opcional)
+        if location_type is None:
+            return True, None
+            
+        valid_types = ['university', 'external', 'virtual']
+        
+        if location_type not in valid_types:
+            return False, f"El tipo de ubicación debe ser uno de: {', '.join(valid_types)}"
+            
+        return True, None
+    
+    @staticmethod
+    def validate_recurrence_type(recurrence_type: str) -> Tuple[bool, Optional[str]]:
+        """
+        Valida un tipo de recurrencia para eventos
+        
+        Args:
+            recurrence_type: Tipo de recurrencia ('daily', 'weekly', 'monthly', 'manual')
+            
+        Returns:
+            Tuple[bool, Optional[str]]: (Es válido, Mensaje de error si no es válido)
+        """
+        valid_types = ['daily', 'weekly', 'monthly', 'manual']
+        
+        if not recurrence_type:
+            return False, "El tipo de recurrencia es obligatorio"
+            
+        if recurrence_type not in valid_types:
+            return False, f"El tipo de recurrencia debe ser uno de: {', '.join(valid_types)}"
+            
+        return True, None
+    
+    @staticmethod
+    def validate_date_range(start_date, end_date) -> Tuple[bool, Optional[str]]:
+        """
+        Valida que una fecha de fin sea posterior o igual a una fecha de inicio
+        
+        Args:
+            start_date: Fecha de inicio
+            end_date: Fecha de fin
+            
+        Returns:
+            Tuple[bool, Optional[str]]: (Es válido, Mensaje de error si no es válido)
+        """
+        if not start_date or not end_date:
+            return True, None  # Alguna fecha es None, no validamos
+            
+        if end_date < start_date:
+            return False, "La fecha de fin debe ser posterior o igual a la fecha de inicio"
+            
+        return True, None
+    
+    @staticmethod
+    def validate_time_range(start_time, end_time) -> Tuple[bool, Optional[str]]:
+        """
+        Valida que una hora de fin sea posterior a una hora de inicio
+        
+        Args:
+            start_time: Hora de inicio
+            end_time: Hora de fin
+            
+        Returns:
+            Tuple[bool, Optional[str]]: (Es válido, Mensaje de error si no es válido)
+        """
+        if not start_time or not end_time:
+            return True, None  # Alguna hora es None, no validamos
+            
+        if end_time <= start_time:
+            return False, "La hora de fin debe ser posterior a la hora de inicio"
+            
+        return True, None

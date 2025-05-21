@@ -202,7 +202,7 @@ def assign_role_to_user(
         )
         
         if success:
-            return {"message": f"Rol asignado exitosamente al usuario {user.full_name}"}
+            return {"message": f"Rol asignado exitosamente al usuario {UserService.get_full_name(user)}"}
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

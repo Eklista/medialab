@@ -6,9 +6,8 @@ import sqlalchemy as sa
 
 from app.models.base import Base
 from app.models.common.workflow import WorkItem
-from app.models.common.entity_mixin import EntityMixin
 
-class Project(WorkItem, EntityMixin):
+class Project(WorkItem):
     """
     Proyectos de trabajo
     """
@@ -58,18 +57,12 @@ class Project(WorkItem, EntityMixin):
         sa.Index('idx_project_is_active', 'is_active'),
         sa.Index('idx_project_request', 'request_id')
     )
-    
-    @validates('code')
-    def validate_code(self, key, code):
-        if code and not code.strip():
-            raise ValueError("El código del proyecto no puede estar vacío")
-        return code
-    
+
     def __repr__(self):
         return f"<Project(id={self.id}, title='{self.title}', code='{self.code}')>"
 
 
-class Task(WorkItem, EntityMixin):
+class Task(WorkItem):
     """
     Tareas de un proyecto
     """
@@ -91,7 +84,7 @@ class Task(WorkItem, EntityMixin):
     
     # Asignación
     assignee_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    assignee = relationship("User", back_populates="assigned_tasks")
+    assignee = relationship("User", back_populates="assigned_tasks", foreign_keys=[assignee_id])
     
     # Fechas específicas
     start_date = Column(DateTime, nullable=True)
@@ -110,12 +103,6 @@ class Task(WorkItem, EntityMixin):
         sa.Index('idx_task_activity_type', 'activity_type_id'),
         sa.Index('idx_task_assignee', 'assignee_id')
     )
-    
-    @validates('progress_percentage')
-    def validate_progress(self, key, value):
-        if value < 0 or value > 100:
-            raise ValueError("El porcentaje de progreso debe estar entre 0 y 100")
-        return value
     
     def __repr__(self):
         return f"<Task(id={self.id}, title='{self.title}', project_id={self.project_id})>"

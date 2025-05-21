@@ -3,9 +3,8 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date, Time, JS
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
-from app.models.common.entity_mixin import EntityMixin
 
-class PodcastRequest(Base, EntityMixin):
+class PodcastRequest(Base):
     """
     Detalles para solicitud de podcast
     """
@@ -28,7 +27,7 @@ class PodcastRequest(Base, EntityMixin):
     # Relaciones
     request = relationship("Request", back_populates="podcast_request")
     moderators = relationship("PodcastModerator", back_populates="podcast", cascade="all, delete-orphan")
-    episodes = relationship("PodcastEpisode", back_populates="podcast", cascade="all, delete-orphan")
+    episodes = relationship("PodcastRequestEpisode", back_populates="podcast", cascade="all, delete-orphan")
     
     # Relación con una serie de podcast (si se convierte) - sin referencia circular
     podcast_series = relationship("PodcastSeries", back_populates="podcast_request", uselist=False)
@@ -66,7 +65,7 @@ class PodcastModerator(Base):
         return f"<PodcastModerator(id={self.id}, name='{self.name}')>"
 
 
-class PodcastEpisode(Base):
+class PodcastRequestEpisode(Base):
     """
     Episodios para una solicitud de podcast
     """
@@ -107,7 +106,7 @@ class PodcastGuest(Base):
     name = Column(String(255), nullable=False)
     
     # Relaciones
-    episode = relationship("PodcastEpisode", back_populates="guests")
+    episode = relationship("PodcastRequestEpisode", back_populates="guests")
     
     # Índices
     __table_args__ = (

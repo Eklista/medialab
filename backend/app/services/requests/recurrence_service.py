@@ -158,3 +158,31 @@ class RecurrenceService:
             end_dt = end_dt + timedelta(days=1)
             
         return int((end_dt - start_dt).total_seconds() / 60)
+
+    @staticmethod
+    def validate_recurrence_type(value: str) -> str:
+        """
+        Valida que el tipo de recurrencia sea válido
+        """
+        valid_types = ['daily', 'weekly', 'monthly', 'manual']
+        if value not in valid_types:
+            raise ValueError(f"El tipo de recurrencia debe ser uno de: {', '.join(valid_types)}")
+        return value
+
+    @staticmethod
+    def validate_end_date(start_date: date, end_date: date) -> date:
+        """
+        Valida que la fecha fin sea posterior a la fecha inicio
+        """
+        if start_date and end_date < start_date:
+            raise ValueError("La fecha de fin debe ser posterior o igual a la fecha de inicio")
+        return end_date
+
+    @staticmethod
+    def validate_end_time(start_time: time, end_time: time) -> time:
+        """
+        Valida que la hora fin sea posterior a la hora inicio
+        """
+        if start_time and end_time <= start_time:
+            raise ValueError("La hora de fin debe ser posterior a la hora de inicio")
+        return end_time

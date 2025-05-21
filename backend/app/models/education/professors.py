@@ -30,17 +30,5 @@ class Professor(Base):
         Index('idx_professor_department', 'department_id'),
     )
     
-    @validates('email')
-    def validate_email(self, key, email):
-        if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            raise ValueError("Formato de email inválido")
-        return email
-
-    @validates('phone')
-    def validate_phone(self, key, phone):
-        if phone and not re.match(r"^\+?[0-9]{8,15}$", phone):
-            raise ValueError("Formato de teléfono inválido")
-        return phone
-    
     def __repr__(self):
         return f"<Professor(id={self.id}, name='{self.name}')>"

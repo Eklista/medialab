@@ -60,3 +60,12 @@ class TaskService:
             List[Task]: Lista de tareas asignadas
         """
         return db.query(Task).filter(Task.assignee_id == assignee_id).all()
+
+    @staticmethod
+    def validate_progress(value: int) -> int:
+        """
+        Valida que el porcentaje de progreso esté entre 0 y 100
+        """
+        if value < 0 or value > 100:
+            raise ValueError("El porcentaje de progreso debe estar entre 0 y 100")
+        return value

@@ -1,5 +1,5 @@
 # app/models/security/audit_log.py
-from sqlalchemy import Column, String, Integer, Text, DateTime, JSON, Index
+from sqlalchemy import Column, String, Integer, Text, DateTime, JSON, Index, ForeignKey
 from datetime import datetime
 import sqlalchemy as sa
 

@@ -25,13 +25,6 @@ class Priority(Base):
         sa.Index('idx_priority_order', 'order'),
     )
     
-    @validates('color')
-    def validate_color(self, key, color):
-        import re
-        if not re.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color):
-            raise ValueError("El formato de color debe ser un código hexadecimal válido (#RGB o #RRGGBB)")
-        return color
-    
     def __repr__(self):
         return f"<Priority(name='{self.name}', order={self.order})>"
 
@@ -49,13 +42,6 @@ class Tag(Base):
     
     # Relaciones
     assignments = relationship("TagAssignment", back_populates="tag", cascade="all, delete-orphan")
-    
-    @validates('color')
-    def validate_color(self, key, color):
-        import re
-        if not re.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color):
-            raise ValueError("El formato de color debe ser un código hexadecimal válido (#RGB o #RRGGBB)")
-        return color
     
     def __repr__(self):
         return f"<Tag(name='{self.name}')>"
@@ -107,13 +93,6 @@ class ActivityType(Base):
     __table_args__ = (
         sa.Index('idx_activity_type_category', 'category'),
     )
-    
-    @validates('color')
-    def validate_color(self, key, color):
-        import re
-        if not re.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color):
-            raise ValueError("El formato de color debe ser un código hexadecimal válido (#RGB o #RRGGBB)")
-        return color
     
     def __repr__(self):
         return f"<ActivityType(name='{self.name}')>"

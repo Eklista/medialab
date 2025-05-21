@@ -102,12 +102,6 @@ class WorkItem(Base, AuditMixin):
     
     def __repr__(self):
         return f"<WorkItem(id={self.id}, title='{self.title}', type='{self.entity_type}')>"
-    
-    @property
-    def is_completed(self):
-        """Verifica si el ítem está completado basado en el estado"""
-        return self.completed_at is not None
-
 
 class StatusHistory(Base):
     """

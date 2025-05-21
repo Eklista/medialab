@@ -42,15 +42,3 @@ class Attachment(Base):
     
     def __repr__(self):
         return f"<Attachment(id={self.id}, filename='{self.filename}', entity_type='{self.entity_type}', entity_id={self.entity_id})>"
-
-    @validates('file_size')
-    def validate_file_size(self, key, size):
-        if size <= 0:
-            raise ValueError("El tamaño del archivo debe ser mayor que cero")
-        return size
-    
-    @validates('mime_type')
-    def validate_mime_type(self, key, mime):
-        if not mime or not re.match(r'^[a-z]+/[a-z0-9\.\-\+]+$', mime):
-            raise ValueError("Formato MIME inválido")
-        return mime

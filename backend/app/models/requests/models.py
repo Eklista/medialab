@@ -6,9 +6,8 @@ from datetime import datetime, date, time
 
 from app.models.base import Base
 from app.models.common.workflow import WorkItem
-from app.models.common.entity_mixin import EntityMixin
 
-class Request(WorkItem, EntityMixin):
+class Request(WorkItem):
     """
     Solicitudes de trabajo/servicios - Punto de entrada para todas las solicitudes
     """
@@ -35,12 +34,6 @@ class Request(WorkItem, EntityMixin):
     # Estado del procesamiento
     is_processed = Column(Boolean, default=False)  # Indica si la solicitud ya fue procesada/convertida
     processing_notes = Column(Text, nullable=True)  # Notas sobre el procesamiento
-
-    # Auditoría
-    deleted_at = Column(DateTime, nullable=True)
-    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    created_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
     # Relaciones
     requester = relationship("User", foreign_keys=[requester_id])
@@ -75,21 +68,6 @@ class Request(WorkItem, EntityMixin):
         Index('idx_request_activity_type', 'activity_type'),
         Index('idx_request_is_processed', 'is_processed')
     )
-    
-    @validates('activity_type')
-    def validate_activity_type(self, key, value):
-        valid_types = ['single', 'recurrent', 'podcast', 'course']
-        if value not in valid_types:
-            raise ValueError(f"El tipo de actividad debe ser uno de: {', '.join(valid_types)}")
-        return value
-    
-    @validates('location_type')
-    def validate_location_type(self, key, value):
-        if value is not None:
-            valid_types = ['university', 'external', 'virtual']
-            if value not in valid_types:
-                raise ValueError(f"El tipo de ubicación debe ser uno de: {', '.join(valid_types)}")
-        return value
     
     def __repr__(self):
         return f"<Request(id={self.id}, activity_type='{self.activity_type}', processed={self.is_processed})>"

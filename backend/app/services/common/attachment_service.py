@@ -195,3 +195,21 @@ class AttachmentService:
             'text/plain'
         ]
         return mime_type in document_types
+
+    @staticmethod
+    def validate_file_size(size: int) -> int:
+        """
+        Valida que el tamaño del archivo sea válido
+        """
+        if size <= 0:
+            raise ValueError("El tamaño del archivo debe ser mayor que cero")
+        return size
+
+    @staticmethod
+    def validate_mime_type(mime: str) -> str:
+        """
+        Valida que el formato MIME sea válido
+        """
+        if not mime or not re.match(r'^[a-z]+/[a-z0-9\.\-\+]+$', mime):
+            raise ValueError("Formato MIME inválido")
+        return mime

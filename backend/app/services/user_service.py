@@ -250,3 +250,36 @@ class UserService:
         db.commit()
         
         return True
+
+    @staticmethod
+    def get_full_name(user: User) -> str:
+        """
+        Retorna el nombre completo del usuario
+        """
+        return f"{user.first_name} {user.last_name}"
+
+    @staticmethod
+    def set_password(user: User, password: str) -> None:
+        """
+        Establece el hash de la contraseña de forma segura
+        """
+        user.password_hash = get_password_hash(password)
+
+    @staticmethod
+    def check_password(user: User, password: str) -> bool:
+        """
+        Verifica si la contraseña es correcta
+        """
+        return verify_password(password, user.password_hash)
+
+    @staticmethod
+    def generate_reset_token(user: User, expires_in: int = 3600) -> str:
+        """
+        Genera un token de recuperación de contraseña
+        """
+        import secrets
+        from datetime import datetime, timedelta
+        
+        user.reset_token = secrets.token_urlsafe(32)
+        user.reset_token_expires = datetime.utcnow() + timedelta(seconds=expires_in)
+        return user.reset_token

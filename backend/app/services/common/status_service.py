@@ -149,3 +149,10 @@ class StatusService:
             StatusHistory.entity_type == entity_type,
             StatusHistory.entity_id == entity_id
         ).order_by(StatusHistory.change_date.desc()).all()
+
+    @staticmethod
+    def is_completed(work_item: WorkItem) -> bool:
+        """
+        Verifica si el ítem está completado basado en el estado
+        """
+        return work_item.completed_at is not None

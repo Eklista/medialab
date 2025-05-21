@@ -151,6 +151,21 @@ class RequestService:
         )
         db.commit()
         return True
+
+    @validates('activity_type')
+    def validate_activity_type(self, key, value):
+        valid_types = ['single', 'recurrent', 'podcast', 'course']
+        if value not in valid_types:
+            raise ValueError(f"El tipo de actividad debe ser uno de: {', '.join(valid_types)}")
+        return value
+
+    @validates('location_type')
+    def validate_location_type(self, key, value):
+        if value is not None:
+            valid_types = ['university', 'external', 'virtual']
+            if value not in valid_types:
+                raise ValueError(f"El tipo de ubicación debe ser uno de: {', '.join(valid_types)}")
+        return value
     
     @staticmethod
     def convert_to_project(db: Session, request: Request, project_code: str = None, status_id: int = None) -> Project:

@@ -6,9 +6,8 @@ from datetime import datetime
 import sqlalchemy as sa
 
 from app.models.base import Base
-from app.models.common.entity_mixin import EntityMixin
 
-class InstitutionalUser(Base, EntityMixin):
+class InstitutionalUser(Base):
     """
     Modelo para usuarios/solicitantes institucionales dentro de la universidad
     """
@@ -55,37 +54,6 @@ class InstitutionalUser(Base, EntityMixin):
         sa.Index('idx_institutional_user_is_active', 'is_active'),
         sa.Index('idx_institutional_user_department', 'department_id')
     )
-    
-    @validates('email')
-    def validate_email(self, key, email):
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            raise ValueError("Formato de email inválido")
-        return email
-
-    @validates('phone')
-    def validate_phone(self, key, phone):
-        if phone and not re.match(r"^\+?[0-9]{8,15}$", phone):
-            raise ValueError("Formato de teléfono inválido")
-        return phone
-    
-    def set_password(self, password):
-        """Establece el hash de la contraseña de forma segura"""
-        from werkzeug.security import generate_password_hash
-        self.password_hash = generate_password_hash(password)
-    
-    def check_password(self, password):
-        """Verifica si la contraseña es correcta"""
-        from werkzeug.security import check_password_hash
-        return check_password_hash(self.password_hash, password)
-    
-    def generate_reset_token(self, expires_in=3600):
-        """Genera un token de recuperación de contraseña"""
-        import secrets
-        from datetime import datetime, timedelta
-        
-        self.reset_token = secrets.token_urlsafe(32)
-        self.reset_token_expires = datetime.utcnow() + timedelta(seconds=expires_in)
-        return self.reset_token
     
     def __repr__(self):
         return f"<InstitutionalUser(id={self.id}, name='{self.name}', email='{self.email}')>"

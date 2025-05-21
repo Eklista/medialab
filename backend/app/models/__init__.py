@@ -44,7 +44,7 @@ from app.models.projects.models import Project, Task
 from app.models.requests import (
     Request, request_services, request_sub_services,
     SingleEvent, RecurrentEvent, EventDate,
-    PodcastRequest, PodcastModerator, PodcastEpisode as PodcastRequestEpisode, PodcastGuest,
+    PodcastRequest, PodcastModerator, PodcastRequestEpisode, PodcastGuest,
     CourseRequest, CourseItem, CourseRecordingDate
 )
 
