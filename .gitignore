@@ -1,39 +1,78 @@
+# Node.js (Frontend)
 node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.cache/
+frontend/*.tsbuildinfo
+frontend/coverage/
+frontend/.nuxt
+frontend/.output
 
+# Python (Backend)
 __pycache__/
+*/__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/dist/
+backend/build/
+backend/.pytest_cache/
+backend/htmlcov/
+backend/.coverage
 
-dist/
-build/
-
+# Environment variables - ignorar todos excepto ejemplos
 .env
-.env.*
-*.env
 .env.local
 .env.*.local
+.env.prod
+.env.dev
+backend/.env
+frontend/.env
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!.env.*.example
+
+# Sistema
 .DS_Store
+*.swp
+*~
+
+# Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+backend/logs/
+frontend/logs/
 
+# Editor
 .vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
 
-.cache/
+# Misc
 *.tsbuildinfo
-
 *.tgz
-
 coverage/
-
 *.zip
 *.gz
-
+*.tar
+*.tar.gz
+*.rar
 *.local
 
+# Virtual environments
 venv/
+env/
+.venv/
+.virtualenv/
 backend/venv/
-.env.prod
-.env.dev
+backend/env/
+backend/.venv/

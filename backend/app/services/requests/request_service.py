@@ -1,7 +1,7 @@
 # app/services/requests/request_service.py
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, validates
 
 from app.models.requests.models import Request
 from app.models.projects.models import Project

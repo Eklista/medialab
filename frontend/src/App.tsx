@@ -1,5 +1,4 @@
-// Modificación del App.tsx del frontend principal (solo la ruta del login)
-// src/App.tsx
+// src/App.tsx - Con la corrección
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { HomePage } from './pages/home/HomePage'
 import { RequestFormPage } from './pages/request-form/RequestFormPage'
@@ -26,7 +25,7 @@ function App() {
     <AuthProvider>
       <Routes>
         {/* Rutas públicas */}
-        <Route path="/ml-admin/login" element={<LoginPage />} /> {/* CAMBIO AQUÍ: /login -> /ml-admin/login */}
+        <Route path="/ml-admin/login" element={<LoginPage />} />
         <Route path="/password-recovery" element={<PasswordRecoveryPage />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/request" element={<RequestFormPage />} />
@@ -41,7 +40,7 @@ function App() {
           <Route path="/dashboard/requests" element={<RequestsPage />} />
           <Route path="/dashboard/requests/:id" element={<RequestDetailsPage />} />
           <Route path="/dashboard/users" element={<UsersPage />} />
-          <Route path="/dashboard/app-settings/" element={<AppSettingsPage />} />
+          <Route path="/dashboard/app-settings//*" element={<AppSettingsPage />} />
           <Route path="/dashboard/settings" element={<SettingsPage />} />
           <Route path="/dashboard/users/:userId" element={<UserProfilePage />} />
         </Route>

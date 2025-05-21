@@ -258,4 +258,23 @@ class CourseService:
     @staticmethod
     def delete_class(db: Session, class_id: int, deleted_by_id: Optional[int] = None) -> bool:
         """
-        Marca una clase como ea
+        Marca una clase como eliminada
+        
+        Args:
+            db: Sesión SQLAlchemy
+            class_id: ID de la clase
+            deleted_by_id: ID del usuario que elimina
+            
+        Returns:
+            bool: True si se marcó como eliminada, False si no se encuentra
+        """
+        course_class = CourseService.get_class_by_id(db, class_id)
+        if not course_class:
+            return False
+            
+        course_class.deleted_at = datetime.utcnow()
+        course_class.deleted_by_id = deleted_by_id
+        
+        db.commit()
+        
+        return True

@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.models.notifications import Notification, NotificationTrigger
+from app.models import Notification, NotificationTrigger
 
 class NotificationService:
     """

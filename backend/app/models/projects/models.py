@@ -30,18 +30,32 @@ class Project(WorkItem):
     is_recurrent = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
 
-    # Relaciones
+    # Relación con usuario institucional 
+    institutional_user_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
+    
+    # Relación con solicitud - especificando foreign_keys explícitamente
+    request_id = Column(Integer, ForeignKey('requests.id'), nullable=True)
+    
+    # Relaciones corregidas
     activity_type = relationship("ActivityType")
     department = relationship("Department")
-    tasks = relationship("Task", back_populates="project")
-
-    # Relación con el usuario institucional (si aplica)
-    institutional_user_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
-    institutional_user = relationship("InstitutionalUser", back_populates="projects")
     
-    # Relación con solicitud (si proviene de una)
-    request_id = Column(Integer, ForeignKey('requests.id'), nullable=True)
-    originating_request = relationship("Request", back_populates="project", foreign_keys=[request_id])
+    tasks = relationship(
+        "Task",
+        back_populates="project",
+        foreign_keys="[Task.project_id]"
+    )
+    
+    institutional_user = relationship(
+        "InstitutionalUser", 
+        back_populates="projects"
+    )
+    
+    originating_request = relationship(
+        "Request",
+        back_populates="project",
+        foreign_keys=[request_id]
+    )
     
     # Configuración del mapper
     __mapper_args__ = {
@@ -72,25 +86,37 @@ class Task(WorkItem):
     
     # Relación con proyecto
     project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
-    project = relationship("Project", back_populates="tasks")
     
     # Clasificación
     activity_type_id = Column(Integer, ForeignKey('activity_types.id'), nullable=True)
-    activity_type = relationship("ActivityType")
-
+    
     # Descripción
     activity_entity_type = Column(String(50), nullable=True)
     activity_entity_id = Column(Integer, nullable=True)
     
     # Asignación
     assignee_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    assignee = relationship("User", back_populates="assigned_tasks", foreign_keys=[assignee_id])
     
     # Fechas específicas
     start_date = Column(DateTime, nullable=True)
     
     # Progreso
     progress_percentage = Column(Integer, default=0)
+    
+    # Relaciones corregidas
+    project = relationship(
+        "Project", 
+        back_populates="tasks",
+        foreign_keys=[project_id]
+    )
+    
+    activity_type = relationship("ActivityType")
+    
+    assignee = relationship(
+        "User", 
+        back_populates="assigned_tasks", 
+        foreign_keys=[assignee_id]
+    )
     
     # Configuración del mapper
     __mapper_args__ = {

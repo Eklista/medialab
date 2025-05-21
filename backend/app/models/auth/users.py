@@ -1,4 +1,4 @@
-from typing import List
+# app/models/auth/users.py
 from sqlalchemy import Boolean, Column, String, Integer, Date, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship, validates
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -30,12 +30,29 @@ class User(Base):
     reset_token = Column(String(255), nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
     
-    # Relaciones - usando strings para evitar problemas de importación circular
-    roles = relationship("Role", secondary="user_roles", back_populates="users")
-    areas = relationship("Area", secondary="user_roles")
-    assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="[Task.assignee_id]")
-        
-    # Índices adicionales
+    # Relaciones corregidas
+    roles = relationship(
+        "Role", 
+        secondary="user_roles", 
+        back_populates="users", 
+        overlaps="areas"
+    )
+    
+    areas = relationship(
+        "Area", 
+        secondary="user_roles", 
+        viewonly=True, 
+        overlaps="roles"
+    )
+    
+    # Relaciones sin conflictos
+    assigned_tasks = relationship(
+        "Task", 
+        back_populates="assignee", 
+        foreign_keys="[Task.assignee_id]"
+    )
+    
+    # Índices
     __table_args__ = (
         sa.Index('idx_user_last_login', 'last_login'),
         sa.Index('idx_user_join_date', 'join_date'),

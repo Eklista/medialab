@@ -1,5 +1,5 @@
 # app/services/requests/recurrence_service.py
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 

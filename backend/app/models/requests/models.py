@@ -1,7 +1,7 @@
-# app/models/requests/models.py
-from sqlalchemy import (Column, String, Integer, Text, Boolean, DateTime, ForeignKey, 
-                        Index, JSON, Enum, func, Date)
+# Correcciones para app/models/requests/models.py
+from sqlalchemy import Column, String, Integer, Text, Boolean, DateTime, ForeignKey, Index, JSON, Enum, func, Date
 from sqlalchemy.orm import relationship, validates
+import sqlalchemy as sa
 from datetime import datetime, date, time
 
 from app.models.base import Base
@@ -35,26 +35,58 @@ class Request(WorkItem):
     is_processed = Column(Boolean, default=False)  # Indica si la solicitud ya fue procesada/convertida
     processing_notes = Column(Text, nullable=True)  # Notas sobre el procesamiento
 
-    # Relaciones
+    # Relación con usuario institucional
+    requester_institutional_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
+    
+    # Relaciones corregidas
     requester = relationship("User", foreign_keys=[requester_id])
     department = relationship("Department")
-
-    # Relación con el usuario institucional (si aplica)
-    requester_institutional_id = Column(Integer, ForeignKey('institutional_users.id'), nullable=True)
-    institutional_requester = relationship("InstitutionalUser", back_populates="requests")
+    
+    institutional_requester = relationship(
+        "InstitutionalUser", 
+        back_populates="requests"
+    )
+    
+    # Relación con proyecto
+    project = relationship(
+        "Project",
+        back_populates="originating_request",
+        uselist=False,
+        foreign_keys="[Project.request_id]"
+    )
     
     # Relaciones con tipos específicos
-    single_event = relationship("SingleEvent", back_populates="request", uselist=False, cascade="all, delete-orphan")
-    recurrent_event = relationship("RecurrentEvent", back_populates="request", uselist=False, cascade="all, delete-orphan")
-    podcast_request = relationship("PodcastRequest", back_populates="request", uselist=False, cascade="all, delete-orphan")
-    course_request = relationship("CourseRequest", back_populates="request", uselist=False, cascade="all, delete-orphan")
+    single_event = relationship(
+        "SingleEvent", 
+        back_populates="request", 
+        uselist=False, 
+        cascade="all, delete-orphan"
+    )
+    
+    recurrent_event = relationship(
+        "RecurrentEvent", 
+        back_populates="request", 
+        uselist=False, 
+        cascade="all, delete-orphan"
+    )
+    
+    podcast_request = relationship(
+        "PodcastRequest", 
+        back_populates="request", 
+        uselist=False, 
+        cascade="all, delete-orphan"
+    )
+    
+    course_request = relationship(
+        "CourseRequest", 
+        back_populates="request", 
+        uselist=False, 
+        cascade="all, delete-orphan"
+    )
     
     # Relaciones con servicios seleccionados
     services = relationship("Service", secondary="request_services", viewonly=True)
     sub_services = relationship("SubService", secondary="request_sub_services", viewonly=True)
-    
-    # Relación con proyecto (cuando se convierte) - sin referencia circular
-    project = relationship("Project", back_populates="originating_request", uselist=False)
     
     # Configuración del mapper
     __mapper_args__ = {
@@ -63,10 +95,10 @@ class Request(WorkItem):
     
     # Índices
     __table_args__ = (
-        Index('idx_request_requester', 'requester_id'),
-        Index('idx_request_department', 'department_id'),
-        Index('idx_request_activity_type', 'activity_type'),
-        Index('idx_request_is_processed', 'is_processed')
+        sa.Index('idx_request_requester', 'requester_id'),
+        sa.Index('idx_request_department', 'department_id'),
+        sa.Index('idx_request_activity_type', 'activity_type'),
+        sa.Index('idx_request_is_processed', 'is_processed')
     )
     
     def __repr__(self):

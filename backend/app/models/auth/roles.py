@@ -1,3 +1,4 @@
+# app/models/auth/roles.py
 from sqlalchemy import Column, String, Integer, Text
 from sqlalchemy.orm import relationship
 
@@ -13,8 +14,16 @@ class Role(Base):
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text, nullable=True)
     
-    # Relaciones - usando strings para evitar problemas de importación circular
-    users = relationship("User", secondary="user_roles", back_populates="roles")
+    # Relaciones corregidas
+    users = relationship(
+        "User", 
+        secondary="user_roles", 
+        back_populates="roles", 
+        overlaps="areas"
+    )
     
-    # Usamos una relación con string en lugar de importar directamente
-    permissions = relationship("Permission", secondary="role_permissions", back_populates="roles")
+    permissions = relationship(
+        "Permission", 
+        secondary="role_permissions", 
+        back_populates="roles"
+    )
