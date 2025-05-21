@@ -101,6 +101,9 @@ class UserService:
         """
         Envía un correo de bienvenida después de crear el usuario
         """
+        from app.database import get_db
+        from app.services.smtp_service import SmtpService
+        
         # URL directa en producción para evitar problemas con variables de entorno
         recovery_link = "https://medialab.eklista.com/password-recovery"
         subject = "Bienvenido a MediaLab Sistema"
@@ -145,15 +148,65 @@ class UserService:
         </div>
         """
         
+        # Versión de texto plano para clientes que no soportan HTML
+        text_content = f"""
+        ¡Bienvenido a MediaLab, {username}!
+        
+        Te informamos que tu cuenta en la plataforma MediaLab ha sido creada exitosamente. Para poder ingresar por primera vez, sigue estos sencillos pasos:
+        
+        1. Visita la página de recuperación de contraseña: {recovery_link}
+        2. Ingresa el correo electrónico con el que te registraste ({email}).
+        3. Sigue las instrucciones para crear tu contraseña.
+        4. Una vez creada tu contraseña, podrás iniciar sesión en MediaLab.
+        
+        Una vez que hayas ingresado al sistema, es importante que completes tu perfil de la siguiente manera:
+        
+        1. Dirígete a la sección "Mi perfil" en el menú principal.
+        2. Haz clic en el botón "Completar perfil".
+        3. Es obligatorio que subas una fotografía tuya como foto de perfil.
+        4. En el banner de perfil, puedes colocar la imagen que desees.
+        5. Tu número de teléfono es opcional.
+        6. Es obligatorio que ingreses tu fecha de nacimiento.
+        
+        Si tienes alguna pregunta o necesitas ayuda en cualquier momento, no dudes en contactar a nuestro equipo de soporte de MediaLab.
+        """
+        
         try:
-            print(f"Enviando correo de bienvenida a {email} con enlace de recuperación directo")
-            send_email(
-                email_to=email,
-                subject=subject,
-                html_template=html_template
-            )
+            print(f"Intentando enviar correo de bienvenida a {email}")
+            
+            # Obtener sesión de base de datos
+            db = next(get_db())
+            
+            try:
+                # Verificar si hay una configuración SMTP activa
+                active_config = SmtpService.get_active_config(db)
+                
+                if not active_config:
+                    print("No hay configuración SMTP activa. No se puede enviar el correo de bienvenida.")
+                    return False
+                
+                # Enviar correo utilizando el servicio SMTP
+                success = send_email(
+                    email_to=email,
+                    subject=subject,
+                    html_template=html_template,
+                    environment={"username": username, "email": email, "recovery_link": recovery_link}
+                )
+                
+                if success:
+                    print(f"Correo de bienvenida enviado exitosamente a {email}")
+                else:
+                    print(f"Error al enviar correo de bienvenida a {email} - Falló el envío")
+                
+                return success
+            except Exception as e:
+                print(f"Error en la comunicación con el servidor SMTP: {str(e)}")
+                raise e
+            finally:
+                db.close()
         except Exception as e:
-            print(f"Error al enviar correo de bienvenida: {str(e)}")
+            print(f"Error general al enviar correo de bienvenida: {str(e)}")
+            return False
 
     
     @staticmethod

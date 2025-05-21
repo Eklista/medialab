@@ -7,10 +7,12 @@ import ConfigSidebar, { ConfigMenuItem } from '../components/config/ConfigSideba
 import RolesAreasSettings from './settings/RolesAreasSettings';
 import ServicesSettings from './settings/ServicesSettings';
 import AcademicUnitsSettings from './settings/AcademicUnitsSettings';
+import SmtpSettings from './settings/SmtpSettings';
 import { 
   UserGroupIcon, 
   WrenchScrewdriverIcon, 
-  BuildingLibraryIcon 
+  BuildingLibraryIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 
 const AppSettingsPage: React.FC = () => {
@@ -35,6 +37,12 @@ const AppSettingsPage: React.FC = () => {
       name: 'Facultades y Departamentos',
       path: '/dashboard/app-settings/faculties',
       icon: <BuildingLibraryIcon className="h-5 w-5" />
+    },
+    {
+      id: 'smtp',
+      name: 'Configuración SMTP',
+      path: '/dashboard/app-settings/smtp',
+      icon: <EnvelopeIcon className="h-5 w-5" />
     }
   ];
   
@@ -70,6 +78,7 @@ const AppSettingsPage: React.FC = () => {
               <Route path="roles-areas" element={<RolesAreasSettings />} />
               <Route path="services" element={<ServicesSettings />} />
               <Route path="faculties" element={<AcademicUnitsSettings />} />
+              <Route path="smtp" element={<SmtpSettings />} />
               <Route path="/" element={<Navigate to="roles-areas" replace />} />
             </Routes>
           </DashboardCard>

@@ -79,6 +79,12 @@ def add_permissions() -> None:
             {"name": "service_create", "description": "Crear servicios"},
             {"name": "service_edit", "description": "Editar servicios"},
             {"name": "service_delete", "description": "Eliminar servicios"},
+            
+            # Permisos para configuración SMTP
+            {"name": "smtp_config_view", "description": "Ver configuraciones SMTP"},
+            {"name": "smtp_config_create", "description": "Crear configuraciones SMTP"},
+            {"name": "smtp_config_edit", "description": "Editar configuraciones SMTP"},
+            {"name": "smtp_config_delete", "description": "Eliminar configuraciones SMTP"},
         ]
         
         # Verificar permisos existentes

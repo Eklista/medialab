@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 
-from app.api.v1 import users, roles, areas, services, departments, department_types, public, service_templates, permissions
+from app.api.v1 import users, roles, areas, services, departments, department_types, public, service_templates, permissions, smtp_config
 from app.api.v1.auth import auth_router
 
 api_router = APIRouter()
 
-# Incluir enrutadores por dominio
+#  Incluir routers
 api_router.include_router(auth_router, prefix="/auth")
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
@@ -16,3 +16,4 @@ api_router.include_router(department_types.router, prefix="/department-types", t
 api_router.include_router(service_templates.router, prefix="/service-templates", tags=["service_templates"])
 api_router.include_router(permissions.router, prefix="/permissions", tags=["permissions"])
 api_router.include_router(public.router, prefix="/public", tags=["public"])
+api_router.include_router(smtp_config.router, prefix="/smtp-config", tags=["smtp_config"])
