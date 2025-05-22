@@ -20,6 +20,9 @@ services:
       - medialab-network
       
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: eklista/medialab:backend-prod
     restart: always
     volumes:
@@ -51,6 +54,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=/api/v1
+    image: eklista/medialab:frontend-prod
     restart: always
     environment:
       - TZ=America/Guatemala
@@ -60,6 +64,9 @@ services:
       - medialab-network
 
   nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     image: eklista/medialab:nginx-prod
     restart: always
     ports:

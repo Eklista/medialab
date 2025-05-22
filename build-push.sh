@@ -74,11 +74,56 @@ build_and_tag() {
     fi
   fi
   
-  # Obtener el nombre de la imagen generada
-  local image_name="medialab-$service"
+  # Verificar si ya existe la imagen objetivo (porque docker-compose.prod.yml la etiqueta automáticamente)
+  local target_image="eklista/medialab:${tag}"
+  if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${target_image}$"; then
+    echo -e "${GREEN}✓ Imagen $target_image ya está construida y etiquetada correctamente${NC}"
+    return 0
+  fi
+  
+  # Obtener el nombre del proyecto (directorio actual)
+  local project_name=$(basename $(pwd))
+  
+  # Posibles nombres de imagen que docker-compose puede generar
+  local possible_names=(
+    "${project_name}-${service}"
+    "${project_name}_${service}"
+    "medialab-${service}"
+    "medialab_${service}"
+  )
+  
+  local image_name=""
+  
+  # Buscar cuál imagen se creó realmente
+  for name in "${possible_names[@]}"; do
+    if docker images --format "{{.Repository}}" | grep -q "^${name}$"; then
+      image_name="${name}:latest"
+      echo -e "${BLUE}Encontrada imagen: $image_name${NC}"
+      break
+    fi
+  done
+  
+  # Si no se encontró, intentar obtener con docker-compose images
+  if [ -z "$image_name" ]; then
+    local image_id=$(docker compose -f $compose_file images -q $service 2>/dev/null)
+    if [ ! -z "$image_id" ]; then
+      # Obtener el nombre de la imagen por su ID
+      image_name=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "$(echo $image_id | cut -c1-12)")
+      if [ ! -z "$image_name" ]; then
+        echo -e "${BLUE}Encontrada imagen por ID: $image_name${NC}"
+      fi
+    fi
+  fi
+  
+  if [ -z "$image_name" ]; then
+    echo -e "${RED}No se pudo encontrar la imagen para $service${NC}"
+    echo -e "${BLUE}Imágenes disponibles:${NC}"
+    docker images | head -10
+    return 1
+  fi
   
   echo -e "${YELLOW}Etiquetando $image_name como eklista/medialab:$tag${NC}"
-  if ! docker tag ${image_name}:latest eklista/medialab:$tag; then
+  if ! docker tag $image_name eklista/medialab:$tag; then
     echo -e "${RED}Error al etiquetar $image_name${NC}"
     return 1
   fi
@@ -131,12 +176,38 @@ check_compose_files() {
   echo -e "${GREEN}✓ Archivos docker-compose verificados${NC}"
 }
 
+# Función para verificar directorios necesarios
+check_directories() {
+  if [ ! -d "nginx" ]; then
+    echo -e "${RED}Directorio nginx/ no encontrado${NC}"
+    exit 1
+  fi
+  
+  if [ ! -f "nginx/Dockerfile" ]; then
+    echo -e "${RED}nginx/Dockerfile no encontrado${NC}"
+    exit 1
+  fi
+  
+  if [ ! -d "frontend" ]; then
+    echo -e "${RED}Directorio frontend/ no encontrado${NC}"
+    exit 1
+  fi
+  
+  if [ ! -d "backend" ]; then
+    echo -e "${RED}Directorio backend/ no encontrado${NC}"
+    exit 1
+  fi
+  
+  echo -e "${GREEN}✓ Directorios verificados${NC}"
+}
+
 # Inicio del script
 print_header "CONSTRUCCIÓN Y PUSH DE IMÁGENES"
 
 # Verificar requisitos
 check_docker
 check_compose_files
+check_directories
 
 # Variables para controlar qué imágenes se construyeron
 build_dev_success=false
