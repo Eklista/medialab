@@ -1,10 +1,12 @@
 // src/features/dashboard/components/config/TestEmailModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardModal from '../ui/DashboardModal';
 import DashboardTextInput from '../ui/DashboardTextInput';
 import DashboardTextarea from '../ui/DashboardTextArea';
 import DashboardButton from '../ui/DashboardButton';
+import DashboardSelect from '../ui/DashboardSelect';
 import { smtpService } from '../../../../services';
+import { emailTemplateService, EmailTemplate } from '../../../../services/emailTemplate.service';
 
 interface TestEmailModalProps {
   isOpen: boolean;
@@ -15,14 +17,41 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({ isOpen, onClose }) => {
   const [emailData, setEmailData] = useState({
     to_email: '',
     subject: 'Correo de prueba',
-    message: 'Este es un correo de prueba enviado desde MediaLab Sistema.'
+    message: 'Este es un correo de prueba enviado desde MediaLab Sistema.',
+    template_code: '',
+    action_url: '',
+    action_text: ''
   });
   
+  const [availableTemplates, setAvailableTemplates] = useState<EmailTemplate[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Cargar plantillas disponibles al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      loadTemplates();
+    }
+  }, [isOpen]);
+  
+  const loadTemplates = async () => {
+    setIsLoadingTemplates(true);
+    setError(null);
+    
+    try {
+      const templates = await emailTemplateService.getEmailTemplates();
+      setAvailableTemplates(templates);
+    } catch (err) {
+      console.error('Error al cargar plantillas:', err);
+      setError(err instanceof Error ? err.message : 'Error al cargar plantillas de correo');
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEmailData(prev => ({ ...prev, [name]: value }));
     setError(null);
@@ -41,7 +70,25 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({ isOpen, onClose }) => {
     setResult(null);
     
     try {
-      const response = await smtpService.sendTestEmail(emailData);
+      const dataToSend: any = { 
+        to_email: emailData.to_email
+      };
+      
+      // Añadir datos según si se seleccionó una plantilla o no
+      if (emailData.template_code) {
+        dataToSend.template_code = emailData.template_code;
+        dataToSend.subject = emailData.subject; // Opcional, como override
+      } else {
+        dataToSend.subject = emailData.subject;
+        dataToSend.message = emailData.message;
+        
+        if (emailData.action_url && emailData.action_text) {
+          dataToSend.action_url = emailData.action_url;
+          dataToSend.action_text = emailData.action_text;
+        }
+      }
+      
+      const response = await smtpService.sendTestEmail(dataToSend);
       setResult(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al enviar correo de prueba');
@@ -54,11 +101,25 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({ isOpen, onClose }) => {
     setEmailData({
       to_email: '',
       subject: 'Correo de prueba',
-      message: 'Este es un correo de prueba enviado desde MediaLab Sistema.'
+      message: 'Este es un correo de prueba enviado desde MediaLab Sistema.',
+      template_code: '',
+      action_url: '',
+      action_text: ''
     });
     setError(null);
     setResult(null);
   };
+  
+  // Opciones para el selector de plantillas
+  const templateOptions = [
+    { value: '', label: 'Sin plantilla (mensaje personalizado)' },
+    ...availableTemplates.map(template => ({
+      value: template.code,
+      label: `${template.name} (${template.code})`
+    }))
+  ];
+  
+  const isUsingTemplate = !!emailData.template_code;
   
   return (
     <DashboardModal
@@ -83,24 +144,82 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({ isOpen, onClose }) => {
           required
         />
         
-        <DashboardTextInput
-          id="subject"
-          name="subject"
-          label="Asunto"
-          value={emailData.subject}
+        <DashboardSelect
+          id="template_code"
+          name="template_code"
+          label="Plantilla de correo"
+          value={emailData.template_code}
           onChange={handleChange}
-          placeholder="Asunto del correo"
+          options={templateOptions}
+          placeholder="Seleccione una plantilla o mensaje personalizado"
+          disabled={isLoadingTemplates}
+          helperText={isLoadingTemplates ? "Cargando plantillas..." : "Selecciona una plantilla predefinida o envía un mensaje personalizado"}
         />
         
-        <DashboardTextarea
-          id="message"
-          name="message"
-          label="Mensaje"
-          value={emailData.message}
-          onChange={handleChange}
-          placeholder="Contenido del correo"
-          rows={4}
-        />
+        {!isUsingTemplate && (
+          <>
+            <DashboardTextInput
+              id="subject"
+              name="subject"
+              label="Asunto"
+              value={emailData.subject}
+              onChange={handleChange}
+              placeholder="Asunto del correo"
+            />
+            
+            <DashboardTextarea
+              id="message"
+              name="message"
+              label="Mensaje"
+              value={emailData.message}
+              onChange={handleChange}
+              placeholder="Contenido del correo"
+              rows={4}
+            />
+            
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-sm text-gray-600 mb-2">Botón de acción (opcional)</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <DashboardTextInput
+                  id="action_text"
+                  name="action_text"
+                  label="Texto del botón"
+                  value={emailData.action_text}
+                  onChange={handleChange}
+                  placeholder="Ej: Ver detalles"
+                />
+                
+                <DashboardTextInput
+                  id="action_url"
+                  name="action_url"
+                  label="URL del botón"
+                  value={emailData.action_url}
+                  onChange={handleChange}
+                  placeholder="https://ejemplo.com/accion"
+                />
+              </div>
+            </div>
+          </>
+        )}
+        
+        {isUsingTemplate && (
+          <div className="bg-gray-50 p-3 rounded border border-gray-200">
+            <p className="text-sm font-medium mb-1">Usando plantilla: {emailData.template_code}</p>
+            <p className="text-xs text-gray-600">
+              Se usarán datos de ejemplo adecuados para esta plantilla. 
+              El correo se enviará utilizando la configuración predefinida.
+            </p>
+            <DashboardTextInput
+              id="subject"
+              name="subject"
+              label="Asunto (opcional, sobrescribe el de la plantilla)"
+              value={emailData.subject}
+              onChange={handleChange}
+              placeholder="Dejar vacío para usar el asunto predefinido"
+              className="mt-3"
+            />
+          </div>
+        )}
         
         {result && (
           <div className={`p-4 rounded-md ${

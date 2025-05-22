@@ -2,8 +2,8 @@
 import axios from 'axios';
 import { getBaseUrl } from './api';
 import { Service } from './services.service';
-import { ServiceTemplate } from './service-templates.service';
-import { TemplateServiceRelation, TemplateSubServiceRelation } from './service-templates.service';
+import { ServiceTemplate } from './serviceTemplates.service';
+import { TemplateServiceRelation, TemplateSubServiceRelation } from './serviceTemplates.service';
 
 export interface PublicDepartment {
   id: number;

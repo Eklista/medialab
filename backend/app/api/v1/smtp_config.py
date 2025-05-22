@@ -185,7 +185,8 @@ def send_test_email(
     current_user: User = Depends(has_permission("smtp_config_view"))
 ) -> Any:
     """
-    Envía un correo de prueba usando la configuración SMTP activa
+    Envía un correo de prueba usando la configuración SMTP activa.
+    Se puede especificar la plantilla a usar o enviar un mensaje genérico.
     """
     try:
         # Verificar que exista una configuración activa
@@ -198,8 +199,6 @@ def send_test_email(
         
         # Extraer datos del correo
         to_email = email_data.get('to_email')
-        subject = email_data.get('subject', 'Correo de prueba')
-        message = email_data.get('message', 'Este es un correo de prueba enviado desde MediaLab Sistema.')
         
         if not to_email:
             raise HTTPException(
@@ -207,13 +206,74 @@ def send_test_email(
                 detail="La dirección de correo destino es obligatoria"
             )
         
-        # Intentar enviar el correo
-        from app.services.email_service import send_notification_email
-        success = send_notification_email(
-            email_to=to_email,
-            subject=subject,
-            message=message
-        )
+        # Verificar si se especificó una plantilla
+        template_code = email_data.get('template_code')
+        
+        if template_code:
+            # Enviar usando plantilla
+            from app.services.email_service import send_email_with_template
+            
+            # Determinar datos de ejemplo según la plantilla
+            context = {}
+            if template_code == "welcome_email":
+                context = {
+                    "username": "Usuario Ejemplo",
+                    "email": to_email,
+                    "recovery_link": "https://medialab.eklista.com/password-recovery",
+                    "project_name": "MediaLab Sistema"
+                }
+            elif template_code == "password_reset":
+                context = {
+                    "username": "Usuario Ejemplo",
+                    "reset_url": "https://medialab.eklista.com/reset-password/token-ejemplo",
+                    "project_name": "MediaLab Sistema"
+                }
+            elif template_code == "password_reset_code":
+                context = {
+                    "username": "Usuario Ejemplo",
+                    "code": "123456",
+                    "project_name": "MediaLab Sistema"
+                }
+            else:
+                # Para plantilla genérica o personalizada
+                context = {
+                    "subject": email_data.get('subject', 'Correo de prueba'),
+                    "message": email_data.get('message', 'Este es un correo de prueba desde MediaLab Sistema.'),
+                    "project_name": "MediaLab Sistema"
+                }
+                
+                # Agregar acción si se proporcionó
+                if email_data.get('action_url') and email_data.get('action_text'):
+                    context["action_url"] = email_data.get('action_url')
+                    context["action_text"] = email_data.get('action_text')
+            
+            # Usar contexto personalizado si se proporcionó
+            if email_data.get('context'):
+                context.update(email_data.get('context'))
+                
+            success = send_email_with_template(
+                email_to=to_email,
+                template_code=template_code,
+                context=context,
+                subject_override=email_data.get('subject')
+            )
+            
+        else:
+            # Enviar correo genérico (sin plantilla)
+            from app.services.email_service import send_notification_email
+            
+            subject = email_data.get('subject', 'Correo de prueba')
+            message = email_data.get('message', 'Este es un correo de prueba enviado desde MediaLab Sistema.')
+            action_url = email_data.get('action_url')
+            action_text = email_data.get('action_text')
+            
+            success = send_notification_email(
+                email_to=to_email,
+                subject=subject,
+                message=message,
+                action_url=action_url,
+                action_text=action_text
+            )
         
         if success:
             return {"success": True, "message": f"Correo de prueba enviado exitosamente a {to_email}"}

@@ -9,7 +9,7 @@ import ConfigPageTemplate from '../../components/config/ConfigPageTemplate';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { servicesService, serviceTemplatesService } from '../../../../services';
 import { Service } from '../../../../services/services.service';
-import { ServiceTemplate } from '../../../../services/service-templates.service';
+import { ServiceTemplate } from '../../../../services/serviceTemplates.service';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 import { useAuth } from '../../../auth/hooks/useAuth';
 

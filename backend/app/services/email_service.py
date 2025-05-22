@@ -1,9 +1,26 @@
 # app/services/email_service.py
+"""
+Servicio para enviar correos electrónicos utilizando la configuración SMTP activa.
+EN ESTE SERVICIO SE UNIFICA EL ENVÍO DE CORREOS CON PLANTILLAS Y SIN PLANTILLAS.
+
+Las funciones generales son:
+- send_email: Función base para enviar correos directamente con HTML
+- send_email_with_template: Función para enviar correos usando plantillas de la BD
+
+Las funciones específicas para cada tipo de correo son:
+- send_welcome_email: Correo de bienvenida para nuevos usuarios
+- send_reset_password_email: Correo para restablecer contraseña (con enlace)
+- send_reset_code_email: Correo con código para restablecer contraseña
+- send_notification_email: Correo de notificación genérico
+"""
+
 import emails
 from emails.template import JinjaTemplate
 from pathlib import Path
 from app.services.smtp_service import SmtpService
+from app.services.email_template_service import EmailTemplateService
 from app.database import get_db
+from jinja2 import Template
 
 def send_email(
     email_to: str,
@@ -68,174 +85,125 @@ def send_email(
     finally:
         db.close()
 
+def send_email_with_template(
+    email_to: str,
+    template_code: str,
+    context: dict = {},
+    subject_override: str = None
+) -> bool:
+    """
+    Envía un correo utilizando una plantilla predefinida
+    """
+    db = next(get_db())
+    try:
+        # Obtener la plantilla por su código
+        template_data = EmailTemplateService.get_template_by_code(db, template_code)
+        
+        # Obtener el sujeto (usar el override si se proporciona)
+        subject = subject_override or template_data["subject"]
+        
+        # Renderizar el HTML con el contexto
+        rendered_html = EmailTemplateService.render_template(db, template_code, context)
+        
+        # Enviar el correo
+        success = send_email(
+            email_to=email_to,
+            subject=subject,
+            html_template=rendered_html,
+            environment={}  # No es necesario pasar environment porque ya está renderizado
+        )
+        
+        return success
+    except Exception as e:
+        print(f"Error al enviar correo con plantilla {template_code}: {str(e)}")
+        return False
+    finally:
+        db.close()
+
 def send_reset_password_email(email_to: str, username: str, token: str) -> bool:
     """
     Envía un correo de restablecimiento de contraseña (versión antigua con enlace)
     Mantenido para compatibilidad
     """
-    project_name = "MediaLab Sistema"
     reset_url = f"/reset-password/{token}"
     
-    template = f"""
-    <h1>Restablecimiento de Contraseña</h1>
-    <p>Hola {username},</p>
-    <p>Has solicitado restablecer tu contraseña en {project_name}.</p>
-    <p>Para completar el proceso, por favor haz clic en el siguiente enlace:</p>
-    <p><a href="{reset_url}">Restablecer Contraseña</a></p>
-    <p>Si no solicitaste este restablecimiento, puedes ignorar este correo.</p>
-    <p>Este enlace expirará en 24 horas.</p>
-    <p>Saludos,<br>{project_name}</p>
-    """
+    context = {
+        "username": username,
+        "reset_url": reset_url,
+        "project_name": "MediaLab Sistema"
+    }
     
-    return send_email(
+    return send_email_with_template(
         email_to=email_to,
-        subject=f"{project_name} - Restablecimiento de Contraseña",
-        html_template=template,
-        environment={"username": username, "reset_url": reset_url, "project_name": project_name}
+        template_code="password_reset",
+        context=context
     )
 
 def send_reset_code_email(email_to: str, username: str, code: str) -> bool:
-    print(f"Intentando enviar correo a {email_to} con el código {code}")
     """
     Envía un correo con código de verificación para restablecer contraseña
     """
-    project_name = "MediaLab Sistema"
+    # Usar plantilla de la base de datos
+    context = {
+        "username": username,
+        "code": code,
+        "project_name": "MediaLab Sistema"
+    }
     
-    # Aquí definimos la plantilla antes de cualquier acción con ella
-    template = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 5px; background-color: #f8f9fb;">
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="color: #7758ff; margin-bottom: 5px;">Código de verificación</h1>
-            <p style="color: #6b7280; font-size: 16px;">Recuperación de contraseña</p>
-        </div>
-
-        <p style="font-size: 16px; color: #181c24;">Hola {username},</p>
-
-        <p style="font-size: 16px; color: #181c24;">Has solicitado restablecer tu contraseña en {project_name}. Usa el siguiente código para continuar con el proceso:</p>
-
-        <div style="text-align: center; padding: 20px; background-color: #f3f4f6; border-radius: 5px;">
-            <h2 style="color: #7758ff; font-size: 30px; font-weight: bold; margin-top: 10px;">{code}</h2>
-        </div>
-
-        <p style="font-size: 16px; color: #6b7280;">Este código expirará en 5 minutos.</p>
-
-        <p style="font-size: 16px; color: #6b7280;">Si no solicitaste este restablecimiento, puedes ignorar este correo.</p>
-
-        <p style="color: #181c24;">Saludos,<br>{project_name}</p>
-    </div>
-    """
-    
-    # Log: Ver los detalles del correo antes de enviarlo
-    print(f"Enviando correo a: {email_to}")
-    print(f"Asunto: {project_name} - Restablecimiento de Contraseña")
-    
-    try:
-        # Intentar enviar el correo
-        response = send_email(
-            email_to=email_to,
-            subject=f"{project_name} - Restablecimiento de Contraseña",
-            html_template=template,
-            environment={"username": username, "code": code, "project_name": project_name}
-        )
-        
-        # Log: Después de enviar el correo
-        print(f"Respuesta de la función send_email: {response}")
-        
-        if response:
-            print(f"Correo enviado exitosamente a {email_to}")
-        else:
-            print(f"Error al enviar el correo a {email_to}. Respuesta: {response}")
-        
-        return response
-    except Exception as e:
-        # Log de error si algo falla al intentar enviar el correo
-        print(f"Error al enviar el correo a {email_to}: {str(e)}")
-        return False
+    return send_email_with_template(
+        email_to=email_to,
+        template_code="password_reset_code",
+        context=context
+    )
 
 def send_notification_email(email_to: str, subject: str, message: str, action_url: str = None, action_text: str = None) -> bool:
     """
     Envía un correo de notificación genérico
     """
-    project_name = "MediaLab Sistema"
+    context = {
+        "subject": subject,
+        "message": message,
+        "action_url": action_url,
+        "action_text": action_text,
+        "project_name": "MediaLab Sistema"
+    }
     
-    # Construir el HTML para el botón de acción si se proporciona
-    action_button = ""
-    if action_url and action_text:
-        action_button = f"""
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="{action_url}" style="background-color: #7758ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">{action_text}</a>
-        </div>
-        """
-    
-    # Plantilla HTML para el correo
-    template = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 5px; background-color: #f8f9fb;">
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="color: #7758ff; margin-bottom: 5px;">{subject}</h1>
-        </div>
-
-        <div style="font-size: 16px; color: #181c24; margin-bottom: 20px;">
-            {message}
-        </div>
-
-        {action_button}
-
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px; text-align: center;">
-            Este es un mensaje automático, por favor no responda a este correo.
-        </p>
-
-        <p style="color: #181c24; text-align: center;">
-            Saludos,<br>{project_name}
-        </p>
-    </div>
-    """
-    
-    return send_email(
+    return send_email_with_template(
         email_to=email_to,
-        subject=subject,
-        html_template=template,
-        environment={
-            "subject": subject,
-            "message": message,
-            "action_url": action_url,
-            "action_text": action_text,
-            "project_name": project_name
-        }
+        template_code="generic_notification",
+        context=context,
+        subject_override=subject
     )
 
-def test_smtp_connection(
-    host: str,
-    port: int,
-    username: str,
-    password: str,
-    use_tls: bool = True,
-    use_ssl: bool = False,
-    from_email: str = None,
-    timeout: int = 5
-) -> bool:
+def send_welcome_email(email_to: str, username: str) -> bool:
     """
-    Prueba la conexión SMTP sin enviar un correo
+    Envía un correo de bienvenida a un nuevo usuario
     """
-    import smtplib
+    # URL directa en producción para evitar problemas con variables de entorno
+    recovery_link = "https://medialab.eklista.com/password-recovery"
+    
+    context = {
+        "username": username,
+        "email": email_to,
+        "recovery_link": recovery_link,
+        "project_name": "MediaLab Sistema"
+    }
+    
+    print(f"Intentando enviar correo de bienvenida a {email_to}")
     
     try:
-        # Seleccionar clase SMTP según configuración
-        if use_ssl:
-            server = smtplib.SMTP_SSL(host, port, timeout=timeout)
+        success = send_email_with_template(
+            email_to=email_to,
+            template_code="welcome_email",
+            context=context
+        )
+        
+        if success:
+            print(f"Correo de bienvenida enviado exitosamente a {email_to}")
         else:
-            server = smtplib.SMTP(host, port, timeout=timeout)
-            
-            # Iniciar TLS si está configurado
-            if use_tls:
-                server.starttls()
+            print(f"Error al enviar correo de bienvenida a {email_to} - Falló el envío")
         
-        # Iniciar sesión
-        server.login(username, password)
-        
-        # Si llegamos aquí, la conexión fue exitosa
-        server.quit()
-        return True
+        return success
     except Exception as e:
-        # Loguear el error para debugging
-        print(f"Error al probar conexión SMTP: {str(e)}")
+        print(f"Error general al enviar correo de bienvenida: {str(e)}")
         return False

@@ -19,6 +19,7 @@ INIT_BASE_STRUCTURE=${INIT_BASE_STRUCTURE:-true}
 INIT_DEPARTMENT_DATA=${INIT_DEPARTMENT_DATA:-true}
 INIT_SERVICE_DATA=${INIT_SERVICE_DATA:-true}
 INIT_PERMISSIONS=${INIT_PERMISSIONS:-true}
+INIT_EMAIL_TEMPLATES=${INIT_EMAIL_TEMPLATES:-true}  # Nueva variable
 INTERACTIVE_ADMIN=${INTERACTIVE_ADMIN:-false}
 # Variable para controlar si se inicia el servidor
 START_SERVER=${START_SERVER:-true}
@@ -28,6 +29,7 @@ BASE_STRUCTURE_FLAG="/app/data/.base_structure_initialized"
 DEPARTMENT_DATA_FLAG="/app/data/.department_data_initialized"
 SERVICE_DATA_FLAG="/app/data/.service_data_initialized"
 PERMISSIONS_FLAG="/app/data/.permissions_initialized"
+EMAIL_TEMPLATES_FLAG="/app/data/.email_templates_initialized"  # Nuevo flag
 INTERACTIVE_ADMIN_FLAG="/app/data/.interactive_admin_initialized"
 
 echo "==== Configuración de inicialización ===="
@@ -35,6 +37,7 @@ echo "Inicializar estructura base: $INIT_BASE_STRUCTURE"
 echo "Inicializar datos de departamentos: $INIT_DEPARTMENT_DATA"
 echo "Inicializar datos de servicios: $INIT_SERVICE_DATA"
 echo "Inicializar permisos extendidos: $INIT_PERMISSIONS"
+echo "Inicializar plantillas de correo: $INIT_EMAIL_TEMPLATES"  # Nueva línea
 echo "Configuración interactiva de administrador: $INTERACTIVE_ADMIN"
 echo "Iniciar servidor después de configuración: $START_SERVER"
 echo "========================================"
@@ -89,6 +92,19 @@ if [ "$INIT_SERVICE_DATA" = "true" ] && [ ! -f "$SERVICE_DATA_FLAG" ]; then
     fi
 else
     echo "Datos de servicios ya inicializados o desactivados"
+fi
+
+# Inicializar plantillas de correo
+if [ "$INIT_EMAIL_TEMPLATES" = "true" ] && [ ! -f "$EMAIL_TEMPLATES_FLAG" ]; then
+    echo "Inicializando plantillas de correo..."
+    if [ -f "/app/scripts/init_email_templates.py" ]; then
+        python /app/scripts/init_email_templates.py
+        touch "$EMAIL_TEMPLATES_FLAG"
+    else
+        echo "Advertencia: No se encontró script de inicialización de plantillas de correo"
+    fi
+else
+    echo "Plantillas de correo ya inicializadas o desactivadas"
 fi
 
 # Configuración interactiva de administrador

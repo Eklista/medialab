@@ -8,11 +8,13 @@ import RolesAreasSettings from './settings/RolesAreasSettings';
 import ServicesSettings from './settings/ServicesSettings';
 import AcademicUnitsSettings from './settings/AcademicUnitsSettings';
 import SmtpSettings from './settings/SmtpSettings';
+import EmailTemplatesSettings from './settings/EmailTemplatesSettings';
 import { 
   UserGroupIcon, 
   WrenchScrewdriverIcon, 
   BuildingLibraryIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 const AppSettingsPage: React.FC = () => {
@@ -43,6 +45,12 @@ const AppSettingsPage: React.FC = () => {
       name: 'Configuración SMTP',
       path: '/dashboard/app-settings/smtp',
       icon: <EnvelopeIcon className="h-5 w-5" />
+    },
+    {
+      id: 'email-templates',
+      name: 'Plantillas de correo',
+      path: '/dashboard/app-settings/email-templates',
+      icon: <DocumentTextIcon className="h-5 w-5" />
     }
   ];
   
@@ -79,6 +87,7 @@ const AppSettingsPage: React.FC = () => {
               <Route path="services" element={<ServicesSettings />} />
               <Route path="faculties" element={<AcademicUnitsSettings />} />
               <Route path="smtp" element={<SmtpSettings />} />
+              <Route path="email-templates" element={<EmailTemplatesSettings />} />
               <Route path="/" element={<Navigate to="roles-areas" replace />} />
             </Routes>
           </DashboardCard>

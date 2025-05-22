@@ -5,7 +5,7 @@ import { MainService } from './data/services';
 // Importar servicios
 import { publicService } from '../../services';
 import { Service } from '../../services/services.service';
-import { ServiceTemplate } from '../../services/service-templates.service';
+import { ServiceTemplate } from '../../services/serviceTemplates.service';
 
 // Importar iconos necesarios
 import { 

@@ -116,8 +116,6 @@ def change_password(
     if result:
         return {"message": "Contraseña actualizada exitosamente"}
     else:
-        # Este caso no debería ocurrir ya que la función change_password lanza excepciones
-        # en caso de error, pero lo incluimos por completitud
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Error al cambiar la contraseña"

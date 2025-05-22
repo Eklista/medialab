@@ -85,6 +85,12 @@ def add_permissions() -> None:
             {"name": "smtp_config_create", "description": "Crear configuraciones SMTP"},
             {"name": "smtp_config_edit", "description": "Editar configuraciones SMTP"},
             {"name": "smtp_config_delete", "description": "Eliminar configuraciones SMTP"},
+            
+            # Permisos para plantillas de correo
+            {"name": "email_template_view", "description": "Ver plantillas de correo"},
+            {"name": "email_template_create", "description": "Crear plantillas de correo"},
+            {"name": "email_template_edit", "description": "Editar plantillas de correo"},
+            {"name": "email_template_delete", "description": "Eliminar plantillas de correo"},
         ]
         
         # Verificar permisos existentes
