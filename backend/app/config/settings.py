@@ -76,15 +76,63 @@ FRONTEND_URL_DEV = os.getenv("FRONTEND_URL_DEV", "http://localhost:5173")
 FRONTEND_URL_PROD = os.getenv("FRONTEND_URL_PROD", "https://medialab.eklista.com")
 FRONTEND_URL = FRONTEND_URL_PROD if ENVIRONMENT == "production" else FRONTEND_URL_DEV
 
-# Configuración de seguridad
-SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-change-in-production")
+# ===========================================
+# CONFIGURACIÓN DE SEGURIDAD CRÍTICA
+# ===========================================
+
+# Configuración de seguridad CRÍTICA
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY or SECRET_KEY == "super-secret-key-change-in-production":
+    if ENVIRONMENT == "production":
+        logger.error("SECRET_KEY no configurado correctamente en producción!")
+        raise ValueError("SECRET_KEY debe ser configurado en producción")
+    else:
+        logger.warning("Usando SECRET_KEY por defecto en desarrollo")
+        SECRET_KEY = "super-secret-key-change-in-production"
+
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = get_int_env("ACCESS_TOKEN_EXPIRE_MINUTES", 30)
+ACCESS_TOKEN_EXPIRE_MINUTES = get_int_env("ACCESS_TOKEN_EXPIRE_MINUTES", 15)  # Reducido de 30 a 15
 REFRESH_TOKEN_EXPIRE_DAYS = get_int_env("REFRESH_TOKEN_EXPIRE_DAYS", 7)
+
+# JWT Security Enhancement
+JWT_ISSUER = os.getenv("JWT_ISSUER", "medialab-api")
+JWT_AUDIENCE = os.getenv("JWT_AUDIENCE", "medialab-users")
+
+# Token Security
+TOKEN_BLACKLIST_ENABLED = get_bool_env("TOKEN_BLACKLIST_ENABLED", True)
+
+# Encryption
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+if not ENCRYPTION_KEY:
+    if ENVIRONMENT == "production":
+        logger.error("ENCRYPTION_KEY no configurado en producción!")
+        raise ValueError("ENCRYPTION_KEY debe ser configurado en producción")
+    else:
+        logger.warning("Usando ENCRYPTION_KEY por defecto en desarrollo")
+        ENCRYPTION_KEY = "dev-encryption-key-change-in-production"
+
+PASSWORD_SALT = os.getenv("PASSWORD_SALT", "medialab-default-salt-change-in-production")
+
+# Rate Limiting
+RATE_LIMIT_ENABLED = get_bool_env("RATE_LIMIT_ENABLED", True)
+RATE_LIMIT_LOGIN_ATTEMPTS = get_int_env("RATE_LIMIT_LOGIN_ATTEMPTS", 5)
+RATE_LIMIT_LOGIN_WINDOW = get_int_env("RATE_LIMIT_LOGIN_WINDOW", 300)
+RATE_LIMIT_GENERAL = get_int_env("RATE_LIMIT_GENERAL", 100)
+RATE_LIMIT_GENERAL_WINDOW = get_int_env("RATE_LIMIT_GENERAL_WINDOW", 60)
+
+# Security Headers
+SECURITY_HEADERS_ENABLED = get_bool_env("SECURITY_HEADERS_ENABLED", True)
+
+# Session Security
+SESSION_SECURE_COOKIES = get_bool_env("SESSION_SECURE_COOKIES", ENVIRONMENT == "production")
+SESSION_HTTPONLY_COOKIES = get_bool_env("SESSION_HTTPONLY_COOKIES", True)
+SESSION_SAMESITE = os.getenv("SESSION_SAMESITE", "lax")
 
 # Configuración de CORS
 default_cors = ["http://localhost:3000", "http://localhost:5173"]
 CORS_ORIGINS = get_list_env("CORS_ORIGINS", default_cors)
+CORS_CREDENTIALS = get_bool_env("CORS_CREDENTIALS", True)
+
 if ENVIRONMENT == "production":
     # Asegurarse que el dominio de producción esté en CORS
     prod_domain = "https://medialab.eklista.com"
@@ -112,6 +160,15 @@ logger.info(f"SMTP_PASSWORD: {'*****' if SMTP_PASSWORD else 'No definido'}")
 logger.info(f"EMAILS_FROM_EMAIL: {EMAILS_FROM_EMAIL}")
 logger.info(f"EMAILS_FROM_NAME: {EMAILS_FROM_NAME}")
 logger.info("===============================")
+
+# Configuración de seguridad adicional
+logger.info("==== CONFIGURACIÓN DE SEGURIDAD ====")
+logger.info(f"TOKEN_BLACKLIST_ENABLED: {TOKEN_BLACKLIST_ENABLED}")
+logger.info(f"RATE_LIMIT_ENABLED: {RATE_LIMIT_ENABLED}")
+logger.info(f"SECURITY_HEADERS_ENABLED: {SECURITY_HEADERS_ENABLED}")
+logger.info(f"ACCESS_TOKEN_EXPIRE_MINUTES: {ACCESS_TOKEN_EXPIRE_MINUTES}")
+logger.info(f"CORS_ORIGINS: {CORS_ORIGINS}")
+logger.info("====================================")
 
 # Forzar habilitación de email si estamos en producción y tenemos credenciales
 if ENVIRONMENT == "production" and SMTP_HOST and SMTP_USER and SMTP_PASSWORD and not EMAIL_ENABLED:

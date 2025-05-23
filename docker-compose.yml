@@ -1,56 +1,145 @@
 version: '3.8'
+
+# ===============================================
+# DOCKER COMPOSE UNIFICADO - DEV/PROD/TEST
+# ===============================================
+
 services:
-  backend:
-    build:
-      context: ./backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - backend_data:/app/data
-      - user_uploads:/app/static/uploads
-    env_file:
-      - ./.env.dev
+  # ===== BASE DE DATOS =====
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
     environment:
-      - DATABASE_URL=${DB_URL:-mysql+pymysql://root:rootpassword@db:3306/medialab_db}
-      - ENVIRONMENT=${ENV:-development}
-      - INIT_BASE_STRUCTURE=${INIT_BASE_STRUCTURE:-true}
-      - INIT_DEPARTMENT_DATA=${INIT_DEPARTMENT_DATA:-true}
-      - INTERACTIVE_ADMIN=${INTERACTIVE_ADMIN:-false}
-      - TZ=America/Mexico_City
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-medialab_db}
+      MYSQL_USER: ${DB_USER:-medialab_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-MediaLab2025Db$3cur3}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    networks:
+      - medialab_network
+    command: --default-authentication-plugin=mysql_native_password --event-scheduler=ON
+    profiles:
+      - dev
+      - prod
+      - test
+
+  # ===== BACKEND API =====
+  backend:
+    build: 
+      context: ./backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Solo montar volumen en desarrollo
+      - ${BACKEND_VOLUME_SOURCE:-./backend}:/app
+      - backend_logs:/app/logs
+    env_file:
+      - ${ENV_FILE:-.env.dev}
     depends_on:
       - db
-  
-  frontend:
+    networks:
+      - medialab_network
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    profiles:
+      - dev
+      - prod
+      - test
+
+  # ===== FRONTEND DESARROLLO =====
+  frontend-dev:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      target: development  # Stage de desarrollo
+    restart: unless-stopped
     ports:
       - "5173:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - /app/node_modules  # Volume anónimo para node_modules
     environment:
-      - VITE_API_URL=${DEV_API_URL:-http://localhost:8000/api/v1}
-      - TZ=America/Mexico_City
+      - VITE_API_URL=http://localhost:${BACKEND_PORT:-8000}/api/v1
+      - VITE_FRONTEND_URL=http://localhost:5173
+      - NODE_ENV=development
     depends_on:
       - backend
+    networks:
+      - medialab_network
+    profiles:
+      - dev
 
-  db:
-    image: mysql:8.0
+  # ===== FRONTEND PRODUCCIÓN =====
+  frontend-prod:
+    build:
+      context: ./frontend
+      target: production  # Stage de producción
+      args:
+        - VITE_API_URL=${VITE_API_URL:-/api/v1}
+        - VITE_FRONTEND_URL=${VITE_FRONTEND_URL:-https://medialab.eklista.com}
+    restart: unless-stopped
     ports:
-      - "3307:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${DB_NAME:-medialab_db}
-      - MYSQL_USER=${DB_USER:-medialab_user}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-MediaLab2025Db$$3cur3}
-      - TZ=America/Mexico_City
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - medialab_network
+    profiles:
+      - prod
+
+  # ===== FRONTEND TESTING =====
+  frontend-test:
+    build:
+      context: ./frontend
+      target: testing  # Stage de testing
     volumes:
-      - medialab_db_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone='-06:00'
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+      - VITE_API_URL=http://backend:8000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - medialab_network
+    profiles:
+      - test
+
+  # ===== NGINX REVERSE PROXY (Solo producción) =====
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend-prod
+    networks:
+      - medialab_network
+    profiles:
+      - prod
 
 volumes:
-  medialab_db_data:
-  backend_data:
-  user_uploads:
+  mysql_data:
+    driver: local
+  backend_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  medialab_network:
+    driver: bridge
