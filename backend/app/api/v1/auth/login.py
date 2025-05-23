@@ -1,10 +1,11 @@
 # app/api/v1/auth/login.py
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from datetime import timedelta
 import logging
 
 from app.database import get_db
@@ -12,9 +13,16 @@ from app.services.auth_service import AuthService
 from app.schemas.auth.token import Token
 from app.api.deps import get_current_user, rate_limit, require_fresh_token
 from app.models.auth.users import User
-from app.config.settings import ACCESS_TOKEN_EXPIRE_MINUTES
+from app.config.settings import (
+    ACCESS_TOKEN_EXPIRE_MINUTES, 
+    COOKIE_SECURE, 
+    COOKIE_SAMESITE, 
+    COOKIE_DOMAIN,
+    ENVIRONMENT
+)
 
 logger = logging.getLogger(__name__)
+router = APIRouter()
 
 # Esquemas mejorados con validación
 class PasswordVerify(BaseModel):
@@ -51,22 +59,23 @@ class LogoutRequest(BaseModel):
 
 router = APIRouter()
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=dict)
 def login_access_token(
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends(),
     _rate_limit: bool = Depends(rate_limit(max_requests=5, window_seconds=300))
 ) -> Any:
     """
-    Obtiene un token de acceso mediante OAuth2 password flow con protecciones de seguridad
+    Login con cookies httpOnly para máxima seguridad
+    Funciona en desarrollo y producción
     """
     try:
-        # Log del intento de login (sin datos sensibles)
         client_ip = request.client.host if request.client else "unknown"
         logger.info(f"Intento de login para usuario: {form_data.username} desde IP: {client_ip}")
         
-        # Autenticar usuario con protecciones anti-brute force
+        # Autenticar usuario
         user = AuthService.authenticate_user(db, form_data.username, form_data.password)
        
         if not user:
@@ -87,21 +96,46 @@ def login_access_token(
         # Actualizar último acceso
         AuthService.update_user_login(db, user)
        
-        # Generar tokens con información adicional para auditoría
+        # Generar tokens
         additional_claims = {
             "login_ip": client_ip,
             "login_time": user.last_login.isoformat() if user.last_login else None,
-            "user_agent": request.headers.get("user-agent", "")[:100]  # Limitar tamaño
+            "user_agent": request.headers.get("user-agent", "")[:100]
         }
         
         tokens = AuthService.create_tokens(user.id, additional_claims)
        
+        # Configurar cookies httpOnly con configuración específica por entorno
+        response.set_cookie(
+            key="access_token",
+            value=tokens["access_token"],
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,              # ← No accesible desde JavaScript
+            secure=COOKIE_SECURE,       # ← Solo HTTPS en producción
+            samesite=COOKIE_SAMESITE,   # ← Protección CSRF
+            domain=COOKIE_DOMAIN,       # ← Configuración de dominio
+            path="/"                    # ← Disponible en toda la app
+        )
+        
+        response.set_cookie(
+            key="refresh_token", 
+            value=tokens["refresh_token"],
+            max_age=7 * 24 * 60 * 60,   # 7 días
+            httponly=True,
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            domain=COOKIE_DOMAIN,
+            path="/"
+        )
+        
         logger.info(f"Login exitoso para usuario: {user.email} desde IP: {client_ip}")
+        logger.info(f"Cookies configuradas - Secure: {COOKIE_SECURE}, SameSite: {COOKIE_SAMESITE}")
         
         return {
-            **tokens,
+            "message": "Login successful",
             "user_id": user.id,
-            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "environment": ENVIRONMENT
         }
         
     except HTTPException:
@@ -115,20 +149,43 @@ def login_access_token(
 
 @router.post("/refresh")
 def refresh_access_token(
-    request: RefreshTokenRequest,
+    request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     _rate_limit: bool = Depends(rate_limit(max_requests=10, window_seconds=60))
 ) -> Any:
     """
-    Renueva un access token usando un refresh token válido
+    Renueva access token usando refresh token desde cookie
     """
     try:
-        # Renovar access token
-        new_tokens = AuthService.refresh_access_token(request.refresh_token, db)
+        refresh_token = request.cookies.get("refresh_token")
+        if not refresh_token:
+            logger.warning("Intento de refresh sin refresh token en cookie")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No refresh token found"
+            )
+        
+        new_tokens = AuthService.refresh_access_token(refresh_token, db)
+        
+        # Actualizar cookie del access token
+        response.set_cookie(
+            key="access_token",
+            value=new_tokens["access_token"],
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            domain=COOKIE_DOMAIN,
+            path="/"
+        )
         
         logger.info("Access token renovado exitosamente")
         
-        return new_tokens
+        return {
+            "message": "Token refreshed successfully",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
         
     except HTTPException:
         raise
@@ -141,48 +198,52 @@ def refresh_access_token(
 
 @router.post("/logout")
 def logout(
-    request: LogoutRequest,
+    request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user)
-    # ↑ QUITAR la línea problemática del access_token
 ) -> Any:
     """
-    Cierra la sesión del usuario invalidando los tokens
-    """
-    return {"message": "Logout exitoso", "user": current_user.email}
-
-@router.post("/verify-password")
-def verify_password_endpoint(
-    password_data: PasswordVerify,
-    current_user: User = Depends(require_fresh_token(15)),
-    db: Session = Depends(get_db)
-) -> Any:
-    """
-    Verifica si la contraseña del usuario es correcta
-    Requiere autenticación reciente para mayor seguridad
+    Logout con limpieza de cookies y blacklist de tokens
     """
     try:
-        from app.services.user_service import UserService
+        # Obtener tokens desde cookies para blacklist
+        access_token = request.cookies.get("access_token")
+        refresh_token = request.cookies.get("refresh_token")
         
-        is_valid = UserService.verify_password(db, current_user.id, password_data.password)
-       
-        if not is_valid:
-            logger.warning(f"Verificación de contraseña fallida para usuario: {current_user.email}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Contraseña incorrecta"
-            )
-       
-        logger.info(f"Contraseña verificada exitosamente para usuario: {current_user.email}")
-        return {"valid": True}
+        # Añadir tokens a blacklist si existen
+        if access_token:
+            token_blacklist.add_token(access_token, current_user.id)
+        if refresh_token:
+            token_blacklist.add_token(refresh_token, current_user.id)
         
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error al verificar contraseña para usuario {current_user.email}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al verificar contraseña"
+        # Limpiar cookies
+        response.delete_cookie(
+            key="access_token", 
+            httponly=True, 
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            domain=COOKIE_DOMAIN,
+            path="/"
         )
+        response.delete_cookie(
+            key="refresh_token", 
+            httponly=True, 
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            domain=COOKIE_DOMAIN,
+            path="/"
+        )
+        
+        logger.info(f"Logout exitoso para usuario: {current_user.email}")
+        
+        return {"message": "Logout exitoso", "user": current_user.email}
+        
+    except Exception as e:
+        logger.error(f"Error en logout: {e}")
+        # Limpiar cookies incluso si hay error
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        return {"message": "Logout exitoso (con errores)"}
 
 @router.get("/me")
 def get_current_user_info(
@@ -220,12 +281,13 @@ def validate_token(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Valida que el token actual sea válido
+    Valida que el token actual sea válido (desde cookie o header)
     Útil para verificar el estado de autenticación desde el frontend
     """
     return {
         "valid": True,
         "user_id": current_user.id,
         "email": current_user.email,
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "environment": ENVIRONMENT
     }

@@ -1,8 +1,6 @@
-# backend/app/main.py - Versión corregida
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# Importar el router principal que incluye todos los endpoints
+from app.config.settings import CORS_ORIGINS, CORS_CREDENTIALS, ENVIRONMENT
 from app.api.v1 import api_router
 
 app = FastAPI(
@@ -14,10 +12,11 @@ app = FastAPI(
 # CORS básico
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS, 
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["Set-Cookie"]  # ← Importante para cookies
 )
 
 # Incluir el router principal con todos los endpoints

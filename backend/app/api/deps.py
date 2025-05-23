@@ -1,6 +1,6 @@
 from typing import Generator, Optional, List, Callable
 from fastapi import Depends, HTTPException, status, Security, Request
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import logging
 from datetime import datetime, timedelta
@@ -13,35 +13,70 @@ from app.utils.token_blacklist import token_blacklist
 
 logger = logging.getLogger(__name__)
 
-# OAuth2 scheme con configuración mejorada
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"/api/v1/auth/login",
-    scheme_name="JWT"
-)
-
 # Rate limiting cache (en producción usar Redis)
 _rate_limit_cache = {}
 
+class CookieOrBearerToken(HTTPBearer):
+    """
+    Esquema de autenticación que acepta tokens desde cookies httpOnly o headers Authorization
+    """
+    def __init__(self, auto_error: bool = True):
+        super().__init__(auto_error=auto_error)
+
+    async def __call__(self, request: Request) -> Optional[str]:
+        # 1. Primero intentar obtener desde cookie httpOnly (más seguro)
+        token = request.cookies.get("access_token")
+        
+        if token:
+            logger.debug("Token obtenido desde cookie httpOnly")
+            return token
+            
+        # 2. Si no hay cookie, intentar desde header Authorization (compatibilidad)
+        authorization = request.headers.get("Authorization")
+        if authorization and authorization.startswith("Bearer "):
+            logger.debug("Token obtenido desde Authorization header")
+            return authorization.split(" ")[1]
+            
+        # 3. Si no hay token en ningún lado
+        if self.auto_error:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No authentication token found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return None
+
+# Usar el nuevo esquema híbrido
+cookie_or_bearer_scheme = CookieOrBearerToken()
+
 def get_current_user(
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    token: str = Depends(cookie_or_bearer_scheme)
 ) -> User:
     """
-    Valida el token y retorna el usuario actual con validaciones de seguridad mejoradas
+    Valida el token desde cookie o header Authorization con validaciones de seguridad
     """
     try:
-        # Verificar token usando el servicio de autenticación fortificado
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No authentication token provided",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Verificar token usando el servicio de autenticación
         token_data = AuthService.verify_token(token)
         
-        # Obtener usuario con roles
         from app.repositories.user_repository import UserRepository
         user = UserRepository.get_with_roles(db, int(token_data.sub))
         
         if not user:
             logger.warning(f"Token válido pero usuario no encontrado: {token_data.sub}")
-            raise ErrorHandler.handle_not_found_error(entity="Usuario")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado"
+            )
         
-        # Verificaciones adicionales de seguridad
         if not user.is_active:
             logger.warning(f"Token válido pero usuario inactivo: {user.email}")
             raise HTTPException(
@@ -50,25 +85,17 @@ def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        # Verificar si el usuario está bloqueado
-        if hasattr(user, 'is_locked') and user.is_locked:
-            logger.warning(f"Token válido pero usuario bloqueado: {user.email}")
-            raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
-                detail="Cuenta de usuario bloqueada",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Log de acceso exitoso (solo en debug)
-        logger.debug(f"Acceso autorizado para usuario: {user.email}")
-        
         return user
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error inesperado en get_current_user: {e}")
-        raise ErrorHandler.handle_authentication_error(e)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Error al validar credenciales",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 def get_current_active_user(
     current_user: User = Depends(get_current_user),

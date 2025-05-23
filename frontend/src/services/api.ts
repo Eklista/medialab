@@ -1,46 +1,44 @@
+// frontend/src/services/api.ts (versión actualizada)
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import authService from './auth.service';
+import tokenManager from './tokenManager';
 
-// Determinar la URL base según el entorno
 export const getBaseUrl = () => {
   return import.meta.env.MODE === 'production'
     ? 'https://medialab.eklista.com/api/v1'
     : 'http://localhost:8000/api/v1';
 };
 
-// Crear instancia de Axios
+// Crear instancia de Axios con configuración para cookies
 const apiClient: AxiosInstance = axios.create({
   baseURL: getBaseUrl(),
+  withCredentials: true, // ← Importante para cookies
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptor para añadir token a las peticiones
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = authService.getAccessToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Interceptor para manejar errores y redireccionar según la aplicación
+// Interceptor para manejar errores
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     if (error.response?.status === 401) {
-      authService.logout();
+      // Intentar renovar token una vez
+      try {
+        await tokenManager.checkAuthStatus();
+        // Si la renovación es exitosa, reintentar la petición original
+        if (error.config) {
+          return apiClient.request(error.config);
+        }
+      } catch (refreshError) {
+        // Si falla la renovación, hacer logout
+        await tokenManager.logout();
+      }
     }
     return Promise.reject(error);
   }
 );
 
+// Función para manejar errores de la API
 export const handleApiError = (error: unknown): string => {
     if (axios.isAxiosError(error)) {
       if (error.response) {

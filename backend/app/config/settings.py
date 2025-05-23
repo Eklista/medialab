@@ -60,6 +60,34 @@ API_V1_PREFIX = "/api/v1"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 logger.info(f"Entorno configurado: {ENVIRONMENT}")
 
+# Configuración de CORS para desarrollo y producción
+if ENVIRONMENT == "production":
+    CORS_ORIGINS = [
+        "https://medialab.eklista.com",
+        "https://www.medialab.eklista.com"
+    ]
+    FRONTEND_URL = "https://medialab.eklista.com"
+else:
+    CORS_ORIGINS = [
+        "http://localhost:5173",  # Vite dev
+        "http://localhost:3000",  # React dev alternativo
+        "http://127.0.0.1:5173",  # Alternativa localhost
+        "http://127.0.0.1:3000"   # Alternativa localhost
+    ]
+    FRONTEND_URL = "http://localhost:5173"
+
+# Configuración de cookies
+CORS_CREDENTIALS = True
+COOKIE_SECURE = ENVIRONMENT == "production"  # Solo HTTPS en producción
+COOKIE_SAMESITE = "strict" if ENVIRONMENT == "production" else "lax"  # Más permisivo en dev
+COOKIE_DOMAIN = None  # Dejar que el navegador determine
+
+# Logging de configuración
+logger.info(f"CORS Origins: {CORS_ORIGINS}")
+logger.info(f"Frontend URL: {FRONTEND_URL}")
+logger.info(f"Cookie Secure: {COOKIE_SECURE}")
+logger.info(f"Cookie SameSite: {COOKIE_SAMESITE}")
+
 # Configuración de la base de datos
 DATABASE_URL = os.getenv(
     "DATABASE_URL",

@@ -18,9 +18,8 @@ const ProtectedRoute: React.FC = () => {
   
   // Si el usuario no está autenticado, redirigir a la página de login
   if (!state.isAuthenticated || !state.user) {
-    // Si hay una ruta guardada, pasarla como state para redirigir después del login
     const lastPath = localStorage.getItem('lastPath');
-    return <Navigate to="/login" replace state={{ from: lastPath ? { pathname: lastPath } : location }} />;
+    return <Navigate to="/ml-admin/login" replace state={{ from: lastPath ? { pathname: lastPath } : location }} />;
   }
   
   // Si la sesión está bloqueada, mostrar la pantalla de bloqueo

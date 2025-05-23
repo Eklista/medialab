@@ -1,3 +1,4 @@
+// frontend/src/features/auth/hooks/useAuth.ts
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
@@ -18,7 +19,8 @@ export const useAuth = () => {
     lockSession, 
     unlockSession,
     hasPermission,
-    hasAnyPermission
+    hasAnyPermission,
+    checkAuthStatus
   } = context;
   
   return {
@@ -30,7 +32,13 @@ export const useAuth = () => {
     resetPassword,
     lockSession,
     unlockSession,
-    hasPermission, // Añadir función de verificación de permiso
-    hasAnyPermission // Añadir función de verificación de múltiples permisos
+    hasPermission,
+    hasAnyPermission,
+    checkAuthStatus, // NUEVO: Exponer checkAuthStatus
+    
+    // NUEVO: Aliases para compatibilidad con el código que me enviaste
+    user: state.user,
+    isAuthenticated: state.isAuthenticated,
+    isLoading: state.isLoading
   };
 };

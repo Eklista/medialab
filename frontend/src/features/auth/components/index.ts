@@ -5,3 +5,4 @@ export { default as PasswordRecoveryForm } from './PasswordRecoveryForm';
 export { default as LockScreen } from './LockScreen';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as AuthLayout } from './AuthLayout';
+export { AuthGuard } from './AuthGuard';
