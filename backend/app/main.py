@@ -1,6 +1,9 @@
-# backend/app/main.py - Versión simple que funciona
+# backend/app/main.py - Versión corregida
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Importar el router principal que incluye todos los endpoints
+from app.api.v1 import api_router
 
 app = FastAPI(
     title="MediaLab API",
@@ -17,9 +20,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Router existente
-from app.api.v1.auth import auth_router
-app.include_router(auth_router, prefix="/api/v1")
+# Incluir el router principal con todos los endpoints
+app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
@@ -28,3 +30,7 @@ def root():
 @app.get("/health") 
 def health():
     return {"status": "healthy"}
+
+@app.get("/api/v1/")
+def api_root():
+    return {"message": "MediaLab API v1", "endpoints": "Disponibles en /api/v1/docs"}
