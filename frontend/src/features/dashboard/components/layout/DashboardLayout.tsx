@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/DashboardLayout.tsx
+// src/features/dashboard/components/layout/DashboardLayout.tsx - Versión reestructurada
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
@@ -34,7 +34,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   };
   
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-[var(--color-bg-main)] overflow-hidden">
       {/* Overlay para móviles */}
       <div 
         className={`fixed inset-0 z-20 transition-opacity bg-black/50 ${
@@ -43,30 +43,34 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         onClick={() => setSidebarOpen(false)}
       />
       
-      {/* Sidebar para móviles */}
+      {/* Sidebar para móviles y desktop con efecto flotante */}
       <div 
-        className={`fixed inset-y-0 left-0 z-30 w-64 overflow-y-auto bg-(--color-text-main) lg:static lg:block transition-all transform ${
+        className={`fixed inset-y-0 left-0 z-30 w-72 lg:static lg:block transition-all transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
+        } lg:translate-x-0 flex flex-col`}
       >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+        {/* Fondo del sidebar que permite ver el efecto flotante */}
+        <div className="h-full bg-[var(--color-bg-main)] lg:bg-transparent">
+          <Sidebar onClose={() => setSidebarOpen(false)} />
+        </div>
       </div>
       
       {/* Contenido principal */}
       <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Navbar flotante */}
         <Navbar onMenuClick={toggleSidebar} />
         
-        {/* Botón para abrir sidebar en móviles (fuera del Navbar) */}
+        {/* Botón flotante para abrir sidebar en móviles */}
         <button
           onClick={toggleSidebar}
-          className="fixed bottom-4 right-4 p-3 rounded-full bg-(--color-accent-1) text-(--color-text-main) shadow-lg z-20 lg:hidden"
+          className="fixed bottom-6 right-6 p-3 rounded-full bg-[var(--color-accent-1)] text-[var(--color-text-main)] shadow-lg z-20 lg:hidden hover:bg-[var(--color-hover)] transition-colors"
           aria-label="Menu"
         >
           {sidebarOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
         </button>
         
-        {/* Contenido de la página - Eliminada la restricción de ancho máximo */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        {/* Contenido de la página */}
+        <main className="flex-1 overflow-y-auto bg-[var(--color-bg-main)] p-6 pt-3">
           {children}
         </main>
       </div>

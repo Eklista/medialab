@@ -3,13 +3,13 @@
 
 /* Definición de variables de tema */
 :root {
-  /* Paleta principal */
+  /* Paleta principal - Actualizadas para el nuevo diseño */
   --color-bg-main: #f8f9fb;
   --color-bg-secondary: #ffffff;
-  --color-text-main: #181c24;
+  --color-text-main: #090a0a;
   --color-text-secondary: #6b7280;
  
-  /* Acentos */
+  /* Acentos - Colores principales del dashboard */
   --color-accent-1: #cbe81a;
   --color-accent-2: #7758ff;
  
@@ -26,6 +26,7 @@
  
   /* Gradientes */
   --gradient-accent: linear-gradient(135deg, #cbe81a, #b5cf15);
+  --gradient-dark: linear-gradient(135deg, #181c24, #2d3748);
  
   /* Tipografía */
   --font-sans: "Poppins", "Inter", system-ui, sans-serif;
@@ -37,6 +38,23 @@
   --scrollbar-track: #f1f1f1;
   --scrollbar-thumb: #c5c5c5;
   --scrollbar-thumb-hover: #a0a0a0;
+
+  /* Sidebar específico */
+  --sidebar-bg: #181c24;
+  --sidebar-text: #ffffff;
+  --sidebar-text-secondary: rgba(255, 255, 255, 0.6);
+  --sidebar-hover: rgba(255, 255, 255, 0.1);
+  --sidebar-active: rgba(255, 255, 255, 0.15);
+
+  /* Dashboard específico */
+  --dashboard-card-bg: #ffffff;
+  --dashboard-card-border: #e5e7eb;
+  --dashboard-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  
+  /* Navbar específico */
+  --navbar-bg: #ffffff;
+  --navbar-border: #e5e7eb;
+  --navbar-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 /* Base de Tailwind */
@@ -47,6 +65,167 @@
  
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
+  }
+  
+  /* Estilos base para el body */
+  body {
+    background-color: var(--color-bg-main);
+    color: var(--color-text-main);
+  }
+}
+
+/* Componentes personalizados */
+@layer components {
+  /* Estilos para el sidebar */
+  .sidebar-container {
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+  }
+  
+  .sidebar-item {
+    @apply flex items-center px-4 py-3 rounded-lg transition-colors;
+    color: var(--sidebar-text-secondary);
+  }
+  
+  .sidebar-item:hover {
+    background: var(--sidebar-hover);
+    color: var(--color-accent-1);
+  }
+  
+  .sidebar-item.active {
+    background: var(--sidebar-active);
+    color: var(--color-accent-1);
+  }
+  
+  /* Estilos para cards del dashboard */
+  .dashboard-card {
+    background: var(--dashboard-card-bg);
+    border: 1px solid var(--dashboard-card-border);
+    box-shadow: var(--dashboard-card-shadow);
+    @apply rounded-lg;
+  }
+  
+  /* Estilos para el navbar */
+  .navbar-container {
+    background: var(--navbar-bg);
+    border-bottom: 1px solid var(--navbar-border);
+    box-shadow: var(--navbar-shadow);
+  }
+  
+  /* Avatar circular con color de acento */
+  .avatar-accent {
+    background-color: var(--color-accent-1);
+    color: var(--color-text-main);
+    @apply h-10 w-10 rounded-full flex items-center justify-center font-semibold text-sm;
+  }
+  
+  /* Botón de notificación */
+  .notification-btn {
+    @apply relative p-2 rounded-full transition-colors;
+    background: transparent;
+  }
+  
+  .notification-btn:hover {
+    background: var(--color-bg-main);
+  }
+  
+  .notification-indicator {
+    @apply absolute top-1 right-1 h-2 w-2 rounded-full;
+    background: var(--color-accent-1);
+  }
+  
+  /* Menú desplegable */
+  .dropdown-menu {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    @apply rounded-lg py-1 z-50;
+  }
+  
+  .dropdown-item {
+    @apply block w-full text-left px-4 py-2 text-sm transition-colors;
+    color: var(--color-text-secondary);
+  }
+  
+  .dropdown-item:hover {
+    background: var(--color-bg-main);
+    color: var(--color-text-main);
+  }
+  
+  /* Tarjeta de usuario en sidebar */
+  .user-card {
+    @apply w-full rounded-lg p-4 transition-colors text-left;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .user-card:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Botón flotante para móviles */
+  .fab-mobile {
+    background: var(--color-accent-1);
+    color: var(--color-text-main);
+    @apply fixed bottom-6 right-6 p-3 rounded-full shadow-lg z-20 lg:hidden transition-colors;
+  }
+  
+  .fab-mobile:hover {
+    background: var(--color-hover);
+  }
+}
+
+/* Utilidades personalizadas */
+@layer utilities {
+  /* Colores usando variables CSS */
+  .text-accent-1 {
+    color: var(--color-accent-1);
+  }
+  
+  .text-accent-2 {
+    color: var(--color-accent-2);
+  }
+  
+  .bg-accent-1 {
+    background-color: var(--color-accent-1);
+  }
+  
+  .bg-accent-2 {
+    background-color: var(--color-accent-2);
+  }
+  
+  .border-accent-1 {
+    border-color: var(--color-accent-1);
+  }
+  
+  .hover-accent-1:hover {
+    color: var(--color-accent-1);
+  }
+  
+  /* Gradientes */
+  .bg-gradient-accent {
+    background: var(--gradient-accent);
+  }
+  
+  .bg-gradient-dark {
+    background: var(--gradient-dark);
+  }
+  
+  /* Sombras personalizadas */
+  .shadow-dashboard {
+    box-shadow: var(--dashboard-card-shadow);
+  }
+  
+  .shadow-navbar {
+    box-shadow: var(--navbar-shadow);
+  }
+  
+  /* Animaciones suaves */
+  .transition-smooth {
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .transition-colors-smooth {
+    transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
   }
 }
 
@@ -122,4 +301,40 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none !important;  /* Chrome, Safari and Opera */
   }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  :root {
+    --scrollbar-width: 4px;
+  }
+}
+
+/* Animaciones adicionales */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
 }
