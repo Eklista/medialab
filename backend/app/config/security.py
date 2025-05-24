@@ -1,3 +1,4 @@
+# backend/app/config/security.py
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Union
 import secrets
@@ -32,7 +33,11 @@ pwd_context = CryptContext(
 class SecureTokenManager:
     """
     Gestión segura de tokens JWT con características anti-explotación + JWE
+    Mejorado para manejar algoritmos de manera más robusta
     """
+    
+    # Lista de algoritmos permitidos
+    ALLOWED_ALGORITHMS = [ALGORITHM, "HS256", "HS384", "HS512"]
     
     @staticmethod
     def create_access_token(
@@ -71,8 +76,13 @@ class SecureTokenManager:
             payload.update(additional_claims)
         
         try:
-            # PASO 1: Crear JWT normal
-            encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+            # PASO 1: Crear JWT normal con algoritmo específico
+            encoded_jwt = jwt.encode(
+                payload, 
+                SECRET_KEY, 
+                algorithm=ALGORITHM,
+                headers={"alg": ALGORITHM, "typ": "JWT"}  # Especificar headers explícitamente
+            )
             
             # 🔥 PASO 2: ENCRIPTAR con JWE si está habilitado
             if encrypt:
@@ -128,8 +138,13 @@ class SecureTokenManager:
         }
         
         try:
-            # PASO 1: Crear JWT
-            encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+            # PASO 1: Crear JWT con headers explícitos
+            encoded_jwt = jwt.encode(
+                payload, 
+                SECRET_KEY, 
+                algorithm=ALGORITHM,
+                headers={"alg": ALGORITHM, "typ": "JWT"}
+            )
             
             # 🔥 PASO 2: ENCRIPTAR si está habilitado
             if encrypt:
@@ -159,6 +174,7 @@ class SecureTokenManager:
     def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:
         """
         Verifica y decodifica un token JWT con soporte para JWE
+        Mejorado para manejar errores de algoritmo
         """
         try:
             jwt_token = token
@@ -183,13 +199,38 @@ class SecureTokenManager:
                     )
             
             # PASO 2: Decodificar JWT (normal o desencriptado)
-            payload = jwt.decode(
-                jwt_token,
-                SECRET_KEY,
-                algorithms=[ALGORITHM],
-                audience=JWT_AUDIENCE,
-                issuer=JWT_ISSUER
-            )
+            # Intentar con diferentes algoritmos en caso de problemas
+            payload = None
+            decode_error = None
+            
+            for algorithm in SecureTokenManager.ALLOWED_ALGORITHMS:
+                try:
+                    payload = jwt.decode(
+                        jwt_token,
+                        SECRET_KEY,
+                        algorithms=[algorithm],
+                        audience=JWT_AUDIENCE,
+                        issuer=JWT_ISSUER,
+                        options={
+                            "verify_signature": True,
+                            "verify_exp": True,
+                            "verify_nbf": True,
+                            "verify_iat": True,
+                            "verify_aud": True,
+                            "verify_iss": True
+                        }
+                    )
+                    break  # Si funciona, salir del bucle
+                except JWTError as jwt_err:
+                    decode_error = jwt_err
+                    continue  # Intentar con el siguiente algoritmo
+            
+            if payload is None:
+                logger.warning(f"No se pudo decodificar token con ningún algoritmo: {decode_error}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token inválido"
+                )
             
             # Validar tipo de token
             if payload.get("type") != token_type:
@@ -234,7 +275,7 @@ class SecureTokenManager:
     @staticmethod
     def _is_encrypted_token(token: str) -> bool:
         """
-        🔥 NUEVO: Detecta si un token es JWE encriptado
+        🔥 MEJORADO: Detecta si un token es JWE encriptado
         """
         try:
             # Los tokens JWE tienen 5 partes separadas por puntos
@@ -245,8 +286,18 @@ class SecureTokenManager:
             # JWT: header.payload.signature (3 partes)
             if len(parts) == 5:
                 # Verificar que el header indique encriptación
-                header = base64.urlsafe_b64decode(parts[0] + '===').decode()
-                return '"enc":' in header
+                try:
+                    header_part = parts[0]
+                    # Agregar padding si es necesario
+                    missing_padding = len(header_part) % 4
+                    if missing_padding:
+                        header_part += '=' * (4 - missing_padding)
+                    
+                    header_bytes = base64.urlsafe_b64decode(header_part)
+                    header_json = header_bytes.decode('utf-8')
+                    return '"enc":' in header_json
+                except:
+                    return False
             
             return False
             
@@ -273,6 +324,7 @@ class SecureTokenManager:
     def extract_token_id(token: str) -> Optional[str]:
         """
         Extrae el JTI (JWT ID) del token sin validarlo completamente
+        Mejorado para manejar errores de algoritmo
         """
         try:
             # 🔥 MEJORADO: Manejar tokens encriptados
@@ -280,14 +332,40 @@ class SecureTokenManager:
             
             # Si es encriptado, intentar desencriptar primero
             if SecureTokenManager._is_encrypted_token(token):
-                encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
-                decrypted_bytes = jwe.decrypt(token.encode(), encryption_key)
-                jwt_token = decrypted_bytes.decode()
+                try:
+                    encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                    decrypted_bytes = jwe.decrypt(token.encode(), encryption_key)
+                    jwt_token = decrypted_bytes.decode()
+                except Exception as jwe_error:
+                    logger.error(f"Error al desencriptar JWE para extraer JTI: {jwe_error}")
+                    return None
             
             # Decodificar sin verificar para obtener el JTI
-            unverified_payload = jwt.get_unverified_claims(jwt_token)
-            return unverified_payload.get("jti")
-        except Exception:
+            # Intentar con diferentes métodos
+            try:
+                unverified_payload = jwt.get_unverified_claims(jwt_token)
+                return unverified_payload.get("jti")
+            except Exception as jwt_error:
+                # Fallback: decodificar manualmente
+                try:
+                    parts = jwt_token.split('.')
+                    if len(parts) >= 2:
+                        payload_part = parts[1]
+                        # Agregar padding si es necesario
+                        missing_padding = len(payload_part) % 4
+                        if missing_padding:
+                            payload_part += '=' * (4 - missing_padding)
+                        
+                        import json
+                        payload_bytes = base64.urlsafe_b64decode(payload_part)
+                        payload_json = json.loads(payload_bytes.decode('utf-8'))
+                        return payload_json.get("jti")
+                except Exception as manual_error:
+                    logger.error(f"Error en extracción manual de JTI: {manual_error}")
+                    return None
+                    
+        except Exception as e:
+            logger.error(f"Error general al extraer JTI: {e}")
             return None
 
 # 🔥 NUEVAS FUNCIONES DE UTILIDAD

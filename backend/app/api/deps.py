@@ -1,5 +1,5 @@
 # backend/app/api/deps.py
-from typing import Generator, Optional, List, Callable
+from typing import Generator, Optional, List, Callable, Dict, Any
 from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session

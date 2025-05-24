@@ -1,17 +1,19 @@
 # backend/app/utils/token_blacklist.py
 """
-Sistema de blacklist de tokens actualizado para usar Redis como almacén principal
-y MySQL como fallback para persistencia a largo plazo
+Sistema de blacklist de tokens actualizado para manejar tanto JWT como JWE
+con manejo robusto de errores
 """
 
 import json
 from datetime import datetime, timedelta
 from typing import Optional, Set, Dict, Any
-from jose import jwt, JWTError
+from jose import jwt, JWTError, jwe
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import text, create_engine
 from sqlalchemy.exc import SQLAlchemyError
+import hashlib
+import base64
 
 from app.config.settings import (
     SECRET_KEY, ALGORITHM, TOKEN_BLACKLIST_ENABLED, 
@@ -32,6 +34,7 @@ class HybridTokenBlacklist:
     Sistema híbrido de blacklist de tokens:
     - Redis como almacén principal (rápido, temporal)
     - MySQL como fallback y persistencia a largo plazo
+    - Manejo robusto de JWT y JWE
     """
     
     def __init__(self):
@@ -46,6 +49,134 @@ class HybridTokenBlacklist:
             f"Enabled: {'✅' if self.enabled else '❌'}"
         )
     
+    def _safe_extract_jti(self, token: str) -> Optional[str]:
+        """
+        Extrae JTI de manera segura, manejando tanto JWT como JWE
+        """
+        if not token or not isinstance(token, str):
+            logger.warning("Token inválido o vacío")
+            return None
+            
+        try:
+            # Limpiar token de espacios y caracteres raros
+            token = token.strip()
+            
+            # Verificar formato básico
+            if not token or token.count('.') < 2:
+                logger.warning(f"Token con formato inválido: {len(token)} caracteres, {token.count('.')} puntos")
+                return None
+            
+            parts = token.split('.')
+            
+            # Token JWE (5 partes)
+            if len(parts) == 5:
+                try:
+                    logger.debug("🔧 Detectado token JWE, intentando desencriptar...")
+                    
+                    # Preparar clave de desencriptación
+                    encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                    
+                    # Desencriptar JWE
+                    decrypted_bytes = jwe.decrypt(token.encode(), encryption_key)
+                    jwt_token = decrypted_bytes.decode()
+                    
+                    # Extraer JTI del JWT desencriptado
+                    payload = jwt.get_unverified_claims(jwt_token)
+                    jti = payload.get("jti")
+                    
+                    logger.debug(f"✅ JTI extraído de token JWE: {jti}")
+                    return jti
+                    
+                except Exception as jwe_error:
+                    logger.error(f"❌ Error al desencriptar JWE: {jwe_error}")
+                    # Si falla la desencriptación, intentar como JWT normal
+                    return None
+            
+            # Token JWT normal (3 partes)
+            elif len(parts) == 3:
+                try:
+                    logger.debug("🔧 Detectado token JWT normal")
+                    
+                    # Intentar decodificar sin verificación
+                    payload = jwt.get_unverified_claims(token)
+                    jti = payload.get("jti")
+                    
+                    logger.debug(f"✅ JTI extraído de token JWT: {jti}")
+                    return jti
+                    
+                except Exception as jwt_error:
+                    logger.error(f"❌ Error al extraer JTI de JWT: {jwt_error}")
+                    
+                    # Fallback: intentar decodificar header y payload manualmente
+                    try:
+                        # Decodificar payload (segunda parte)
+                        payload_part = parts[1]
+                        # Agregar padding si es necesario
+                        missing_padding = len(payload_part) % 4
+                        if missing_padding:
+                            payload_part += '=' * (4 - missing_padding)
+                        
+                        payload_bytes = base64.urlsafe_b64decode(payload_part)
+                        payload_json = json.loads(payload_bytes.decode('utf-8'))
+                        
+                        jti = payload_json.get("jti")
+                        logger.debug(f"✅ JTI extraído manualmente: {jti}")
+                        return jti
+                        
+                    except Exception as manual_error:
+                        logger.error(f"❌ Error en extracción manual: {manual_error}")
+                        return None
+            
+            else:
+                logger.warning(f"Token con número de partes inesperado: {len(parts)}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Error general al extraer JTI: {e}")
+            return None
+    
+    def _safe_decode_token_info(self, token: str) -> Optional[Dict[str, Any]]:
+        """
+        Decodifica información básica del token de manera segura
+        """
+        try:
+            jti = self._safe_extract_jti(token)
+            if not jti:
+                return None
+            
+            # Intentar obtener información de expiración
+            try:
+                # Para tokens JWE, necesitamos desencriptar primero
+                parts = token.split('.')
+                if len(parts) == 5:  # JWE
+                    encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                    decrypted_bytes = jwe.decrypt(token.encode(), encryption_key)
+                    jwt_token = decrypted_bytes.decode()
+                    payload = jwt.get_unverified_claims(jwt_token)
+                else:  # JWT normal
+                    payload = jwt.get_unverified_claims(token)
+                
+                return {
+                    'jti': jti,
+                    'exp': payload.get('exp'),
+                    'type': payload.get('type', 'access'),
+                    'sub': payload.get('sub')
+                }
+                
+            except Exception as decode_error:
+                logger.warning(f"No se pudo decodificar payload completo: {decode_error}")
+                # Retornar información mínima
+                return {
+                    'jti': jti,
+                    'exp': None,
+                    'type': 'unknown',
+                    'sub': None
+                }
+                
+        except Exception as e:
+            logger.error(f"Error al decodificar información del token: {e}")
+            return None
+    
     def add_token(self, token: str, user_id: int = None) -> bool:
         """
         Añade un token a la blacklist usando Redis como principal y MySQL como backup
@@ -53,21 +184,44 @@ class HybridTokenBlacklist:
         if not self.enabled:
             return False
         
+        if not token or not isinstance(token, str):
+            logger.warning("Token inválido proporcionado para blacklist")
+            return False
+        
         try:
+            # Extraer información del token de manera segura
+            token_info = self._safe_decode_token_info(token)
+            if not token_info:
+                logger.warning("No se pudo extraer información del token, añadiendo con datos mínimos")
+                # Crear un hash del token como fallback
+                import hashlib
+                token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+                token_info = {
+                    'jti': f"fallback_{token_hash}",
+                    'exp': None,
+                    'type': 'unknown',
+                    'sub': user_id
+                }
+            
             success_redis = False
             success_mysql = False
             
             # 1. Intentar añadir a Redis (principal)
             if self.redis_enabled and self.redis_blacklist.redis.is_available():
-                success_redis = self.redis_blacklist.add_token(token, user_id)
-                if success_redis:
-                    logger.debug(f"✅ Token añadido a Redis blacklist")
-                else:
-                    logger.warning(f"⚠️ No se pudo añadir token a Redis blacklist")
+                try:
+                    # Usar método específico para tokens problemáticos
+                    success_redis = self._add_token_to_redis_safe(token_info, user_id)
+                    if success_redis:
+                        logger.debug(f"✅ Token añadido a Redis blacklist")
+                    else:
+                        logger.warning(f"⚠️ No se pudo añadir token a Redis blacklist")
+                except Exception as redis_error:
+                    logger.error(f"Error añadiendo a Redis: {redis_error}")
+                    success_redis = False
             
             # 2. Añadir a MySQL como backup/persistencia
             try:
-                success_mysql = self._add_token_to_mysql(token, user_id)
+                success_mysql = self._add_token_to_mysql_safe(token_info, user_id)
                 if success_mysql:
                     logger.debug(f"✅ Token añadido a MySQL blacklist")
                 else:
@@ -93,6 +247,81 @@ class HybridTokenBlacklist:
             logger.error(f"Error general añadiendo token a blacklist: {e}")
             return False
     
+    def _add_token_to_redis_safe(self, token_info: Dict[str, Any], user_id: int = None) -> bool:
+        """
+        Añade token a Redis de manera segura
+        """
+        try:
+            jti = token_info['jti']
+            exp_timestamp = token_info.get('exp')
+            token_type = token_info.get('type', 'unknown')
+            
+            # Calcular TTL
+            if exp_timestamp:
+                exp_datetime = datetime.fromtimestamp(exp_timestamp)
+                if exp_datetime <= datetime.utcnow():
+                    logger.debug("Token ya expirado, considerando como éxito")
+                    return True
+                ttl_seconds = int((exp_datetime - datetime.utcnow()).total_seconds())
+            else:
+                # Si no hay expiración, usar TTL por defecto
+                ttl_seconds = 24 * 60 * 60  # 24 horas
+            
+            # Crear clave Redis
+            redis_key = f"{self.redis_blacklist.TOKEN_PREFIX}{jti}"
+            
+            # Datos para Redis
+            token_data = {
+                "user_id": user_id,
+                "token_type": token_type,
+                "blacklisted_at": datetime.utcnow().isoformat(),
+                "expires_at": (datetime.utcnow() + timedelta(seconds=ttl_seconds)).isoformat(),
+                "reason": "logout"
+            }
+            
+            return self.redis_blacklist.redis.set(redis_key, token_data, expire=ttl_seconds)
+            
+        except Exception as e:
+            logger.error(f"Error en _add_token_to_redis_safe: {e}")
+            return False
+    
+    def _add_token_to_mysql_safe(self, token_info: Dict[str, Any], user_id: int = None) -> bool:
+        """
+        Añade token a MySQL de manera segura
+        """
+        try:
+            jti = token_info['jti']
+            exp_timestamp = token_info.get('exp')
+            token_type = token_info.get('type', 'unknown')
+            
+            # Calcular fecha de expiración
+            if exp_timestamp:
+                exp_datetime = datetime.fromtimestamp(exp_timestamp)
+                if exp_datetime <= datetime.utcnow():
+                    logger.debug("Token ya expirado para MySQL")
+                    return True
+            else:
+                # Si no hay expiración, usar fecha por defecto
+                exp_datetime = datetime.utcnow() + timedelta(days=1)
+            
+            db = next(get_db())
+            
+            success = TokenBlacklist.add_token_to_blacklist(
+                db_session=db,
+                token_id=jti,
+                user_id=user_id,
+                token_type=token_type,
+                expires_at=exp_datetime,
+                reason='logout'
+            )
+            
+            db.close()
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error en _add_token_to_mysql_safe: {e}")
+            return False
+    
     def is_blacklisted(self, token: str) -> bool:
         """
         Verifica si un token está en blacklist, usando Redis como principal
@@ -100,29 +329,56 @@ class HybridTokenBlacklist:
         if not self.enabled:
             return False
         
+        if not token or not isinstance(token, str):
+            logger.warning("Token inválido para verificación")
+            return True  # Por seguridad, considerar inválido
+        
         try:
+            # Extraer JTI de manera segura
+            jti = self._safe_extract_jti(token)
+            if not jti:
+                logger.warning("No se pudo extraer JTI, considerando token inválido")
+                return True  # Por seguridad
+            
             # 1. Verificar en Redis primero (más rápido)
             if self.redis_enabled and self.redis_blacklist.redis.is_available():
-                is_blacklisted_redis = self.redis_blacklist.is_blacklisted(token)
-                if is_blacklisted_redis:
-                    logger.debug(f"🔍 Token encontrado en Redis blacklist")
-                    return True
+                try:
+                    redis_key = f"{self.redis_blacklist.TOKEN_PREFIX}{jti}"
+                    token_data = self.redis_blacklist.redis.get(redis_key, as_json=True)
+                    
+                    if token_data:
+                        logger.debug(f"🔍 Token encontrado en Redis blacklist")
+                        return True
+                except Exception as redis_error:
+                    logger.error(f"Error verificando en Redis: {redis_error}")
             
             # 2. Si no está en Redis, verificar en MySQL
             try:
-                is_blacklisted_mysql = self._is_blacklisted_in_mysql(token)
+                db = next(get_db())
+                is_blacklisted_mysql = TokenBlacklist.is_token_blacklisted(db, jti)
+                db.close()
+                
                 if is_blacklisted_mysql:
                     logger.debug(f"🔍 Token encontrado en MySQL blacklist")
                     
                     # Si está en MySQL pero no en Redis, añadirlo a Redis para cache
                     if self.redis_enabled and self.redis_blacklist.redis.is_available():
                         try:
-                            self.redis_blacklist.add_token(token)
+                            redis_key = f"{self.redis_blacklist.TOKEN_PREFIX}{jti}"
+                            token_data = {
+                                "user_id": None,
+                                "token_type": "unknown",
+                                "blacklisted_at": datetime.utcnow().isoformat(),
+                                "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
+                                "reason": "sync_from_mysql"
+                            }
+                            self.redis_blacklist.redis.set(redis_key, token_data, expire=24*60*60)
                             logger.debug(f"🔄 Token sincronizado de MySQL a Redis")
                         except Exception as sync_error:
                             logger.warning(f"No se pudo sincronizar token a Redis: {sync_error}")
                     
                     return True
+                    
             except Exception as mysql_error:
                 logger.error(f"Error verificando token en MySQL: {mysql_error}")
                 # En caso de error de MySQL, confiar solo en Redis
@@ -143,16 +399,36 @@ class HybridTokenBlacklist:
             return False
         
         try:
+            jti = self._safe_extract_jti(token)
+            if not jti:
+                return False
+            
             success_redis = False
             success_mysql = False
             
             # Remover de Redis
             if self.redis_enabled and self.redis_blacklist.redis.is_available():
-                success_redis = self.redis_blacklist.remove_token(token)
+                try:
+                    redis_key = f"{self.redis_blacklist.TOKEN_PREFIX}{jti}"
+                    success_redis = self.redis_blacklist.redis.delete(redis_key)
+                except Exception as redis_error:
+                    logger.error(f"Error removiendo de Redis: {redis_error}")
             
             # Remover de MySQL
             try:
-                success_mysql = self._remove_token_from_mysql(token)
+                db = next(get_db())
+                
+                token_entry = db.query(TokenBlacklist).filter(
+                    TokenBlacklist.token_id == jti
+                ).first()
+                
+                if token_entry:
+                    db.delete(token_entry)
+                    db.commit()
+                    success_mysql = True
+                
+                db.close()
+                
             except Exception as mysql_error:
                 logger.error(f"Error removiendo token de MySQL: {mysql_error}")
             
@@ -180,11 +456,41 @@ class HybridTokenBlacklist:
             
             # Invalidar en Redis
             if self.redis_enabled and self.redis_blacklist.redis.is_available():
-                success_redis = self.redis_blacklist.blacklist_all_user_tokens(user_id)
+                try:
+                    success_redis = self.redis_blacklist.blacklist_all_user_tokens(user_id)
+                except Exception as redis_error:
+                    logger.error(f"Error invalidando tokens de usuario en Redis: {redis_error}")
             
             # Invalidar en MySQL
             try:
-                success_mysql = self._blacklist_all_user_tokens_mysql(user_id)
+                db = next(get_db())
+                
+                special_token_id = f"user_invalidation_{user_id}"
+                expires_at = datetime.utcnow() + timedelta(days=1)
+                
+                existing = db.query(TokenBlacklist).filter(
+                    TokenBlacklist.token_id == special_token_id
+                ).first()
+                
+                if existing:
+                    existing.expires_at = expires_at
+                    existing.blacklisted_at = datetime.utcnow()
+                else:
+                    success_mysql = TokenBlacklist.add_token_to_blacklist(
+                        db_session=db,
+                        token_id=special_token_id,
+                        user_id=user_id,
+                        token_type='user_invalidation',
+                        expires_at=expires_at,
+                        reason='global_logout'
+                    )
+                
+                if success_mysql or existing:
+                    db.commit()
+                    success_mysql = True
+                
+                db.close()
+                
             except Exception as mysql_error:
                 logger.error(f"Error invalidando tokens de usuario en MySQL: {mysql_error}")
             
@@ -209,16 +515,34 @@ class HybridTokenBlacklist:
         try:
             # Verificar en Redis primero
             if self.redis_enabled and self.redis_blacklist.redis.is_available():
-                is_invalidated_redis = self.redis_blacklist.is_user_invalidated(user_id, token_issued_at)
-                if is_invalidated_redis:
-                    return True
+                try:
+                    is_invalidated_redis = self.redis_blacklist.is_user_invalidated(user_id, token_issued_at)
+                    if is_invalidated_redis:
+                        return True
+                except Exception as redis_error:
+                    logger.error(f"Error verificando invalidación en Redis: {redis_error}")
             
             # Verificar en MySQL como fallback
             try:
-                return self._is_user_invalidated_mysql(user_id, token_issued_at)
+                db = next(get_db())
+                
+                special_token_id = f"user_invalidation_{user_id}"
+                invalidation = db.query(TokenBlacklist).filter(
+                    TokenBlacklist.token_id == special_token_id,
+                    TokenBlacklist.token_type == 'user_invalidation',
+                    TokenBlacklist.expires_at > datetime.utcnow()
+                ).first()
+                
+                db.close()
+                
+                if invalidation:
+                    return token_issued_at < invalidation.blacklisted_at
+                    
+                return False
+                
             except Exception as mysql_error:
                 logger.error(f"Error verificando invalidación de usuario en MySQL: {mysql_error}")
-                return False
+                return True
                 
         except Exception as e:
             logger.error(f"Error verificando invalidación de usuario {user_id}: {e}")
@@ -264,161 +588,6 @@ class HybridTokenBlacklist:
         else:
             return False
     
-    # ===== MÉTODOS PRIVADOS PARA MYSQL =====
-    
-    def _add_token_to_mysql(self, token: str, user_id: int = None) -> bool:
-        """
-        Añade un token a la blacklist MySQL
-        """
-        try:
-            # Decodificar token para obtener información
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            exp_timestamp = payload.get('exp')
-            jti = payload.get('jti')
-            token_type = payload.get('type', 'access')
-            
-            if not exp_timestamp or not jti:
-                return False
-            
-            exp_datetime = datetime.fromtimestamp(exp_timestamp)
-            if exp_datetime <= datetime.utcnow():
-                return True  # Token ya expirado
-            
-            db = next(get_db())
-            
-            success = TokenBlacklist.add_token_to_blacklist(
-                db_session=db,
-                token_id=jti,
-                user_id=user_id,
-                token_type=token_type,
-                expires_at=exp_datetime,
-                reason='logout'
-            )
-            
-            db.close()
-            return success
-            
-        except Exception as e:
-            logger.error(f"Error añadiendo token a MySQL: {e}")
-            return False
-    
-    def _is_blacklisted_in_mysql(self, token: str) -> bool:
-        """
-        Verifica si un token está en blacklist MySQL
-        """
-        try:
-            jti = self._extract_jti(token)
-            if not jti:
-                return True
-            
-            db = next(get_db())
-            is_blacklisted = TokenBlacklist.is_token_blacklisted(db, jti)
-            db.close()
-            
-            return is_blacklisted
-            
-        except Exception as e:
-            logger.error(f"Error verificando token en MySQL: {e}")
-            return True
-    
-    def _remove_token_from_mysql(self, token: str) -> bool:
-        """
-        Remueve un token de blacklist MySQL
-        """
-        try:
-            jti = self._extract_jti(token)
-            if not jti:
-                return False
-            
-            db = next(get_db())
-            
-            token_entry = db.query(TokenBlacklist).filter(
-                TokenBlacklist.token_id == jti
-            ).first()
-            
-            if token_entry:
-                db.delete(token_entry)
-                db.commit()
-                db.close()
-                return True
-            
-            db.close()
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error removiendo token de MySQL: {e}")
-            return False
-    
-    def _blacklist_all_user_tokens_mysql(self, user_id: int) -> bool:
-        """
-        Invalida todos los tokens de un usuario en MySQL
-        """
-        try:
-            db = next(get_db())
-            
-            special_token_id = f"user_invalidation_{user_id}"
-            expires_at = datetime.utcnow() + timedelta(days=1)
-            
-            existing = db.query(TokenBlacklist).filter(
-                TokenBlacklist.token_id == special_token_id
-            ).first()
-            
-            if existing:
-                existing.expires_at = expires_at
-                existing.blacklisted_at = datetime.utcnow()
-            else:
-                success = TokenBlacklist.add_token_to_blacklist(
-                    db_session=db,
-                    token_id=special_token_id,
-                    user_id=user_id,
-                    token_type='user_invalidation',
-                    expires_at=expires_at,
-                    reason='global_logout'
-                )
-                
-                if not success:
-                    db.close()
-                    return False
-            
-            db.commit()
-            db.close()
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error invalidando tokens de usuario en MySQL: {e}")
-            return False
-    
-    def _is_user_invalidated_mysql(self, user_id: int, token_issued_at: datetime) -> bool:
-        """
-        Verifica invalidación global de usuario en MySQL
-        """
-        try:
-            db = next(get_db())
-            
-            special_token_id = f"user_invalidation_{user_id}"
-            invalidation = db.query(TokenBlacklist).filter(
-                TokenBlacklist.token_id == special_token_id,
-                TokenBlacklist.token_type == 'user_invalidation',
-                TokenBlacklist.expires_at > datetime.utcnow()
-            ).first()
-            
-            db.close()
-            
-            if invalidation:
-                return token_issued_at < invalidation.blacklisted_at
-                
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error verificando invalidación de usuario en MySQL: {e}")
-            return True
-    
-    def _extract_jti(self, token: str) -> Optional[str]:
-        """
-        Extrae el JTI del token (delegado al Redis blacklist)
-        """
-        return self.redis_blacklist._extract_jti(token)
-    
     # ===== MÉTODOS DE ESTADÍSTICAS Y GESTIÓN =====
     
     def cleanup_expired_tokens(self) -> int:
@@ -452,8 +621,11 @@ class HybridTokenBlacklist:
             
             # Estadísticas de Redis
             if stats["redis_available"]:
-                redis_stats = self.redis_blacklist.get_stats()
-                stats["redis"] = redis_stats
+                try:
+                    redis_stats = self.redis_blacklist.get_stats()
+                    stats["redis"] = redis_stats
+                except Exception as redis_error:
+                    stats["redis"] = {"available": False, "error": str(redis_error)}
             else:
                 stats["redis"] = {"available": False}
             
@@ -485,60 +657,6 @@ class HybridTokenBlacklist:
         except Exception as e:
             logger.error(f"Error obteniendo estadísticas híbridas: {e}")
             return {"enabled": self.enabled, "error": str(e)}
-    
-    def sync_mysql_to_redis(self, hours_back: int = 24) -> Dict[str, int]:
-        """
-        Sincroniza tokens activos de MySQL a Redis (útil después de reinicio de Redis)
-        """
-        if not self.redis_enabled or not self.redis_blacklist.redis.is_available():
-            return {"error": "Redis no disponible"}
-        
-        try:
-            db = next(get_db())
-            
-            # Obtener tokens activos de las últimas X horas
-            cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
-            
-            active_tokens = db.query(TokenBlacklist).filter(
-                TokenBlacklist.expires_at > datetime.utcnow(),
-                TokenBlacklist.blacklisted_at > cutoff_time
-            ).all()
-            
-            synced_count = 0
-            
-            for token_entry in active_tokens:
-                try:
-                    # Añadir a Redis con TTL apropiado
-                    ttl = int((token_entry.expires_at - datetime.utcnow()).total_seconds())
-                    if ttl > 0:
-                        redis_key = f"{self.redis_blacklist.TOKEN_PREFIX}{token_entry.token_id}"
-                        token_data = {
-                            "user_id": token_entry.user_id,
-                            "token_type": token_entry.token_type,
-                            "blacklisted_at": token_entry.blacklisted_at.isoformat(),
-                            "expires_at": token_entry.expires_at.isoformat(),
-                            "reason": token_entry.reason
-                        }
-                        
-                        if self.redis_blacklist.redis.set(redis_key, token_data, expire=ttl):
-                            synced_count += 1
-                            
-                except Exception as sync_error:
-                    logger.warning(f"Error sincronizando token {token_entry.token_id}: {sync_error}")
-            
-            db.close()
-            
-            logger.info(f"🔄 Sincronizados {synced_count} tokens de MySQL a Redis")
-            
-            return {
-                "total_mysql_tokens": len(active_tokens),
-                "synced_to_redis": synced_count,
-                "hours_back": hours_back
-            }
-            
-        except Exception as e:
-            logger.error(f"Error sincronizando MySQL a Redis: {e}")
-            return {"error": str(e)}
 
 # Instancia global del sistema híbrido de blacklist
 token_blacklist = HybridTokenBlacklist()
