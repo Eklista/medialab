@@ -1,7 +1,8 @@
 # backend/app/api/v1/admin/redis.py
 from typing import List, Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.database import get_db
 from app.models.auth.users import User
@@ -354,21 +355,38 @@ def get_redis_monitoring_data(
         # Información general de Redis
         redis_health = redis_health_check()
         
+        # Estadísticas de cache
+        from app.services.redis_cache_service import redis_cache
+        cache_stats = redis_cache.get_cache_stats()
+        
+        # Estadísticas de sesiones
+        from app.services.redis_session_service import redis_sessions
+        session_stats = redis_sessions.get_session_stats()
+        
         # Claves por categoría
         categories = {
             "blacklist_tokens": len(redis_manager.keys("blacklist:token:*")),
             "blacklist_users": len(redis_manager.keys("blacklist:user:*")),
             "rate_limits": len(redis_manager.keys("rate_limit:*")),
             "failed_attempts": len(redis_manager.keys("failed_attempts:*")),
-            "cache_entries": len(redis_manager.keys("cache:*"))
+            "cache_entries": len(redis_manager.keys("cache:*")),
+            "sessions": len(redis_manager.keys("session:*")),
+            "user_sessions": len(redis_manager.keys("user_sessions:*"))
         }
+        
+        # Estado del sistema de limpieza
+        from app.tasks.redis_cleanup_tasks import redis_cleanup_tasks
+        cleanup_status = redis_cleanup_tasks.get_cleanup_status()
         
         return {
             "redis_health": redis_health,
             "blacklist": blacklist_stats,
             "rate_limiting": rate_limit_stats,
+            "cache": cache_stats,
+            "sessions": session_stats,
             "key_categories": categories,
             "total_keys": sum(categories.values()),
+            "cleanup_tasks": cleanup_status,
             "monitoring_timestamp": redis_manager.client.time()[0] if redis_manager.is_available() else None
         }
         
@@ -376,4 +394,266 @@ def get_redis_monitoring_data(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error obteniendo datos de monitoreo: {str(e)}"
+        )
+
+@router.get("/cache/stats", response_model=Dict[str, Any])
+def get_cache_stats(
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Obtiene estadísticas detalladas del sistema de cache
+    """
+    try:
+        from app.services.redis_cache_service import redis_cache
+        return redis_cache.get_cache_stats()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo estadísticas de cache: {str(e)}"
+        )
+
+@router.post("/cache/invalidate")
+def invalidate_cache_pattern(
+    pattern: str = Body(..., description="Patrón de claves a invalidar"),
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Invalida cache según un patrón
+    """
+    try:
+        from app.services.redis_cache_service import redis_cache
+        deleted_count = redis_cache.invalidate_pattern(pattern)
+        return {
+            "pattern": pattern,
+            "deleted_count": deleted_count,
+            "message": f"Cache invalidado: {deleted_count} entradas eliminadas"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error invalidando cache: {str(e)}"
+        )
+
+@router.post("/cache/flush")
+def flush_all_cache(
+    confirm: bool = Body(..., description="Confirmación para limpiar todo el cache"),
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Limpia todo el cache (USAR CON CUIDADO)
+    """
+    if not confirm:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Se requiere confirmación para esta operación"
+        )
+    
+    try:
+        from app.services.redis_cache_service import redis_cache
+        success = redis_cache.flush_all_cache()
+        
+        if success:
+            return {"message": "Cache completamente limpiado"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al limpiar cache o no disponible en producción"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error limpiando cache: {str(e)}"
+        )
+
+@router.get("/sessions/stats", response_model=Dict[str, Any])
+def get_session_stats(
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Obtiene estadísticas del sistema de sesiones
+    """
+    try:
+        from app.services.redis_session_service import redis_sessions
+        return redis_sessions.get_session_stats()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo estadísticas de sesiones: {str(e)}"
+        )
+
+@router.get("/sessions/active-users", response_model=Dict[str, Any])
+def get_active_users(
+    limit: int = Query(50, description="Límite de usuarios a retornar"),
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Obtiene lista de usuarios activos
+    """
+    try:
+        from app.services.redis_session_service import redis_sessions
+        active_users = redis_sessions.get_active_users(limit)
+        
+        return {
+            "active_users": active_users,
+            "total_returned": len(active_users),
+            "limit": limit,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo usuarios activos: {str(e)}"
+        )
+
+@router.post("/sessions/force-logout/{user_id}")
+def force_logout_user(
+    user_id: int = Path(..., description="ID del usuario"),
+    reason: str = Body("admin_action", description="Razón del logout forzado"),
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Fuerza el logout de un usuario específico
+    """
+    try:
+        from app.services.redis_session_service import redis_sessions
+        result = redis_sessions.force_logout_user(user_id, reason)
+        
+        return {
+            "success": True,
+            "result": result,
+            "admin_user": current_user.email
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error forzando logout: {str(e)}"
+        )
+
+@router.post("/sessions/cleanup")
+def cleanup_expired_sessions(
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Limpia sesiones expiradas manualmente
+    """
+    try:
+        from app.services.redis_session_service import redis_sessions
+        cleaned_count = redis_sessions.cleanup_expired_sessions()
+        
+        return {
+            "message": f"Limpieza completada: {cleaned_count} entradas eliminadas",
+            "cleaned_count": cleaned_count
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error limpiando sesiones: {str(e)}"
+        )
+
+@router.get("/cleanup/status", response_model=Dict[str, Any])
+def get_cleanup_task_status(
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Obtiene el estado de las tareas de limpieza automática
+    """
+    try:
+        from app.tasks.redis_cleanup_tasks import redis_cleanup_tasks
+        return redis_cleanup_tasks.get_cleanup_status()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo estado de limpieza: {str(e)}"
+        )
+
+@router.post("/cleanup/manual")
+def manual_cleanup(
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Ejecuta limpieza manual del sistema Redis
+    """
+    try:
+        from app.tasks.redis_cleanup_tasks import redis_cleanup_tasks
+        import asyncio
+        
+        # Ejecutar limpieza de forma síncrona
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            cleanup_results = loop.run_until_complete(redis_cleanup_tasks.perform_cleanup())
+        finally:
+            loop.close()
+        
+        return cleanup_results
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error ejecutando limpieza manual: {str(e)}"
+        )
+
+@router.get("/system/status", response_model=Dict[str, Any])
+def get_system_status(
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Obtiene estado completo del sistema Redis
+    """
+    try:
+        from app.services.redis_init_service import redis_init
+        return redis_init.get_system_status()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error obteniendo estado del sistema: {str(e)}"
+        )
+
+@router.post("/security/reset-user/{user_id}")
+def emergency_reset_user_security(
+    user_id: int = Path(..., description="ID del usuario"),
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Reset de emergencia de seguridad para un usuario
+    """
+    try:
+        from app.services.auth_service import AuthService
+        success = AuthService.emergency_reset_user_security(user_id)
+        
+        return {
+            "success": success,
+            "user_id": user_id,
+            "admin_user": current_user.email,
+            "message": "Reset de seguridad ejecutado" if success else "Error en reset de seguridad"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error en reset de seguridad: {str(e)}"
+        )
+
+@router.post("/blacklist/sync-mysql-redis")
+def sync_mysql_to_redis(
+    hours_back: int = Body(24, description="Horas hacia atrás para sincronizar"),
+    current_user: User = Depends(admin_required)
+) -> Any:
+    """
+    Sincroniza tokens activos de MySQL a Redis
+    """
+    try:
+        from app.utils.token_blacklist import token_blacklist
+        
+        if hasattr(token_blacklist, 'sync_mysql_to_redis'):
+            sync_results = token_blacklist.sync_mysql_to_redis(hours_back)
+            return sync_results
+        else:
+            return {
+                "message": "Sincronización no disponible",
+                "reason": "Sistema híbrido no habilitado"
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error sincronizando MySQL a Redis: {str(e)}"
         )

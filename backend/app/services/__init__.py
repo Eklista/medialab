@@ -39,6 +39,12 @@ from app.services.notification.notificacion_service import NotificationService
 # Servicios de seguridad
 from app.services.security.two_factor_service import TwoFactorService
 
+# Servicios de Redis
+from app.services.redis_cache_service import RedisCacheService
+from app.services.redis_init_service import RedisInitService
+from app.services.redis_session_service import RedisSessionService
+
+
 # Exportar todos los servicios
 __all__ = [
     # Auth y usuarios
@@ -78,5 +84,10 @@ __all__ = [
     'NotificationService',
     
     # Seguridad
-    'TwoFactorService'
+    'TwoFactorService',
+
+    # Redis
+    'RedisCacheService',
+    'RedisInitService',
+    'RedisSessionService'
 ]

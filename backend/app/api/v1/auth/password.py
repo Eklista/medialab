@@ -21,8 +21,9 @@ from app.schemas.auth.users import (
     VerifyCodeRequest, 
     ResetPasswordRequest
 )
-from app.api.deps import get_current_user, rate_limit
+from app.api.deps import get_current_user
 from app.utils.token_blacklist import token_blacklist
+from app.utils.simple_rate_limit import check_rate_limit
 from app.config.settings import ENVIRONMENT
 
 logger = logging.getLogger(__name__)
@@ -31,15 +32,17 @@ router = APIRouter()
 @router.post("/forgot-password")
 def forgot_password(
     request: ForgotPasswordRequest,
-    db: Session = Depends(get_db),
-    req: Request = Depends(),
-    _rate_limit: bool = Depends(rate_limit(max_requests=3, window_seconds=300))
+    req: Request,
+    db: Session = Depends(get_db)
 ) -> Any:
     """
     Envía un código de recuperación de contraseña
     Sistema robusto con protección contra ataques de enumeración
     """
     try:
+
+        check_rate_limit(req, max_requests=3, window_seconds=300, endpoint_name="forgot_password")
+
         email = request.email.lower().strip()
         client_ip = req.client.host if req.client else "unknown"
         
@@ -107,15 +110,17 @@ def forgot_password(
 @router.post("/verify-code")
 def verify_reset_code(
     request: VerifyCodeRequest,
-    db: Session = Depends(get_db),
-    req: Request = Depends(),
-    _rate_limit: bool = Depends(rate_limit(max_requests=5, window_seconds=300))
+    req: Request,
+    db: Session = Depends(get_db)
 ) -> Any:
     """
     Verifica si el código de recuperación es válido
     Sistema robusto con protección contra ataques de fuerza bruta
     """
     try:
+
+        check_rate_limit(req, max_requests=3, window_seconds=300, endpoint_name="forgot_password")
+
         email = request.email.lower().strip()
         code = request.code.strip()
         client_ip = req.client.host if req.client else "unknown"
@@ -168,15 +173,17 @@ def verify_reset_code(
 @router.post("/reset-password")
 def reset_password(
     request: ResetPasswordRequest,
-    db: Session = Depends(get_db),
-    req: Request = Depends(),
-    _rate_limit: bool = Depends(rate_limit(max_requests=3, window_seconds=300))
+    req: Request,
+    db: Session = Depends(get_db)
 ) -> Any:
     """
     Restablece la contraseña mediante código de verificación
     Sistema robusto con validación completa de seguridad
     """
     try:
+
+        check_rate_limit(req, max_requests=3, window_seconds=300, endpoint_name="forgot_password")
+
         email = request.email.lower().strip()
         code = request.code.strip()
         new_password = request.new_password
@@ -240,16 +247,18 @@ def reset_password(
 @router.post("/change-password")
 def change_password(
     password_data: PasswordChangeRequest,
+    req: Request,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    req: Request = Depends(),
-    _rate_limit: bool = Depends(rate_limit(max_requests=5, window_seconds=300))
+    db: Session = Depends(get_db)
 ) -> Any:
     """
     Cambia la contraseña del usuario autenticado
     Sistema robusto con validaciones de seguridad mejoradas
     """
     try:
+
+        check_rate_limit(req, max_requests=3, window_seconds=300, endpoint_name="forgot_password")
+
         client_ip = req.client.host if req.client else "unknown"
         logger.info(f"🔐 Cambio de contraseña para usuario: {current_user.email} desde IP: {client_ip}")
         
@@ -383,8 +392,8 @@ def check_password_strength_endpoint(
 
 @router.post("/request-password-change")
 def request_password_change(
-    current_user: User = Depends(get_current_user),
-    req: Request = Depends()
+    req: Request,
+    current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     Solicita cambio de contraseña (útil para flujos donde se requiere verificación adicional)

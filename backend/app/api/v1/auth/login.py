@@ -1,4 +1,4 @@
-# backend/app/api/v1/auth/login.py
+# app/api/v1/auth/login.py
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
@@ -11,7 +11,7 @@ import logging
 from app.database import get_db
 from app.services.auth_service import AuthService
 from app.schemas.auth.token import Token
-from app.api.deps import get_current_user, rate_limit, require_fresh_token
+from app.api.deps import get_current_user
 from app.models.auth.users import User
 from app.utils.token_blacklist import token_blacklist
 from app.config.settings import (
@@ -38,7 +38,7 @@ class PasswordVerify(BaseModel):
         }
 
 class RefreshTokenRequest(BaseModel):
-    refresh_token: str = None
+    refresh_token: str
     
     class Config:
         schema_extra = {
@@ -64,22 +64,25 @@ def login_access_token(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    _rate_limit: bool = Depends(rate_limit(max_requests=5, window_seconds=300))
+    form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
     """
     Login con cookies httpOnly para máxima seguridad
-    Sistema robusto que funciona en desarrollo y producción
+    Funciona en desarrollo y producción
     """
     try:
-        client_ip = request.client.host if request.client else "unknown"
-        logger.info(f"🔐 Intento de login para usuario: {form_data.username} desde IP: {client_ip}")
+        # Verificar rate limit
+        from app.utils.simple_rate_limit import check_rate_limit
+        check_rate_limit(request, max_requests=5, window_seconds=300, endpoint_name="login")
         
-        # Autenticar usuario usando el servicio mejorado
+        client_ip = request.client.host if request.client else "unknown"
+        logger.info(f"Intento de login para usuario: {form_data.username} desde IP: {client_ip}")
+        
+        # Autenticar usuario
         user = AuthService.authenticate_user(db, form_data.username, form_data.password)
        
         if not user:
-            logger.warning(f"❌ Login fallido para usuario: {form_data.username} desde IP: {client_ip}")
+            logger.warning(f"Login fallido para usuario: {form_data.username} desde IP: {client_ip}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Usuario o contraseña incorrectos",
@@ -87,7 +90,7 @@ def login_access_token(
             )
        
         if not user.is_active:
-            logger.warning(f"⚠️ Intento de login de usuario inactivo: {form_data.username}")
+            logger.warning(f"Intento de login de usuario inactivo: {form_data.username}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Usuario inactivo"
@@ -96,11 +99,8 @@ def login_access_token(
         # Actualizar último acceso
         AuthService.update_user_login(db, user)
        
-        # Generar tokens con sistema híbrido mejorado
-        additional_claims = {
-            "ip": client_ip,
-            "user_agent": request.headers.get("user-agent", "unknown")[:100]
-        }
+        # Generar tokens
+        additional_claims = {}
         
         tokens = AuthService.create_tokens(user.id, additional_claims)
        
@@ -119,7 +119,7 @@ def login_access_token(
         response.set_cookie(
             key="refresh_token", 
             value=tokens["refresh_token"],
-            max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,   # 7 días por defecto
+            max_age=7 * 24 * 60 * 60,   # 7 días
             httponly=True,
             secure=COOKIE_SECURE,
             samesite=COOKIE_SAMESITE,
@@ -127,33 +127,20 @@ def login_access_token(
             path="/"
         )
         
-        logger.info(f"✅ Login exitoso para usuario: {user.email} desde IP: {client_ip}")
-        logger.info(f"🍪 Cookies configuradas - Secure: {COOKIE_SECURE}, SameSite: {COOKIE_SAMESITE}")
+        logger.info(f"Login exitoso para usuario: {user.email} desde IP: {client_ip}")
+        logger.info(f"Cookies configuradas - Secure: {COOKIE_SECURE}, SameSite: {COOKIE_SAMESITE}")
         
         return {
-            "message": "Login exitoso",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "roles": [role.name for role in user.roles] if user.roles else []
-            },
+            "message": "Login successful",
+            "user_id": user.id,
             "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            "environment": ENVIRONMENT,
-            "security_features": {
-                "httponly_cookies": True,
-                "secure_cookies": COOKIE_SECURE,
-                "blacklist_enabled": token_blacklist.enabled,
-                "rate_limiting": True
-            }
+            "environment": ENVIRONMENT
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"💥 Error inesperado en login: {e}")
+        logger.error(f"Error inesperado en login: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error interno en el proceso de autenticación"
@@ -163,24 +150,24 @@ def login_access_token(
 def refresh_access_token(
     request: Request,
     response: Response,
-    db: Session = Depends(get_db),
-    _rate_limit: bool = Depends(rate_limit(max_requests=10, window_seconds=60))
+    db: Session = Depends(get_db)
 ) -> Any:
     """
     Renueva access token usando refresh token desde cookie
-    Sistema robusto con manejo de errores mejorado
     """
     try:
+        # Verificar rate limit
+        from app.utils.simple_rate_limit import check_rate_limit
+        check_rate_limit(request, max_requests=10, window_seconds=60, endpoint_name="refresh")
+        
         refresh_token = request.cookies.get("refresh_token")
         if not refresh_token:
-            logger.warning("⚠️ Intento de refresh sin refresh token en cookie")
+            logger.warning("Intento de refresh sin refresh token en cookie")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No refresh token found",
-                headers={"WWW-Authenticate": "Bearer"}
+                detail="No refresh token found"
             )
         
-        # Usar el servicio mejorado para renovar tokens
         new_tokens = AuthService.refresh_access_token(refresh_token, db)
         
         # Actualizar cookie del access token
@@ -195,18 +182,17 @@ def refresh_access_token(
             path="/"
         )
         
-        logger.info("🔄 Access token renovado exitosamente")
+        logger.info("Access token renovado exitosamente")
         
         return {
-            "message": "Token renovado exitosamente",
-            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            "renewed_at": True
+            "message": "Token refreshed successfully",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"💥 Error al renovar access token: {e}")
+        logger.error(f"Error al renovar access token: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Error al renovar token de acceso"
@@ -219,49 +205,36 @@ def logout(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Logout mejorado con limpieza de cookies y blacklist híbrida de tokens
-    Sistema robusto que no falla aunque haya problemas con blacklist
+    Logout con limpieza de cookies y blacklist de tokens
     """
     try:
-        logger.info(f"🚪 Iniciando logout para usuario: {current_user.email}")
+        logger.info(f"Iniciando logout para usuario: {current_user.email}")
         
         # Obtener tokens desde cookies para blacklist
         access_token = request.cookies.get("access_token")
         refresh_token = request.cookies.get("refresh_token")
         
-        logger.info(f"🔍 Tokens encontrados - Access: {'✓' if access_token else '✗'}, Refresh: {'✓' if refresh_token else '✗'}")
+        logger.info(f"Tokens encontrados - Access: {'✓' if access_token else '✗'}, Refresh: {'✓' if refresh_token else '✗'}")
         
-        # Intentar añadir tokens a blacklist usando sistema híbrido mejorado
-        blacklist_results = {"access": False, "refresh": False, "errors": []}
-        
+        # Añadir tokens a blacklist si existen
+        tokens_blacklisted = 0
         if access_token:
-            try:
-                if token_blacklist.add_token(access_token, current_user.id):
-                    blacklist_results["access"] = True
-                    logger.info("✅ Access token añadido a blacklist")
-                else:
-                    logger.warning("⚠️ No se pudo añadir access token a blacklist")
-                    blacklist_results["errors"].append("access_token_blacklist_failed")
-            except Exception as e:
-                logger.error(f"💥 Error añadiendo access token a blacklist: {e}")
-                blacklist_results["errors"].append(f"access_token_error: {str(e)}")
+            if token_blacklist.add_token(access_token, current_user.id):
+                tokens_blacklisted += 1
+                logger.info("Access token añadido a blacklist")
+            else:
+                logger.warning("No se pudo añadir access token a blacklist")
                 
         if refresh_token:
-            try:
-                if token_blacklist.add_token(refresh_token, current_user.id):
-                    blacklist_results["refresh"] = True
-                    logger.info("✅ Refresh token añadido a blacklist")
-                else:
-                    logger.warning("⚠️ No se pudo añadir refresh token a blacklist")
-                    blacklist_results["errors"].append("refresh_token_blacklist_failed")
-            except Exception as e:
-                logger.error(f"💥 Error añadiendo refresh token a blacklist: {e}")
-                blacklist_results["errors"].append(f"refresh_token_error: {str(e)}")
+            if token_blacklist.add_token(refresh_token, current_user.id):
+                tokens_blacklisted += 1
+                logger.info("Refresh token añadido a blacklist")
+            else:
+                logger.warning("No se pudo añadir refresh token a blacklist")
         
         # Limpiar cookies - IMPORTANTE: usar las mismas configuraciones que al establecerlas
-        logger.info("🧹 Limpiando cookies...")
+        logger.info("Limpiando cookies...")
         
-        # Método principal de limpieza de cookies
         response.delete_cookie(
             key="access_token", 
             httponly=True, 
@@ -279,36 +252,23 @@ def logout(
             path="/"
         )
         
-        # Limpieza adicional con diferentes configuraciones por compatibilidad
+        # ADICIONAL: Limpiar cookies con diferentes configuraciones por si acaso
         # Esto ayuda cuando hay diferencias en configuración entre entornos
         response.delete_cookie(key="access_token", path="/")
         response.delete_cookie(key="refresh_token", path="/")
         response.delete_cookie(key="access_token")
         response.delete_cookie(key="refresh_token")
         
-        # Contabilizar tokens en blacklist
-        tokens_blacklisted = sum([blacklist_results["access"], blacklist_results["refresh"]])
-        
-        logger.info(f"✅ Logout completado para usuario: {current_user.email}, tokens en blacklist: {tokens_blacklisted}")
+        logger.info(f"Logout exitoso para usuario: {current_user.email}, tokens en blacklist: {tokens_blacklisted}")
         
         return {
             "message": "Logout exitoso", 
-            "user": {
-                "id": current_user.id,
-                "email": current_user.email
-            },
-            "blacklist_results": {
-                "tokens_blacklisted": tokens_blacklisted,
-                "access_token": blacklist_results["access"],
-                "refresh_token": blacklist_results["refresh"],
-                "has_errors": len(blacklist_results["errors"]) > 0,
-                "errors": blacklist_results["errors"] if blacklist_results["errors"] else None
-            },
-            "cookies_cleared": True
+            "user": current_user.email,
+            "tokens_blacklisted": tokens_blacklisted
         }
         
     except Exception as e:
-        logger.error(f"💥 Error en logout para {current_user.email if current_user else 'usuario desconocido'}: {e}")
+        logger.error(f"Error en logout para {current_user.email if current_user else 'usuario desconocido'}: {e}")
         
         # IMPORTANTE: Limpiar cookies incluso si hay error
         try:
@@ -316,16 +276,11 @@ def logout(
             response.delete_cookie("refresh_token", path="/")
             response.delete_cookie("access_token")
             response.delete_cookie("refresh_token")
-            logger.info("🧹 Cookies limpiadas después de error")
+            logger.info("Cookies limpiadas después de error")
         except Exception as cookie_error:
-            logger.error(f"💥 Error al limpiar cookies: {cookie_error}")
+            logger.error(f"Error al limpiar cookies: {cookie_error}")
         
-        return {
-            "message": "Logout exitoso (con errores menores)", 
-            "user": {"id": current_user.id, "email": current_user.email} if current_user else None,
-            "error": str(e),
-            "cookies_cleared": True
-        }
+        return {"message": "Logout exitoso (con errores)", "error": str(e)}
 
 @router.post("/logout-all")
 def logout_all_sessions(
@@ -397,20 +352,9 @@ def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Obtiene información completa del usuario actual
+    Obtiene información del usuario actual
     """
     try:
-        # Obtener roles y permisos
-        user_roles = [{"id": role.id, "name": role.name} for role in current_user.roles] if current_user.roles else []
-        
-        # Obtener permisos únicos de todos los roles
-        all_permissions = set()
-        if current_user.roles:
-            for role in current_user.roles:
-                if role.permissions:
-                    for permission in role.permissions:
-                        all_permissions.add(permission.name)
-        
         return {
             "id": current_user.id,
             "email": current_user.email,
@@ -418,65 +362,38 @@ def get_current_user_info(
             "first_name": current_user.first_name,
             "last_name": current_user.last_name,
             "is_active": current_user.is_active,
-            "is_online": getattr(current_user, 'is_online', False),
             "last_login": current_user.last_login.isoformat() if current_user.last_login else None,
-            "join_date": current_user.join_date.isoformat() if hasattr(current_user, 'join_date') and current_user.join_date else None,
-            "profile_image": getattr(current_user, 'profile_image', None),
-            "roles": user_roles,
-            "permissions": list(all_permissions),
-            "security_info": {
-                "blacklist_enabled": token_blacklist.enabled,
-                "session_secure": COOKIE_SECURE,
-                "environment": ENVIRONMENT
-            }
+            "roles": [{"id": role.id, "name": role.name} for role in current_user.roles],
+            "permissions": list(set([
+                permission.name 
+                for role in current_user.roles 
+                for permission in role.permissions
+            ]))
         }
         
     except Exception as e:
-        logger.error(f"💥 Error al obtener información del usuario {current_user.email}: {e}")
+        logger.error(f"Error al obtener información del usuario {current_user.email}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener información del usuario"
         )
 
+
 @router.post("/validate-token")
 def validate_token(
-    request: Request,
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     Valida que el token actual sea válido (desde cookie o header)
     Útil para verificar el estado de autenticación desde el frontend
     """
-    try:
-        # Obtener información adicional del token
-        access_token = request.cookies.get("access_token")
-        
-        return {
-            "valid": True,
-            "user": {
-                "id": current_user.id,
-                "email": current_user.email,
-                "username": current_user.username,
-                "is_active": current_user.is_active
-            },
-            "token_info": {
-                "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                "from_cookie": bool(access_token),
-                "environment": ENVIRONMENT
-            },
-            "security": {
-                "blacklist_enabled": token_blacklist.enabled,
-                "secure_cookies": COOKIE_SECURE
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"💥 Error validando token: {e}")
-        return {
-            "valid": False,
-            "error": "Token validation failed",
-            "detail": str(e)
-        }
+    return {
+        "valid": True,
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "environment": ENVIRONMENT
+    }
 
 @router.post("/verify-password")
 def verify_current_password(
@@ -536,7 +453,7 @@ def get_security_status(
             },
             "session_info": {
                 "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+                "refresh_expires_in": 7 * 24 * 60 * 60,
                 "secure_transport": COOKIE_SECURE
             },
             "system_health": {

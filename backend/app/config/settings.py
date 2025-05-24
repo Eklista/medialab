@@ -90,7 +90,12 @@ class Settings(BaseSettings):
     COOKIE_DOMAIN: Optional[str] = None
     
     # ===== CONFIGURACIÓN DE CORS =====
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://localhost:8080"
+    CORS_ORIGINS = [
+        "http://localhost:5173",    # Tu frontend Vite
+        "http://localhost:3000",    # Backup
+        "http://127.0.0.1:5173",   # Alternativo
+        "http://127.0.0.1:3000"    # Alternativo
+    ]
     CORS_CREDENTIALS: bool = True
     
     # ===== CONFIGURACIÓN DE EMAIL =====

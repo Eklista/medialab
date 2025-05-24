@@ -1,5 +1,5 @@
-// frontend/src/services/auth.service.ts
-import apiClient, { handleApiError } from './api';
+// frontend/src/services/auth.service.ts - Versión corregida
+import apiClient, { handleApiError, setLoggingOut } from './api';
 
 export interface LoginRequest {
   email: string;
@@ -14,6 +14,8 @@ export interface User {
   name?: string;
   firstName?: string;
   lastName?: string;
+  first_name?: string;
+  last_name?: string;
   profileImage?: string;
   bannerImage?: string;
   phone?: string;
@@ -22,7 +24,7 @@ export interface User {
   lastLogin?: string;
   isActive: boolean;
   isOnline: boolean;
-  roles: string[];
+  roles: Array<{id: number, name: string}>;
   permissions?: string[];
 }
 
@@ -52,33 +54,25 @@ class AuthService {
    */
   async login(credentials: { email: string; password: string }): Promise<User> {
     try {
-      //console.log('🔐 Iniciando login con apiClient...');
+      console.log('🔐 Iniciando login con cookies httpOnly...');
       
-      // Crear FormData para OAuth2PasswordRequestForm
+      // Crear FormData para OAuth2PasswordRequestForm como espera FastAPI
       const formData = new FormData();
-      formData.append('username', credentials.email);
+      formData.append('username', credentials.email); // FastAPI espera 'username'
       formData.append('password', credentials.password);
 
-      //const response = await apiClient.post('/auth/login', formData, {
-      //  headers: {
-      //    'Content-Type': 'multipart/form-data',
-      //  },
-      //});
+      const response = await apiClient.post('/auth/login', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        withCredentials: true, // Asegurar que se incluyen las cookies
+      });
 
-      //console.log('✅ Login exitoso:', response.data);
+      console.log('✅ Login exitoso:', response.data);
       
-      // Obtener información del usuario
+      // Obtener información del usuario después del login exitoso
       const userData = await this.getCurrentUser();
       
-      // Cargar permisos del usuario
-      try {
-        const userPermissions = await this.getUserPermissions();
-        userData.permissions = userPermissions;
-      } catch (permissionsError) {
-        console.warn('No se pudieron cargar los permisos:', permissionsError);
-        userData.permissions = [];
-      }
-
       // Solo guardar ID del usuario en localStorage (dato no sensible)
       if (userData && userData.id) {
         localStorage.setItem('userId', userData.id.toString());
@@ -96,16 +90,24 @@ class AuthService {
    */
   async logout(): Promise<void> {
     try {
-      console.log('🚪 Llamando al endpoint de logout...');
+      console.log('🚪 Iniciando proceso de logout...');
+      
+      // Marcar que estamos haciendo logout para evitar loops
+      setLoggingOut(true);
       
       // Llamar al endpoint de logout del backend
-      await apiClient.post('/auth/logout');
+      await apiClient.post('/auth/logout', {}, {
+        withCredentials: true
+      });
       
       console.log('✅ Logout exitoso en el servidor');
     } catch (error) {
       console.error('💥 Error en logout del servidor:', error);
       // No lanzar error para no interrumpir el proceso de logout
     } finally {
+      // Restablecer flag de logout
+      setLoggingOut(false);
+      
       // Limpiar datos locales
       localStorage.removeItem('userId');
       localStorage.removeItem('sessionLocked');
@@ -116,10 +118,13 @@ class AuthService {
 
   /**
    * Obtiene la información del usuario actual usando cookies
+   * CORREGIDO: Usar el endpoint correcto /auth/me
    */
   async getCurrentUser(): Promise<User> {
     try {
-      const response = await apiClient.get('/users/me');
+      const response = await apiClient.get('/auth/me', {
+        withCredentials: true
+      });
       return this.normalizeUserData(response.data);
     } catch (error) {
       console.error('Error al obtener usuario actual:', error);
@@ -130,31 +135,45 @@ class AuthService {
   /**
    * Normaliza los datos del usuario para manejar diferentes formatos de API
    */
-  private normalizeUserData(userData: User): User {
-    if (!userData.name && (userData.firstName || userData.lastName)) {
-      userData.name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+  private normalizeUserData(userData: any): User {
+    // Manejar tanto snake_case como camelCase
+    const normalized: User = {
+      id: userData.id,
+      email: userData.email || '',
+      username: userData.username || '',
+      firstName: userData.first_name || userData.firstName || '',
+      lastName: userData.last_name || userData.lastName || '',
+      first_name: userData.first_name || userData.firstName || '',
+      last_name: userData.last_name || userData.lastName || '',
+      profileImage: userData.profileImage || userData.profile_image || '',
+      bannerImage: userData.bannerImage || userData.banner_image || '',
+      phone: userData.phone || '',
+      birthDate: userData.birth_date || userData.birthDate || '',
+      joinDate: userData.join_date || userData.joinDate || '',
+      lastLogin: userData.last_login || userData.lastLogin || '',
+      isActive: userData.is_active !== undefined ? userData.is_active : userData.isActive,
+      isOnline: userData.is_online !== undefined ? userData.is_online : userData.isOnline,
+      roles: userData.roles || [],
+      permissions: userData.permissions || []
+    };
+    
+    // Generar name si no existe
+    if (!normalized.name && (normalized.firstName || normalized.lastName)) {
+      normalized.name = `${normalized.firstName || ''} ${normalized.lastName || ''}`.trim();
     }
     
-    if (userData.name && (!userData.firstName || !userData.lastName)) {
-      const nameParts = userData.name.split(' ');
-      if (!userData.firstName) {
-        userData.firstName = nameParts[0] || '';
-      }
-      if (!userData.lastName) {
-        userData.lastName = nameParts.slice(1).join(' ') || '';
-      }
-    }
-    
-    return userData;
+    return normalized;
   }
 
   /**
    * Obtiene los permisos del usuario actual
+   * NOTA: Los permisos ya vienen en /auth/me, pero este método puede ser útil por separado
    */
   async getUserPermissions(): Promise<string[]> {
     try {
-      const response = await apiClient.get('/users/me/permissions');
-      return response.data || [];
+      // En tu backend, los permisos vienen incluidos en /auth/me
+      const user = await this.getCurrentUser();
+      return user.permissions || [];
     } catch (error) {
       console.error('Error al obtener permisos:', error);
       return [];
@@ -166,7 +185,9 @@ class AuthService {
    */
   async checkAuthStatus(): Promise<boolean> {
     try {
-      const response = await apiClient.post('/auth/validate-token');
+      const response = await apiClient.post('/auth/validate-token', {}, {
+        withCredentials: true
+      });
       return response.status === 200;
     } catch (error) {
       console.error('Error al verificar estado de autenticación:', error);
@@ -179,7 +200,9 @@ class AuthService {
    */
   async forgotPassword(email: string): Promise<{ message: string }> {
     try {
-      const response = await apiClient.post('/auth/forgot-password', { email });
+      const response = await apiClient.post('/auth/forgot-password', { email }, {
+        withCredentials: true
+      });
       return response.data;
     } catch (error) {
       throw new Error(handleApiError(error));
@@ -191,7 +214,9 @@ class AuthService {
    */
   async verifyCode(email: string, code: string): Promise<{ valid: boolean }> {
     try {
-      const response = await apiClient.post('/auth/verify-code', { email, code });
+      const response = await apiClient.post('/auth/verify-code', { email, code }, {
+        withCredentials: true
+      });
       return response.data;
     } catch (error) {
       throw new Error(handleApiError(error));
@@ -212,12 +237,8 @@ class AuthService {
           email,
           code,
           new_password: password 
-        });
-        return response.data;
-      } 
-      else if (code) {
-        const response = await apiClient.post(`/auth/reset-password/${code}`, {
-          new_password: password
+        }, {
+          withCredentials: true
         });
         return response.data;
       } else {
@@ -233,7 +254,9 @@ class AuthService {
    */
   async verifyPassword(password: string): Promise<boolean> {
     try {
-      const response = await apiClient.post('/auth/verify-password', { password });
+      const response = await apiClient.post('/auth/verify-password', { password }, {
+        withCredentials: true
+      });
       return response.data.valid;
     } catch (error) {
       console.error('Error al verificar contraseña:', error);
@@ -249,6 +272,8 @@ class AuthService {
       const response = await apiClient.post('/auth/change-password', {
         current_password: currentPassword, 
         new_password: newPassword 
+      }, {
+        withCredentials: true
       });
       return response.data;
     } catch (error) {
@@ -258,10 +283,22 @@ class AuthService {
 
   /**
    * Actualiza el perfil del usuario actual
+   * NOTA: Para perfiles usar el endpoint de users
    */
   async updateProfile(profileData: Partial<User>): Promise<User> {
     try {
-      const response = await apiClient.patch('/users/me', profileData);
+      // Convertir a snake_case para el backend
+      const apiData: any = {};
+      if (profileData.firstName !== undefined) apiData.first_name = profileData.firstName;
+      if (profileData.lastName !== undefined) apiData.last_name = profileData.lastName;
+      if (profileData.email !== undefined) apiData.email = profileData.email;
+      if (profileData.username !== undefined) apiData.username = profileData.username;
+      if (profileData.phone !== undefined) apiData.phone = profileData.phone;
+      if (profileData.birthDate !== undefined) apiData.birth_date = profileData.birthDate;
+
+      const response = await apiClient.patch('/users/me', apiData, {
+        withCredentials: true
+      });
       return this.normalizeUserData(response.data);
     } catch (error) {
       throw new Error(handleApiError(error));
@@ -281,6 +318,7 @@ class AuthService {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        withCredentials: true
       });
 
       return response.data.url;
@@ -294,7 +332,9 @@ class AuthService {
    */
   async validateToken(): Promise<boolean> {
     try {
-      const response = await apiClient.post('/auth/validate-token');
+      const response = await apiClient.post('/auth/validate-token', {}, {
+        withCredentials: true
+      });
       return response.status === 200;
     } catch (error) {
       return false;
@@ -306,7 +346,9 @@ class AuthService {
    */
   async getSessionInfo(): Promise<{ valid: boolean; expires_in?: number; user_id?: number }> {
     try {
-      const response = await apiClient.post('/auth/validate-token');
+      const response = await apiClient.post('/auth/validate-token', {}, {
+        withCredentials: true
+      });
       return response.data;
     } catch (error) {
       return { valid: false };
@@ -318,7 +360,9 @@ class AuthService {
    */
   async refreshToken(): Promise<boolean> {
     try {
-      const response = await apiClient.post('/auth/refresh');
+      const response = await apiClient.post('/auth/refresh', {}, {
+        withCredentials: true
+      });
       return response.status === 200;
     } catch (error) {
       console.error('Error al renovar token:', error);
@@ -331,12 +375,17 @@ class AuthService {
    */
   async logoutAllSessions(): Promise<void> {
     try {
-      await apiClient.post('/auth/logout-all');
+      setLoggingOut(true);
+      await apiClient.post('/auth/logout-all', {}, {
+        withCredentials: true
+      });
     } catch (error) {
       console.error('Error al cerrar todas las sesiones:', error);
     } finally {
+      setLoggingOut(false);
       // Limpiar sesión actual de todas formas
-      await this.logout();
+      localStorage.removeItem('userId');
+      localStorage.removeItem('sessionLocked');
     }
   }
 
@@ -368,6 +417,21 @@ class AuthService {
     localStorage.removeItem('sessionLocked');
   }
 
+  /**
+   * Obtiene el estado de seguridad del sistema
+   */
+  async getSecurityStatus(): Promise<any> {
+    try {
+      const response = await apiClient.get('/auth/security/status', {
+        withCredentials: true
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error al obtener estado de seguridad:', error);
+      return null;
+    }
+  }
+
   // ===== MÉTODOS DEPRECADOS (mantenidos para compatibilidad) =====
   
   /**
@@ -394,12 +458,10 @@ class AuthService {
    * Este método solo verifica si hay una sesión activa.
    */
   isAuthenticated(): boolean {
-    // CAMBIO: No depender solo del localStorage, porque puede ser residual
     // Verificación básica: si hay userId Y no estamos en proceso de logout
     const hasUserId = this.getUserId() !== null;
     const isSessionLocked = this.isSessionLocked();
     
-    // Solo considerar autenticado si hay userId y la sesión no está marcada como bloqueada incorrectamente
     return hasUserId && !isSessionLocked;
   }
 }

@@ -11,7 +11,6 @@ from app.models.auth.users import User
 from app.services.auth_service import AuthService
 from app.utils.error_handler import ErrorHandler
 
-# NUEVO: Importar Redis utilities
 from app.utils.redis_rate_limiter import redis_rate_limiter
 from app.utils.redis_token_blacklist import redis_token_blacklist
 
@@ -255,13 +254,14 @@ def is_self_or_has_permission(user_id_param: str, required_permission: str) -> C
     
     return _is_self_or_has_permission
 
+"""
 def rate_limit(
     max_requests: int = 60,
     window_seconds: int = 60,
     per_user: bool = False,
     endpoint_name: Optional[str] = None
 ) -> Callable:
-    """
+    
     Rate limiting decorator usando Redis para máxima eficiencia
     
     Args:
@@ -269,7 +269,7 @@ def rate_limit(
         window_seconds: Duración de la ventana en segundos  
         per_user: Si True, aplica límite por usuario; si False, por IP
         endpoint_name: Nombre personalizado del endpoint
-    """
+   
     def _rate_limit(request: Request):
         # Obtener identificador (IP o usuario)
         identifier = redis_rate_limiter.get_identifier(request, use_user_id=per_user)
@@ -301,6 +301,7 @@ def rate_limit(
         return True
     
     return _rate_limit
+ """
 
 def require_fresh_token(max_age_minutes: int = 30) -> Callable:
     """
@@ -412,15 +413,16 @@ def get_security_stats() -> Dict[str, Any]:
 
 # ===== DECORADORES AVANZADOS DE RATE LIMITING =====
 
+"""
 def strict_rate_limit(
     max_requests: int = 10,
     window_seconds: int = 60,
     block_duration: int = 300  # 5 minutos de bloqueo
 ) -> Callable:
-    """
+    
     Rate limiting estricto para endpoints críticos (login, reset password, etc.)
     Bloquea temporalmente después de exceder el límite
-    """
+    
     def _strict_rate_limit(request: Request):
         identifier = redis_rate_limiter.get_identifier(request)
         endpoint = "strict_endpoint"
@@ -459,13 +461,12 @@ def strict_rate_limit(
     
     return _strict_rate_limit
 
+
 def adaptive_rate_limit(
     base_requests: int = 60,
     window_seconds: int = 60
 ) -> Callable:
-    """
     Rate limiting adaptativo que ajusta límites según el comportamiento del usuario
-    """
     def _adaptive_rate_limit(request: Request):
         identifier = redis_rate_limiter.get_identifier(request)
         endpoint = "adaptive_endpoint"
@@ -524,7 +525,7 @@ def adaptive_rate_limit(
         return True
     
     return _adaptive_rate_limit
-
+"""
 # Decoradores adicionales para casos específicos
 def admin_required(current_user: User = Depends(get_current_active_superuser)) -> User:
     """Shortcut para requerir permisos de administrador"""
