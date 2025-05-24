@@ -51,7 +51,6 @@ if [ ! -f "docker-compose.yml" ]; then
 fi
 
 # Determinar archivo de entorno
-ENV_FILE=".env.dev"
 if [ -f ".env.dev" ]; then
     ENV_FILE=".env.dev"
     echo -e "${YELLOW}Usando archivo de entorno: .env.dev${NC}"
@@ -78,7 +77,7 @@ export COMPOSE_PROFILES="dev"
 print_header "CONFIGURACIÓN DE SEGURIDAD"
 
 # Verificar si existen archivos .env
-BACKEND_ENV="backend/.env"
+BACKEND_ENV="$ENV_FILE"
 
 echo -e "${YELLOW}Verificando archivos de configuración...${NC}"
 
@@ -97,10 +96,10 @@ if [ "$NEEDS_SECURITY_SETUP" = true ] || ask_confirmation "¿Ejecutar configurac
     echo -e "${PURPLE}Ejecutando configuración de seguridad...${NC}"
     
     if [ -f "backend/scripts/setup_security.py" ]; then
-        cd backend && python scripts/setup_security.py && cd ..
+        cd backend && python3 scripts/setup_security.py && cd ..
         echo -e "${GREEN}✓ Configuración de seguridad completada${NC}"
     elif [ -f "scripts/setup_security.py" ]; then
-        python scripts/setup_security.py
+        python3 scripts/setup_security.py
         echo -e "${GREEN}✓ Configuración de seguridad completada${NC}"
     else
         echo -e "${RED}⚠️  Script setup_security.py no encontrado${NC}"
@@ -294,9 +293,9 @@ case $init_option in
     11)
         echo -e "${PURPLE}Ejecutando solo configuración de seguridad...${NC}"
         if [ -f "backend/scripts/setup_security.py" ]; then
-            cd backend && python scripts/setup_security.py && cd ..
+            cd backend && python3 scripts/setup_security.py && cd ..
         elif [ -f "scripts/setup_security.py" ]; then
-            python scripts/setup_security.py
+            python3 scripts/setup_security.py
         else
             echo -e "${RED}Script setup_security.py no encontrado${NC}"
             exit 1

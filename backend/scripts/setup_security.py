@@ -66,19 +66,8 @@ def main():
     print()
     
     # Rutas de archivos .env
-    backend_env = "backend/.env"
+    backend_env = ".env.dev"
     docker_env = ".env.dev"
-    
-    # Actualizaciones para producción (backend/.env)
-    prod_updates = {
-        "SECRET_KEY": secret_key,
-        "ENCRYPTION_KEY": encryption_key,
-        "PASSWORD_SALT": password_salt,
-        "ACCESS_TOKEN_EXPIRE_MINUTES": "15",
-        "RATE_LIMIT_LOGIN_ATTEMPTS": "3",
-        "TOKEN_BLACKLIST_ENABLED": "true",
-        "SECURITY_HEADERS_ENABLED": "true"
-    }
     
     # Actualizaciones para desarrollo (.env.dev)
     dev_updates = {
@@ -90,13 +79,12 @@ def main():
         "TOKEN_BLACKLIST_ENABLED": "true",
         "SECURITY_HEADERS_ENABLED": "true"
     }
+
+    prod_updates = dev_updates
     
     # Actualizar archivos
-    if update_env_file(backend_env, prod_updates):
-        print(f"✅ Configuración de producción actualizada: {backend_env}")
-    
-    if update_env_file(docker_env, dev_updates):
-        print(f"✅ Configuración de desarrollo actualizada: {docker_env}")
+    if update_env_file(backend_env, dev_updates):
+        print(f"✅ Configuración actualizada: {backend_env}")
     
     print()
     print("🚨 INSTRUCCIONES IMPORTANTES:")

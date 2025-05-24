@@ -55,6 +55,7 @@ from app.models.projects.models import Project, Task
 # Modelos de seguridad
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
 from app.models.security.audit_log import AuditLog
+from app.models.security.token_blacklist import TokenBlacklist
 
 # Modelos de notificaciones
 from app.models.notifications.models import Notification

@@ -1,7 +1,12 @@
+# backend/app/main.py (con debug para CORS)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import CORS_ORIGINS, CORS_CREDENTIALS, ENVIRONMENT
 from app.api.v1 import api_router
+import logging
+
+# Configurar logging para debug
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="MediaLab API",
@@ -9,14 +14,21 @@ app = FastAPI(
     docs_url="/api/v1/docs"
 )
 
-# CORS básico
+# Debug: Log de configuración CORS
+logger.info("=== CONFIGURACIÓN CORS EN MAIN.PY ===")
+logger.info(f"CORS_ORIGINS: {CORS_ORIGINS}")
+logger.info(f"CORS_CREDENTIALS: {CORS_CREDENTIALS}")
+logger.info(f"ENVIRONMENT: {ENVIRONMENT}")
+logger.info("=====================================")
+
+# CORS corregido para cookies - SIN WILDCARD
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS, 
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,      # ← Debe ser lista específica, NO "*"
+    allow_credentials=True,          # ← Necesario para cookies
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
-    expose_headers=["Set-Cookie"]  # ← Importante para cookies
+    expose_headers=["Set-Cookie"]    # ← Importante para cookies
 )
 
 # Incluir el router principal con todos los endpoints

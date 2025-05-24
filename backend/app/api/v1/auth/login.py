@@ -1,7 +1,7 @@
 # app/api/v1/auth/login.py
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -13,6 +13,7 @@ from app.services.auth_service import AuthService
 from app.schemas.auth.token import Token
 from app.api.deps import get_current_user, rate_limit, require_fresh_token
 from app.models.auth.users import User
+from app.utils.token_blacklist import token_blacklist
 from app.config.settings import (
     ACCESS_TOKEN_EXPIRE_MINUTES, 
     COOKIE_SECURE, 
@@ -97,11 +98,7 @@ def login_access_token(
         AuthService.update_user_login(db, user)
        
         # Generar tokens
-        additional_claims = {
-            "login_ip": client_ip,
-            "login_time": user.last_login.isoformat() if user.last_login else None,
-            "user_agent": request.headers.get("user-agent", "")[:100]
-        }
+        additional_claims = {}
         
         tokens = AuthService.create_tokens(user.id, additional_claims)
        

@@ -1,4 +1,4 @@
-// frontend/src/services/auth.service.ts
+// frontend/src/services/auth.service.ts (corrección)
 import { handleApiError, getBaseUrl } from './api';
 import tokenManager from './tokenManager';
 
@@ -95,6 +95,9 @@ class AuthService {
     
     // El tokenManager se encarga de limpiar cookies y llamar al endpoint de logout
     await tokenManager.logout();
+    
+    // Limpiar completamente el estado del tokenManager
+    tokenManager.fullReset();
   }
 
   /**
@@ -163,9 +166,24 @@ class AuthService {
 
   /**
    * Verifica el estado de autenticación de forma asíncrona
+   * CORRECCIÓN: Cambiar a POST
    */
   async checkAuthStatus(): Promise<boolean> {
-    return await tokenManager.checkAuthStatus();
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`, {
+        method: 'POST' // ← CORRECCIÓN: Cambiar de GET a POST
+      });
+      
+      if (response.ok) {
+        // Ya no necesitamos leer la respuesta JSON aquí
+        // El tokenManager se encarga de manejar la información del token
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error al verificar estado de autenticación:', error);
+      return false;
+    }
   }
   
   /**
@@ -372,10 +390,13 @@ class AuthService {
 
   /**
    * Valida si el token actual es válido
+   * CORRECCIÓN: Cambiar a POST
    */
   async validateToken(): Promise<boolean> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`);
+      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`, {
+        method: 'POST' // ← CORRECCIÓN: Cambiar de GET a POST
+      });
       return response.ok;
     } catch (error) {
       return false;
@@ -384,10 +405,13 @@ class AuthService {
 
   /**
    * Obtiene información de la sesión actual
+   * CORRECCIÓN: Cambiar a POST
    */
   async getSessionInfo(): Promise<{ valid: boolean; expires_in?: number; user_id?: number }> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`);
+      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`, {
+        method: 'POST' // ← CORRECCIÓN: Cambiar de GET a POST
+      });
       
       if (!response.ok) {
         return { valid: false };

@@ -1,4 +1,5 @@
-# app/utils/token_blacklist.py
+# Actualizar: backend/app/utils/token_blacklist.py
+
 import json
 from datetime import datetime, timedelta
 from typing import Optional, Set
@@ -10,69 +11,23 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.config.settings import SECRET_KEY, ALGORITHM, TOKEN_BLACKLIST_ENABLED, DATABASE_URL
 from app.database import get_db
+from app.models.security.token_blacklist import TokenBlacklist  # ← NUEVO
 
 logger = logging.getLogger(__name__)
 
 class MySQLTokenBlacklist:
     """
-    Sistema de blacklist para tokens JWT utilizando MySQL
-    Más eficiente y consistente al usar la misma base de datos
+    Sistema de blacklist para tokens JWT utilizando modelo SQLAlchemy
+    Más eficiente y consistente al usar el modelo ORM
     """
     
     def __init__(self):
         self.enabled = TOKEN_BLACKLIST_ENABLED
-        self._ensure_blacklist_table()
-        logger.info("Sistema de blacklist de tokens inicializado con MySQL")
-    
-    def _ensure_blacklist_table(self):
-        """
-        Asegura que la tabla de blacklist exista en la base de datos
-        """
-        try:
-            # Usar el generador de sesión para obtener una sesión
-            db = next(get_db())
-            
-            # Crear tabla si no existe
-            create_table_sql = """
-            CREATE TABLE IF NOT EXISTS token_blacklist (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                token_id VARCHAR(32) NOT NULL UNIQUE,
-                user_id INT,
-                token_type ENUM('access', 'refresh', 'user_invalidation') DEFAULT 'access',
-                blacklisted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP NOT NULL,
-                reason VARCHAR(100) DEFAULT 'logout',
-                INDEX idx_token_id (token_id),
-                INDEX idx_user_id (user_id),
-                INDEX idx_expires_at (expires_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-            """
-            
-            db.execute(text(create_table_sql))
-            db.commit()
-            
-            # Crear evento para limpiar tokens expirados automáticamente
-            cleanup_event_sql = """
-            CREATE EVENT IF NOT EXISTS cleanup_expired_tokens
-            ON SCHEDULE EVERY 1 HOUR
-            DO DELETE FROM token_blacklist WHERE expires_at < NOW();
-            """
-            
-            try:
-                db.execute(text(cleanup_event_sql))
-                db.commit()
-            except SQLAlchemyError:
-                # Los eventos pueden no estar habilitados, no es crítico
-                logger.info("No se pudo crear evento de limpieza automática (normal si los eventos están deshabilitados)")
-            
-            db.close()
-            
-        except Exception as e:
-            logger.error(f"Error al crear tabla de blacklist: {e}")
+        logger.info("Sistema de blacklist de tokens inicializado con modelo TokenBlacklist")
     
     def add_token(self, token: str, user_id: int = None) -> bool:
         """
-        Añade un token a la blacklist
+        Añade un token a la blacklist usando el modelo
         """
         if not self.enabled:
             return False
@@ -93,28 +48,24 @@ class MySQLTokenBlacklist:
                 # Token ya expirado, no necesita blacklist
                 return True
             
-            # Insertar en blacklist
+            # Usar el modelo para insertar
             db = next(get_db())
             
-            insert_sql = """
-            INSERT IGNORE INTO token_blacklist 
-            (token_id, user_id, token_type, expires_at, reason) 
-            VALUES (:token_id, :user_id, :token_type, :expires_at, :reason)
-            """
+            success = TokenBlacklist.add_token_to_blacklist(
+                db_session=db,
+                token_id=jti,
+                user_id=user_id,
+                token_type=payload.get('type', 'access'),
+                expires_at=exp_datetime,
+                reason='logout'
+            )
             
-            db.execute(text(insert_sql), {
-                'token_id': jti,
-                'user_id': user_id,
-                'token_type': payload.get('type', 'access'),
-                'expires_at': exp_datetime,
-                'reason': 'logout'
-            })
-            
-            db.commit()
             db.close()
             
-            logger.info(f"Token añadido a blacklist para usuario {user_id}")
-            return True
+            if success:
+                logger.info(f"Token añadido a blacklist para usuario {user_id}")
+            
+            return success
             
         except JWTError as e:
             logger.error(f"Error al decodificar token para blacklist: {e}")
@@ -125,7 +76,7 @@ class MySQLTokenBlacklist:
     
     def is_blacklisted(self, token: str) -> bool:
         """
-        Verifica si un token está en la blacklist
+        Verifica si un token está en la blacklist usando el modelo
         """
         if not self.enabled:
             return False
@@ -138,16 +89,12 @@ class MySQLTokenBlacklist:
             
             db = next(get_db())
             
-            # Verificar si el token está en blacklist y no ha expirado
-            check_sql = """
-            SELECT COUNT(*) as count FROM token_blacklist 
-            WHERE token_id = :token_id AND expires_at > NOW()
-            """
+            # Usar el modelo para verificar
+            is_blacklisted = TokenBlacklist.is_token_blacklisted(db, jti)
             
-            result = db.execute(text(check_sql), {'token_id': jti}).fetchone()
             db.close()
             
-            return result.count > 0 if result else False
+            return is_blacklisted
                 
         except Exception as e:
             logger.error(f"Error al verificar token en blacklist: {e}")
@@ -168,14 +115,19 @@ class MySQLTokenBlacklist:
             
             db = next(get_db())
             
-            delete_sql = "DELETE FROM token_blacklist WHERE token_id = :token_id"
-            result = db.execute(text(delete_sql), {'token_id': jti})
+            # Buscar y eliminar usando el modelo
+            token_entry = db.query(TokenBlacklist).filter(
+                TokenBlacklist.token_id == jti
+            ).first()
             
-            db.commit()
-            rows_affected = result.rowcount
+            if token_entry:
+                db.delete(token_entry)
+                db.commit()
+                db.close()
+                return True
+            
             db.close()
-            
-            return rows_affected > 0
+            return False
                 
         except Exception as e:
             logger.error(f"Error al remover token de blacklist: {e}")
@@ -191,25 +143,33 @@ class MySQLTokenBlacklist:
         try:
             db = next(get_db())
             
-            # Crear entrada de invalidación global para el usuario
-            # Esto invalidará todos los tokens emitidos antes de este momento
-            insert_sql = """
-            INSERT INTO token_blacklist 
-            (token_id, user_id, token_type, expires_at, reason) 
-            VALUES (:token_id, :user_id, 'user_invalidation', :expires_at, 'global_logout')
-            ON DUPLICATE KEY UPDATE 
-            blacklisted_at = NOW(), expires_at = :expires_at
-            """
-            
             # Usar un token_id especial para invalidación de usuario
             special_token_id = f"user_invalidation_{user_id}"
             expires_at = datetime.utcnow() + timedelta(days=1)  # 24 horas
             
-            db.execute(text(insert_sql), {
-                'token_id': special_token_id,
-                'user_id': user_id,
-                'expires_at': expires_at
-            })
+            # Verificar si ya existe
+            existing = db.query(TokenBlacklist).filter(
+                TokenBlacklist.token_id == special_token_id
+            ).first()
+            
+            if existing:
+                # Actualizar fecha de expiración
+                existing.expires_at = expires_at
+                existing.blacklisted_at = datetime.utcnow()
+            else:
+                # Crear nueva entrada
+                success = TokenBlacklist.add_token_to_blacklist(
+                    db_session=db,
+                    token_id=special_token_id,
+                    user_id=user_id,
+                    token_type='user_invalidation',
+                    expires_at=expires_at,
+                    reason='global_logout'
+                )
+                
+                if not success:
+                    db.close()
+                    return False
             
             db.commit()
             db.close()
@@ -232,19 +192,18 @@ class MySQLTokenBlacklist:
             db = next(get_db())
             
             # Buscar invalidación global del usuario
-            check_sql = """
-            SELECT blacklisted_at FROM token_blacklist 
-            WHERE token_id = :token_id AND token_type = 'user_invalidation' 
-            AND expires_at > NOW()
-            """
-            
             special_token_id = f"user_invalidation_{user_id}"
-            result = db.execute(text(check_sql), {'token_id': special_token_id}).fetchone()
+            invalidation = db.query(TokenBlacklist).filter(
+                TokenBlacklist.token_id == special_token_id,
+                TokenBlacklist.token_type == 'user_invalidation',
+                TokenBlacklist.expires_at > datetime.utcnow()
+            ).first()
+            
             db.close()
             
-            if result:
+            if invalidation:
                 # Comparar si el token fue emitido antes de la invalidación
-                return token_issued_at < result.blacklisted_at
+                return token_issued_at < invalidation.blacklisted_at
                 
             return False
             
@@ -254,33 +213,68 @@ class MySQLTokenBlacklist:
     
     def _extract_jti(self, token: str) -> Optional[str]:
         """
-        Extrae el JTI (JWT ID) del token sin validarlo completamente
+        Extrae el JTI (JWT ID) del token, manejando tokens JWE encriptados
         """
         try:
-            # Decodificar sin verificar para obtener el JTI
-            unverified_payload = jwt.get_unverified_claims(token)
-            return unverified_payload.get("jti")
-        except Exception:
+            parts = token.split('.')
+
+            if len(parts) == 5:
+                try:
+                    from app.config.security import SecureTokenManager
+                    
+                    if SecureTokenManager._is_encrypted_token(token):
+                        logger.debug("🔧 DEBUG: Token JWE detectado, desencriptando para extraer JTI")
+                        
+                        import hashlib
+                        from jose import jwe
+                        from app.config.settings import SECRET_KEY
+                        
+                        encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                        decrypted_bytes = jwe.decrypt(token.encode(), encryption_key)
+                        jwt_token = decrypted_bytes.decode()
+                        
+                        # Ahora extraer JTI del JWT desencriptado
+                        unverified_payload = jwt.get_unverified_claims(jwt_token)
+                        jti = unverified_payload.get("jti")
+                        
+                        logger.debug(f"🔧 DEBUG: JTI extraído de token JWE: {jti}")
+                        return jti
+                        
+                except Exception as jwe_error:
+                    logger.error(f"🔧 DEBUG: Error al desencriptar JWE para extraer JTI: {jwe_error}")
+                    return None
+            
+            # Token JWT normal (3 partes) - método original
+            elif len(parts) == 3:
+                logger.debug("🔧 DEBUG: Token JWT normal detectado")
+                unverified_payload = jwt.get_unverified_claims(token)
+                jti = unverified_payload.get("jti")
+                logger.debug(f"🔧 DEBUG: JTI extraído de token JWT: {jti}")
+                return jti
+            
+            else:
+                logger.warning(f"🔧 DEBUG: Token con formato inesperado ({len(parts)} partes)")
+                return None
+                
+        except Exception as e:
+            logger.error(f"🔧 DEBUG: Error general al extraer JTI: {e}")
             return None
     
     def cleanup_expired_tokens(self) -> int:
         """
-        Limpia tokens expirados manualmente (útil si los eventos no están habilitados)
+        Limpia tokens expirados usando el modelo
         """
         try:
             db = next(get_db())
             
-            delete_sql = "DELETE FROM token_blacklist WHERE expires_at < NOW()"
-            result = db.execute(text(delete_sql))
+            deleted_count = TokenBlacklist.cleanup_expired_tokens(db)
             
-            db.commit()
-            rows_deleted = result.rowcount
             db.close()
             
-            if rows_deleted > 0:
-                logger.info(f"Limpiados {rows_deleted} tokens expirados de la blacklist")
+            if deleted_count > 0:
+                logger.info(f"Limpiados {deleted_count} tokens expirados de la blacklist")
             
-            return rows_deleted
+            return deleted_count
             
         except Exception as e:
             logger.error(f"Error al limpiar tokens expirados: {e}")
@@ -288,7 +282,7 @@ class MySQLTokenBlacklist:
     
     def get_stats(self) -> dict:
         """
-        Obtiene estadísticas de la blacklist
+        Obtiene estadísticas de la blacklist usando el modelo
         """
         if not self.enabled:
             return {"enabled": False}
@@ -297,32 +291,38 @@ class MySQLTokenBlacklist:
             db = next(get_db())
             
             # Contar tokens en blacklist
-            stats_sql = """
-            SELECT 
-                COUNT(*) as total_tokens,
-                COUNT(CASE WHEN token_type = 'access' THEN 1 END) as access_tokens,
-                COUNT(CASE WHEN token_type = 'refresh' THEN 1 END) as refresh_tokens,
-                COUNT(CASE WHEN token_type = 'user_invalidation' THEN 1 END) as invalidated_users,
-                COUNT(CASE WHEN expires_at > NOW() THEN 1 END) as active_blacklist
-            FROM token_blacklist
-            """
+            total_tokens = db.query(TokenBlacklist).count()
+            active_blacklist = db.query(TokenBlacklist).filter(
+                TokenBlacklist.expires_at > datetime.utcnow()
+            ).count()
             
-            result = db.execute(text(stats_sql)).fetchone()
+            access_tokens = db.query(TokenBlacklist).filter(
+                TokenBlacklist.token_type == 'access'
+            ).count()
+            
+            refresh_tokens = db.query(TokenBlacklist).filter(
+                TokenBlacklist.token_type == 'refresh'
+            ).count()
+            
+            invalidated_users = db.query(TokenBlacklist).filter(
+                TokenBlacklist.token_type == 'user_invalidation'
+            ).count()
+            
             db.close()
             
             return {
                 "enabled": True,
-                "total_blacklisted": result.total_tokens if result else 0,
-                "active_blacklisted": result.active_blacklist if result else 0,
-                "access_tokens": result.access_tokens if result else 0,
-                "refresh_tokens": result.refresh_tokens if result else 0,
-                "invalidated_users": result.invalidated_users if result else 0,
-                "storage": "mysql"
+                "total_blacklisted": total_tokens,
+                "active_blacklisted": active_blacklist,
+                "access_tokens": access_tokens,
+                "refresh_tokens": refresh_tokens,
+                "invalidated_users": invalidated_users,
+                "storage": "mysql_orm"
             }
                 
         except Exception as e:
             logger.error(f"Error al obtener estadísticas de blacklist: {e}")
-            return {"enabled": True, "error": str(e), "storage": "mysql"}
+            return {"enabled": True, "error": str(e), "storage": "mysql_orm"}
 
 # Instancia global del sistema de blacklist
 token_blacklist = MySQLTokenBlacklist()

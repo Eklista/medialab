@@ -22,6 +22,7 @@ export interface AuthState {
   isLocked: boolean;
   lastActivity: number;
   permissions: string[];
+  isLoggingOut: boolean; // ← NUEVO: flag para controlar logout
 }
 
 export interface LoginCredentials {
@@ -41,11 +42,10 @@ interface AuthContextType {
   unlockSession: (password: string) => Promise<void>;
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
-  // NUEVO: Añadir método de verificación
   checkAuthStatus: () => Promise<void>;
 }
 
-// Estado inicial (sin cambios)
+// Estado inicial actualizado
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
@@ -53,14 +53,16 @@ const initialState: AuthState = {
   error: null,
   isLocked: false,
   lastActivity: Date.now(),
-  permissions: []
+  permissions: [],
+  isLoggingOut: false // ← NUEVO
 };
 
-// Tipos de acciones (sin cambios)
+// Tipos de acciones actualizados
 type AuthAction =
   | { type: 'LOGIN_START' }
   | { type: 'LOGIN_SUCCESS'; payload: { user: User, permissions: string[] } }
   | { type: 'LOGIN_FAIL'; payload: string }
+  | { type: 'LOGOUT_START' } // ← NUEVO
   | { type: 'LOGOUT' }
   | { type: 'RESTORE_SESSION'; payload: { user: User, permissions: string[] } }
   | { type: 'LOCK_SESSION' }
@@ -68,17 +70,17 @@ type AuthAction =
   | { type: 'UPDATE_ACTIVITY' }
   | { type: 'UPDATE_PERMISSIONS'; payload: string[] };
 
-// Función para verificar si una ruta es pública (sin cambios)
+// Función para verificar si una ruta es pública
 const isPublicRoute = (path: string) => {
   const publicRoutes = ['/', '/ml-admin/login', '/password-recovery', '/request'];
   return publicRoutes.some(route => path === route || path.startsWith(`${route}/`));
 };
 
-// Reducer (sin cambios)
+// Reducer actualizado
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'LOGIN_START':
-      return { ...state, isLoading: true, error: null };
+      return { ...state, isLoading: true, error: null, isLoggingOut: false };
     case 'LOGIN_SUCCESS':
       return { 
         ...state, 
@@ -87,12 +89,18 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         user: action.payload.user,
         permissions: action.payload.permissions,
         error: null,
-        lastActivity: Date.now() 
+        lastActivity: Date.now(),
+        isLoggingOut: false
       };
     case 'LOGIN_FAIL':
-      return { ...state, isLoading: false, error: action.payload };
+      return { ...state, isLoading: false, error: action.payload, isLoggingOut: false };
+    case 'LOGOUT_START': // ← NUEVO
+      return { ...state, isLoggingOut: true, error: null };
     case 'LOGOUT':
-      return { ...initialState };
+      return { 
+        ...initialState, 
+        isLoggingOut: false // ← Asegurar que se resetee
+      };
     case 'RESTORE_SESSION':
       const isLocked = localStorage.getItem('sessionLocked') === 'true';
       return {
@@ -101,7 +109,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         user: action.payload.user,
         permissions: action.payload.permissions,
         isLocked: isLocked,
-        lastActivity: isLocked ? 0 : Date.now()
+        lastActivity: isLocked ? 0 : Date.now(),
+        isLoggingOut: false
       };
     case 'LOCK_SESSION':
       localStorage.setItem('sessionLocked', 'true');
@@ -110,7 +119,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       localStorage.setItem('sessionLocked', 'false');
       return { ...state, isLocked: false, lastActivity: Date.now() };
     case 'UPDATE_ACTIVITY':
-      return state.isLocked ? state : { ...state, lastActivity: Date.now() };
+      return state.isLocked || state.isLoggingOut ? state : { ...state, lastActivity: Date.now() };
     case 'UPDATE_PERMISSIONS':
       return { ...state, permissions: action.payload };
     default:
@@ -121,7 +130,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 // Crear el contexto
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Función para procesar y normalizar los datos del usuario (sin cambios)
+// Función para procesar y normalizar los datos del usuario
 const processUserData = (userData: any): { user: User, permissions: string[] } => {
   let firstName = '';
   let lastName = '';
@@ -191,10 +200,14 @@ const processUserData = (userData: any): { user: User, permissions: string[] } =
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // ACTUALIZADO: Método para verificar autenticación usando cookies
+  // Método para verificar autenticación usando cookies
   const checkAuthStatus = async () => {
+    // Si estamos en proceso de logout, no verificar autenticación
+    if (state.isLoggingOut) {
+      return;
+    }
+
     try {
-      // Usar el authService.checkAuthStatus() que ya implementaste
       const isAuth = await authService.checkAuthStatus();
       
       if (isAuth) {
@@ -219,22 +232,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           payload: { user, permissions } 
         });
       } else {
-        // Si no está autenticado, limpiar estado
-        dispatch({ type: 'LOGOUT' });
+        // Si no está autenticado y no estamos haciendo logout, limpiar estado
+        if (!state.isLoggingOut) {
+          dispatch({ type: 'LOGOUT' });
+        }
       }
     } catch (error) {
       console.error('Error al verificar autenticación:', error);
-      dispatch({ type: 'LOGOUT' });
+      // Solo limpiar estado si no estamos haciendo logout
+      if (!state.isLoggingOut) {
+        dispatch({ type: 'LOGOUT' });
+      }
     }
   };
 
-  // ACTUALIZADO: Restaurar sesión al cargar el componente usando cookies
+  // Restaurar sesión al cargar el componente SOLO UNA VEZ
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+    // Solo verificar si no estamos en proceso de logout y no estamos ya autenticados
+    if (!state.isLoggingOut && !state.isAuthenticated && !state.isLoading) {
+      checkAuthStatus();
+    }
+  }, []); // ← Solo ejecutar una vez al montar
 
-  // Detectar actividad del usuario (sin cambios)
+  // Detectar actividad del usuario
   useEffect(() => {
+    // No detectar actividad si estamos haciendo logout
+    if (state.isLoggingOut) return;
+
     const handleActivity = () => {
       dispatch({ type: 'UPDATE_ACTIVITY' });
     };
@@ -251,6 +275,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (
         state.isAuthenticated && 
         !state.isLocked && 
+        !state.isLoggingOut &&
         Date.now() - state.lastActivity > inactivityPeriod
       ) {
         lockSession();
@@ -264,14 +289,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       window.removeEventListener('scroll', handleActivity);
       clearInterval(inactivityCheckInterval);
     };
-  }, [state.isAuthenticated, state.isLocked, state.lastActivity]);
+  }, [state.isAuthenticated, state.isLocked, state.lastActivity, state.isLoggingOut]);
 
-  // ACTUALIZADO: Función para iniciar sesión usando cookies
+  // Función para iniciar sesión
   const login = async (credentials: LoginCredentials): Promise<void> => {
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      // Usar el authService.login() que ya implementaste con cookies
       const userData = await authService.login(credentials);
       let userPermissions: string[] = [];
       
@@ -303,14 +327,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // ACTUALIZADO: Función para cerrar sesión usando cookies
+  // Función para cerrar sesión MEJORADA
   const logout = () => {
-    authService.logout(); // Esto limpia las cookies del servidor
+    // Marcar que estamos haciendo logout
+    dispatch({ type: 'LOGOUT_START' });
+    
+    // Limpiar datos locales inmediatamente
     localStorage.removeItem('sessionLocked');
+    
+    // Llamar al servicio de logout (que maneja cookies y redirección)
+    authService.logout();
+    
+    // Limpiar estado local
     dispatch({ type: 'LOGOUT' });
   };
 
-  // Resto de funciones (sin cambios)
+  // Resto de funciones permanecen igual
   const forgotPassword = async (email: string): Promise<void> => {
     try {
       dispatch({ type: 'LOGIN_START' });
@@ -414,7 +446,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         unlockSession,
         hasPermission,
         hasAnyPermission,
-        checkAuthStatus // NUEVO: Añadir al contexto
+        checkAuthStatus
       }}
     >
       {children}

@@ -1,8 +1,8 @@
-"""initial migration
+"""feat: Token Blacklist model
 
-Revision ID: 6984ddf92818
+Revision ID: 233adf249bdf
 Revises: 
-Create Date: 2025-05-20 19:19:21.908452
+Create Date: 2025-05-23 17:12:23.477711
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6984ddf92818'
+revision = '233adf249bdf'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -244,6 +244,29 @@ def upgrade():
     )
     with op.batch_alter_table('tags', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_tags_id'), ['id'], unique=False)
+
+    op.create_table('token_blacklist',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('token_id', sa.String(length=32), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=True),
+    sa.Column('token_type', sa.Enum('access', 'refresh', 'user_invalidation', name='token_type_enum'), nullable=False),
+    sa.Column('blacklisted_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
+    sa.Column('expires_at', sa.DateTime(), nullable=False),
+    sa.Column('reason', sa.String(length=100), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_token_blacklist'))
+    )
+    with op.batch_alter_table('token_blacklist', schema=None) as batch_op:
+        batch_op.create_index('idx_token_blacklist_expires_at', ['expires_at'], unique=False)
+        batch_op.create_index('idx_token_blacklist_token_id', ['token_id'], unique=False)
+        batch_op.create_index('idx_token_blacklist_type_expires', ['token_type', 'expires_at'], unique=False)
+        batch_op.create_index('idx_token_blacklist_user_expires', ['user_id', 'expires_at'], unique=False)
+        batch_op.create_index('idx_token_blacklist_user_id', ['user_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_token_blacklist_expires_at'), ['expires_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_token_blacklist_id'), ['id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_token_blacklist_token_id'), ['token_id'], unique=True)
+        batch_op.create_index(batch_op.f('ix_token_blacklist_user_id'), ['user_id'], unique=False)
 
     op.create_table('two_factor_methods',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -1321,6 +1344,18 @@ def downgrade():
         batch_op.drop_index('idx_2fa_method_active')
 
     op.drop_table('two_factor_methods')
+    with op.batch_alter_table('token_blacklist', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_token_blacklist_user_id'))
+        batch_op.drop_index(batch_op.f('ix_token_blacklist_token_id'))
+        batch_op.drop_index(batch_op.f('ix_token_blacklist_id'))
+        batch_op.drop_index(batch_op.f('ix_token_blacklist_expires_at'))
+        batch_op.drop_index('idx_token_blacklist_user_id')
+        batch_op.drop_index('idx_token_blacklist_user_expires')
+        batch_op.drop_index('idx_token_blacklist_type_expires')
+        batch_op.drop_index('idx_token_blacklist_token_id')
+        batch_op.drop_index('idx_token_blacklist_expires_at')
+
+    op.drop_table('token_blacklist')
     with op.batch_alter_table('tags', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_tags_id'))
 

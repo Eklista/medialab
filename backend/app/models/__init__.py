@@ -55,6 +55,7 @@ from app.models.notifications.triggers import NotificationTrigger
 # Módulos de seguridad
 from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
 from app.models.security.audit_log import AuditLog
+from app.models.security.token_blacklist import TokenBlacklist 
 
 # Lista de todos los modelos
 __all__ = [
@@ -67,7 +68,7 @@ __all__ = [
     'Career', 'Course', 'CourseClass', 'Professor', 'AcademicPeriod',
     'PodcastSeries', 'PodcastEpisode',
     'Project', 'Task',
-    'TwoFactorMethod', 'UserTwoFactor', 'AuditLog',
+    'TwoFactorMethod', 'UserTwoFactor', 'AuditLog', 'TokenBlacklist',
     'Request', 'request_services', 'request_sub_services',
     'SingleEvent', 'RecurrentEvent', 'EventDate',
     'PodcastRequest', 'PodcastModerator', 'PodcastRequestEpisode', 'PodcastGuest',

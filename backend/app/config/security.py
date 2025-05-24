@@ -4,11 +4,15 @@ import secrets
 import hashlib
 import hmac
 
-from jose import jwt, JWTError, ExpiredSignatureError
+from jose import jwt, JWTError, ExpiredSignatureError, jwe
+from cryptography.fernet import Fernet
+import base64
 from passlib.context import CryptContext
 from passlib.hash import bcrypt
 from fastapi import HTTPException, status
 import logging
+
+import os
 
 from app.config.settings import (
     SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, 
@@ -27,17 +31,18 @@ pwd_context = CryptContext(
 
 class SecureTokenManager:
     """
-    Gestión segura de tokens JWT con características anti-explotación
+    Gestión segura de tokens JWT con características anti-explotación + JWE
     """
     
     @staticmethod
     def create_access_token(
         subject: Union[str, Any], 
         expires_delta: Optional[timedelta] = None,
-        additional_claims: Optional[Dict[str, Any]] = None
+        additional_claims: Optional[Dict[str, Any]] = None,
+        encrypt: bool = True  # 🔥 NUEVO: Opción para encriptar
     ) -> str:
         """
-        Genera un token JWT de acceso con seguridad mejorada
+        Genera un token JWT de acceso con seguridad mejorada + JWE opcional
         """
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
@@ -66,9 +71,28 @@ class SecureTokenManager:
             payload.update(additional_claims)
         
         try:
+            # PASO 1: Crear JWT normal
             encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-            logger.info(f"Token de acceso creado para usuario {subject}")
-            return encoded_jwt
+            
+            # 🔥 PASO 2: ENCRIPTAR con JWE si está habilitado
+            if encrypt:
+                # Preparar clave de encriptación (256 bits)
+                encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                
+                # Encriptar con JWE usando AES-256-GCM (súper seguro)
+                encrypted_token = jwe.encrypt(
+                    encoded_jwt.encode(),
+                    encryption_key,
+                    algorithm="dir",           # Direct key agreement  
+                    encryption="A256GCM"       # AES-256-GCM
+                )
+                
+                logger.info(f"Token ENCRIPTADO creado para usuario {subject}")
+                return encrypted_token.decode()
+            else:
+                logger.info(f"Token normal creado para usuario {subject}")
+                return encoded_jwt
+                
         except Exception as e:
             logger.error(f"Error al crear token de acceso: {e}")
             raise HTTPException(
@@ -79,10 +103,11 @@ class SecureTokenManager:
     @staticmethod
     def create_refresh_token(
         subject: Union[str, Any],
-        expires_delta: Optional[timedelta] = None
+        expires_delta: Optional[timedelta] = None,
+        encrypt: bool = True  # 🔥 NUEVO: Encriptar refresh también
     ) -> str:
         """
-        Genera un token de refresh con mayor tiempo de vida
+        Genera un token de refresh con mayor tiempo de vida + JWE
         """
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
@@ -103,9 +128,26 @@ class SecureTokenManager:
         }
         
         try:
+            # PASO 1: Crear JWT
             encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-            logger.info(f"Token de refresh creado para usuario {subject}")
-            return encoded_jwt
+            
+            # 🔥 PASO 2: ENCRIPTAR si está habilitado
+            if encrypt:
+                encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                
+                encrypted_token = jwe.encrypt(
+                    encoded_jwt.encode(),
+                    encryption_key,
+                    algorithm="dir",
+                    encryption="A256GCM"
+                )
+                
+                logger.info(f"Refresh token ENCRIPTADO creado para usuario {subject}")
+                return encrypted_token.decode()
+            else:
+                logger.info(f"Refresh token normal creado para usuario {subject}")
+                return encoded_jwt
+                
         except Exception as e:
             logger.error(f"Error al crear token de refresh: {e}")
             raise HTTPException(
@@ -116,12 +158,33 @@ class SecureTokenManager:
     @staticmethod
     def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:
         """
-        Verifica y decodifica un token JWT con validaciones de seguridad simplificadas
+        Verifica y decodifica un token JWT con soporte para JWE
         """
         try:
-            # Decodificar token con validación de audiencia e issuer
+            jwt_token = token
+            
+            # 🔥 PASO 1: Intentar desencriptar si es JWE
+            if SecureTokenManager._is_encrypted_token(token):
+                logger.debug("Detectado token encriptado JWE")
+                
+                encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                
+                try:
+                    # Desencriptar JWE
+                    decrypted_bytes = jwe.decrypt(token.encode(), encryption_key)
+                    jwt_token = decrypted_bytes.decode()
+                    logger.debug("Token JWE desencriptado exitosamente")
+                    
+                except Exception as e:
+                    logger.error(f"Error al desencriptar JWE: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Token encriptado inválido"
+                    )
+            
+            # PASO 2: Decodificar JWT (normal o desencriptado)
             payload = jwt.decode(
-                token,
+                jwt_token,
                 SECRET_KEY,
                 algorithms=[ALGORITHM],
                 audience=JWT_AUDIENCE,
@@ -169,6 +232,28 @@ class SecureTokenManager:
             )
     
     @staticmethod
+    def _is_encrypted_token(token: str) -> bool:
+        """
+        🔥 NUEVO: Detecta si un token es JWE encriptado
+        """
+        try:
+            # Los tokens JWE tienen 5 partes separadas por puntos
+            # vs JWT normal que tiene 3 partes
+            parts = token.split('.')
+            
+            # JWE: header.encrypted_key.iv.ciphertext.tag (5 partes)
+            # JWT: header.payload.signature (3 partes)
+            if len(parts) == 5:
+                # Verificar que el header indique encriptación
+                header = base64.urlsafe_b64decode(parts[0] + '===').decode()
+                return '"enc":' in header
+            
+            return False
+            
+        except Exception:
+            return False
+    
+    @staticmethod
     def _generate_simple_fingerprint(subject: str) -> str:
         """
         Genera un fingerprint simple para el token
@@ -190,13 +275,35 @@ class SecureTokenManager:
         Extrae el JTI (JWT ID) del token sin validarlo completamente
         """
         try:
+            # 🔥 MEJORADO: Manejar tokens encriptados
+            jwt_token = token
+            
+            # Si es encriptado, intentar desencriptar primero
+            if SecureTokenManager._is_encrypted_token(token):
+                encryption_key = hashlib.sha256(SECRET_KEY.encode()).digest()
+                decrypted_bytes = jwe.decrypt(token.encode(), encryption_key)
+                jwt_token = decrypted_bytes.decode()
+            
             # Decodificar sin verificar para obtener el JTI
-            unverified_payload = jwt.get_unverified_claims(token)
+            unverified_payload = jwt.get_unverified_claims(jwt_token)
             return unverified_payload.get("jti")
         except Exception:
             return None
 
-# Funciones de contraseña mejoradas
+# 🔥 NUEVAS FUNCIONES DE UTILIDAD
+def create_encrypted_token(subject: Union[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Shortcut para crear token encriptado
+    """
+    return SecureTokenManager.create_access_token(subject, expires_delta, encrypt=True)
+
+def create_normal_token(subject: Union[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Shortcut para crear token normal (sin encriptar)
+    """
+    return SecureTokenManager.create_access_token(subject, expires_delta, encrypt=False)
+
+# Funciones de contraseña mejoradas (sin cambios)
 def create_password_hash(password: str) -> str:
     """
     Genera un hash seguro para una contraseña con salt adicional
@@ -279,8 +386,10 @@ def check_password_strength(password: str) -> Dict[str, Any]:
 
 # Funciones de compatibilidad (mantener para no romper código existente)
 def create_access_token(subject: Union[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """Función de compatibilidad"""
-    return SecureTokenManager.create_access_token(subject, expires_delta)
+    """
+    🔥 ACTUALIZADO: Función de compatibilidad - AHORA ENCRIPTA POR DEFECTO
+    """
+    return SecureTokenManager.create_access_token(subject, expires_delta, encrypt=True)
 
 def get_password_hash(password: str) -> str:
     """Función de compatibilidad"""

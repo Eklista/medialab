@@ -304,7 +304,7 @@ def require_fresh_token(max_age_minutes: int = 30) -> Callable:
     """
     def _require_fresh_token(
         current_user: User = Depends(get_current_active_user),
-        token: str = Depends(oauth2_scheme)
+        token: str = Depends(cookie_or_bearer_scheme)
     ) -> User:
         try:
             # Verificar token y obtener tiempo de emisión
@@ -336,7 +336,7 @@ def require_fresh_token(max_age_minutes: int = 30) -> Callable:
 
 def get_optional_current_user(
     db: Session = Depends(get_db),
-    token: Optional[str] = Depends(oauth2_scheme)
+    token: Optional[str] = Depends(cookie_or_bearer_scheme)
 ) -> Optional[User]:
     """
     Obtiene el usuario actual si está autenticado, sino retorna None

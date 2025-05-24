@@ -156,16 +156,8 @@ SESSION_SECURE_COOKIES = get_bool_env("SESSION_SECURE_COOKIES", ENVIRONMENT == "
 SESSION_HTTPONLY_COOKIES = get_bool_env("SESSION_HTTPONLY_COOKIES", True)
 SESSION_SAMESITE = os.getenv("SESSION_SAMESITE", "lax")
 
-# Configuración de CORS
-default_cors = ["http://localhost:3000", "http://localhost:5173"]
-CORS_ORIGINS = get_list_env("CORS_ORIGINS", default_cors)
-CORS_CREDENTIALS = get_bool_env("CORS_CREDENTIALS", True)
-
-if ENVIRONMENT == "production":
-    # Asegurarse que el dominio de producción esté en CORS
-    prod_domain = "https://medialab.eklista.com"
-    if prod_domain not in CORS_ORIGINS:
-        CORS_ORIGINS.append(prod_domain)
+# ❌ ELIMINADO: Segunda configuración de CORS que causaba conflicto
+# No definir CORS_ORIGINS nuevamente aquí - ya está definido arriba
 
 # Configuración de correo electrónico - Mejorado
 EMAIL_ENABLED = get_bool_env("EMAIL_ENABLED", False)
