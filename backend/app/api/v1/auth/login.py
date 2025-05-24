@@ -203,17 +203,33 @@ def logout(
     Logout con limpieza de cookies y blacklist de tokens
     """
     try:
+        logger.info(f"Iniciando logout para usuario: {current_user.email}")
+        
         # Obtener tokens desde cookies para blacklist
         access_token = request.cookies.get("access_token")
         refresh_token = request.cookies.get("refresh_token")
         
-        # Añadir tokens a blacklist si existen
-        if access_token:
-            token_blacklist.add_token(access_token, current_user.id)
-        if refresh_token:
-            token_blacklist.add_token(refresh_token, current_user.id)
+        logger.info(f"Tokens encontrados - Access: {'✓' if access_token else '✗'}, Refresh: {'✓' if refresh_token else '✗'}")
         
-        # Limpiar cookies
+        # Añadir tokens a blacklist si existen
+        tokens_blacklisted = 0
+        if access_token:
+            if token_blacklist.add_token(access_token, current_user.id):
+                tokens_blacklisted += 1
+                logger.info("Access token añadido a blacklist")
+            else:
+                logger.warning("No se pudo añadir access token a blacklist")
+                
+        if refresh_token:
+            if token_blacklist.add_token(refresh_token, current_user.id):
+                tokens_blacklisted += 1
+                logger.info("Refresh token añadido a blacklist")
+            else:
+                logger.warning("No se pudo añadir refresh token a blacklist")
+        
+        # Limpiar cookies - IMPORTANTE: usar las mismas configuraciones que al establecerlas
+        logger.info("Limpiando cookies...")
+        
         response.delete_cookie(
             key="access_token", 
             httponly=True, 
@@ -231,16 +247,35 @@ def logout(
             path="/"
         )
         
-        logger.info(f"Logout exitoso para usuario: {current_user.email}")
+        # ADICIONAL: Limpiar cookies con diferentes configuraciones por si acaso
+        # Esto ayuda cuando hay diferencias en configuración entre entornos
+        response.delete_cookie(key="access_token", path="/")
+        response.delete_cookie(key="refresh_token", path="/")
+        response.delete_cookie(key="access_token")
+        response.delete_cookie(key="refresh_token")
         
-        return {"message": "Logout exitoso", "user": current_user.email}
+        logger.info(f"Logout exitoso para usuario: {current_user.email}, tokens en blacklist: {tokens_blacklisted}")
+        
+        return {
+            "message": "Logout exitoso", 
+            "user": current_user.email,
+            "tokens_blacklisted": tokens_blacklisted
+        }
         
     except Exception as e:
-        logger.error(f"Error en logout: {e}")
-        # Limpiar cookies incluso si hay error
-        response.delete_cookie("access_token")
-        response.delete_cookie("refresh_token")
-        return {"message": "Logout exitoso (con errores)"}
+        logger.error(f"Error en logout para {current_user.email if current_user else 'usuario desconocido'}: {e}")
+        
+        # IMPORTANTE: Limpiar cookies incluso si hay error
+        try:
+            response.delete_cookie("access_token", path="/")
+            response.delete_cookie("refresh_token", path="/")
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
+            logger.info("Cookies limpiadas después de error")
+        except Exception as cookie_error:
+            logger.error(f"Error al limpiar cookies: {cookie_error}")
+        
+        return {"message": "Logout exitoso (con errores)", "error": str(e)}
 
 @router.get("/me")
 def get_current_user_info(

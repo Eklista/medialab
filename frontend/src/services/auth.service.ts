@@ -1,17 +1,10 @@
-// frontend/src/services/auth.service.ts (corrección)
-import { handleApiError, getBaseUrl } from './api';
-import tokenManager from './tokenManager';
+// frontend/src/services/auth.service.ts
+import apiClient, { handleApiError } from './api';
 
 export interface LoginRequest {
   email: string;
   password: string;
   rememberMe?: boolean;
-}
-
-export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
 }
 
 export interface User {
@@ -59,8 +52,20 @@ class AuthService {
    */
   async login(credentials: { email: string; password: string }): Promise<User> {
     try {
-      // Usar el token manager para el login (maneja cookies automáticamente)
-      await tokenManager.login(credentials);
+      //console.log('🔐 Iniciando login con apiClient...');
+      
+      // Crear FormData para OAuth2PasswordRequestForm
+      const formData = new FormData();
+      formData.append('username', credentials.email);
+      formData.append('password', credentials.password);
+
+      //const response = await apiClient.post('/auth/login', formData, {
+      //  headers: {
+      //    'Content-Type': 'multipart/form-data',
+      //  },
+      //});
+
+      //console.log('✅ Login exitoso:', response.data);
       
       // Obtener información del usuario
       const userData = await this.getCurrentUser();
@@ -81,6 +86,7 @@ class AuthService {
       
       return userData;
     } catch (error) {
+      console.error('💥 Error en login:', error);
       throw error;
     }
   }
@@ -89,15 +95,23 @@ class AuthService {
    * Cierra la sesión limpiando cookies y datos locales
    */
   async logout(): Promise<void> {
-    // Limpiar solo datos no sensibles del localStorage
-    localStorage.removeItem('userId');
-    localStorage.removeItem('sessionLocked');
-    
-    // El tokenManager se encarga de limpiar cookies y llamar al endpoint de logout
-    await tokenManager.logout();
-    
-    // Limpiar completamente el estado del tokenManager
-    tokenManager.fullReset();
+    try {
+      console.log('🚪 Llamando al endpoint de logout...');
+      
+      // Llamar al endpoint de logout del backend
+      await apiClient.post('/auth/logout');
+      
+      console.log('✅ Logout exitoso en el servidor');
+    } catch (error) {
+      console.error('💥 Error en logout del servidor:', error);
+      // No lanzar error para no interrumpir el proceso de logout
+    } finally {
+      // Limpiar datos locales
+      localStorage.removeItem('userId');
+      localStorage.removeItem('sessionLocked');
+      
+      console.log('🧹 Datos locales limpiados');
+    }
   }
 
   /**
@@ -105,15 +119,10 @@ class AuthService {
    */
   async getCurrentUser(): Promise<User> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/users/me`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to get current user');
-      }
-      
-      const userData = await response.json();
-      return this.normalizeUserData(userData);
+      const response = await apiClient.get('/users/me');
+      return this.normalizeUserData(response.data);
     } catch (error) {
+      console.error('Error al obtener usuario actual:', error);
       throw error;
     }
   }
@@ -144,42 +153,21 @@ class AuthService {
    */
   async getUserPermissions(): Promise<string[]> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/users/me/permissions`);
-      
-      if (!response.ok) {
-        return [];
-      }
-      
-      const permissions = await response.json();
-      return permissions || [];
+      const response = await apiClient.get('/users/me/permissions');
+      return response.data || [];
     } catch (error) {
+      console.error('Error al obtener permisos:', error);
       return [];
     }
   }
 
   /**
-   * Verifica si el usuario está autenticado
-   */
-  isAuthenticated(): boolean {
-    return tokenManager.isAuthenticated();
-  }
-
-  /**
    * Verifica el estado de autenticación de forma asíncrona
-   * CORRECCIÓN: Cambiar a POST
    */
   async checkAuthStatus(): Promise<boolean> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`, {
-        method: 'POST' // ← CORRECCIÓN: Cambiar de GET a POST
-      });
-      
-      if (response.ok) {
-        // Ya no necesitamos leer la respuesta JSON aquí
-        // El tokenManager se encarga de manejar la información del token
-        return true;
-      }
-      return false;
+      const response = await apiClient.post('/auth/validate-token');
+      return response.status === 200;
     } catch (error) {
       console.error('Error al verificar estado de autenticación:', error);
       return false;
@@ -191,22 +179,10 @@ class AuthService {
    */
   async forgotPassword(email: string): Promise<{ message: string }> {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to send password reset');
-      }
-
-      return await response.json();
+      const response = await apiClient.post('/auth/forgot-password', { email });
+      return response.data;
     } catch (error) {
-      throw error;
+      throw new Error(handleApiError(error));
     }
   }
   
@@ -215,20 +191,8 @@ class AuthService {
    */
   async verifyCode(email: string, code: string): Promise<{ valid: boolean }> {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/verify-code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, code })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to verify code');
-      }
-
-      return await response.json();
+      const response = await apiClient.post('/auth/verify-code', { email, code });
+      return response.data;
     } catch (error) {
       throw new Error(handleApiError(error));
     }
@@ -244,40 +208,18 @@ class AuthService {
       }
       
       if (email && code) {
-        const response = await fetch(`${getBaseUrl()}/auth/reset-password`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            email,
-            code,
-            new_password: password 
-          })
+        const response = await apiClient.post('/auth/reset-password', {
+          email,
+          code,
+          new_password: password 
         });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to reset password');
-        }
-
-        return await response.json();
+        return response.data;
       } 
       else if (code) {
-        const response = await fetch(`${getBaseUrl()}/auth/reset-password/${code}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ new_password: password })
+        const response = await apiClient.post(`/auth/reset-password/${code}`, {
+          new_password: password
         });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to reset password');
-        }
-
-        return await response.json();
+        return response.data;
       } else {
         throw new Error('Falta información necesaria para restablecer la contraseña');
       }
@@ -291,22 +233,11 @@ class AuthService {
    */
   async verifyPassword(password: string): Promise<boolean> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/verify-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ password })
-      });
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const data = await response.json();
-      return data.valid;
+      const response = await apiClient.post('/auth/verify-password', { password });
+      return response.data.valid;
     } catch (error) {
-      throw new Error(handleApiError(error));
+      console.error('Error al verificar contraseña:', error);
+      return false;
     }
   }
 
@@ -315,23 +246,11 @@ class AuthService {
    */
   async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          current_password: currentPassword, 
-          new_password: newPassword 
-        })
+      const response = await apiClient.post('/auth/change-password', {
+        current_password: currentPassword, 
+        new_password: newPassword 
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to change password');
-      }
-
-      return await response.json();
+      return response.data;
     } catch (error) {
       throw new Error(handleApiError(error));
     }
@@ -342,21 +261,8 @@ class AuthService {
    */
   async updateProfile(profileData: Partial<User>): Promise<User> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/users/me`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(profileData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to update profile');
-      }
-
-      const userData = await response.json();
-      return this.normalizeUserData(userData);
+      const response = await apiClient.patch('/users/me', profileData);
+      return this.normalizeUserData(response.data);
     } catch (error) {
       throw new Error(handleApiError(error));
     }
@@ -371,18 +277,13 @@ class AuthService {
       formData.append('file', file);
       formData.append('type', type);
 
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/users/upload-image`, {
-        method: 'POST',
-        body: formData
+      const response = await apiClient.post('/users/upload-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to upload image');
-      }
-
-      const data = await response.json();
-      return data.url;
+      return response.data.url;
     } catch (error) {
       throw new Error(handleApiError(error));
     }
@@ -390,14 +291,11 @@ class AuthService {
 
   /**
    * Valida si el token actual es válido
-   * CORRECCIÓN: Cambiar a POST
    */
   async validateToken(): Promise<boolean> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`, {
-        method: 'POST' // ← CORRECCIÓN: Cambiar de GET a POST
-      });
-      return response.ok;
+      const response = await apiClient.post('/auth/validate-token');
+      return response.status === 200;
     } catch (error) {
       return false;
     }
@@ -405,19 +303,11 @@ class AuthService {
 
   /**
    * Obtiene información de la sesión actual
-   * CORRECCIÓN: Cambiar a POST
    */
   async getSessionInfo(): Promise<{ valid: boolean; expires_in?: number; user_id?: number }> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/validate-token`, {
-        method: 'POST' // ← CORRECCIÓN: Cambiar de GET a POST
-      });
-      
-      if (!response.ok) {
-        return { valid: false };
-      }
-
-      return await response.json();
+      const response = await apiClient.post('/auth/validate-token');
+      return response.data;
     } catch (error) {
       return { valid: false };
     }
@@ -428,9 +318,8 @@ class AuthService {
    */
   async refreshToken(): Promise<boolean> {
     try {
-      // El tokenManager ya tiene un método para renovar tokens
-      await tokenManager.refreshToken();
-      return true;
+      const response = await apiClient.post('/auth/refresh');
+      return response.status === 200;
     } catch (error) {
       console.error('Error al renovar token:', error);
       return false;
@@ -442,9 +331,7 @@ class AuthService {
    */
   async logoutAllSessions(): Promise<void> {
     try {
-      await tokenManager.makeAuthenticatedRequest(`${getBaseUrl()}/auth/logout-all`, {
-        method: 'POST'
-      });
+      await apiClient.post('/auth/logout-all');
     } catch (error) {
       console.error('Error al cerrar todas las sesiones:', error);
     } finally {
@@ -486,7 +373,7 @@ class AuthService {
   /**
    * @deprecated Este método ya no devuelve el token por seguridad.
    * Los tokens ahora se manejan automáticamente via cookies httpOnly.
-   * Usar isAuthenticated() en su lugar.
+   * Usar checkAuthStatus() en su lugar.
    */
   getAccessToken(): string | null {
     console.warn('getAccessToken() está deprecado. Los tokens ahora se manejan via cookies httpOnly.');
@@ -500,6 +387,20 @@ class AuthService {
   getRefreshToken(): string | null {
     console.warn('getRefreshToken() está deprecado. Los tokens ahora se manejan via cookies httpOnly.');
     return null;
+  }
+
+  /**
+   * @deprecated Los tokens ahora se manejan automáticamente.
+   * Este método solo verifica si hay una sesión activa.
+   */
+  isAuthenticated(): boolean {
+    // CAMBIO: No depender solo del localStorage, porque puede ser residual
+    // Verificación básica: si hay userId Y no estamos en proceso de logout
+    const hasUserId = this.getUserId() !== null;
+    const isSessionLocked = this.isSessionLocked();
+    
+    // Solo considerar autenticado si hay userId y la sesión no está marcada como bloqueada incorrectamente
+    return hasUserId && !isSessionLocked;
   }
 }
 

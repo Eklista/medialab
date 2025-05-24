@@ -1,6 +1,7 @@
 import React, { createContext, useReducer, useEffect, ReactNode } from 'react';
 import { UserRole } from '../types/auth.types';
 import { authService } from '../../../services';
+import { setLoggingOut } from '../../../services/api';
 
 // Mantener todas tus interfaces existentes
 export interface User {
@@ -22,7 +23,9 @@ export interface AuthState {
   isLocked: boolean;
   lastActivity: number;
   permissions: string[];
-  isLoggingOut: boolean; // ← NUEVO: flag para controlar logout
+  isLoggingOut: boolean;
+  // NUEVO: flag para prevenir auto-verificación después de logout manual
+  preventAutoCheck: boolean;
 }
 
 export interface LoginCredentials {
@@ -54,7 +57,8 @@ const initialState: AuthState = {
   isLocked: false,
   lastActivity: Date.now(),
   permissions: [],
-  isLoggingOut: false // ← NUEVO
+  isLoggingOut: false,
+  preventAutoCheck: false // ← NUEVO
 };
 
 // Tipos de acciones actualizados
@@ -62,13 +66,14 @@ type AuthAction =
   | { type: 'LOGIN_START' }
   | { type: 'LOGIN_SUCCESS'; payload: { user: User, permissions: string[] } }
   | { type: 'LOGIN_FAIL'; payload: string }
-  | { type: 'LOGOUT_START' } // ← NUEVO
+  | { type: 'LOGOUT_START' }
   | { type: 'LOGOUT' }
   | { type: 'RESTORE_SESSION'; payload: { user: User, permissions: string[] } }
   | { type: 'LOCK_SESSION' }
   | { type: 'UNLOCK_SESSION' }
   | { type: 'UPDATE_ACTIVITY' }
-  | { type: 'UPDATE_PERMISSIONS'; payload: string[] };
+  | { type: 'UPDATE_PERMISSIONS'; payload: string[] }
+  | { type: 'RESET_AUTO_CHECK' }; // ← NUEVO
 
 // Función para verificar si una ruta es pública
 const isPublicRoute = (path: string) => {
@@ -80,7 +85,7 @@ const isPublicRoute = (path: string) => {
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'LOGIN_START':
-      return { ...state, isLoading: true, error: null, isLoggingOut: false };
+      return { ...state, isLoading: true, error: null, isLoggingOut: false, preventAutoCheck: false };
     case 'LOGIN_SUCCESS':
       return { 
         ...state, 
@@ -90,16 +95,17 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         permissions: action.payload.permissions,
         error: null,
         lastActivity: Date.now(),
-        isLoggingOut: false
+        isLoggingOut: false,
+        preventAutoCheck: false
       };
     case 'LOGIN_FAIL':
       return { ...state, isLoading: false, error: action.payload, isLoggingOut: false };
-    case 'LOGOUT_START': // ← NUEVO
-      return { ...state, isLoggingOut: true, error: null };
+    case 'LOGOUT_START':
+      return { ...state, isLoggingOut: true, error: null, preventAutoCheck: true };
     case 'LOGOUT':
       return { 
         ...initialState, 
-        isLoggingOut: false // ← Asegurar que se resetee
+        preventAutoCheck: true // ← IMPORTANTE: Mantener este flag activo
       };
     case 'RESTORE_SESSION':
       const isLocked = localStorage.getItem('sessionLocked') === 'true';
@@ -110,7 +116,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         permissions: action.payload.permissions,
         isLocked: isLocked,
         lastActivity: isLocked ? 0 : Date.now(),
-        isLoggingOut: false
+        isLoggingOut: false,
+        preventAutoCheck: false // Reset cuando restauramos sesión válida
       };
     case 'LOCK_SESSION':
       localStorage.setItem('sessionLocked', 'true');
@@ -122,6 +129,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return state.isLocked || state.isLoggingOut ? state : { ...state, lastActivity: Date.now() };
     case 'UPDATE_PERMISSIONS':
       return { ...state, permissions: action.payload };
+    case 'RESET_AUTO_CHECK': // ← NUEVO: para resetear el flag después de un tiempo
+      return { ...state, preventAutoCheck: false };
     default:
       return state;
   }
@@ -202,22 +211,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Método para verificar autenticación usando cookies
   const checkAuthStatus = async () => {
-    // Si estamos en proceso de logout, no verificar autenticación
-    if (state.isLoggingOut) {
+    // CRÍTICO: No verificar si estamos en proceso de logout o si está prevenido
+    if (state.isLoggingOut || state.preventAutoCheck) {
+      // console.log('🔒 Verificación de auth prevenida:', { 
+      //   isLoggingOut: state.isLoggingOut, 
+      //   preventAutoCheck: state.preventAutoCheck 
+      // });
       return;
     }
 
     try {
+      // console.log('🔍 Verificando estado de autenticación...');
       const isAuth = await authService.checkAuthStatus();
       
       if (isAuth) {
+        // console.log('✅ Usuario autenticado, obteniendo datos...');
         const userData = await authService.getCurrentUser();
         let userPermissions: string[] = [];
         
         try {
           userPermissions = await authService.getUserPermissions();
         } catch (permError) {
-          console.warn('Error al obtener permisos:', permError);
+          console.warn('⚠️ Error al obtener permisos:', permError);
         }
         
         const userDataWithPermissions = {
@@ -232,27 +247,66 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           payload: { user, permissions } 
         });
       } else {
-        // Si no está autenticado y no estamos haciendo logout, limpiar estado
-        if (!state.isLoggingOut) {
+        // console.log('❌ Usuario no autenticado');
+        // Solo limpiar estado si no estamos haciendo logout
+        if (!state.isLoggingOut && !state.preventAutoCheck) {
           dispatch({ type: 'LOGOUT' });
         }
       }
     } catch (error) {
-      console.error('Error al verificar autenticación:', error);
+      // console.error('💥 Error al verificar autenticación:', error);
       // Solo limpiar estado si no estamos haciendo logout
-      if (!state.isLoggingOut) {
+      if (!state.isLoggingOut && !state.preventAutoCheck) {
         dispatch({ type: 'LOGOUT' });
       }
     }
   };
 
-  // Restaurar sesión al cargar el componente SOLO UNA VEZ
+  // EFECTO MEJORADO: Restaurar sesión al cargar el componente
   useEffect(() => {
-    // Solo verificar si no estamos en proceso de logout y no estamos ya autenticados
-    if (!state.isLoggingOut && !state.isAuthenticated && !state.isLoading) {
+    // console.log('🚀 AuthProvider mounted, estado inicial:', {
+    //   isAuthenticated: state.isAuthenticated,
+    //   isLoggingOut: state.isLoggingOut,
+    //   preventAutoCheck: state.preventAutoCheck,
+    //   isLoading: state.isLoading
+    // });
+
+    // NUEVO: Solo verificar automáticamente si estamos en una ruta protegida
+    const currentPath = window.location.pathname;
+    const isProtectedRoute = currentPath.startsWith('/dashboard') || currentPath.startsWith('/ml-admin');
+    const isLoginPage = currentPath.includes('/login') || currentPath.includes('/password-recovery');
+    
+    // Solo verificar si:
+    // 1. No estamos haciendo logout
+    // 2. No está prevenido
+    // 3. No estamos ya autenticados 
+    // 4. No estamos cargando
+    // 5. Estamos en una ruta protegida (NO en login o páginas públicas)
+    if (!state.isLoggingOut && 
+        !state.preventAutoCheck && 
+        !state.isAuthenticated && 
+        !state.isLoading &&
+        isProtectedRoute && 
+        !isLoginPage) {
+      // console.log('🔄 Iniciando verificación automática de autenticación...');
       checkAuthStatus();
     }
-  }, []); // ← Solo ejecutar una vez al montar
+  }, []); // Solo ejecutar una vez al montar
+
+  // NUEVO: Efecto para resetear preventAutoCheck después de un tiempo cuando se hace logout manual
+  useEffect(() => {
+    if (state.preventAutoCheck && !state.isAuthenticated) {
+      console.log('⏰ Iniciando timer para resetear preventAutoCheck...');
+      
+      // Resetear después de 5 segundos para permitir verificaciones futuras
+      const timer = setTimeout(() => {
+        console.log('🔄 Reseteando preventAutoCheck...');
+        dispatch({ type: 'RESET_AUTO_CHECK' });
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [state.preventAutoCheck, state.isAuthenticated]);
 
   // Detectar actividad del usuario
   useEffect(() => {
@@ -327,19 +381,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Función para cerrar sesión MEJORADA
+  // FUNCIÓN DE LOGOUT MEJORADA
   const logout = () => {
+    console.log('🚪 Iniciando proceso de logout...');
+    
     // Marcar que estamos haciendo logout
     dispatch({ type: 'LOGOUT_START' });
+    setLoggingOut(true); // ← Prevenir renovación automática de tokens
     
-    // Limpiar datos locales inmediatamente
+    // Limpiar TODOS los datos locales inmediatamente
     localStorage.removeItem('sessionLocked');
+    localStorage.removeItem('lastPath');
+    localStorage.removeItem('userId'); // ← IMPORTANTE: Limpiar también esto
     
-    // Llamar al servicio de logout (que maneja cookies y redirección)
-    authService.logout();
+    // Limpiar cualquier cookie del lado del cliente también
+    document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     
-    // Limpiar estado local
-    dispatch({ type: 'LOGOUT' });
+    // Llamar al servicio de logout de manera asíncrona
+    authService.logout().finally(() => {
+      // Limpiar estado local (esto activará preventAutoCheck)
+      console.log('🧹 Limpiando estado local...');
+      dispatch({ type: 'LOGOUT' });
+      
+      // Resetear flag de logout en el API client
+      setLoggingOut(false);
+      
+      // Forzar redirección
+      console.log('🔄 Redirigiendo a login...');
+      setTimeout(() => {
+        window.location.href = '/ml-admin/login';
+      }, 100);
+    });
   };
 
   // Resto de funciones permanecen igual
