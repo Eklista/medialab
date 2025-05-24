@@ -1,3 +1,4 @@
+# backend/app/services/auth_service.py
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import jwt, JWTError
@@ -16,27 +17,26 @@ from app.config.security import (
 from app.repositories.user_repository import UserRepository
 from app.models.auth.users import User
 from app.schemas.auth.token import TokenPayload
-from app.utils.token_blacklist import token_blacklist
+
+# NUEVO: Importar Redis blacklist y rate limiter
+from app.utils.redis_token_blacklist import redis_token_blacklist
+from app.utils.redis_rate_limiter import redis_rate_limiter
 
 logger = logging.getLogger(__name__)
 
 class AuthService:
     """
     Servicio fortificado para gestionar autenticación y tokens
-    Incluye protecciones contra ataques de fuerza bruta, replay y session hijacking
+    Ahora utiliza Redis para blacklist, rate limiting y gestión de intentos fallidos
     """
-    
-    # Cache para intentos de login fallidos (en producción usar Redis)
-    _failed_attempts = {}
-    _lockout_time = {}
     
     @staticmethod
     def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
         """
-        Autentica un usuario con protección contra ataques de fuerza bruta
+        Autentica un usuario con protección contra ataques de fuerza bruta usando Redis
         """
-        # Verificar si la IP/usuario está bloqueado
-        if AuthService._is_locked_out(email):
+        # Verificar si la IP/usuario está bloqueado usando Redis
+        if redis_token_blacklist.is_locked_out(email, "login", max_attempts=5):
             logger.warning(f"Intento de login en cuenta bloqueada: {email}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -47,18 +47,18 @@ class AuthService:
         
         if not user:
             # Registrar intento fallido para prevenir enumeración
-            AuthService._record_failed_attempt(email)
+            redis_token_blacklist.record_failed_attempt(email, "login")
             logger.warning(f"Intento de login con email inexistente: {email}")
             return None
         
         if not verify_password(password, user.password_hash):
             # Registrar intento fallido
-            AuthService._record_failed_attempt(email)
+            redis_token_blacklist.record_failed_attempt(email, "login")
             logger.warning(f"Intento de login con contraseña incorrecta para: {email}")
             return None
         
         # Limpiar intentos fallidos después de login exitoso
-        AuthService._clear_failed_attempts(email)
+        redis_token_blacklist.clear_failed_attempts(email, "login")
         
         logger.info(f"Login exitoso para usuario: {email}")
         return user
@@ -103,10 +103,11 @@ class AuthService:
     def refresh_access_token(refresh_token: str, db: Session) -> Dict[str, str]:
         """
         Genera un nuevo access token usando un refresh token válido
+        Ahora usa Redis blacklist para verificación
         """
         try:
-            # Verificar que el refresh token no esté en blacklist
-            if token_blacklist.is_blacklisted(refresh_token):
+            # Verificar que el refresh token no esté en blacklist (Redis)
+            if redis_token_blacklist.is_blacklisted(refresh_token):
                 logger.warning("Intento de usar refresh token en blacklist")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -118,8 +119,8 @@ class AuthService:
             user_id = int(payload.get("sub"))
             token_issued_at = datetime.fromtimestamp(payload.get("iat", 0))
             
-            # Verificar que el usuario no haya sido invalidado globalmente
-            if token_blacklist.is_user_invalidated(user_id, token_issued_at):
+            # Verificar que el usuario no haya sido invalidado globalmente (Redis)
+            if redis_token_blacklist.is_user_invalidated(user_id, token_issued_at):
                 logger.warning(f"Intento de usar refresh token de usuario invalidado: {user_id}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -161,19 +162,19 @@ class AuthService:
     @staticmethod
     def logout_user(access_token: str, refresh_token: str = None, user_id: int = None) -> bool:
         """
-        Cierra sesión del usuario añadiendo tokens a blacklist
+        Cierra sesión del usuario añadiendo tokens a blacklist Redis
         """
         try:
             success = True
             
-            # Añadir access token a blacklist
-            if not token_blacklist.add_token(access_token, user_id):
+            # Añadir access token a blacklist Redis
+            if not redis_token_blacklist.add_token(access_token, user_id):
                 logger.warning(f"No se pudo añadir access token a blacklist para usuario {user_id}")
                 success = False
             
             # Añadir refresh token a blacklist si se proporciona
             if refresh_token:
-                if not token_blacklist.add_token(refresh_token, user_id):
+                if not redis_token_blacklist.add_token(refresh_token, user_id):
                     logger.warning(f"No se pudo añadir refresh token a blacklist para usuario {user_id}")
                     success = False
             
@@ -189,10 +190,10 @@ class AuthService:
     @staticmethod
     def logout_all_sessions(user_id: int) -> bool:
         """
-        Invalida todas las sesiones de un usuario (logout global)
+        Invalida todas las sesiones de un usuario usando Redis
         """
         try:
-            success = token_blacklist.blacklist_all_user_tokens(user_id)
+            success = redis_token_blacklist.blacklist_all_user_tokens(user_id)
             if success:
                 logger.info(f"Todas las sesiones invalidadas para usuario {user_id}")
             else:
@@ -207,11 +208,11 @@ class AuthService:
     @staticmethod
     def verify_token(token: str) -> TokenPayload:
         """
-        Verifica y decodifica un token JWT con validaciones de seguridad completas
+        Verifica y decodifica un token JWT con validaciones de seguridad usando Redis
         """
         try:
-            # Verificar que el token no esté en blacklist
-            if token_blacklist.is_blacklisted(token):
+            # Verificar que el token no esté en blacklist Redis
+            if redis_token_blacklist.is_blacklisted(token):
                 logger.warning("Intento de usar token en blacklist")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -230,11 +231,11 @@ class AuthService:
                 jti=payload.get("jti")
             )
             
-            # Verificar invalidación global del usuario
+            # Verificar invalidación global del usuario usando Redis
             user_id = int(payload.get("sub"))
             token_issued_at = datetime.fromtimestamp(payload.get("iat", 0))
             
-            if token_blacklist.is_user_invalidated(user_id, token_issued_at):
+            if redis_token_blacklist.is_user_invalidated(user_id, token_issued_at):
                 logger.warning(f"Token de usuario invalidado globalmente: {user_id}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -268,7 +269,7 @@ class AuthService:
     @staticmethod
     def generate_password_reset_code(db: Session, email: str, reset_code: str, expires_at: datetime) -> Optional[Dict[str, Any]]:
         """
-        Genera un código para restablecer contraseña con validaciones de seguridad
+        Genera un código para restablecer contraseña con validaciones de seguridad usando Redis
         """
         try:
             user = UserRepository.get_by_email(db, email)
@@ -278,8 +279,8 @@ class AuthService:
                 logger.warning(f"Intento de reset de contraseña para email inexistente/inactivo: {email}")
                 return None
             
-            # Verificar límite de intentos de reset
-            if AuthService._is_reset_locked_out(email):
+            # Verificar límite de intentos de reset usando Redis
+            if redis_token_blacklist.is_locked_out(email, "reset", max_attempts=3):
                 logger.warning(f"Límite de intentos de reset alcanzado para: {email}")
                 return None
             
@@ -296,8 +297,8 @@ class AuthService:
             
             UserRepository.update(db, user, user_data)
             
-            # Registrar intento de reset
-            AuthService._record_reset_attempt(email)
+            # Registrar intento de reset en Redis
+            redis_token_blacklist.record_failed_attempt(email, "reset")
             
             logger.info(f"Código de reset generado para usuario: {email}")
             
@@ -318,7 +319,7 @@ class AuthService:
     @staticmethod
     def verify_reset_code(db: Session, email: str, code: str) -> bool:
         """
-        Verifica si un código de recuperación es válido con protecciones adicionales
+        Verifica si un código de recuperación es válido con protecciones adicionales usando Redis
         """
         try:
             user = UserRepository.get_by_email(db, email)
@@ -326,8 +327,8 @@ class AuthService:
             if not user or not user.is_active:
                 return False
             
-            # Verificar límite de intentos de verificación
-            if AuthService._is_verification_locked_out(email):
+            # Verificar límite de intentos de verificación usando Redis
+            if redis_token_blacklist.is_locked_out(email, "verification", max_attempts=5):
                 logger.warning(f"Límite de verificaciones alcanzado para: {email}")
                 return False
             
@@ -339,12 +340,12 @@ class AuthService:
             
             # Verificar código usando hash seguro
             if not user.reset_token or not verify_password(code, user.reset_token):
-                AuthService._record_verification_attempt(email)
+                redis_token_blacklist.record_failed_attempt(email, "verification")
                 logger.warning(f"Código de reset incorrecto para: {email}")
                 return False
             
             # Limpiar intentos fallidos tras verificación exitosa
-            AuthService._clear_verification_attempts(email)
+            redis_token_blacklist.clear_failed_attempts(email, "verification")
             
             logger.info(f"Código de reset verificado exitosamente para: {email}")
             return True
@@ -356,7 +357,7 @@ class AuthService:
     @staticmethod
     def reset_password_with_code(db: Session, email: str, code: str, new_password: str) -> bool:
         """
-        Restablece la contraseña mediante código de verificación con validaciones
+        Restablece la contraseña mediante código de verificación con validaciones usando Redis
         """
         try:
             # Verificar que el código sea válido
@@ -389,11 +390,12 @@ class AuthService:
             
             UserRepository.update(db, user, user_data)
             
-            # Invalidar todas las sesiones existentes por seguridad
+            # Invalidar todas las sesiones existentes por seguridad usando Redis
             AuthService.logout_all_sessions(user.id)
             
-            # Limpiar intentos de reset
-            AuthService._clear_reset_attempts(email)
+            # Limpiar intentos de reset en Redis
+            redis_token_blacklist.clear_failed_attempts(email, "reset")
+            redis_token_blacklist.clear_failed_attempts(email, "verification")
             
             logger.info(f"Contraseña restablecida exitosamente para: {email}")
             return True
@@ -404,89 +406,77 @@ class AuthService:
             logger.error(f"Error al restablecer contraseña para {email}: {e}")
             return False
     
-    # Métodos privados para manejo de límites de intentos
-    @staticmethod
-    def _is_locked_out(identifier: str) -> bool:
-        """Verifica si un usuario/IP está bloqueado por intentos fallidos"""
-        current_time = datetime.utcnow()
-        
-        # Verificar si está en período de bloqueo
-        if identifier in AuthService._lockout_time:
-            lockout_until = AuthService._lockout_time[identifier]
-            if current_time < lockout_until:
-                return True
-            else:
-                # Período de bloqueo expirado, limpiar
-                del AuthService._lockout_time[identifier]
-                if identifier in AuthService._failed_attempts:
-                    del AuthService._failed_attempts[identifier]
-        
-        return False
+    # ===== MÉTODOS DE ESTADÍSTICAS Y GESTIÓN =====
     
     @staticmethod
-    def _record_failed_attempt(identifier: str):
-        """Registra un intento fallido de login"""
-        current_time = datetime.utcnow()
-        
-        if identifier not in AuthService._failed_attempts:
-            AuthService._failed_attempts[identifier] = []
-        
-        # Limpiar intentos antiguos (ventana de 15 minutos)
-        cutoff_time = current_time - timedelta(minutes=15)
-        AuthService._failed_attempts[identifier] = [
-            attempt for attempt in AuthService._failed_attempts[identifier]
-            if attempt > cutoff_time
-        ]
-        
-        # Agregar nuevo intento
-        AuthService._failed_attempts[identifier].append(current_time)
-        
-        # Verificar si se alcanzó el límite
-        if len(AuthService._failed_attempts[identifier]) >= 5:
-            # Bloquear por 30 minutos
-            AuthService._lockout_time[identifier] = current_time + timedelta(minutes=30)
-            logger.warning(f"Usuario/IP bloqueado por intentos fallidos: {identifier}")
+    def get_security_stats() -> Dict[str, Any]:
+        """
+        Obtiene estadísticas de seguridad del sistema de autenticación
+        """
+        try:
+            blacklist_stats = redis_token_blacklist.get_stats()
+            rate_limit_stats = redis_rate_limiter.get_stats()
+            
+            return {
+                "token_blacklist": blacklist_stats,
+                "rate_limiting": rate_limit_stats,
+                "redis_available": redis_token_blacklist.redis.is_available(),
+                "security_features": {
+                    "token_blacklist_enabled": redis_token_blacklist.enabled,
+                    "rate_limiting_enabled": redis_rate_limiter.enabled,
+                    "failed_attempts_tracking": True,
+                    "global_user_invalidation": True,
+                    "automatic_cleanup": True
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas de seguridad: {e}")
+            return {"error": str(e)}
     
     @staticmethod
-    def _clear_failed_attempts(identifier: str):
-        """Limpia los intentos fallidos después de login exitoso"""
-        if identifier in AuthService._failed_attempts:
-            del AuthService._failed_attempts[identifier]
-        if identifier in AuthService._lockout_time:
-            del AuthService._lockout_time[identifier]
+    def cleanup_security_data() -> Dict[str, int]:
+        """
+        Limpia datos de seguridad expirados (principalmente para el cache en memoria)
+        Redis limpia automáticamente con TTL
+        """
+        try:
+            # En Redis la limpieza es automática, pero podemos limpiar cache en memoria
+            rate_limit_cleaned = redis_rate_limiter.cleanup_memory_cache()
+            blacklist_cleaned = redis_token_blacklist.cleanup_expired_tokens()
+            
+            return {
+                "rate_limit_entries_cleaned": rate_limit_cleaned,
+                "blacklist_entries_cleaned": blacklist_cleaned,
+                "automatic_redis_cleanup": True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error limpiando datos de seguridad: {e}")
+            return {"error": str(e)}
     
     @staticmethod
-    def _is_reset_locked_out(email: str) -> bool:
-        """Verifica límite de intentos de reset de contraseña"""
-        # Implementación similar a _is_locked_out pero para resets
-        return False  # Simplificado por ahora
+    def emergency_reset_user_security(user_id: int) -> bool:
+        """
+        Resetea completamente la seguridad de un usuario (uso administrativo)
+        """
+        try:
+            # Invalidar todas las sesiones del usuario
+            sessions_invalidated = AuthService.logout_all_sessions(user_id)
+            
+            # Limpiar rate limits (si tenemos el email del usuario)
+            # Nota: Necesitaríamos el email para limpiar completamente
+            
+            logger.info(f"🚨 Reset de seguridad de emergencia para usuario {user_id}")
+            
+            return sessions_invalidated
+            
+        except Exception as e:
+            logger.error(f"Error en reset de seguridad de emergencia para usuario {user_id}: {e}")
+            return False
     
-    @staticmethod
-    def _record_reset_attempt(email: str):
-        """Registra intento de reset"""
-        pass  # Simplificado por ahora
+    # ===== MÉTODOS DE COMPATIBILIDAD =====
     
-    @staticmethod
-    def _clear_reset_attempts(email: str):
-        """Limpia intentos de reset"""
-        pass  # Simplificado por ahora
-    
-    @staticmethod
-    def _is_verification_locked_out(email: str) -> bool:
-        """Verifica límite de intentos de verificación de código"""
-        return False  # Simplificado por ahora
-    
-    @staticmethod
-    def _record_verification_attempt(email: str):
-        """Registra intento de verificación"""
-        pass  # Simplificado por ahora
-    
-    @staticmethod
-    def _clear_verification_attempts(email: str):
-        """Limpia intentos de verificación"""
-        pass  # Simplificado por ahora
-    
-    # Método de compatibilidad mantenido
     @staticmethod
     def create_token(data: Dict, expires_delta: Optional[timedelta] = None) -> str:
         """

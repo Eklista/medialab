@@ -1,3 +1,4 @@
+# backend/app/api/deps.py
 from typing import Generator, Optional, List, Callable
 from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
@@ -9,12 +10,12 @@ from app.database import get_db
 from app.models.auth.users import User
 from app.services.auth_service import AuthService
 from app.utils.error_handler import ErrorHandler
-from app.utils.token_blacklist import token_blacklist
+
+# NUEVO: Importar Redis utilities
+from app.utils.redis_rate_limiter import redis_rate_limiter
+from app.utils.redis_token_blacklist import redis_token_blacklist
 
 logger = logging.getLogger(__name__)
-
-# Rate limiting cache (en producción usar Redis)
-_rate_limit_cache = {}
 
 class CookieOrBearerToken(HTTPBearer):
     """
@@ -55,6 +56,7 @@ def get_current_user(
 ) -> User:
     """
     Valida el token desde cookie o header Authorization con validaciones de seguridad
+    Ahora usa Redis para blacklist y verificaciones
     """
     try:
         if not token:
@@ -64,7 +66,7 @@ def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        # Verificar token usando el servicio de autenticación
+        # Verificar token usando el servicio de autenticación (que ahora usa Redis)
         token_data = AuthService.verify_token(token)
         
         from app.repositories.user_repository import UserRepository
@@ -256,42 +258,45 @@ def is_self_or_has_permission(user_id_param: str, required_permission: str) -> C
 def rate_limit(
     max_requests: int = 60,
     window_seconds: int = 60,
-    identifier_func: Callable = None
+    per_user: bool = False,
+    endpoint_name: Optional[str] = None
 ) -> Callable:
     """
-    Rate limiting decorator para endpoints críticos
+    Rate limiting decorator usando Redis para máxima eficiencia
+    
+    Args:
+        max_requests: Número máximo de requests en la ventana
+        window_seconds: Duración de la ventana en segundos  
+        per_user: Si True, aplica límite por usuario; si False, por IP
+        endpoint_name: Nombre personalizado del endpoint
     """
     def _rate_limit(request: Request):
-        # Determinar identificador único (IP, usuario, etc.)
-        if identifier_func:
-            identifier = identifier_func(request)
-        else:
-            # Usar IP como identificador por defecto
-            identifier = request.client.host if request.client else "unknown"
+        # Obtener identificador (IP o usuario)
+        identifier = redis_rate_limiter.get_identifier(request, use_user_id=per_user)
         
-        current_time = datetime.utcnow()
-        window_start = current_time - timedelta(seconds=window_seconds)
+        # Determinar nombre del endpoint
+        endpoint = endpoint_name or "unknown"
         
-        # Limpiar entradas antiguas
-        if identifier in _rate_limit_cache:
-            _rate_limit_cache[identifier] = [
-                timestamp for timestamp in _rate_limit_cache[identifier]
-                if timestamp > window_start
-            ]
-        else:
-            _rate_limit_cache[identifier] = []
+        # Verificar rate limit usando Redis
+        limit_info = redis_rate_limiter.check_rate_limit(
+            identifier=identifier,
+            max_requests=max_requests,
+            window_seconds=window_seconds,
+            endpoint=endpoint
+        )
         
-        # Verificar límite
-        if len(_rate_limit_cache[identifier]) >= max_requests:
-            logger.warning(f"Rate limit excedido para: {identifier}")
+        if not limit_info["allowed"]:
+            logger.warning(f"🚦 Rate limit excedido: {identifier} en {endpoint}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Demasiadas solicitudes. Inténtalo más tarde.",
-                headers={"Retry-After": str(window_seconds)}
+                headers={
+                    "Retry-After": str(limit_info["retry_after"]),
+                    "X-RateLimit-Limit": str(max_requests),
+                    "X-RateLimit-Remaining": str(limit_info["remaining"]),
+                    "X-RateLimit-Reset": str(limit_info["reset_time"])
+                }
             )
-        
-        # Registrar solicitud actual
-        _rate_limit_cache[identifier].append(current_time)
         
         return True
     
@@ -353,6 +358,173 @@ def get_optional_current_user(
         logger.debug(f"Error al obtener usuario opcional: {e}")
         return None
 
+# ===== NUEVAS DEPENDENCIAS PARA GESTIÓN REDIS =====
+
+def redis_health_check() -> Dict[str, Any]:
+    """
+    Verifica el estado de Redis
+    """
+    try:
+        redis_available = redis_rate_limiter.redis.is_available()
+        
+        if redis_available:
+            redis_info = redis_rate_limiter.redis.info()
+            return {
+                "redis_available": True,
+                "redis_version": redis_info.get("redis_version", "unknown"),
+                "used_memory": redis_info.get("used_memory_human", "unknown"),
+                "connected_clients": redis_info.get("connected_clients", 0),
+                "total_keys": redis_rate_limiter.redis.dbsize()
+            }
+        else:
+            return {
+                "redis_available": False,
+                "fallback_mode": True
+            }
+            
+    except Exception as e:
+        logger.error(f"Error en health check de Redis: {e}")
+        return {
+            "redis_available": False,
+            "error": str(e)
+        }
+
+def require_redis_available():
+    """
+    Dependencia que requiere que Redis esté disponible
+    """
+    if not redis_rate_limiter.redis.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis no está disponible. Funcionalidad limitada."
+        )
+    return True
+
+def get_security_stats() -> Dict[str, Any]:
+    """
+    Obtiene estadísticas completas de seguridad
+    """
+    try:
+        return AuthService.get_security_stats()
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas de seguridad: {e}")
+        return {"error": str(e)}
+
+# ===== DECORADORES AVANZADOS DE RATE LIMITING =====
+
+def strict_rate_limit(
+    max_requests: int = 10,
+    window_seconds: int = 60,
+    block_duration: int = 300  # 5 minutos de bloqueo
+) -> Callable:
+    """
+    Rate limiting estricto para endpoints críticos (login, reset password, etc.)
+    Bloquea temporalmente después de exceder el límite
+    """
+    def _strict_rate_limit(request: Request):
+        identifier = redis_rate_limiter.get_identifier(request)
+        endpoint = "strict_endpoint"
+        
+        # Verificar si está en período de bloqueo
+        block_key = f"blocked:{endpoint}:{identifier}"
+        if redis_rate_limiter.redis.exists(block_key):
+            ttl = redis_rate_limiter.redis.ttl(block_key)
+            logger.warning(f"🔒 Usuario bloqueado: {identifier}, TTL: {ttl}s")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Bloqueado temporalmente. Reintentar en {ttl} segundos.",
+                headers={"Retry-After": str(ttl)}
+            )
+        
+        # Verificar rate limit normal
+        limit_info = redis_rate_limiter.check_rate_limit(
+            identifier=identifier,
+            max_requests=max_requests,
+            window_seconds=window_seconds,
+            endpoint=endpoint
+        )
+        
+        if not limit_info["allowed"]:
+            # Bloquear temporalmente
+            redis_rate_limiter.redis.set(block_key, "blocked", expire=block_duration)
+            logger.warning(f"🚨 Usuario bloqueado por {block_duration}s: {identifier}")
+            
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Demasiados intentos. Bloqueado por {block_duration} segundos.",
+                headers={"Retry-After": str(block_duration)}
+            )
+        
+        return True
+    
+    return _strict_rate_limit
+
+def adaptive_rate_limit(
+    base_requests: int = 60,
+    window_seconds: int = 60
+) -> Callable:
+    """
+    Rate limiting adaptativo que ajusta límites según el comportamiento del usuario
+    """
+    def _adaptive_rate_limit(request: Request):
+        identifier = redis_rate_limiter.get_identifier(request)
+        endpoint = "adaptive_endpoint"
+        
+        # Obtener historial de comportamiento
+        behavior_key = f"behavior:{identifier}"
+        behavior_data = redis_rate_limiter.redis.get(behavior_key, as_json=True) or {
+            "violations": 0,
+            "good_behavior_streak": 0
+        }
+        
+        # Calcular límite ajustado
+        violations = behavior_data.get("violations", 0)
+        good_streak = behavior_data.get("good_behavior_streak", 0)
+        
+        # Reducir límite por violaciones pasadas
+        adjusted_limit = max(10, base_requests - (violations * 10))
+        
+        # Bonus por buen comportamiento
+        if good_streak > 10:
+            adjusted_limit = min(base_requests * 2, adjusted_limit + 20)
+        
+        # Verificar rate limit con límite ajustado
+        limit_info = redis_rate_limiter.check_rate_limit(
+            identifier=identifier,
+            max_requests=int(adjusted_limit),
+            window_seconds=window_seconds,
+            endpoint=endpoint
+        )
+        
+        if not limit_info["allowed"]:
+            # Incrementar violaciones
+            behavior_data["violations"] = violations + 1
+            behavior_data["good_behavior_streak"] = 0
+            
+            # Guardar comportamiento por 24 horas
+            redis_rate_limiter.redis.set(behavior_key, behavior_data, expire=86400)
+            
+            logger.warning(f"🚦 Rate limit adaptativo excedido: {identifier} (límite: {adjusted_limit})")
+            
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Límite de solicitudes excedido.",
+                headers={
+                    "Retry-After": str(limit_info["retry_after"]),
+                    "X-RateLimit-Limit": str(adjusted_limit),
+                    "X-RateLimit-Remaining": "0"
+                }
+            )
+        else:
+            # Incrementar buena racha si está bajo el 50% del límite
+            if limit_info["current_requests"] < (adjusted_limit * 0.5):
+                behavior_data["good_behavior_streak"] = good_streak + 1
+                redis_rate_limiter.redis.set(behavior_key, behavior_data, expire=86400)
+        
+        return True
+    
+    return _adaptive_rate_limit
+
 # Decoradores adicionales para casos específicos
 def admin_required(current_user: User = Depends(get_current_active_superuser)) -> User:
     """Shortcut para requerir permisos de administrador"""
@@ -365,3 +537,7 @@ def login_required(current_user: User = Depends(get_current_active_user)) -> Use
 def fresh_login_required(current_user: User = Depends(require_fresh_token(15))) -> User:
     """Shortcut para requerir autenticación fresca (15 minutos)"""
     return current_user
+
+def redis_required(redis_check: bool = Depends(require_redis_available)) -> bool:
+    """Shortcut para requerir Redis disponible"""
+    return redis_check

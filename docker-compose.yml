@@ -2,6 +2,7 @@ version: '3.8'
 
 # ===============================================
 # DOCKER COMPOSE UNIFICADO - DEV/PROD/TEST
+# Con Redis para datos no persistentes
 # ===============================================
 
 services:
@@ -27,6 +28,27 @@ services:
       - prod
       - test
 
+  # ===== REDIS CACHE =====
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - medialab_network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - dev
+      - prod
+      - test
+
   # ===== BACKEND API =====
   backend:
     build: 
@@ -41,6 +63,7 @@ services:
       - ${ENV_FILE:-.env.dev}
     depends_on:
       - db
+      - redis
     networks:
       - medialab_network
     environment:
@@ -68,6 +91,7 @@ services:
       - ${ENV_FILE:-.env.dev}
     depends_on:
       - db
+      - redis
     networks:
       - medialab_network
     environment:
@@ -158,8 +182,25 @@ services:
     profiles:
       - prod
 
+  # ===== REDIS COMMANDER (Opcional - Solo desarrollo) =====
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - medialab_network
+    profiles:
+      - dev
+
 volumes:
   mysql_data:
+    driver: local
+  redis_data:
     driver: local
   backend_data:
     driver: local
