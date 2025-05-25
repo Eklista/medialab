@@ -66,103 +66,63 @@ echo -e "${YELLOW}👤 Creando usuario administrador...${NC}"
 echo -e "${YELLOW}Este script solo creará el usuario, la estructura ya debe existir${NC}"
 
 # Ejecutar script de creación de admin - SIN PERFIL
-ENV_FILE="$ENV_FILE" docker compose exec -T backend python -c "
+ENV_FILE=.env.prod docker compose exec backend python -c "
 import sys
 sys.path.append('/app')
 
 from app.database import SessionLocal
-from app.models import User, Role
-from app.core.security import get_password_hash
-import os
+from app.models.auth.users import User
+from app.models.auth.roles import Role
+from app.config.security import get_password_hash  # ← CORREGIDO: config en lugar de core
+from datetime import date
 
-def main():
-    print('\\n🔧 Configuración de usuario administrador')
-    print('=' * 50)
-    
-    # Conectar a la base de datos
-    db = SessionLocal()
-    
-    try:
-        # Verificar que exista el rol admin
-        admin_role = db.query(Role).filter(Role.name == 'admin').first()
-        if not admin_role:
-            print('❌ Error: No existe el rol admin en la base de datos')
-            print('La estructura base debe crearse primero')
-            
-            # Intentar crear el rol admin básico
-            print('🔧 Creando rol admin...')
-            from app.core.init_db import init_roles
-            init_roles(db)
-            admin_role = db.query(Role).filter(Role.name == 'admin').first()
-            
-            if not admin_role:
-                print('❌ No se pudo crear el rol admin')
-                return False
-        
-        print(f'✅ Rol admin encontrado (ID: {admin_role.id})')
-        
-        # Datos predeterminados para modo no interactivo
-        email = os.getenv('ADMIN_EMAIL', 'admin@medialab.com')
-        full_name = os.getenv('ADMIN_NAME', 'Administrador MediaLab')
-        password = os.getenv('ADMIN_PASSWORD', 'MediaLab2025!')
-        
-        print(f'📧 Email: {email}')
-        print(f'👤 Nombre: {full_name}')
-        print('🔐 Contraseña: [configurada]')
-        
-        # Verificar si ya existe
-        existing_user = db.query(User).filter(User.email == email).first()
-        
-        if existing_user:
-            # Actualizar usuario existente
-            existing_user.full_name = full_name
-            existing_user.hashed_password = get_password_hash(password)
-            existing_user.is_active = True
-            existing_user.role_id = admin_role.id
-            
-            db.commit()
-            print(f'\\n✅ Usuario ACTUALIZADO exitosamente:')
-            
-        else:
-            # Crear nuevo usuario
-            new_user = User(
-                email=email,
-                full_name=full_name,
-                hashed_password=get_password_hash(password),
-                is_active=True,
-                role_id=admin_role.id
-            )
-            
-            db.add(new_user)
-            db.commit()
-            
-            print(f'\\n✅ Usuario CREADO exitosamente:')
-        
-        print(f'   📧 Email: {email}')
-        print(f'   👤 Nombre: {full_name}')
-        print(f'   🔐 Rol: admin')
-        print(f'   ✅ Estado: activo')
-        
-        return True
-        
-    except Exception as e:
-        print(f'❌ Error: {e}')
-        import traceback
-        traceback.print_exc()
-        return False
-    finally:
-        db.close()
-
-if __name__ == '__main__':
-    if main():
-        print('\\n🎉 ¡Administrador configurado correctamente!')
-        print('\\nCredenciales por defecto:')
-        print('   📧 Email: admin@medialab.com')
-        print('   🔐 Password: MediaLab2025!')
-        print('\\nPuedes cambiar estas credenciales desde el panel admin')
+db = SessionLocal()
+try:
+    # Buscar o crear rol admin
+    admin_role = db.query(Role).filter(Role.name == 'admin').first()
+    if not admin_role:
+        admin_role = Role(name='admin', description='Administrador del sistema')
+        db.add(admin_role)
+        db.commit()
+        db.refresh(admin_role)
+        print('✅ Rol admin creado')
     else:
-        print('\\n❌ Error al configurar el administrador')
-        sys.exit(1)
+        print('✅ Rol admin encontrado')
+    
+    # Datos del admin
+    email = 'admin@medialab.com'
+    username = 'admin'
+    password = 'MediaLab2025!'
+    
+    # Verificar si ya existe
+    existing_user = db.query(User).filter(User.email == email).first()
+    
+    if existing_user:
+        existing_user.password_hash = get_password_hash(password)
+        existing_user.is_active = True
+        db.commit()
+        print('✅ Usuario admin actualizado')
+    else:
+        new_user = User(
+            email=email,
+            username=username,
+            password_hash=get_password_hash(password),
+            first_name='Administrador',
+            last_name='MediaLab',
+            is_active=True,
+            join_date=date.today()
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        print('✅ Usuario admin creado')
+    
+    print(f'📧 Email: {email}')
+    print(f'👤 Username: {username}')
+    print(f'🔐 Password: {password}')
+    
+finally:
+    db.close()
 "
 
 echo -e "\n${GREEN}✅ Script completado${NC}"
