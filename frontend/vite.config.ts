@@ -9,8 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Mi Aplicación',
-        short_name: 'MiApp',
+        name: 'Dashboard Medialab',
+        short_name: 'Medialab',
         description: 'Mi aplicación PWA',
         theme_color: '#ffffff',
         background_color: '#ffffff',

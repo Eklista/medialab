@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { InstallButton } from '../common/InstallButton'
 
 export const Footer = () => {
   return (
@@ -29,6 +30,11 @@ export const Footer = () => {
                 <li><a href="#gallery" className="hover:text-(--color-accent-1) transition-colors">Galería</a></li>
                 <li><Link to="/request" className="hover:text-(--color-accent-1) transition-colors">Solicitar Servicio</Link></li>
               </ul>
+              
+              {/* Botón de instalación PWA */}
+              <div className="mt-4 pt-4 border-t border-white/20">
+                <InstallButton />
+              </div>
             </div>
           </div>
           <div className="border-t border-white/20 mt-8 pt-8 text-center">
