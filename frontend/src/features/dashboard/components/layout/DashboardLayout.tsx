@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/DashboardLayout.tsx - Corregido
+// src/features/dashboard/components/layout/DashboardLayout.tsx - Mejorado
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
@@ -6,7 +6,7 @@ import Navbar from './Navbar';
 import RightSidebar from './RightSidebar';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import LockScreen from '../../../auth/components/LockScreen';
-import { Bars3Icon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon, BellIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon, ClipboardDocumentListIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useLocation } from 'react-router-dom';
 
 interface DashboardLayoutProps {
@@ -17,7 +17,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { state } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
-    return saved ? JSON.parse(saved) : false;
+    return saved ? JSON.parse(saved) : true; // CAMBIO: Por defecto colapsado
   });
   const [rightSidebarSection, setRightSidebarSection] = useState<'tasks' | 'notifications' | null>(null);
   // Estados para móvil
@@ -108,6 +108,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         <Sidebar 
           onClose={() => {}} 
           collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebarCollapse}
         />
       </div>
 
@@ -123,41 +124,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         />
       </div>
 
-      {/* Botón de colapsar sidebar izquierdo - SOLO desktop */}
-      <div
-        className={`hidden lg:block fixed z-40 top-6 ${
-          sidebarCollapsed ? 'left-20' : 'left-72'
-        }`}
-        style={{ 
-          transition: 'left 0.3s ease-in-out'
-        }}
-      >
-        <button
-          onClick={toggleSidebarCollapse}
-          className="relative bg-[var(--color-text-main)] hover:bg-[var(--color-text-main)]/90 transition-all duration-200 shadow-lg hover:shadow-xl"
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '0 50% 50% 0',
-            marginLeft: '-20px'
-          }}
-          aria-label={sidebarCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-        >
-          <div className="flex items-center justify-center w-full h-full ml-2">
-            {sidebarCollapsed ? (
-              <ChevronRightIcon className="h-4 w-4 text-white font-bold" />
-            ) : (
-              <ChevronLeftIcon className="h-4 w-4 text-white font-bold" />
-            )}
-          </div>
-        </button>
-      </div>
+
       
-      {/* Contenido principal FLOTANTE - bordes redondeados abajo en móvil */}
-      <div className="flex flex-col flex-1 overflow-hidden p-3 lg:pb-3 pb-3">
-        <div className="flex flex-col flex-1 bg-[var(--color-bg-main)] lg:rounded-xl rounded-t-xl shadow-lg overflow-hidden lg:mb-0 mb-16">
+      {/* Contenido principal FLOTANTE - MENOS padding en móvil */}
+      <div className="flex flex-col flex-1 overflow-hidden lg:p-3 md:p-2 p-1 lg:pb-3 md:pb-2 pb-1">
+        <div className="flex flex-col flex-1 bg-[var(--color-bg-main)] lg:rounded-xl md:rounded-lg rounded-md shadow-lg overflow-hidden lg:mb-0 md:mb-12 mb-10">
           <Navbar />
-          <main className="flex-1 overflow-y-auto bg-[var(--color-bg-main)] p-6 pt-4">
+          <main className="flex-1 overflow-y-auto bg-[var(--color-bg-main)] lg:p-6 md:p-4 p-3 lg:pt-4 md:pt-3 pt-2">
             {children}
           </main>
         </div>
@@ -263,8 +236,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </div>
       </div>
 
-      {/* Bottom bar NEGRO y compacto */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 lg:hidden bg-[var(--color-text-main)] px-4 py-3">
+      {/* Bottom bar MÁS COMPACTO - solo móvil */}
+      <div className="fixed bottom-0 left-0 right-0 z-10 lg:hidden bg-[var(--color-text-main)] px-3 py-2">
         <div className="flex items-center justify-center max-w-xs mx-auto">
           {/* Botón sidebar izquierdo - Navegación */}
           <button
@@ -275,8 +248,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 : 'text-white/70 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Bars3Icon className="h-5 w-5" />
-            <span className="text-xs mt-1 font-medium">Navegación</span>
+            <Bars3Icon className="h-4 w-4" />
+            <span className="text-xs mt-0.5 font-medium">Menú</span>
           </button>
 
           {/* Botón sidebar derecho - Panel */}
@@ -288,8 +261,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 : 'text-white/70 hover:text-white hover:bg-white/10'
             }`}
           >
-            <ClipboardDocumentListIcon className="h-5 w-5" />
-            <span className="text-xs mt-1 font-medium">Panel</span>
+            <ClipboardDocumentListIcon className="h-4 w-4" />
+            <span className="text-xs mt-0.5 font-medium">Panel</span>
           </button>
         </div>
       </div>

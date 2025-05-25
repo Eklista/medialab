@@ -1,6 +1,6 @@
-// src/features/dashboard/components/layout/Sidebar.tsx - UI mejorada según imagen
+// src/features/dashboard/components/layout/Sidebar.tsx - Versión simplificada sin dropdown
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import SidebarFooter from './SidebarFooter';
 import UserProfilePhoto from '../ui/UserProfilePhoto';
@@ -16,7 +16,8 @@ import {
   ClipboardDocumentListIcon,
   XMarkIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   UserIcon,
   WrenchIcon,
   ArrowUpRightIcon
@@ -25,9 +26,10 @@ import {
 interface SidebarProps {
   onClose?: () => void;
   collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-// Interfaz para elementos del sidebar (mantener original)
+// Interfaz para elementos del sidebar
 interface SidebarItemConfig {
   title: string;
   path?: string;
@@ -38,7 +40,7 @@ interface SidebarItemConfig {
   requiredPermissions?: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleCollapse }) => {
   const location = useLocation();
   const { state, hasPermission, hasAnyPermission } = useAuth();
   
@@ -46,6 +48,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
   const [menuState, setMenuState] = useState({
     adminOpen: false
   });
+
+  // Estado para expansión temporal cuando se hace clic en administración
+  const [tempExpanded, setTempExpanded] = useState(false);
   
   // Función para alternar el menú de administración
   const toggleAdminMenu = () => {
@@ -53,6 +58,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
       ...prev,
       adminOpen: !prev.adminOpen
     }));
+  };
+
+  // Función para manejar clic en administración cuando está colapsado
+  const handleAdminClickCollapsed = () => {
+    console.log('🔍 Admin icon clicked in collapsed mode');
+    setTempExpanded(true);
+    setMenuState({ adminOpen: true });
+  };
+
+  // Función para cerrar la expansión temporal
+  const closeTempExpansion = () => {
+    setTempExpanded(false);
+    setMenuState({ adminOpen: false });
   };
   
   // Función para verificar si hay items activos en administración
@@ -62,13 +80,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
   };
   
   // Auto-abrir menú de administración si hay un item activo
-  React.useEffect(() => {
+  useEffect(() => {
     if (hasActiveAdminItem() && !menuState.adminOpen) {
       setMenuState(prev => ({ ...prev, adminOpen: true }));
     }
-  }, [location.pathname]);
+  }, [location.pathname, menuState.adminOpen]);
   
-  // Configuración del sidebar con permisos - ADMINISTRACIÓN MOVIDA AL FINAL
+  // Configuración del sidebar con permisos
   const sidebarItems: SidebarItemConfig[] = [
     {
       title: 'Dashboard',
@@ -129,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
     }
   ];
   
-  // Filtrar los items según los permisos (MANTENER ORIGINAL)
+  // Filtrar los items según los permisos
   const filteredSidebarItems = sidebarItems.filter(item => {
     if (!item.requiredPermission && !item.requiredPermissions) {
       return true;
@@ -151,14 +169,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
     return false;
   });
   
-  // Función para manejar el clic en un ítem de menú (mantener original)
+  // Función para manejar el clic en un ítem de menú
   const handleMenuItemClick = () => {
     if (onClose) {
       onClose();
     }
+    // Cerrar expansión temporal si está activa
+    if (tempExpanded) {
+      closeTempExpansion();
+    }
   };
 
-  // Función para obtener el nombre completo (para la tarjeta de usuario)
+  // Función para obtener el nombre completo
   const getFullName = () => {
     if (!state.user) return 'Usuario';
     
@@ -172,7 +194,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
     return state.user.email?.split('@')[0] || 'Usuario';
   };
   
-  // Renderizar un ítem de menú con iconos de redirección y modo colapsado
+  // Determinar si debe mostrar el sidebar expandido
+  const shouldShowExpanded = !collapsed || tempExpanded;
+  
+  // Renderizar un ítem de menú
   const renderMenuItem = (item: SidebarItemConfig, isCollapsed: boolean = false) => {
     if (item.children) {
       const filteredChildren = item.children.filter(child => {
@@ -198,52 +223,57 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
       
       const isActiveParent = hasActiveAdminItem();
       
-      // En modo colapsado, los items con hijos muestran solo el icono
-      if (isCollapsed) {
+      // En modo colapsado, mostrar solo el ícono que abre temporalmente
+      if (isCollapsed && !tempExpanded) {
         return (
           <li key={item.title}>
-            <div
-              className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 ${
+            <button
+              onClick={handleAdminClickCollapsed}
+              className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 w-full relative overflow-hidden group ${
                 isActiveParent ? 'text-[var(--color-accent-1)] bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/5'
               }`}
               title={item.title}
             >
-              <span className={`text-lg ${
+              <span className={`text-lg relative z-10 transition-transform duration-200 group-hover:scale-110 ${
                 isActiveParent ? 'text-[var(--color-accent-1)]' : 'text-white/70'
               }`}>
                 {item.icon}
               </span>
-            </div>
+              
+              {/* Efecto gota */}
+              <span className="absolute inset-0 bg-white/20 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></span>
+            </button>
           </li>
         );
       }
       
+      // Modo expandido (normal o temporal)
       return (
         <li key={item.title}>
           <button
             onClick={toggleAdminMenu}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all duration-200 group ${
-              isActiveParent ? 'text-[var(--color-accent-1)] bg-white/10' : 'text-white/70 hover:text-white'
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group relative overflow-hidden ${
+              isActiveParent ? 'text-[var(--color-accent-1)] bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/5'
             }`}
           >
-            <div className="flex items-center">
-              <span className={`mr-3 text-sm ${
+            <div className="flex items-center relative z-10">
+              <span className={`mr-3 text-sm transition-transform group-hover:scale-105 ${
                 isActiveParent ? 'text-[var(--color-accent-1)]' : 'text-white/60 group-hover:text-white/80'
               }`}>
                 {item.icon}
               </span>
               <span className="font-medium text-sm">{item.title}</span>
             </div>
-            <div className="flex items-center">
-              <span className={`transition-colors duration-200 ${
+            <div className="flex items-center relative z-10">
+              <span className={`transition-all duration-200 ${
                 isActiveParent ? 'text-[var(--color-accent-1)]' : 'text-white/40 group-hover:text-white/60'
-              }`}>
-                {item.isOpen ? 
-                  <ChevronUpIcon className="h-4 w-4" /> : 
-                  <ChevronDownIcon className="h-4 w-4" />
-                }
+              } ${item.isOpen ? 'rotate-180' : ''}`}>
+                <ChevronDownIcon className="h-4 w-4" />
               </span>
             </div>
+            
+            {/* Efecto gota */}
+            <span className="absolute inset-0 bg-white/20 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></span>
           </button>
           
           {item.isOpen && (
@@ -257,7 +287,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
                         ? 'text-[var(--color-accent-1)] bg-white/10 font-medium' 
                         : 'text-white/60 hover:text-white/90 hover:bg-white/5'
                     }`}
-                    onClick={handleMenuItemClick}
+                    onClick={() => {
+                      console.log('🔍 SIDEBAR EXPANDED DEBUG:');
+                      console.log('- Child path:', child.path);
+                      console.log('- Current location:', location.pathname);
+                      console.log('- Child title:', child.title);
+                      console.log('✅ Using Link component for navigation');
+                      
+                      handleMenuItemClick();
+                    }}
                   >
                     <div className="flex items-center">
                       <span className={`mr-3 ${location.pathname === child.path ? 'text-[var(--color-accent-1)]' : 'text-white/50'}`}>
@@ -280,12 +318,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
     }
     
     // Items regulares
-    if (isCollapsed) {
+    if (isCollapsed && !tempExpanded) {
       return (
         <li key={item.path}>
           <Link
             to={item.path || '#'}
-            className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 group ${
+            className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 group relative overflow-hidden ${
               location.pathname === item.path 
                 ? 'bg-white/10 text-[var(--color-accent-1)]' 
                 : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -293,13 +331,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
             onClick={handleMenuItemClick}
             title={item.title}
           >
-            <span className={`text-lg ${
+            <span className={`text-lg transition-transform group-hover:scale-110 relative z-10 ${
               location.pathname === item.path 
                 ? 'text-[var(--color-accent-1)]' 
                 : 'text-white/70'
             }`}>
               {item.icon}
             </span>
+            
+            {/* Efecto gota */}
+            <span className="absolute inset-0 bg-white/20 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></span>
           </Link>
         </li>
       );
@@ -309,15 +350,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
       <li key={item.path}>
         <Link
           to={item.path || '#'}
-          className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+          className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group relative overflow-hidden ${
             location.pathname === item.path 
               ? 'bg-white/10 text-[var(--color-accent-1)] font-medium' 
               : 'text-white/70 hover:text-white hover:bg-white/5'
           }`}
           onClick={handleMenuItemClick}
         >
-          <div className="flex items-center">
-            <span className={`mr-3 text-sm ${
+          <div className="flex items-center relative z-10">
+            <span className={`mr-3 text-sm transition-transform group-hover:scale-105 ${
               location.pathname === item.path 
                 ? 'text-[var(--color-accent-1)]' 
                 : 'text-white/60 group-hover:text-white/80'
@@ -326,22 +367,70 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
             </span>
             <span className="font-medium text-sm">{item.title}</span>
           </div>
-          <ArrowUpRightIcon className={`h-4 w-4 transition-opacity duration-200 ${
+          <ArrowUpRightIcon className={`h-4 w-4 transition-all duration-200 relative z-10 ${
             location.pathname === item.path 
               ? 'opacity-100 text-[var(--color-accent-1)]' 
-              : 'opacity-0 group-hover:opacity-100 text-white/50'
+              : 'opacity-0 group-hover:opacity-100 group-hover:translate-x-1 text-white/50'
           }`} />
+          
+          {/* Efecto gota */}
+          <span className="absolute inset-0 bg-white/20 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></span>
         </Link>
       </li>
     );
   };
   
   return (
-    <div className="h-full flex flex-col bg-[var(--color-text-main)] relative">
-      {/* Header con logo y texto */}
-      <div className="p-4 flex items-center justify-center border-b border-white/10 relative">
-        {!collapsed && (
-          <span className="text-2xl font-bold text-white text-center flex-1">MediaLab</span>
+    <div className={`h-full flex flex-col bg-[var(--color-text-main)] relative transition-all duration-300 ${
+      tempExpanded ? 'w-72' : shouldShowExpanded ? 'w-full' : 'w-full'
+    }`}>
+      {/* Header con logo, texto y botón de colapsar integrado */}
+      <div className="p-4 flex items-center justify-between border-b border-white/10 relative">
+        {shouldShowExpanded ? (
+          <>
+            <span className="text-2xl font-bold text-white text-center flex-1">MediaLab</span>
+            
+            {/* Botones según el contexto */}
+            {tempExpanded ? (
+              // Botón para cerrar expansión temporal
+              <button
+                onClick={closeTempExpansion}
+                className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-white/70 hover:text-white relative overflow-hidden group"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="h-4 w-4 relative z-10" />
+                <span className="absolute inset-0 bg-white/30 rounded-full scale-0 group-hover:scale-150 transition-transform duration-300 ease-out"></span>
+              </button>
+            ) : (
+              // Botón normal de colapsar
+              onToggleCollapse && (
+                <button
+                  onClick={onToggleCollapse}
+                  className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-white/70 hover:text-white relative overflow-hidden group"
+                  aria-label="Colapsar sidebar"
+                >
+                  <ChevronLeftIcon className="h-4 w-4 relative z-10" />
+                  <span className="absolute inset-0 bg-white/30 rounded-full scale-0 group-hover:scale-150 transition-transform duration-300 ease-out"></span>
+                </button>
+              )
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center w-full">
+            {/* Logo pequeño en modo colapsado */}
+            <span className="text-lg font-bold text-white mb-2">ML</span>
+            {/* Botón de expandir integrado - SOLO desktop */}
+            {onToggleCollapse && (
+              <button
+                onClick={onToggleCollapse}
+                className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-white/70 hover:text-white relative overflow-hidden group"
+                aria-label="Expandir sidebar"
+              >
+                <ChevronRightIcon className="h-4 w-4 relative z-10" />
+                <span className="absolute inset-0 bg-white/30 rounded-full scale-0 group-hover:scale-150 transition-transform duration-300 ease-out"></span>
+              </button>
+            )}
+          </div>
         )}
         
         {/* Botón de cerrar móvil */}
@@ -357,7 +446,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
       </div>
 
       {/* Tarjeta de usuario - mostrar solo avatar si está colapsado */}
-      {!collapsed ? (
+      {shouldShowExpanded ? (
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center">
             <UserProfilePhoto 
@@ -386,13 +475,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false }) => {
       
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto scrollbar-thin dark-scrollbar">
-        <ul className={`space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
-          {filteredSidebarItems.map(item => renderMenuItem(item, collapsed))}
+        <ul className={`space-y-1 ${shouldShowExpanded ? 'px-3' : 'px-2'}`}>
+          {filteredSidebarItems.map(item => renderMenuItem(item, !shouldShowExpanded))}
         </ul>
       </nav>
       
       {/* Footer */}
-      <SidebarFooter collapsed={collapsed} />
+      <SidebarFooter collapsed={!shouldShowExpanded} />
     </div>
   );
 };
