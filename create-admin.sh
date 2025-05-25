@@ -104,7 +104,7 @@ try:
     
     # Datos del admin
     email = 'pablo.lacan@galileo.edu'
-    username = 'admin'
+    username = 'placan'
     password = '123'
     
     # Verificar si ya existe
