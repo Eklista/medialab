@@ -1,5 +1,4 @@
 // src/components/common/InstallButton.tsx
-import React from 'react'
 import { usePWAInstall } from '../../hooks/usePWAInstall'
 
 export function InstallButton() {
