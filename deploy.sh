@@ -8,7 +8,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 DOMAIN="medialab.eklista.com"
-EMAIL="your-email@gmail.com"  # CAMBIAR POR TU EMAIL
+EMAIL="pablo.lacan@galileo.edu"  # CAMBIAR POR TU EMAIL
 
 echo -e "${GREEN}🚀 Desplegando MediaLab...${NC}"
 
