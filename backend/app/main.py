@@ -1,9 +1,13 @@
-# backend/app/main.py
+# backend/app/main.py - Fix específico para CORS OPTIONS + Static Files
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
 import logging
+import os
+from pathlib import Path
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -14,9 +18,7 @@ from app.config.settings import CORS_ORIGINS, ENVIRONMENT, REDIS_ENABLED
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Gestión del ciclo de vida de la aplicación
-    """
+    """Gestión del ciclo de vida de la aplicación"""
     # ===== STARTUP =====
     logger.info("🚀 Iniciando MediaLab API...")
     
@@ -24,7 +26,6 @@ async def lifespan(app: FastAPI):
     if REDIS_ENABLED:
         try:
             logger.info("🔧 Inicializando sistema Redis...")
-            # Importar servicios Redis solo si están habilitados
             from app.services.redis_init_service import redis_init
             from app.tasks.redis_cleanup_tasks import redis_cleanup_tasks
             
@@ -32,21 +33,16 @@ async def lifespan(app: FastAPI):
             
             if redis_init_results["status"] == "success":
                 logger.info("✅ Sistema Redis inicializado exitosamente")
-                
-                # Iniciar tareas de limpieza en background
                 if ENVIRONMENT != "testing":
                     cleanup_task = asyncio.create_task(redis_cleanup_tasks.run_periodic_cleanup())
                     app.state.cleanup_task = cleanup_task
                     logger.info("🧹 Tareas de limpieza Redis iniciadas")
-                
             elif redis_init_results["status"] == "warning":
                 logger.warning(f"⚠️ Sistema Redis inicializado con advertencias")
                 for warning in redis_init_results.get("warnings", []):
                     logger.warning(f"   - {warning}")
-                    
             else:
                 logger.error(f"❌ Error inicializando Redis: {redis_init_results.get('errors', [])}")
-                
         except ImportError as e:
             logger.warning(f"⚠️ Servicios Redis no disponibles: {e}")
         except Exception as e:
@@ -55,13 +51,10 @@ async def lifespan(app: FastAPI):
         logger.info("⚠️ Redis deshabilitado en configuración")
     
     logger.info("✅ MediaLab API iniciada correctamente")
-    
     yield
     
     # ===== SHUTDOWN =====
     logger.info("🛑 Cerrando MediaLab API...")
-    
-    # Cancelar tareas de limpieza
     if hasattr(app.state, 'cleanup_task'):
         app.state.cleanup_task.cancel()
         try:
@@ -69,7 +62,6 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
         logger.info("🧹 Tareas de limpieza Redis detenidas")
-    
     logger.info("👋 MediaLab API cerrada correctamente")
 
 # Crear aplicación con lifespan
@@ -82,7 +74,51 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# ===== MIDDLEWARE DE SEGURIDAD =====
+# ===== FIX ESPECÍFICO PARA CORS OPTIONS =====
+
+# 1. Handler manual para OPTIONS requests (antes de CORS middleware)
+@app.middleware("http")
+async def cors_preflight_handler(request: Request, call_next):
+    """
+    🔥 FIX: Maneja OPTIONS requests antes que lleguen al CORS middleware
+    """
+    if request.method == "OPTIONS":
+        logger.info(f"🔧 Manejando OPTIONS request para: {request.url.path}")
+        
+        # Headers CORS permisivos para OPTIONS
+        headers = {
+            "Access-Control-Allow-Origin": "*",  # Temporal para debug
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "3600"
+        }
+        
+        return Response(status_code=200, headers=headers)
+    
+    response = await call_next(request)
+    return response
+
+# 2. Configuración CORS standard (después del middleware manual)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173", 
+        "http://127.0.0.1:3000",
+        "https://medialab.eklista.com"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
+)
+
+logger.info("🌐 CORS configurado con handler manual para OPTIONS")
+
+# ===== MIDDLEWARE DE SEGURIDAD (después de CORS) =====
 
 # Rate Limiting Middleware (solo si Redis está habilitado)
 if REDIS_ENABLED:
@@ -91,8 +127,8 @@ if REDIS_ENABLED:
         
         app.add_middleware(
             RateLimitMiddleware,
-            calls_limit=1000,    # 1000 requests por hora
-            period=3600,         # 3600 segundos = 1 hora
+            calls_limit=1000,
+            period=3600,
             exclude_paths=[
                 "/docs", "/redoc", "/openapi.json", 
                 "/health", "/favicon.ico",
@@ -116,14 +152,18 @@ except ImportError:
 except Exception as e:
     logger.warning(f"⚠️ Error cargando security headers middleware: {e}")
 
-# CORS Middleware (debe ir después de otros middleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
+# ===== CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS =====
+
+# Crear directorio de uploads si no existe
+static_dir = Path("static")
+uploads_dir = static_dir / "uploads" / "users"
+uploads_dir.mkdir(parents=True, exist_ok=True)
+
+# Montar directorio estático para servir archivos
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+logger.info(f"📁 Archivos estáticos configurados en: {static_dir.absolute()}")
+logger.info(f"📁 Directorio de uploads: {uploads_dir.absolute()}")
 
 # ===== ROUTERS =====
 
@@ -157,7 +197,8 @@ def health_check():
     return {
         "status": "healthy",
         "environment": ENVIRONMENT,
-        "redis_enabled": REDIS_ENABLED
+        "redis_enabled": REDIS_ENABLED,
+        "cors_debug": "OPTIONS handler active"
     }
 
 # ===== ENDPOINTS REDIS (solo si está habilitado) =====
@@ -165,9 +206,6 @@ def health_check():
 if REDIS_ENABLED:
     @app.get("/system/redis/status")
     async def get_redis_system_status():
-        """
-        Endpoint para verificar el estado del sistema Redis
-        """
         try:
             from app.services.redis_init_service import redis_init
             return redis_init.get_system_status()
@@ -178,9 +216,6 @@ if REDIS_ENABLED:
 
     @app.get("/system/redis/cleanup/status")
     async def get_cleanup_status():
-        """
-        Endpoint para verificar el estado de las tareas de limpieza
-        """
         try:
             from app.tasks.redis_cleanup_tasks import redis_cleanup_tasks
             return redis_cleanup_tasks.get_cleanup_status()
@@ -191,9 +226,6 @@ if REDIS_ENABLED:
 
     @app.post("/system/redis/cleanup/manual")
     async def manual_cleanup():
-        """
-        Endpoint para ejecutar limpieza manual (solo en desarrollo)
-        """
         if ENVIRONMENT == "production":
             raise HTTPException(status_code=403, detail="No disponible en producción")
         
@@ -206,13 +238,9 @@ if REDIS_ENABLED:
         except Exception as e:
             return {"error": f"Error en limpieza manual: {str(e)}"}
 
-# ===== ENDPOINT DE SALUD REDIS =====
-
 @app.get("/health/redis")
 async def redis_health_check():
-    """
-    Endpoint específico de salud para Redis
-    """
+    """Endpoint específico de salud para Redis"""
     if not REDIS_ENABLED:
         return {"redis_enabled": False, "status": "disabled"}
     
@@ -221,12 +249,10 @@ async def redis_health_check():
         
         redis_status = {
             "redis_enabled": True,
-            "redis_available": redis_manager.is_available(),
-            "connection_info": redis_manager.get_connection_info()
+            "redis_available": redis_manager.is_available()
         }
         
         if redis_manager.is_available():
-            # Hacer un ping para verificar conectividad
             redis_manager.client.ping()
             redis_status["ping"] = "successful"
             redis_status["status"] = "healthy"

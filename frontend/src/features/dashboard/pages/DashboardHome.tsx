@@ -1,27 +1,27 @@
-// src/features/dashboard/pages/DashboardHome.tsx
+// src/features/dashboard/pages/DashboardHome.tsx - UI renovada y simplificada
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import DashboardCard from '../components/ui/DashboardCard';
-import StatCard from '../components/cards/StatCard';
 import Badge from '../components/ui/Badge';
+import UserProfilePhoto from '../components/ui/UserProfilePhoto';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { userService } from '../../../services';
-import { parseDate, formatBirthday, getDaysUntilBirthday, formatRelativeTime } from '../../../utils/dateUtils';
+import { parseDate, formatBirthday, getDaysUntilBirthday } from '../../../utils/dateUtils';
 
 // Iconos
 import {
-  CheckCircleIcon,
-  ClockIcon,
-  QueueListIcon,
-  CakeIcon,
   TrophyIcon,
+  CakeIcon,
+  PlayIcon,
+  MicrophoneIcon,
+  VideoCameraIcon,
+  ChartBarIcon,
   CalendarDaysIcon,
-  DocumentTextIcon,
-  BellIcon
+  UserGroupIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
-// Interfaces para datos de muestra
+// Interfaces
 interface BirthdayUser {
   id: number;
   name: string;
@@ -31,32 +31,22 @@ interface BirthdayUser {
   initials: string;
 }
 
-interface TaskItem {
+interface ProjectItem {
   id: string;
   title: string;
+  type: 'video' | 'podcast' | 'live' | 'course';
+  progress: number;
   dueDate: string;
-  status: 'Pendiente' | 'En progreso' | 'Completada';
-  priority: 'Baja' | 'Media' | 'Alta';
-}
-
-interface ActivityItem {
-  id: string;
-  user: {
-    name: string;
-    avatar?: string;
-  };
-  action: string;
-  timestamp: string;
-  target?: string;
+  status: 'active' | 'review' | 'completed';
+  team: string[];
 }
 
 const DashboardHome: React.FC = () => {
-  const { state } = useAuth();
+  useAuth();
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<BirthdayUser[]>([]);
   const [isLoadingBirthdays, setIsLoadingBirthdays] = useState(true);
-  const [birthdayError, setBirthdayError] = useState<string | null>(null);
   
-  // Función para generar iniciales a partir del nombre
+  // Función para generar iniciales
   const getInitials = (name: string): string => {
     if (!name) return 'U';
     const nameParts = name.split(' ');
@@ -66,21 +56,16 @@ const DashboardHome: React.FC = () => {
     return name.charAt(0).toUpperCase();
   };
 
-  // Cargar los usuarios y filtrar los próximos cumpleaños
+  // Cargar cumpleaños
   useEffect(() => {
     const fetchBirthdays = async () => {
       try {
         setIsLoadingBirthdays(true);
-        setBirthdayError(null);
-        
-        // Obtener todos los usuarios
         const users = await userService.getUsers();
         
-        // Filtrar usuarios con fecha de nacimiento y calcular días para el próximo cumpleaños
         const validBirthdayUsers = users
           .filter(user => user.birth_date)
           .map(user => {
-            // Parsear la fecha usando la utilidad central
             const birthDate = parseDate(user.birth_date!);
             if (!birthDate) return null;
             
@@ -96,16 +81,13 @@ const DashboardHome: React.FC = () => {
               initials: getInitials(name)
             };
           })
-          .filter(Boolean) // Filtrar elementos nulos
-          // Ordenar por proximidad de cumpleaños
+          .filter(Boolean)
           .sort((a, b) => a!.daysUntilBirthday - b!.daysUntilBirthday)
-          // Tomar los primeros 3
           .slice(0, 3) as BirthdayUser[];
         
         setUpcomingBirthdays(validBirthdayUsers);
       } catch (error) {
         console.error('Error al cargar cumpleaños:', error);
-        setBirthdayError('No se pudieron cargar los cumpleaños');
       } finally {
         setIsLoadingBirthdays(false);
       }
@@ -113,382 +95,323 @@ const DashboardHome: React.FC = () => {
     
     fetchBirthdays();
   }, []);
-
-  // Función para generar color de fondo basado en iniciales
-  const getInitialBackgroundColor = (initials: string): string => {
-    const colors = [
-      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 
-      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
-    ];
-    
-    // Usar iniciales para determinar el color de manera consistente
-    const charCode = initials.charCodeAt(0) || 65;
-    return colors[charCode % colors.length];
-  };
   
-  // Datos de muestra para asignaciones (serán reemplazados por datos reales)
-  const assignmentStats = [
+  // Estadísticas principales con diseño moderno
+  const mainStats = [
     {
-      title: "Asignaciones Completadas",
-      value: "26",
-      icon: <CheckCircleIcon className="h-6 w-6" />,
-      change: { value: 5, isPositive: true },
-      bgColor: "bg-green-50"
+      title: "Proyectos Activos",
+      value: "24",
+      icon: <PlayIcon className="h-6 w-6" />,
+      change: { value: 12, isPositive: true },
+      bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
+      iconColor: "text-blue-600"
     },
     {
-      title: "Asignaciones en Progreso",
-      value: "12",
-      icon: <ClockIcon className="h-6 w-6" />,
-      change: { value: 2, isPositive: true },
-      bgColor: "bg-blue-50"
+      title: "Producciones Completadas",
+      value: "156",
+      icon: <VideoCameraIcon className="h-6 w-6" />,
+      change: { value: 8, isPositive: true },
+      bgColor: "bg-gradient-to-br from-green-50 to-green-100",
+      iconColor: "text-green-600"
     },
     {
-      title: "Asignaciones Pendientes",
-      value: "8",
-      icon: <QueueListIcon className="h-6 w-6" />,
-      change: { value: 3, isPositive: false },
-      bgColor: "bg-amber-50"
+      title: "Podcasts Publicados",
+      value: "42",
+      icon: <MicrophoneIcon className="h-6 w-6" />,
+      change: { value: 3, isPositive: true },
+      bgColor: "bg-gradient-to-br from-purple-50 to-purple-100",
+      iconColor: "text-purple-600"
+    },
+    {
+      title: "Horas de Contenido",
+      value: "1,284",
+      icon: <ChartBarIcon className="h-6 w-6" />,
+      change: { value: 156, isPositive: true },
+      bgColor: "bg-gradient-to-br from-amber-50 to-amber-100",
+      iconColor: "text-amber-600"
     }
   ];
 
-  // Tareas pendientes de muestra
-  const pendingTasks: TaskItem[] = [
-    { 
-      id: "task-1", 
-      title: "Revisar guión para programa semanal", 
-      dueDate: "2025-05-20", 
-      status: "Pendiente", 
-      priority: "Alta" 
+  // Proyectos destacados
+  const featuredProjects: ProjectItem[] = [
+    {
+      id: "proj-1",
+      title: "Conferencia Anual de Innovación 2025",
+      type: "live",
+      progress: 85,
+      dueDate: "2025-05-28",
+      status: "active",
+      team: ["Ana García", "Carlos López", "María Rodríguez"]
     },
-    { 
-      id: "task-2", 
-      title: "Preparar equipos para transmisión de conferencia", 
-      dueDate: "2025-05-21", 
-      status: "Pendiente", 
-      priority: "Media" 
+    {
+      id: "proj-2", 
+      title: "Podcast: Historias de Éxito Galileo",
+      type: "podcast",
+      progress: 65,
+      dueDate: "2025-05-30",
+      status: "active",
+      team: ["Juan Pérez", "Laura Martínez"]
     },
-    { 
-      id: "task-3", 
-      title: "Editar podcast episodio #45", 
-      dueDate: "2025-05-23", 
-      status: "Pendiente", 
-      priority: "Media" 
-    },
-    { 
-      id: "task-4", 
-      title: "Actualizar inventario de equipo", 
-      dueDate: "2025-05-25", 
-      status: "Pendiente", 
-      priority: "Baja" 
+    {
+      id: "proj-3",
+      title: "Video Institucional - Nueva Sede",
+      type: "video",
+      progress: 100,
+      dueDate: "2025-05-25",
+      status: "completed",
+      team: ["Roberto Silva", "Claudia Morales"]
     }
   ];
 
-  // Actividad reciente de muestra
-  const recentActivity: ActivityItem[] = [
-    {
-      id: "activity-1",
-      user: { 
-        name: "Carlos Ramírez", 
-        avatar: "/api/placeholder/40/40" 
-      },
-      action: "completó la transmisión en vivo",
-      target: "Conferencia de Bienvenida",
-      timestamp: "Hace 2 horas"
-    },
-    {
-      id: "activity-2",
-      user: { 
-        name: "María Fernández", 
-        avatar: "/api/placeholder/40/40" 
-      },
-      action: "actualizó el estado del proyecto",
-      target: "Video institucional",
-      timestamp: "Hace 4 horas"
-    },
-    {
-      id: "activity-3",
-      user: { 
-        name: "Juan López", 
-        avatar: "/api/placeholder/40/40" 
-      },
-      action: "asignó un nuevo recurso a",
-      target: "Podcast semanal",
-      timestamp: "Hace 5 horas"
-    },
-    {
-      id: "activity-4",
-      user: { 
-        name: "Lucía Méndez", 
-        avatar: "/api/placeholder/40/40" 
-      },
-      action: "creó una nueva solicitud de servicio",
-      timestamp: "Hace 1 día"
-    },
-    {
-      id: "activity-5",
-      user: { 
-        name: "Roberto García", 
-        avatar: "/api/placeholder/40/40" 
-      },
-      action: "completó la edición de video",
-      target: "Entrevista al Decano",
-      timestamp: "Hace 1 día"
+  const getProjectIcon = (type: ProjectItem['type']) => {
+    switch (type) {
+      case 'video': return <VideoCameraIcon className="h-5 w-5" />;
+      case 'podcast': return <MicrophoneIcon className="h-5 w-5" />;
+      case 'live': return <PlayIcon className="h-5 w-5" />;
+      case 'course': return <ChartBarIcon className="h-5 w-5" />;
+      default: return <ChartBarIcon className="h-5 w-5" />;
     }
-  ];
+  };
+
+  const getProjectTypeColor = (type: ProjectItem['type']) => {
+    switch (type) {
+      case 'video': return 'bg-blue-100 text-blue-700';
+      case 'podcast': return 'bg-purple-100 text-purple-700';
+      case 'live': return 'bg-red-100 text-red-700';
+      case 'course': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getStatusBadge = (status: ProjectItem['status']) => {
+    switch (status) {
+      case 'active': return <Badge variant="success">Activo</Badge>;
+      case 'review': return <Badge variant="warning">En Revisión</Badge>;
+      case 'completed': return <Badge variant="info">Completado</Badge>;
+      default: return <Badge variant="secondary">Desconocido</Badge>;
+    }
+  };
 
   return (
     <DashboardLayout>
-      {/* Encabezado */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
-          ¡Bienvenido, {state.user?.firstName || ''}!
-        </h1>
-        <p className="text-gray-600">Aquí está un resumen de las actividades y asignaciones del MediaLab</p>
-      </div>
-      
-      {/* Primera Fila: Quick Actions - Asignaciones */}
-      <div className="mb-8">
-        <h2 className="text-lg font-medium text-gray-800 mb-4">Resumen de Asignaciones</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {assignmentStats.map((stat, index) => (
-            <StatCard
-              key={index}
-              title={stat.title}
-              value={stat.value}
-              icon={stat.icon}
-              change={stat.change}
-              bgColor={stat.bgColor}
-            />
-          ))}
-        </div>
-      </div>
-      
-      {/* Segunda Fila: Colaborador del mes y Próximos cumpleaños */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Colaborador del mes */}
-        <DashboardCard
-          title="Colaborador del Mes"
-          subtitle="Mejor desempeño en el último mes"
-          headerAction={
-            <div className="flex items-center text-black">
-              <TrophyIcon className="h-5 w-5 mr-1" />
-              <span className="text-sm font-medium">Mayo 2025</span>
-            </div>
-          }
-        >
-          <div className="flex items-center p-4">
-            <div className="flex-shrink-0">
-              <div className="relative">
-                <div className="h-16 w-16 rounded-full flex items-center justify-center text-white font-bold text-lg bg-blue-600">
-                  AM
+      <div className="space-y-8">
+        {/* Estadísticas principales */}
+        <div>
+          <h2 className="text-xl font-semibold text-[var(--color-text-main)] mb-6">
+            Resumen General
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {mainStats.map((stat, index) => (
+              <div key={index} className={`${stat.bgColor} rounded-xl p-6 border border-white shadow-sm hover:shadow-md transition-shadow duration-200`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                    <p className="text-3xl font-bold text-[var(--color-text-main)] mt-1">{stat.value}</p>
+                    <div className="flex items-center mt-2">
+                      <span className={`text-sm font-medium ${stat.change.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                        {stat.change.isPositive ? '+' : '-'}{stat.change.value}
+                      </span>
+                      <span className="text-sm text-gray-500 ml-1">este mes</span>
+                    </div>
+                  </div>
+                  <div className={`${stat.iconColor} p-3 rounded-xl bg-white shadow-sm`}>
+                    {stat.icon}
+                  </div>
                 </div>
-                <span className="absolute bottom-0 right-0 bg-yellow-400 rounded-full p-1">
-                  <TrophyIcon className="h-4 w-4 text-white" />
-                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Segunda fila: Colaborador del mes y Próximos cumpleaños */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Colaborador del mes */}
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200">
+            <div className="p-6 border-b border-[var(--color-border)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                    Colaborador del Mes
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Mejor desempeño en mayo 2025
+                  </p>
+                </div>
+                <div className="flex items-center bg-gradient-to-r from-yellow-100 to-yellow-200 px-3 py-1.5 rounded-full">
+                  <TrophyIcon className="h-4 w-4 text-yellow-600 mr-1" />
+                  <span className="text-sm font-medium text-yellow-700">El mejor de los mejores</span>
+                </div>
               </div>
             </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Ana Martínez</h3>
-              <p className="text-sm text-gray-500">Área de Transmisión</p>
-              <div className="mt-1 flex space-x-1">
-                <Badge variant="primary">10 Producciones</Badge>
-                <Badge variant="success">5 Transmisiones en vivo</Badge>
+            
+            <div className="p-6">
+              <div className="flex items-center">
+                <div className="relative">
+                  <UserProfilePhoto size="xl" />
+                  <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full p-2">
+                    <TrophyIcon className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <div className="ml-4 flex-1">
+                  <h4 className="text-xl font-bold text-[var(--color-text-main)]">
+                    Pablito Lindo
+                  </h4>
+                  <p className="text-[var(--color-text-secondary)]">Área de Transmisión</p>
+                  <div className="flex gap-2 mt-3">
+                    <Badge variant="primary">1 Produccion</Badge>
+                    <Badge variant="success">5000 Transmisiones</Badge>
+                  </div>
+                </div>
               </div>
-              <p className="mt-2 text-sm text-gray-600">
-                Destacó por su excelente manejo técnico y atención al cliente durante las transmisiones del mes.
-              </p>
+              <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                <p className="text-sm text-gray-700">
+                  Es el mejor del mundo mundial.
+                </p>
+              </div>
             </div>
           </div>
-        </DashboardCard>
 
-        {/* Próximos cumpleaños */}
-        <DashboardCard
-          title="Próximos Cumpleaños"
-          subtitle="Celebremos juntos estos momentos especiales"
-          headerAction={
-            <div className="flex items-center text-black">
-              <CakeIcon className="h-5 w-5 mr-1" />
-              <span className="text-sm font-medium">Próximos eventos</span>
+          {/* Próximos cumpleaños */}
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200">
+            <div className="p-6 border-b border-[var(--color-border)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                    Próximos Cumpleaños
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Celebremos juntos estos momentos especiales
+                  </p>
+                </div>
+                <div className="flex items-center bg-gradient-to-r from-pink-100 to-pink-200 px-3 py-1.5 rounded-full">
+                  <CakeIcon className="h-4 w-4 text-pink-600 mr-1" />
+                  <span className="text-sm font-medium text-pink-700">Eventos</span>
+                </div>
+              </div>
             </div>
-          }
-        >
-          {isLoadingBirthdays ? (
-            <div className="flex justify-center items-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
-            </div>
-          ) : birthdayError ? (
-            <div className="text-center p-4 text-gray-500">{birthdayError}</div>
-          ) : upcomingBirthdays.length === 0 ? (
-            <div className="text-center p-4 text-gray-500">
-              No hay cumpleaños próximos
-            </div>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {upcomingBirthdays.map((user) => (
-                <li key={user.id} className="py-4 flex items-center">
-                  {user.profileImage ? (
-                    <img
-                      src={user.profileImage}
-                      alt={user.name}
-                      className="h-12 w-12 rounded-full object-cover mr-4"
-                      onError={(e) => {
-                        // Si falla la carga de la imagen, mostrar las iniciales
-                        (e.target as HTMLElement).style.display = 'none';
-                        const parent = (e.target as HTMLElement).parentElement;
-                        if (parent) {
-                          const initialsEl = document.createElement('div');
-                          initialsEl.className = `h-12 w-12 rounded-full mr-4 flex items-center justify-center text-white font-medium text-sm ${getInitialBackgroundColor(user.initials)}`;
-                          initialsEl.textContent = user.initials;
-                          parent.appendChild(initialsEl);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className={`h-12 w-12 rounded-full mr-4 flex items-center justify-center text-white font-medium text-sm ${getInitialBackgroundColor(user.initials)}`}>
-                      {user.initials}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {user.name}
-                    </p>
-                    <p className="text-sm text-gray-500 flex items-center">
-                      <CalendarDaysIcon className="h-4 w-4 mr-1" />
-                      {formatBirthday(user.birthDate)}
-                    </p>
-                  </div>
-                  <div className="ml-2">
-                    <Badge 
-                      variant={
-                        user.daysUntilBirthday === 0 ? "success" :
-                        user.daysUntilBirthday <= 7 ? "warning" : 
-                        user.daysUntilBirthday <= 30 ? "info" :
-                        "secondary"
-                      }
-                    >
-                      {user.daysUntilBirthday === 0 ? "¡Hoy!" : 
-                       user.daysUntilBirthday === 1 ? "¡Mañana!" : 
-                       `En ${user.daysUntilBirthday} días`}
-                    </Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </DashboardCard>
-      </div>
-      
-      {/* Tercera Fila: Tareas pendientes y Actividad reciente */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Tareas pendientes */}
-        <DashboardCard
-          title="Tareas Pendientes"
-          subtitle="Asignaciones que requieren tu atención"
-          headerAction={
-            <div className="flex items-center text-black">
-              <DocumentTextIcon className="h-5 w-5 mr-1" />
-              <span className="text-sm font-medium">4 pendientes</span>
-            </div>
-          }
-        >
-          <div className="overflow-hidden">
-            <ul className="divide-y divide-gray-200">
-              {pendingTasks.map((task) => (
-                <li key={task.id} className="py-3 px-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        {task.title}
-                      </p>
-                      <div className="flex items-center mt-1">
-                        <CalendarDaysIcon className="h-4 w-4 text-gray-400 mr-1" />
-                        <p className="text-xs text-gray-500">
-                          Fecha límite: {new Date(task.dueDate).toLocaleDateString()}
+
+            <div className="p-6">
+              {isLoadingBirthdays ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--color-accent-1)]"></div>
+                </div>
+              ) : upcomingBirthdays.length === 0 ? (
+                <div className="text-center py-8 text-[var(--color-text-secondary)]">
+                  <CakeIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>No hay cumpleaños próximos</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingBirthdays.map((user) => (
+                    <div key={user.id} className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                      <UserProfilePhoto 
+                        user={{
+                          firstName: user.name.split(' ')[0],
+                          lastName: user.name.split(' ')[1],
+                          profileImage: user.profileImage
+                        }}
+                        size="lg"
+                      />
+                      <div className="ml-4 flex-1">
+                        <p className="font-medium text-[var(--color-text-main)]">
+                          {user.name}
                         </p>
+                        <div className="flex items-center text-sm text-[var(--color-text-secondary)] mt-1">
+                          <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                          {formatBirthday(user.birthDate)}
+                        </div>
                       </div>
-                    </div>
-                    <div className="ml-2 flex-shrink-0 flex">
                       <Badge 
                         variant={
-                          task.priority === "Alta" ? "danger" :
-                          task.priority === "Media" ? "warning" : "secondary"
+                          user.daysUntilBirthday === 0 ? "success" :
+                          user.daysUntilBirthday <= 7 ? "warning" : "info"
                         }
                       >
-                        {task.priority}
+                        {user.daysUntilBirthday === 0 ? "¡Hoy!" : 
+                         user.daysUntilBirthday === 1 ? "¡Mañana!" : 
+                         `En ${user.daysUntilBirthday} días`}
                       </Badge>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="py-3 px-4 border-t border-gray-200">
-            <a href="#" className="text-sm font-medium text-black hover:text-gray-700 flex items-center">
-              <span>Ver todas las tareas</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-            </a>
-          </div>
-        </DashboardCard>
-        
-        {/* Actividad reciente */}
-        <DashboardCard
-          title="Actividad Reciente"
-          subtitle="Lo que está pasando en MediaLab"
-          headerAction={
-            <div className="flex items-center text-black">
-              <BellIcon className="h-5 w-5 mr-1" />
-              <span className="text-sm font-medium">Últimas 24h</span>
+                  ))}
+                </div>
+              )}
             </div>
-          }
-        >
-          <div className="overflow-hidden">
-            <ul className="divide-y divide-gray-200">
-              {recentActivity.map((activity) => (
-                <li key={activity.id} className="py-3 px-4 hover:bg-gray-50">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-medium ${
-                        activity.id === "activity-1" ? "bg-indigo-500" :
-                        activity.id === "activity-2" ? "bg-emerald-500" :
-                        activity.id === "activity-3" ? "bg-amber-500" :
-                        activity.id === "activity-4" ? "bg-rose-500" :
-                        "bg-blue-500"
-                      }`}>
-                        {getInitials(activity.user.name)}
+          </div>
+        </div>
+
+        {/* Proyectos destacados */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-[var(--color-text-main)]">
+              Proyectos Destacados
+            </h2>
+            <button className="text-sm font-medium text-[var(--color-accent-1)] hover:text-[var(--color-hover)] transition-colors">
+              Ver todos los proyectos →
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredProjects.map((project) => (
+              <div key={project.id} className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-all duration-200 hover:border-[var(--color-accent-1)]">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`p-2 rounded-lg ${getProjectTypeColor(project.type)}`}>
+                      {getProjectIcon(project.type)}
+                    </div>
+                    {getStatusBadge(project.status)}
+                  </div>
+                  
+                  <h3 className="font-semibold text-[var(--color-text-main)] mb-2 line-clamp-2">
+                    {project.title}
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {/* Progreso */}
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-[var(--color-text-secondary)]">Progreso</span>
+                        <span className="font-medium text-[var(--color-text-main)]">{project.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-[var(--color-accent-1)] to-[var(--color-hover)] h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${project.progress}%` }}
+                        ></div>
                       </div>
                     </div>
-                    <div className="ml-3 flex-1">
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-900">{activity.user.name}</span>
-                        {" "}
-                        <span className="text-gray-700">{activity.action}</span>
-                        {activity.target && (
-                          <span>
-                            {" "}
-                            <span className="font-medium text-gray-900">{activity.target}</span>
-                          </span>
+                    
+                    {/* Fecha de entrega */}
+                    <div className="flex items-center text-sm text-[var(--color-text-secondary)]">
+                      <ClockIcon className="h-4 w-4 mr-2" />
+                      Entrega: {new Date(project.dueDate).toLocaleDateString()}
+                    </div>
+                    
+                    {/* Equipo */}
+                    <div className="flex items-center">
+                      <UserGroupIcon className="h-4 w-4 text-[var(--color-text-secondary)] mr-2" />
+                      <div className="flex -space-x-2">
+                        {project.team.slice(0, 3).map((member, idx) => (
+                          <div
+                            key={idx}
+                            className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium border-2 border-white"
+                            title={member}
+                          >
+                            {getInitials(member)}
+                          </div>
+                        ))}
+                        {project.team.length > 3 && (
+                          <div className="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium border-2 border-white">
+                            +{project.team.length - 3}
+                          </div>
                         )}
                       </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {formatRelativeTime(activity.timestamp)}
-                      </div>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="py-3 px-4 border-t border-gray-200">
-            <a href="#" className="text-sm font-medium text-black hover:text-gray-700 flex items-center">
-              <span>Ver toda la actividad</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-            </a>
-          </div>
-        </DashboardCard>
+        </div>
       </div>
     </DashboardLayout>
   );

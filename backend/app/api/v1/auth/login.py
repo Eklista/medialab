@@ -355,21 +355,8 @@ def get_current_user_info(
     Obtiene información del usuario actual
     """
     try:
-        return {
-            "id": current_user.id,
-            "email": current_user.email,
-            "username": current_user.username,
-            "first_name": current_user.first_name,
-            "last_name": current_user.last_name,
-            "is_active": current_user.is_active,
-            "last_login": current_user.last_login.isoformat() if current_user.last_login else None,
-            "roles": [{"id": role.id, "name": role.name} for role in current_user.roles],
-            "permissions": list(set([
-                permission.name 
-                for role in current_user.roles 
-                for permission in role.permissions
-            ]))
-        }
+        from app.utils.user_transforms import transform_user_with_roles
+        return transform_user_with_roles(current_user)
         
     except Exception as e:
         logger.error(f"Error al obtener información del usuario {current_user.email}: {e}")

@@ -211,17 +211,26 @@ def assign_role_to_user(
     except SQLAlchemyError as e:
         raise ErrorHandler.handle_db_error(e, "asignar rol a", "usuario")
 
+# Agregar al final del archivo users.py
+
 @router.post("/upload-image", status_code=status.HTTP_200_OK)
 def upload_user_image(
     file: UploadFile = File(...),
     type: str = Form(...),
-    current_user: User = Depends(has_permission("profile_edit")),
+    current_user: User = Depends(get_current_active_user),  # ✅ Cambio: más permisivo
     db: Session = Depends(get_db)
 ) -> Any:
     """
-    Sube una imagen de perfil o banner para el usuario (requiere permiso profile_edit)
+    Sube una imagen de perfil o banner para el usuario
+    ✅ CORREGIDO: Crear directorio si no existe
     """
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"📤 Subiendo imagen tipo '{type}' para usuario {current_user.id}")
+        logger.info(f"📄 Archivo: {file.filename}, Content-Type: {file.content_type}")
+        
         # Verificar el tipo de archivo
         content_type = file.content_type
         if not content_type or not content_type.startswith("image/"):
@@ -244,19 +253,34 @@ def upload_user_image(
         # Crear un nombre único para el archivo
         filename = f"{uuid4().hex}{extension}"
         
-        # Asegurar que el directorio de subida existe
+        # ✅ CREAR DIRECTORIO DE UPLOADS SI NO EXISTE
         upload_dir = FilePath("static/uploads/users")
         upload_dir.mkdir(parents=True, exist_ok=True)
         
         # Ruta completa del archivo
         file_path = upload_dir / filename
         
+        logger.info(f"💾 Guardando archivo en: {file_path.absolute()}")
+        
         # Guardar el archivo
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
+        # Verificar que el archivo se guardó correctamente
+        if not file_path.exists():
+            logger.error(f"❌ El archivo no se guardó correctamente: {file_path}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al guardar el archivo"
+            )
+        
+        file_size = file_path.stat().st_size
+        logger.info(f"✅ Archivo guardado exitosamente: {filename} ({file_size} bytes)")
+        
         # URL pública del archivo
         public_url = f"/static/uploads/users/{filename}"
+        
+        logger.info(f"🔗 URL pública: {public_url}")
         
         # Actualizar el campo correspondiente en el usuario
         user_data = {}
@@ -277,8 +301,16 @@ def upload_user_image(
             user_data=user_data
         )
         
+        logger.info(f"✅ Usuario actualizado con nueva imagen {type}")
+        
         return {"url": public_url}
+        
+    except HTTPException:
+        raise
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"💥 Error al subir imagen: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al subir la imagen: {str(e)}"

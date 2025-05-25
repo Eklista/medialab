@@ -1,7 +1,6 @@
 // src/features/dashboard/components/ui/UserProfilePhoto.tsx
 import React from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
-import { getBaseUrl } from '../../../../services/api';
 
 export interface UserProfilePhotoProps {
   /** Tamaño del avatar */
@@ -38,27 +37,27 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
 }) => {
   const { state } = useAuth();
   
-  // Usar el usuario pasado como prop o el usuario actual
+  // Usar el usuario pasado como prop o el usuario actual del contexto
   const currentUser = user || state.user;
   
-  // Función para obtener la URL completa de la imagen (copiada de tu código)
+  // Función para obtener la URL completa de la imagen
   const getFullImageUrl = (imagePath: string | undefined | null): string => {
-    if (!imagePath) return '';
+    if (!imagePath || imagePath.trim() === '') return '';
     
     // Si la ruta ya comienza con http:// o https://, asumimos que es una URL completa
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
     
-    // Obtener la URL base del API
-    const baseUrl = new URL(getBaseUrl()).origin;
-    // Asegurarnos de que la ruta de la imagen comience con /
+    // Construir URL usando la configuración del entorno
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const baseUrl = apiUrl.replace('/api/v1', '');
     const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     
     return `${baseUrl}${path}`;
   };
   
-  // Función para obtener las iniciales
+  // Función para obtener las iniciales del usuario
   const getInitials = () => {
     if (!currentUser) return 'U';
     
@@ -97,7 +96,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   };
   
   // Obtener la imagen del usuario
-  const profileImage = currentUser?.profileImage || currentUser?.profile_image;
+  const profileImage = currentUser?.profileImage || currentUser?.profile_image || null;
   const imageUrl = getFullImageUrl(profileImage);
   
   // Clases base

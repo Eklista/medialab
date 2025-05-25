@@ -1,12 +1,12 @@
-/* src/styles/global.css */
+/* src/styles/global.css - Variables mejoradas para el nuevo diseño */
 @import "tailwindcss";
 
 /* Definición de variables de tema */
 :root {
-  /* Paleta principal - Actualizadas para el nuevo diseño */
+  /* Paleta principal - Mejorada para el nuevo diseño */
   --color-bg-main: #f8f9fb;
   --color-bg-secondary: #ffffff;
-  --color-text-main: #090a0a;
+  --color-text-main: #030303;
   --color-text-secondary: #6b7280;
  
   /* Acentos - Colores principales del dashboard */
@@ -26,25 +26,27 @@
  
   /* Gradientes */
   --gradient-accent: linear-gradient(135deg, #cbe81a, #b5cf15);
-  --gradient-dark: linear-gradient(135deg, #181c24, #2d3748);
+  --gradient-dark: linear-gradient(135deg, #1a1d29, #2d3748);
  
   /* Tipografía */
   --font-sans: "Poppins", "Inter", system-ui, sans-serif;
   --font-heading: "Poppins", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
 
-  /* Variables para scrollbar */
+  /* Variables para scrollbar mejoradas */
   --scrollbar-width: 6px;
-  --scrollbar-track: #f1f1f1;
-  --scrollbar-thumb: #c5c5c5;
-  --scrollbar-thumb-hover: #a0a0a0;
+  --scrollbar-track: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
 
-  /* Sidebar específico */
-  --sidebar-bg: #181c24;
+  /* Sidebar específico - Mejorado */
+  --sidebar-bg: #1a1d29;
   --sidebar-text: #ffffff;
-  --sidebar-text-secondary: rgba(255, 255, 255, 0.6);
-  --sidebar-hover: rgba(255, 255, 255, 0.1);
-  --sidebar-active: rgba(255, 255, 255, 0.15);
+  --sidebar-text-secondary: rgba(255, 255, 255, 0.7);
+  --sidebar-text-muted: rgba(255, 255, 255, 0.5);
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active: rgba(255, 255, 255, 0.1);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
 
   /* Dashboard específico */
   --dashboard-card-bg: #ffffff;
@@ -74,27 +76,46 @@
   }
 }
 
-/* Componentes personalizados */
+/* Componentes personalizados mejorados */
 @layer components {
-  /* Estilos para el sidebar */
+  /* Estilos para el sidebar mejorados */
   .sidebar-container {
     background: var(--sidebar-bg);
     color: var(--sidebar-text);
+    @apply rounded-xl shadow-lg;
   }
   
   .sidebar-item {
-    @apply flex items-center px-4 py-3 rounded-lg transition-colors;
+    @apply flex items-center px-3 py-2.5 rounded-lg transition-all duration-200;
     color: var(--sidebar-text-secondary);
   }
   
   .sidebar-item:hover {
     background: var(--sidebar-hover);
-    color: var(--color-accent-1);
+    color: var(--sidebar-text);
   }
   
   .sidebar-item.active {
     background: var(--sidebar-active);
     color: var(--color-accent-1);
+    @apply font-medium;
+  }
+  
+  /* Submenu items */
+  .sidebar-submenu-item {
+    @apply flex items-center px-3 py-2 rounded-lg transition-all duration-200 text-sm;
+    color: var(--sidebar-text-muted);
+  }
+  
+  .sidebar-submenu-item:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-text-secondary);
+  }
+  
+  .sidebar-submenu-item.active {
+    background: var(--sidebar-active);
+    color: var(--color-accent-1);
+    @apply font-medium;
   }
   
   /* Estilos para cards del dashboard */
@@ -110,31 +131,41 @@
     background: var(--navbar-bg);
     border-bottom: 1px solid var(--navbar-border);
     box-shadow: var(--navbar-shadow);
+    @apply rounded-lg mx-2 mt-2;
   }
   
-  /* Avatar circular con color de acento */
+  /* Avatar circular con color de acento mejorado */
   .avatar-accent {
     background-color: var(--color-accent-1);
     color: var(--color-text-main);
     @apply h-10 w-10 rounded-full flex items-center justify-center font-semibold text-sm;
   }
   
-  /* Botón de notificación */
+  /* User card mejorada */
+  .user-card-sidebar {
+    @apply flex items-center p-4;
+    border-bottom: 1px solid var(--sidebar-border);
+  }
+  
+  /* Botón de notificación mejorado */
   .notification-btn {
-    @apply relative p-2 rounded-full transition-colors;
-    background: transparent;
+    @apply relative p-3 rounded-full transition-all duration-200 shadow-lg;
+    background: var(--color-text-main);
+    color: white;
   }
   
   .notification-btn:hover {
-    background: var(--color-bg-main);
+    background: var(--color-text-main);
+    opacity: 0.9;
+    @apply shadow-xl;
   }
   
   .notification-indicator {
-    @apply absolute top-1 right-1 h-2 w-2 rounded-full;
+    @apply absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white;
     background: var(--color-accent-1);
   }
   
-  /* Menú desplegable */
+  /* Menú desplegable mejorado */
   .dropdown-menu {
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
@@ -152,25 +183,16 @@
     color: var(--color-text-main);
   }
   
-  /* Tarjeta de usuario en sidebar */
-  .user-card {
-    @apply w-full rounded-lg p-4 transition-colors text-left;
-    background: rgba(255, 255, 255, 0.1);
-  }
-  
-  .user-card:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-  
   /* Botón flotante para móviles */
   .fab-mobile {
     background: var(--color-accent-1);
     color: var(--color-text-main);
-    @apply fixed bottom-6 right-6 p-3 rounded-full shadow-lg z-20 lg:hidden transition-colors;
+    @apply fixed bottom-6 right-6 p-3 rounded-full shadow-lg z-20 lg:hidden transition-all duration-200;
   }
   
   .fab-mobile:hover {
     background: var(--color-hover);
+    @apply shadow-xl;
   }
 }
 
@@ -229,11 +251,10 @@
   }
 }
 
-/* Estilos globales para scrollbars - Fuera de cualquier layer para asegurar que se apliquen */
-/* Estos estilos son importantes, así que usamos !important para forzar la aplicación */
+/* Estilos globales para scrollbars - Mejorados para el sidebar */
 * {
-  scrollbar-width: thin; /* Para Firefox */
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); /* Para Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 /* Scrollbar vertical */
@@ -269,7 +290,7 @@
   background: var(--scrollbar-track) !important;
 }
 
-/* Variante para scrollbars más delgados - ahora como clases de utilidad */
+/* Variantes de scrollbar */
 @layer utilities {
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px !important;
@@ -279,27 +300,31 @@
     height: 4px !important;
   }
   
-  /* Variante para scrollbars más oscuros */
+  /* Scrollbar para el sidebar */
+  .dark-scrollbar {
+    scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.1);
+  }
+  
   .dark-scrollbar::-webkit-scrollbar-track {
-    background: #2d3748 !important;
+    background: rgba(255, 255, 255, 0.1) !important;
   }
   
   .dark-scrollbar::-webkit-scrollbar-thumb {
-    background: #4a5568 !important;
+    background: rgba(255, 255, 255, 0.2) !important;
   }
   
   .dark-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #718096 !important;
+    background: rgba(255, 255, 255, 0.3) !important;
   }
   
   /* Ocultar scrollbar pero mantener funcionalidad */
   .scrollbar-hide {
-    -ms-overflow-style: none !important;  /* IE and Edge */
-    scrollbar-width: none !important;     /* Firefox */
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
   }
   
   .scrollbar-hide::-webkit-scrollbar {
-    display: none !important;  /* Chrome, Safari and Opera */
+    display: none !important;
   }
 }
 

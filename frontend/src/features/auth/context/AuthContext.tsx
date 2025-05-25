@@ -46,6 +46,7 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
   checkAuthStatus: () => Promise<void>;
+  refreshCurrentUser: () => Promise<void>;
 }
 
 // Estado inicial actualizado
@@ -174,7 +175,8 @@ const processUserData = (userData: any): { user: User, permissions: string[] } =
     firstName,
     lastName,
     role,
-    profileImage: userData.profileImage || userData.profile_image,
+    profileImage: userData.profile_image || userData.profileImage,
+    profile_image: userData.profile_image || userData.profileImage,
     permissions
   };
   
@@ -205,9 +207,45 @@ const processUserData = (userData: any): { user: User, permissions: string[] } =
   return { user, permissions };
 };
 
+
 // Proveedor del contexto
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+
+  const refreshCurrentUser = async () => {
+    if (!state.isAuthenticated || !state.user) {
+      console.warn('⚠️ No hay usuario autenticado para refrescar');
+      return;
+    }
+
+    try {
+      console.log('🔄 Refrescando datos del usuario actual...');
+      const userData = await authService.getCurrentUser();
+      let userPermissions: string[] = [];
+      
+      try {
+        userPermissions = await authService.getUserPermissions();
+      } catch (permError) {
+        console.warn('⚠️ Error al obtener permisos:', permError);
+      }
+      
+      const userDataWithPermissions = {
+        ...userData,
+        permissions: userPermissions
+      };
+      
+      const { user, permissions } = processUserData(userDataWithPermissions);
+      
+      dispatch({ 
+        type: 'RESTORE_SESSION', 
+        payload: { user, permissions } 
+      });
+      
+      console.log('✅ Datos del usuario refrescados exitosamente');
+    } catch (error) {
+      console.error('💥 Error al refrescar usuario:', error);
+    }
+  };
 
   // Método para verificar autenticación usando cookies
   const checkAuthStatus = async () => {
@@ -519,7 +557,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         unlockSession,
         hasPermission,
         hasAnyPermission,
-        checkAuthStatus
+        checkAuthStatus,
+        refreshCurrentUser
       }}
     >
       {children}
