@@ -182,12 +182,6 @@ services:
       - medialab_network
     profiles:
       - prod
-    command: >
-      sh -c "mkdir -p /var/www/certbot/.well-known/acme-challenge &&
-             chmod 755 /var/www/certbot &&
-             chmod 755 /var/www/certbot/.well-known &&
-             chmod 755 /var/www/certbot/.well-known/acme-challenge &&
-             nginx -g 'daemon off;'"
 
   # ===== REDIS COMMANDER (Opcional - Solo desarrollo) =====
   redis-commander:
