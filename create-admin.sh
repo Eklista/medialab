@@ -30,7 +30,7 @@ else
     exit 1
 fi
 
-# Verificar que la aplicación esté corriendo - CORREGIDO
+# Verificar que la aplicación esté corriendo
 echo -e "${YELLOW}📋 Verificando servicios...${NC}"
 
 # Verificar backend de manera más robusta
@@ -52,8 +52,8 @@ fi
 
 # Verificar que el backend responda
 echo -e "${YELLOW}🔍 Verificando conectividad del backend...${NC}"
-if ! curl -s --max-time 5 "http://localhost:8000/api/v1/health" > /dev/null; then
-    echo -e "${RED}❌ El backend no responde en http://localhost:8000${NC}"
+if ! curl -s --max-time 5 "https://localhost/api/v1/health" > /dev/null; then
+    echo -e "${RED}❌ El backend no responde en https://localhost${NC}"
     echo -e "${YELLOW}Revisando logs del backend:${NC}"
     docker compose logs backend --tail=10
     exit 1
@@ -63,9 +63,8 @@ echo -e "${GREEN}✅ Servicios verificados${NC}"
 
 # Crear usuario admin
 echo -e "${YELLOW}👤 Creando usuario administrador...${NC}"
-echo -e "${YELLOW}Este script solo creará el usuario, la estructura ya debe existir${NC}"
 
-# Ejecutar script de creación de admin - SIN PERFIL
+# Ejecutar script de creación de admin - CORREGIDO con asignación de rol
 ENV_FILE=.env.prod docker compose exec backend python -c "
 import sys
 sys.path.append('/app')
@@ -73,21 +72,35 @@ sys.path.append('/app')
 from app.database import SessionLocal
 from app.models.auth.users import User
 from app.models.auth.roles import Role
-from app.config.security import get_password_hash  # ← CORREGIDO: config en lugar de core
-from datetime import date
+from app.models.associations import user_roles
+from app.config.security import get_password_hash
+from app.models.organization.areas import Area
+from sqlalchemy import insert
+from datetime import date, datetime
 
 db = SessionLocal()
 try:
     # Buscar o crear rol admin
-    admin_role = db.query(Role).filter(Role.name == 'admin').first()
+    admin_role = db.query(Role).filter(Role.name == 'ADMIN').first()
     if not admin_role:
-        admin_role = Role(name='admin', description='Administrador del sistema')
+        admin_role = Role(name='ADMIN', description='Administrador del sistema')
         db.add(admin_role)
         db.commit()
         db.refresh(admin_role)
         print('✅ Rol admin creado')
     else:
         print('✅ Rol admin encontrado')
+    
+    # Buscar o crear área por defecto (Dirección para admin)
+    admin_area = db.query(Area).filter(Area.name == 'Dirección').first()
+    if not admin_area:
+        admin_area = Area(name='Dirección', description='Área de dirección administrativa')
+        db.add(admin_area)
+        db.commit()
+        db.refresh(admin_area)
+        print('✅ Área de Dirección creada')
+    else:
+        print('✅ Área de Dirección encontrada')
     
     # Datos del admin
     email = 'admin@medialab.com'
@@ -101,6 +114,8 @@ try:
         existing_user.password_hash = get_password_hash(password)
         existing_user.is_active = True
         db.commit()
+        db.refresh(existing_user)
+        user_id = existing_user.id
         print('✅ Usuario admin actualizado')
     else:
         new_user = User(
@@ -115,11 +130,34 @@ try:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        user_id = new_user.id
         print('✅ Usuario admin creado')
+    
+    # IMPORTANTE: Asignar rol admin al usuario
+    # Eliminar roles anteriores si existen
+    db.execute(
+        'DELETE FROM user_roles WHERE user_id = :user_id',
+        {'user_id': user_id}
+    )
+    
+    # Insertar nueva asignación de rol
+    db.execute(
+        insert(user_roles).values(
+            user_id=user_id,
+            role_id=admin_role.id,
+            area_id=admin_area.id,
+            assigned_at=datetime.utcnow()
+        )
+    )
+    
+    db.commit()
+    print('✅ Rol admin asignado al usuario')
     
     print(f'📧 Email: {email}')
     print(f'👤 Username: {username}')
     print(f'🔐 Password: {password}')
+    print(f'🎭 Rol: {admin_role.name} (ADMIN)')
+    print(f'🏢 Área: {admin_area.name}')
     
 finally:
     db.close()
@@ -129,13 +167,14 @@ echo -e "\n${GREEN}✅ Script completado${NC}"
 
 # Mostrar información útil
 echo -e "\n${YELLOW}📝 Información útil:${NC}"
-echo -e "${YELLOW}   🌐 Frontend: http://medialab.eklista.com/${NC}"
-echo -e "${YELLOW}   📊 API Docs: http://medialab.eklista.com/api/v1/docs${NC}"
-echo -e "${YELLOW}   🔍 Health: http://medialab.eklista.com/api/v1/health${NC}"
+echo -e "${YELLOW}   🌐 Frontend: https://medialab.eklista.com/${NC}"
+echo -e "${YELLOW}   📊 API Docs: https://medialab.eklista.com/api/v1/docs${NC}"
+echo -e "${YELLOW}   🔍 Health: https://medialab.eklista.com/api/v1/health${NC}"
 
-echo -e "\n${YELLOW}🔑 Credenciales por defecto:${NC}"
+echo -e "\n${YELLOW}🔑 Credenciales de administrador:${NC}"
 echo -e "${YELLOW}   📧 Email: admin@medialab.com${NC}"
 echo -e "${YELLOW}   🔐 Password: MediaLab2025!${NC}"
+echo -e "${YELLOW}   🎭 Rol: ADMIN${NC}"
 
 echo -e "\n${YELLOW}🛠️ Comandos útiles:${NC}"
 echo -e "${YELLOW}   Ver logs: docker compose logs -f backend${NC}"
