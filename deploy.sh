@@ -43,24 +43,19 @@ server {
     listen 80;
     server_name medialab.eklista.com;
     
-    # IMPORTANT: Para Certbot - debe ir ANTES de location /
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
         allow all;
     }
     
-    # API
     location /api/v1/ { 
         proxy_pass http://backend:8000/api/v1/; 
         proxy_set_header Host $host; 
-        proxy_set_header X-Real-IP $remote_addr;
     }
     
-    # Frontend (debe ir al final)
     location / { 
         proxy_pass http://frontend-prod:80; 
         proxy_set_header Host $host; 
-        proxy_set_header X-Real-IP $remote_addr;
     }
 }
 EOF
