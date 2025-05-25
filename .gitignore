@@ -80,3 +80,7 @@ backend/.venv/
 # nginx
 ssl/
 certbot/
+
+# otros
+/mysql-init
+backend/nohup.out
