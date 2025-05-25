@@ -111,16 +111,16 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   
   // 🐛 DEBUG: Agregar logs para diagnosticar
   React.useEffect(() => {
-    if (profileImage) {
-      console.log('🖼️ UserProfilePhoto Debug:', {
-        originalPath: profileImage,
-        constructedUrl: imageUrl,
-        environment: import.meta.env.MODE,
-        windowOrigin: window.location.origin,
-        apiUrl: import.meta.env.VITE_API_URL
-      });
-    }
-  }, [profileImage, imageUrl]);
+    console.log('🖼️ UserProfilePhoto Debug - ALWAYS:', {
+      hasUser: !!currentUser,
+      profileImage: profileImage,
+      constructedUrl: imageUrl,
+      environment: import.meta.env.MODE,
+      windowOrigin: window.location.origin,
+      apiUrl: import.meta.env.VITE_API_URL,
+      userObject: currentUser
+    });
+  }, [currentUser, profileImage, imageUrl]);
   
   // Clases base
   const baseClasses = `
