@@ -30,24 +30,31 @@ const EmailTemplatesSettings: React.FC = () => {
   
   // Cargar datos al montar el componente
   useEffect(() => {
+    console.log('🚀 useEffect mounting, calling fetchEmailTemplates');
     fetchEmailTemplates();
-  }, []);
+  }, [])
   
   // Función para cargar plantillas desde la API
   const fetchEmailTemplates = async () => {
+    console.log('🔄 fetchEmailTemplates called');
     setIsLoading(true);
     setError(null);
     
     try {
+      console.log('📡 Calling emailTemplateService.getEmailTemplates()');
       const data = await emailTemplateService.getEmailTemplates();
+      console.log('✅ Got data:', data.length, 'templates');
       setEmailTemplates(data);
+      console.log('✅ State updated with templates');
     } catch (err) {
+      console.error('💥 Error in fetchEmailTemplates:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar las plantillas de correo');
-      console.error('Error al cargar plantillas de correo:', err);
     } finally {
+      console.log('🏁 fetchEmailTemplates finished');
       setIsLoading(false);
     }
   };
+
   
   // Handlers para plantillas
   const handleEditTemplate = (template: EmailTemplate) => {

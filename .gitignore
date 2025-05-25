@@ -9,6 +9,9 @@ frontend/coverage/
 frontend/.nuxt
 frontend/.output
 
+# PWA dev files
+frontend/dev-dist/
+
 # Python (Backend)
 __pycache__/
 */__pycache__/
