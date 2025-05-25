@@ -103,9 +103,9 @@ try:
         print('✅ Área de Dirección encontrada')
     
     # Datos del admin
-    email = 'admin@medialab.com'
+    email = 'pablo.lacan@galileo.edu'
     username = 'admin'
-    password = 'MediaLab2025!'
+    password = '123'
     
     # Verificar si ya existe
     existing_user = db.query(User).filter(User.email == email).first()
