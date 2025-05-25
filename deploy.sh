@@ -37,7 +37,7 @@ sleep 20
 # Verificar que el backend esté respondiendo
 echo -e "${YELLOW}🔍 Verificando backend...${NC}"
 for i in {1..10}; do
-    if docker compose exec backend curl -f http://localhost:8000/api/v1/health 2>/dev/null; then
+    if curl -f http://localhost:8000/api/v1/health 2>/dev/null; then
         echo -e "${GREEN}✅ Backend listo${NC}"
         break
     fi
