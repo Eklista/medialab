@@ -24,7 +24,7 @@ Este proyecto busca centralizar los servicios audiovisuales, producción de cont
 - 🐬 **MySQL** — Base de datos relacional potente y confiable.
 - 🐳 **Docker** — Contenedores para facilitar el desarrollo y despliegue.
 - 🌐 **Nginx** — Servidor web de alto rendimiento como proxy inverso.
-- 🔄 **Docker Compose** — Orquestación sencilla de servicios.
+- 🔄 **Docker Compose** — Orquestación sencilla de servicioss.
 
 ## 🚀 ¿Cómo levantar el proyecto?
 
