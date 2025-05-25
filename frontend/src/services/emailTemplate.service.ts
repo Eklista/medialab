@@ -1,4 +1,4 @@
-// src/services/email-template.service.ts
+// src/services/emailTemplate.service.ts - DEBUG VERSION
 import apiClient, { handleApiError } from './api';
 
 export interface EmailTemplate {
@@ -39,14 +39,52 @@ export interface RenderTemplateResponse {
 }
 
 class EmailTemplateService {
-  private readonly baseUrl = '/email-templates';
+  private readonly baseUrl = '/email-templates/';
 
   async getEmailTemplates(): Promise<EmailTemplate[]> {
     try {
+      // 🔥 DEBUG: Log completo de la configuración
+      console.log('🔍 DEBUG - Email Templates Request Info:');
+      console.log('  - Environment:', import.meta.env.MODE);
+      console.log('  - Base URL:', apiClient.defaults.baseURL);
+      console.log('  - Full URL:', `${apiClient.defaults.baseURL}${this.baseUrl}`);
+      console.log('  - Current Location:', window.location.href);
+      console.log('  - Protocol:', window.location.protocol);
+      
+      // Verificar si otros endpoints funcionan primero
+      console.log('🧪 Testing basic health endpoint...');
+      try {
+        const healthResponse = await apiClient.get('/auth/me');
+        console.log('✅ Auth endpoint working:', healthResponse.status);
+      } catch (healthError) {
+        console.log('❌ Auth endpoint failed:', healthError);
+      }
+      
+      console.log('🚀 Attempting email templates request...');
       const response = await apiClient.get<EmailTemplate[]>(this.baseUrl);
+      
+      console.log('✅ Email templates request successful!');
+      console.log('  - Status:', response.status);
+      console.log('  - Data length:', response.data?.length || 0);
+      console.log('  - Response headers:', response.headers);
+      
       return response.data;
-    } catch (error) {
-      console.error('Error al obtener plantillas de correo:', error);
+    } catch (error: any) {
+      console.error('💥 DETAILED ERROR for email templates:');
+      console.error('  - Error type:', error.constructor.name);
+      console.error('  - Error message:', error.message);
+      console.error('  - Error code:', error.code);
+      
+      if (error.response) {
+        console.error('  - Response status:', error.response.status);
+        console.error('  - Response data:', error.response.data);
+        console.error('  - Response headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('  - Request made but no response:', error.request);
+      }
+      
+      console.error('  - Full error object:', error);
+      
       throw new Error(handleApiError(error));
     }
   }
