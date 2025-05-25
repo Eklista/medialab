@@ -40,7 +40,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   // Usar el usuario pasado como prop o el usuario actual del contexto
   const currentUser = user || state.user;
   
-  // Función para obtener la URL completa de la imagen
+  // Función para obtener la URL completa de la imagen - CORREGIDA
   const getFullImageUrl = (imagePath: string | undefined | null): string => {
     if (!imagePath || imagePath.trim() === '') return '';
     
@@ -49,9 +49,19 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
       return imagePath;
     }
     
-    // Construir URL usando la configuración del entorno
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const baseUrl = apiUrl.replace('/api/v1', '');
+    // 🔧 CORREGIDO: Construir URL según el entorno
+    let baseUrl: string;
+    
+    if (import.meta.env.MODE === 'production') {
+      // En producción, usar el dominio actual
+      baseUrl = window.location.origin;
+    } else {
+      // En desarrollo, usar la URL del backend
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      baseUrl = apiUrl.replace('/api/v1', '');
+    }
+    
+    // Asegurar que la ruta comience con '/'
     const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     
     return `${baseUrl}${path}`;
@@ -99,6 +109,19 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   const profileImage = currentUser?.profileImage || currentUser?.profile_image || null;
   const imageUrl = getFullImageUrl(profileImage);
   
+  // 🐛 DEBUG: Agregar logs para diagnosticar
+  React.useEffect(() => {
+    if (profileImage) {
+      console.log('🖼️ UserProfilePhoto Debug:', {
+        originalPath: profileImage,
+        constructedUrl: imageUrl,
+        environment: import.meta.env.MODE,
+        windowOrigin: window.location.origin,
+        apiUrl: import.meta.env.VITE_API_URL
+      });
+    }
+  }, [profileImage, imageUrl]);
+  
   // Clases base
   const baseClasses = `
     ${sizeClasses[size]} 
@@ -126,6 +149,21 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
     );
   };
   
+  // 🔧 MEJORADO: Manejo de errores de imagen
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    console.warn('🚫 Error cargando imagen:', target.src);
+    target.style.display = 'none';
+    
+    const parent = target.parentElement;
+    if (parent && !parent.querySelector('.fallback-initials')) {
+      const span = document.createElement('span');
+      span.className = 'text-[var(--color-text-main)] select-none fallback-initials';
+      span.textContent = getInitials();
+      parent.appendChild(span);
+    }
+  };
+  
   return (
     <div 
       className={baseClasses}
@@ -138,17 +176,9 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
           src={imageUrl}
           alt={`${currentUser?.firstName || 'Usuario'} ${currentUser?.lastName || ''}`}
           className="h-full w-full object-cover"
-          onError={(e) => {
-            // Si falla la carga de la imagen, ocultar y mostrar iniciales
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            const parent = target.parentElement;
-            if (parent) {
-              const span = document.createElement('span');
-              span.className = 'text-[var(--color-text-main)] select-none';
-              span.textContent = getInitials();
-              parent.appendChild(span);
-            }
+          onError={handleImageError}
+          onLoad={() => {
+            console.log('✅ Imagen cargada exitosamente:', imageUrl);
           }}
         />
       ) : (
