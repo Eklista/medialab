@@ -90,7 +90,7 @@ server {
     listen 80;
     server_name medialab.eklista.com;
     location /api/v1/ { proxy_pass http://backend/api/v1/; proxy_set_header Host $host; }
-    location / { proxy_pass http://frontend; proxy_set_header Host $host; }
+    location / { proxy_pass http://frontend-prod; proxy_set_header Host $host; }
 }
 EOF
 fi
