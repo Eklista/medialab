@@ -130,7 +130,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       <div className="flex flex-col flex-1 overflow-hidden lg:p-3 md:p-2 p-1 lg:pb-3 md:pb-2 pb-1">
         <div className="flex flex-col flex-1 bg-[var(--color-bg-main)] lg:rounded-xl md:rounded-lg rounded-md shadow-lg overflow-hidden lg:mb-0 md:mb-12 mb-10">
           <Navbar />
-          <main className="flex-1 overflow-y-auto bg-[var(--color-bg-main)] lg:p-6 md:p-4 p-3 lg:pt-4 md:pt-3 pt-2">
+          <main className="flex-1 overflow-y-auto bg-[var(--color-bg-main)] lg:p-6 md:p-4 p-3 lg:pt-4 md:pt-3 pt-2 pb-14 sm:pb-3">
             {children}
           </main>
         </div>
