@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     users, roles, areas, services, departments, department_types,
     public, service_templates, permissions, smtp_config, email_templates,
-    health  # Endpoint de salud
+    health
 )
 from app.api.v1.auth import auth_router
 

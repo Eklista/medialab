@@ -234,18 +234,21 @@ const RolesAreasSettings: React.FC = () => {
     setModalError(null);
     
     try {
+      // ✅ Incluir permisos en la creación del rol
       const roleRequest: RoleCreateRequest = {
         name: data.name,
-        description: data.description
+        description: data.description,
+        permissions: data.permissions // ✅ Agregar permisos
       };
       
+      // ✅ El userService.createRole ahora maneja los permisos internamente
       const newRole = await userService.createRole(roleRequest);
       
       const formattedRole: Role = {
         id: newRole.id.toString(),
         name: newRole.name,
         description: newRole.description || '',
-        permissions: data.permissions || []
+        permissions: data.permissions || [] // Usar los permisos del formulario
       };
       
       setRoles([...roles, formattedRole]);
@@ -255,6 +258,7 @@ const RolesAreasSettings: React.FC = () => {
         setIsAddRoleModalOpen(false);
         setSuccessMessage(null);
       }, 2000);
+      
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Error al crear el rol');
       console.error('Error al crear rol:', err);
@@ -272,44 +276,35 @@ const RolesAreasSettings: React.FC = () => {
     try {
       const roleId = parseInt(currentRole.id);
       
+      // ✅ Actualizar el rol CON permisos usando el método reestructurado
       const roleRequest: RoleUpdateRequest = {
         name: data.name,
-        description: data.description
+        description: data.description,
+        permissions: data.permissions // ✅ Ahora los permisos se incluyen aquí
       };
       
+      // ✅ El userService.updateRole ahora maneja los permisos internamente
       const updatedRole = await userService.updateRole(roleId, roleRequest);
-      
-      try {
-        const success = await userService.assignPermissionsToRole(roleId, data.permissions);
-        
-        if (!success) {
-          console.warn("Hubo un problema al asignar permisos");
-          setModalError("El rol se actualizó, pero hubo un problema al actualizar los permisos");
-        }
-      } catch (permError) {
-        console.error("Error al asignar permisos:", permError);
-        setModalError("El rol se actualizó, pero hubo un problema al actualizar los permisos");
-      }
       
       const formattedRole: Role = {
         id: updatedRole.id.toString(),
         name: updatedRole.name,
         description: updatedRole.description || '',
-        permissions: data.permissions
+        permissions: data.permissions // Usar los permisos del formulario
       };
       
       setRoles(roles.map(role => 
         role.id === currentRole.id ? formattedRole : role
       ));
       
-      if (!modalError) {
-        setSuccessMessage("Rol actualizado correctamente");
-        setTimeout(() => {
-          setIsEditRoleModalOpen(false);
-          setCurrentRole(null);
-          setSuccessMessage(null);
-        }, 2000);
-      }
+      setSuccessMessage("Rol actualizado correctamente");
+      
+      setTimeout(() => {
+        setIsEditRoleModalOpen(false);
+        setCurrentRole(null);
+        setSuccessMessage(null);
+      }, 2000);
+      
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Error al actualizar el rol');
       console.error('Error al actualizar rol:', err);

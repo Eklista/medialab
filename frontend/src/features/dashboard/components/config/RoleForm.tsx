@@ -1,11 +1,11 @@
-// src/features/dashboard/components/config/RoleForm.tsx
+// src/features/dashboard/components/config/RoleForm.tsx (Actualizado)
 import React, { useState, useEffect } from 'react';
 import DashboardTextInput from '../ui/DashboardTextInput';
 import DashboardTextarea from '../ui/DashboardTextArea';
 import DashboardButton from '../ui/DashboardButton';
 import DashboardCheckbox from '../ui/DashboardCheckbox';
 import Badge from '../ui/Badge';
-import { userService } from '../../../../services';
+import permissionsService, { Permission } from '../../../../services/permissions.service'; // ✅ Usar servicio dedicado
 import { 
   ShieldCheckIcon, 
   DocumentTextIcon,
@@ -29,13 +29,6 @@ interface RoleFormProps {
   isSubmitting?: boolean;
 }
 
-// Interfaz para los permisos cargados del backend
-interface PermissionItem {
-  id: number;
-  name: string;
-  description?: string;
-}
-
 const RoleForm: React.FC<RoleFormProps> = ({
   initialData,
   onSubmit,
@@ -50,25 +43,26 @@ const RoleForm: React.FC<RoleFormProps> = ({
   
   const [errors, setErrors] = useState<Partial<Record<keyof RoleFormData, string>>>({});
   
-  // Estado para almacenar los permisos cargados desde el backend
-  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
+  // ✅ Usar el servicio de permisos dedicado
+  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loadingPermissions, setLoadingPermissions] = useState(true);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   
-  // Cargar permisos al montar el componente
+  // ✅ Cargar permisos usando el servicio dedicado
   useEffect(() => {
     const fetchPermissions = async () => {
       try {
         setLoadingPermissions(true);
         setPermissionError(null);
         
-        const permissionsData = await userService.getAllPermissions();
-        console.log("Permisos cargados para el formulario:", permissionsData);
+        console.log('🔄 Cargando permisos usando permissionsService...');
+        const permissionsData = await permissionsService.getAllPermissions();
+        console.log('✅ Permisos cargados:', permissionsData);
         
         setPermissions(permissionsData);
       } catch (error) {
-        console.error("Error al cargar permisos:", error);
-        setPermissionError("No se pudieron cargar los permisos. Por favor, intenta de nuevo más tarde.");
+        console.error('❌ Error al cargar permisos:', error);
+        setPermissionError('No se pudieron cargar los permisos. Por favor, intenta de nuevo más tarde.');
       } finally {
         setLoadingPermissions(false);
       }
@@ -80,7 +74,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
   // Populate form with initial data if provided
   useEffect(() => {
     if (initialData) {
-      console.log('Inicializando formulario con:', initialData);
+      console.log('🔄 Inicializando formulario con:', initialData);
       setFormData({
         name: initialData.name || '',
         description: initialData.description || '',
@@ -106,21 +100,21 @@ const RoleForm: React.FC<RoleFormProps> = ({
         ? prev.permissions.filter(p => p !== permission)
         : [...prev.permissions, permission];
       
+      console.log('🔄 Permisos actualizados:', newPermissions);
       return { ...prev, permissions: newPermissions };
     });
   };
 
-  const handleSelectAllInCategory = (categoryPermissions: PermissionItem[]) => {
+  const handleSelectAllInCategory = (categoryPermissions: Permission[]) => {
     const categoryPermissionNames = categoryPermissions.map(p => p.name);
     const allSelected = categoryPermissionNames.every(perm => formData.permissions.includes(perm));
     
     setFormData(prev => {
       if (allSelected) {
         // Deselect all in this category
-        return {
-          ...prev,
-          permissions: prev.permissions.filter(p => !categoryPermissionNames.includes(p))
-        };
+        const newPermissions = prev.permissions.filter(p => !categoryPermissionNames.includes(p));
+        console.log('🔄 Deseleccionando categoría completa:', newPermissions);
+        return { ...prev, permissions: newPermissions };
       } else {
         // Select all in this category
         const newPermissions = [...prev.permissions];
@@ -129,6 +123,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
             newPermissions.push(perm);
           }
         });
+        console.log('🔄 Seleccionando categoría completa:', newPermissions);
         return { ...prev, permissions: newPermissions };
       }
     });
@@ -159,17 +154,17 @@ const RoleForm: React.FC<RoleFormProps> = ({
     e.preventDefault();
     
     if (validateForm()) {
+      console.log('📤 Enviando datos del formulario:', formData);
       onSubmit(formData);
     }
   };
   
-  // Agrupar permisos por categoría
+  // ✅ Agrupar permisos por categoría usando el servicio
   const groupPermissionsByCategory = () => {
-    const grouped: Record<string, PermissionItem[]> = {};
+    const grouped: Record<string, Permission[]> = {};
     
     permissions.forEach(permission => {
-      // Obtener la categoría del nombre del permiso (parte antes del "_")
-      const category = permission.name.split('_')[0];
+      const category = permissionsService.extractCategory(permission.name);
       
       if (!grouped[category]) {
         grouped[category] = [];
@@ -183,22 +178,9 @@ const RoleForm: React.FC<RoleFormProps> = ({
   
   const groupedPermissions = groupPermissionsByCategory();
 
-  // Obtener nombre legible de la categoría
+  // ✅ Usar el método del servicio para nombres de categorías
   const getCategoryDisplayName = (category: string) => {
-    const categoryNames: Record<string, string> = {
-      'user': 'Usuarios',
-      'role': 'Roles',
-      'area': 'Áreas',
-      'service': 'Servicios',
-      'template': 'Plantillas',
-      'config': 'Configuración',
-      'system': 'Sistema',
-      'report': 'Reportes',
-      'dashboard': 'Dashboard',
-      'admin': 'Administración'
-    };
-    
-    return categoryNames[category] || category.charAt(0).toUpperCase() + category.slice(1);
+    return permissionsService.getCategoryDisplayName(category);
   };
 
   // Obtener icono de la categoría
@@ -219,10 +201,14 @@ const RoleForm: React.FC<RoleFormProps> = ({
     return categoryIcons[category] || <LockClosedIcon className="h-4 w-4" />;
   };
   
-  // Para depuración - mostrar permisos del formulario
+  // Debug logging
   useEffect(() => {
-    console.log('Estado actual de permisos en formulario:', formData.permissions);
-  }, [formData.permissions]);
+    console.log('🔍 Estado actual del formulario:', {
+      permisos: formData.permissions,
+      totalPermisosDisponibles: permissions.length,
+      categorias: Object.keys(groupedPermissions).length
+    });
+  }, [formData.permissions, permissions.length, groupedPermissions]);
   
   return (
     <div className="max-w-6xl mx-auto">
@@ -381,6 +367,13 @@ const RoleForm: React.FC<RoleFormProps> = ({
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-red-800">Error al cargar permisos</h3>
                   <p className="mt-1 text-sm text-red-700">{permissionError}</p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="mt-2 text-xs bg-red-100 hover:bg-red-200 px-2 py-1 rounded"
+                  >
+                    Recargar página
+                  </button>
                 </div>
               </div>
             </div>
@@ -425,6 +418,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
                             variant="outline"
                             onClick={() => handleSelectAllInCategory(perms)}
                             className="text-xs"
+                            disabled={isSubmitting}
                           >
                             {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
                           </DashboardButton>
@@ -468,6 +462,13 @@ const RoleForm: React.FC<RoleFormProps> = ({
                 <div className="text-center py-12 text-gray-500">
                   <LockClosedIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                   <p>No hay permisos disponibles en el sistema.</p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="mt-2 text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
+                  >
+                    Recargar
+                  </button>
                 </div>
               )}
             </div>
@@ -505,6 +506,26 @@ const RoleForm: React.FC<RoleFormProps> = ({
                           de {permissions.length} disponibles
                         </span>
                       </div>
+                      
+                      {/* ✅ Mostrar categorías con permisos seleccionados */}
+                      {formData.permissions.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs text-gray-500 mb-1">Categorías con permisos:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(groupedPermissions)
+                              .filter(([_, perms]) => perms.some(p => formData.permissions.includes(p.name)))
+                              .map(([category, perms]) => {
+                                const selectedCount = perms.filter(p => formData.permissions.includes(p.name)).length;
+                                return (
+                                  <Badge key={category} variant="secondary" size="sm">
+                                    {getCategoryDisplayName(category)} ({selectedCount})
+                                  </Badge>
+                                );
+                              })
+                            }
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -531,12 +552,34 @@ const RoleForm: React.FC<RoleFormProps> = ({
           <DashboardButton
             type="submit"
             loading={isSubmitting}
-            disabled={isSubmitting || loadingPermissions}
+            disabled={isSubmitting || loadingPermissions || !formData.name.trim()}
             className="w-full sm:w-auto"
           >
             {initialData ? 'Actualizar Rol' : 'Crear Rol'}
           </DashboardButton>
         </div>
+        
+        {/* ✅ Debug Info en desarrollo */}
+        {import.meta.env.DEV && (
+          <div className="bg-gray-100 p-4 rounded-lg text-xs text-gray-600">
+            <h4 className="font-medium mb-2">🔍 Debug Info:</h4>
+            <div className="space-y-1">
+              <div>Permisos seleccionados: {formData.permissions.length}</div>
+              <div>Permisos disponibles: {permissions.length}</div>
+              <div>Categorías: {Object.keys(groupedPermissions).length}</div>
+              <div>Loading: {loadingPermissions ? 'Sí' : 'No'}</div>
+              <div>Error: {permissionError ? 'Sí' : 'No'}</div>
+            </div>
+            {formData.permissions.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer">Ver permisos seleccionados</summary>
+                <div className="mt-1 bg-white p-2 rounded text-xs">
+                  {formData.permissions.join(', ')}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );

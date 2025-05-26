@@ -36,15 +36,19 @@ interface SidebarItemConfig {
   icon: React.ReactNode;
   children?: SidebarItemConfig[];
   isOpen?: boolean;
-  // 🆕 Verificaciones de permisos según tus especificaciones
+  // 🆕 Verificaciones de permisos mejoradas
   permissionCheck?: () => boolean;
   alwaysVisible?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleCollapse }) => {
   const location = useLocation();
-  const { state, hasPermission, hasAnyPermission } = useAuth();
-  const { hasPermission: permHasPermission } = usePermissions();
+  const { state } = useAuth();
+  const { 
+    hasPermission, 
+    hasAnyPermission,
+    error,
+  } = usePermissions();
   
   // Estado para manejar la apertura/cierre del menú de administración
   const [menuState, setMenuState] = useState({
@@ -53,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
 
   // Estado para expansión temporal cuando se hace clic en administración
   const [tempExpanded, setTempExpanded] = useState(false);
-  
+
   // Función para alternar el menú de administración
   const toggleAdminMenu = () => {
     setMenuState(prev => ({
@@ -95,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
   };
 
   const canViewCourses = () => {
-    return hasPermission('courses_view') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('course_view') || state.user?.role === UserRole.ADMIN;
   };
 
   const canViewPodcast = () => {
@@ -103,7 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
   };
 
   const canViewRequests = () => {
-    return hasPermission('requests_view') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('request_view') || state.user?.role === UserRole.ADMIN;
   };
 
   const canViewGeneral = () => {
@@ -115,14 +119,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
     
     // Verificar si tiene permisos administrativos
     const adminPermissions = [
-      'user_view', 'user_create', 'user_edit', 'user_delete',
-      'role_view', 'role_create', 'role_edit', 'role_delete',
-      'area_view', 'area_create', 'area_edit', 'area_delete',
-      'service_view', 'service_create', 'service_edit', 'service_delete',
-      'template_view', 'template_create', 'template_edit', 'template_delete',
-      'department_view', 'department_create', 'department_edit', 'department_delete',
-      'smtp_config_view', 'smtp_config_create', 'smtp_config_edit', 'smtp_config_delete',
-      'email_template_view', 'email_template_create', 'email_template_edit', 'email_template_delete'
+      'user_create', 'user_edit', 'user_delete',
+      'role_create', 'role_edit', 'role_delete',
+      'area_create', 'area_edit', 'area_delete',
+      'service_create', 'service_edit', 'service_delete',
+      'template_create', 'template_edit', 'template_delete',
+      'department_create', 'department_edit', 'department_delete',
+      'smtp_config_create', 'smtp_config_edit', 'smtp_config_delete',
+      'email_template_create', 'email_template_edit', 'email_template_delete'
     ];
     
     return hasAnyPermission(adminPermissions);
@@ -252,8 +256,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
   
   // Determinar si debe mostrar el sidebar expandido
   const shouldShowExpanded = !collapsed || tempExpanded;
+
+  // ===== ERROR STATE =====
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[var(--color-text-main)]">
+        <div className="text-white text-center p-4">
+          <div className="text-2xl mb-2">⚠️</div>
+          <div className="text-sm mb-2">Error al cargar permisos</div>
+          <div className="text-xs text-red-300 mb-2">{error}</div>
+        </div>
+      </div>
+    );
+  }
   
-  // Renderizar un ítem de menú (TU LÓGICA ORIGINAL)
+  // Renderizar un ítem de menú (TU LÓGICA ORIGINAL CONSERVADA)
   const renderMenuItem = (item: SidebarItemConfig, isCollapsed: boolean = false) => {
     if (item.children) {
       const isActiveParent = hasActiveAdminItem();
@@ -415,8 +432,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
       <div className="p-4 flex items-center justify-between border-b border-white/10 relative">
         {shouldShowExpanded ? (
           <>
-            <span className="text-2xl font-bold text-white text-center flex-1">MediaLab</span>
-            
+            <span className="text-2xl font-bold text-white text-center flex-1">MediaLab</span>   
             {/* Botones según el contexto */}
             {tempExpanded ? (
               // Botón para cerrar expansión temporal
@@ -507,7 +523,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
         </ul>
       </nav>
       
-      {/* Footer (TU COMPONENTE ORIGINAL) */}
+      {/* Footer */}
       <SidebarFooter collapsed={!shouldShowExpanded} />
     </div>
   );

@@ -1,4 +1,4 @@
-// src/services/permissions.service.ts
+// frontend/src/services/permissions.service.ts
 import apiClient from './api';
 
 export interface Permission {
@@ -9,48 +9,169 @@ export interface Permission {
 
 export interface PermissionCategory {
   name: string;
-  displayName: string;
+  display_name: string;
   permissions: Permission[];
-  icon?: string;
+}
+
+export interface PermissionStats {
+  total_permissions: number;
+  categories_count: number;
+  permissions_by_category: Record<string, number>;
+  most_common_category?: string;
 }
 
 class PermissionsService {
   private permissionsCache: Permission[] | null = null;
+  private userPermissionsCache: string[] | null = null;
+  private categoriesCache: PermissionCategory[] | null = null;
   private cacheExpiry: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
   /**
-   * Limpia el cache de permisos
+   * Limpia todos los caches de permisos
    */
   clearCache(): void {
     this.permissionsCache = null;
+    this.userPermissionsCache = null;
+    this.categoriesCache = null;
     this.cacheExpiry = 0;
+    console.log('🧹 Cache de permisos limpiado');
   }
 
   /**
-   * Obtiene todos los permisos del sistema (con cache)
+   * Verifica si el cache está válido
    */
-  async getAllPermissions(): Promise<Permission[]> {
-    const now = Date.now();
-    
-    if (this.permissionsCache && now < this.cacheExpiry) {
-      return this.permissionsCache;
-    }
+  private isCacheValid(): boolean {
+    return Date.now() < this.cacheExpiry;
+  }
 
+  /**
+   * Actualiza el tiempo de expiración del cache
+   */
+  private updateCacheExpiry(): void {
+    this.cacheExpiry = Date.now() + this.CACHE_DURATION;
+  }
+
+  /**
+   * Obtiene todos los permisos del sistema (solo para administradores)
+   */
+  async getAllPermissions(options?: {
+    category?: string;
+    search?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<Permission[]> {
     try {
+      // Si hay filtros, no usar cache
+      if (options && (options.category || options.search || options.skip || options.limit)) {
+        const params = new URLSearchParams();
+        if (options.category) params.append('category', options.category);
+        if (options.search) params.append('search', options.search);
+        if (options.skip) params.append('skip', options.skip.toString());
+        if (options.limit) params.append('limit', options.limit.toString());
+        
+        const response = await apiClient.get<Permission[]>(`/permissions/?${params}`);
+        return response.data;
+      }
+
+      // Usar cache si está disponible y válido
+      if (this.permissionsCache && this.isCacheValid()) {
+        console.log('📦 Usando permisos desde cache');
+        return this.permissionsCache;
+      }
+
+      console.log('🔄 Cargando todos los permisos...');
       const response = await apiClient.get<Permission[]>('/permissions/');
+      
       this.permissionsCache = response.data;
-      this.cacheExpiry = now + this.CACHE_DURATION;
+      this.updateCacheExpiry();
+      
+      console.log(`✅ Cargados ${response.data.length} permisos`);
       return response.data;
     } catch (error) {
-      console.error('Error al obtener permisos:', error);
-      // Si falla, devolver array vacío en lugar de throw
+      console.error('❌ Error al obtener permisos:', error);
       return [];
     }
   }
 
   /**
-   * Extrae la categoría de un nombre de permiso (ej: "user_view" -> "user")
+   * Obtiene los permisos del usuario actual
+   */
+  async getUserPermissions(useCache: boolean = true): Promise<string[]> {
+    try {
+      // Usar cache si está disponible y válido
+      if (useCache && this.userPermissionsCache && this.isCacheValid()) {
+        console.log('📦 Usando permisos de usuario desde cache');
+        return this.userPermissionsCache;
+      }
+
+      console.log('🔄 Cargando permisos del usuario...');
+      const response = await apiClient.get<string[]>('/permissions/me');
+      
+      this.userPermissionsCache = response.data;
+      this.updateCacheExpiry();
+      
+      console.log(`✅ Usuario tiene ${response.data.length} permisos:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al obtener permisos del usuario:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtiene permisos agrupados por categorías
+   */
+  async getPermissionsByCategories(): Promise<PermissionCategory[]> {
+    try {
+      // Usar cache si está disponible y válido
+      if (this.categoriesCache && this.isCacheValid()) {
+        console.log('📦 Usando categorías desde cache');
+        return this.categoriesCache;
+      }
+
+      console.log('🔄 Cargando categorías de permisos...');
+      const response = await apiClient.get<PermissionCategory[]>('/permissions/categories');
+      
+      this.categoriesCache = response.data;
+      this.updateCacheExpiry();
+      
+      console.log(`✅ Cargadas ${response.data.length} categorías`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al obtener categorías:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Verifica si el usuario tiene un permiso específico
+   */
+  async checkPermission(permission: string): Promise<boolean> {
+    try {
+      const response = await apiClient.get<boolean>(`/permissions/check/${permission}`);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Error al verificar permiso '${permission}':`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Obtiene estadísticas de permisos
+   */
+  async getPermissionStats(): Promise<PermissionStats | null> {
+    try {
+      const response = await apiClient.get<PermissionStats>('/permissions/stats');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al obtener estadísticas:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extrae la categoría de un nombre de permiso
    */
   extractCategory(permissionName: string): string {
     const parts = permissionName.split('_');
@@ -58,7 +179,7 @@ class PermissionsService {
   }
 
   /**
-   * Construye un nombre de permiso (útil para verificaciones dinámicas)
+   * Construye un nombre de permiso
    */
   buildPermissionName(category: string, action: string): string {
     return `${category}_${action}`;
@@ -68,54 +189,33 @@ class PermissionsService {
    * Obtiene permisos de una categoría específica
    */
   async getPermissionsByCategory(categoryName: string): Promise<Permission[]> {
-    const allPermissions = await this.getAllPermissions();
-    return allPermissions.filter(permission => 
-      this.extractCategory(permission.name) === categoryName
-    );
+    return this.getAllPermissions({ category: categoryName });
   }
 
   /**
-   * Verifica si un permiso específico existe
+   * Busca permisos por texto
    */
-  async hasPermission(permissionName: string): Promise<boolean> {
-    const allPermissions = await this.getAllPermissions();
-    return allPermissions.some(p => p.name === permissionName);
+  async searchPermissions(query: string): Promise<Permission[]> {
+    return this.getAllPermissions({ search: query });
   }
 
   /**
-   * Obtiene permisos agrupados por categoría automáticamente
+   * Verifica si un permiso específico existe en el sistema
    */
-  async getPermissionsByCategories(): Promise<PermissionCategory[]> {
-    const allPermissions = await this.getAllPermissions();
-    const categoriesMap = new Map<string, Permission[]>();
-
-    // Agrupar permisos por categoría automáticamente
-    allPermissions.forEach(permission => {
-      const category = this.extractCategory(permission.name);
-      
-      if (!categoriesMap.has(category)) {
-        categoriesMap.set(category, []);
-      }
-      
-      categoriesMap.get(category)!.push(permission);
-    });
-
-    // Convertir a array de categorías
-    const categories: PermissionCategory[] = Array.from(categoriesMap.entries())
-      .map(([categoryName, permissions]) => ({
-        name: categoryName,
-        displayName: this.getCategoryDisplayName(categoryName),
-        permissions: permissions.sort((a, b) => a.name.localeCompare(b.name))
-      }))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName));
-
-    return categories;
+  async permissionExists(permissionName: string): Promise<boolean> {
+    try {
+      const allPermissions = await this.getAllPermissions();
+      return allPermissions.some(p => p.name === permissionName);
+    } catch (error) {
+      console.error('❌ Error al verificar existencia del permiso:', error);
+      return false;
+    }
   }
 
   /**
    * Genera nombre amigable para categoría
    */
-  private getCategoryDisplayName(category: string): string {
+  getCategoryDisplayName(category: string): string {
     const categoryNames: Record<string, string> = {
       'user': 'Usuarios',
       'role': 'Roles',
@@ -124,17 +224,27 @@ class PermissionsService {
       'template': 'Plantillas',
       'request': 'Solicitudes',
       'department': 'Departamentos',
-      'smtp': 'SMTP',
-      'email': 'Plantillas Email',
-      'config': 'Configuración',
-      'system': 'Sistema',
-      'report': 'Reportes',
-      'dashboard': 'Dashboard',
-      'admin': 'Administración',
-      'profile': 'Perfil'
+      'department_type': 'Tipos de Departamentos',
+      'smtp_config': 'Configuración SMTP',
+      'email_template': 'Plantillas Email',
+      'profile': 'Perfil',
+      'other': 'Otros'
     };
     
     return categoryNames[category] || category.charAt(0).toUpperCase() + category.slice(1);
+  }
+
+  /**
+   * Refresca todos los datos de permisos
+   */
+  async refresh(): Promise<void> {
+    this.clearCache();
+    await Promise.all([
+      this.getUserPermissions(false),
+      this.getAllPermissions(),
+      this.getPermissionsByCategories()
+    ]);
+    console.log('🔄 Permisos refrescados completamente');
   }
 }
 
