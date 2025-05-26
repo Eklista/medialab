@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router-dom';
 import SidebarFooter from './SidebarFooter';
 import UserProfilePhoto from '../ui/UserProfilePhoto';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import { UserRole } from '../../../auth/types/auth.types';
 import { 
   HomeIcon, 
@@ -12,7 +13,6 @@ import {
   AcademicCapIcon, 
   MicrophoneIcon, 
   Cog6ToothIcon,
-  UserGroupIcon,
   ClipboardDocumentListIcon,
   XMarkIcon,
   ChevronDownIcon,
@@ -36,13 +36,15 @@ interface SidebarItemConfig {
   icon: React.ReactNode;
   children?: SidebarItemConfig[];
   isOpen?: boolean;
-  requiredPermission?: string | null;
-  requiredPermissions?: string[];
+  // 🆕 Verificaciones de permisos según tus especificaciones
+  permissionCheck?: () => boolean;
+  alwaysVisible?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleCollapse }) => {
   const location = useLocation();
   const { state, hasPermission, hasAnyPermission } = useAuth();
+  const { hasPermission: permHasPermission } = usePermissions();
   
   // Estado para manejar la apertura/cierre del menú de administración
   const [menuState, setMenuState] = useState({
@@ -85,89 +87,143 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
       setMenuState(prev => ({ ...prev, adminOpen: true }));
     }
   }, [location.pathname, menuState.adminOpen]);
+
+  // 🆕 Funciones de verificación de permisos según tus especificaciones
+  const canViewProduction = () => {
+    // Placeholder para cuando implementes la lógica de project
+    return hasPermission('project_view') || state.user?.role === UserRole.ADMIN;
+  };
+
+  const canViewCourses = () => {
+    return hasPermission('courses_view') || state.user?.role === UserRole.ADMIN;
+  };
+
+  const canViewPodcast = () => {
+    return hasPermission('podcast_view') || state.user?.role === UserRole.ADMIN;
+  };
+
+  const canViewRequests = () => {
+    return hasPermission('requests_view') || state.user?.role === UserRole.ADMIN;
+  };
+
+  const canViewGeneral = () => {
+    return hasPermission('profile_edit') || state.user?.role === UserRole.ADMIN;
+  };
+
+  const canViewAdministration = () => {
+    if (state.user?.role === UserRole.ADMIN) return true;
+    
+    // Verificar si tiene permisos administrativos
+    const adminPermissions = [
+      'user_view', 'user_create', 'user_edit', 'user_delete',
+      'role_view', 'role_create', 'role_edit', 'role_delete',
+      'area_view', 'area_create', 'area_edit', 'area_delete',
+      'service_view', 'service_create', 'service_edit', 'service_delete',
+      'template_view', 'template_create', 'template_edit', 'template_delete',
+      'department_view', 'department_create', 'department_edit', 'department_delete',
+      'smtp_config_view', 'smtp_config_create', 'smtp_config_edit', 'smtp_config_delete',
+      'email_template_view', 'email_template_create', 'email_template_edit', 'email_template_delete'
+    ];
+    
+    return hasAnyPermission(adminPermissions);
+  };
+
+  const canViewUsers = () => {
+    return hasPermission('user_view') || state.user?.role === UserRole.ADMIN;
+  };
+
+  const canViewAppSettings = () => {
+    if (state.user?.role === UserRole.ADMIN) return true;
+    
+    const settingsPermissions = [
+      'role_view', 'area_view', 'service_view', 'template_view',
+      'department_view', 'smtp_config_view', 'email_template_view'
+    ];
+    
+    return hasAnyPermission(settingsPermissions);
+  };
   
-  // Configuración del sidebar con permisos
+  // 🆕 Configuración del sidebar CON TUS VERIFICACIONES DE PERMISOS
   const sidebarItems: SidebarItemConfig[] = [
     {
       title: 'Dashboard',
       path: '/dashboard',
       icon: <HomeIcon className="h-5 w-5" />,
-      requiredPermission: null // Siempre visible
+      alwaysVisible: true // Dashboard siempre visible
     },
     {
       title: 'Producción',
       path: '/dashboard/production',
       icon: <FilmIcon className="h-5 w-5" />,
-      requiredPermission: 'request_view'
+      permissionCheck: canViewProduction
     },
     {
       title: 'Cursos',
       path: '/dashboard/courses',
       icon: <AcademicCapIcon className="h-5 w-5" />,
-      requiredPermission: 'request_view'
+      permissionCheck: canViewCourses
     },
     {
       title: 'Podcasts',
       path: '/dashboard/podcast',
       icon: <MicrophoneIcon className="h-5 w-5" />,
-      requiredPermission: 'request_view'
+      permissionCheck: canViewPodcast
     },
     {
       title: 'Solicitudes',
       path: '/dashboard/requests',
       icon: <ClipboardDocumentListIcon className="h-5 w-5" />,
-      requiredPermission: 'request_view'
+      permissionCheck: canViewRequests
     },
     {
       title: 'Configuración General',
       path: '/dashboard/settings',
       icon: <UserIcon className="h-5 w-5" />,
-      requiredPermission: 'profile_edit'
+      permissionCheck: canViewGeneral
     },
-    // Administración movida al final
+    // Administración con hijos (TU ESTRUCTURA ORIGINAL)
     {
       title: 'Administración',
       icon: <Cog6ToothIcon className="h-5 w-5" />,
       isOpen: menuState.adminOpen,
-      requiredPermissions: ['user_view', 'role_view', 'area_view', 'department_view', 'service_view'],
+      permissionCheck: canViewAdministration,
       children: [
         {
           title: 'Usuarios',
           path: '/dashboard/users',
-          icon: <UserGroupIcon className="h-5 w-5" />,
-          requiredPermission: 'user_view'
+          icon: <UserIcon className="h-5 w-5" />,
+          permissionCheck: canViewUsers
         },
         {
           title: 'Configuración de App',
           path: '/dashboard/app-settings',
           icon: <WrenchIcon className="h-5 w-5" />,
-          requiredPermissions: ['role_view', 'area_view', 'service_view']
+          permissionCheck: canViewAppSettings
         }
       ]
     }
   ];
   
-  // Filtrar los items según los permisos
+  // 🆕 Filtrar los items según los permisos
   const filteredSidebarItems = sidebarItems.filter(item => {
-    if (!item.requiredPermission && !item.requiredPermissions) {
-      return true;
+    if (item.alwaysVisible) return true;
+    if (item.permissionCheck) return item.permissionCheck();
+    return true;
+  }).map(item => {
+    // Si tiene hijos, filtrar también los hijos
+    if (item.children) {
+      const filteredChildren = item.children.filter(child => {
+        if (child.permissionCheck) return child.permissionCheck();
+        return true;
+      });
+      
+      // Si no tiene hijos visibles, no mostrar el padre
+      if (filteredChildren.length === 0) return null;
+      
+      return { ...item, children: filteredChildren };
     }
-    
-    if (state.user?.role === UserRole.ADMIN) {
-      return true;
-    }
-    
-    if (item.requiredPermission) {
-      if (item.requiredPermission === null) return true;
-      return hasPermission(item.requiredPermission);
-    }
-    
-    if (item.requiredPermissions && item.requiredPermissions.length > 0) {
-      return hasAnyPermission(item.requiredPermissions);
-    }
-    
-    return false;
-  });
+    return item;
+  }).filter(Boolean) as SidebarItemConfig[];
   
   // Función para manejar el clic en un ítem de menú
   const handleMenuItemClick = () => {
@@ -197,30 +253,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
   // Determinar si debe mostrar el sidebar expandido
   const shouldShowExpanded = !collapsed || tempExpanded;
   
-  // Renderizar un ítem de menú
+  // Renderizar un ítem de menú (TU LÓGICA ORIGINAL)
   const renderMenuItem = (item: SidebarItemConfig, isCollapsed: boolean = false) => {
     if (item.children) {
-      const filteredChildren = item.children.filter(child => {
-        if (state.user?.role === UserRole.ADMIN) {
-          return true;
-        }
-        
-        if (child.requiredPermission) {
-          if (child.requiredPermission === null) return true;
-          return hasPermission(child.requiredPermission);
-        }
-        
-        if (child.requiredPermissions && child.requiredPermissions.length > 0) {
-          return hasAnyPermission(child.requiredPermissions);
-        }
-        
-        return true;
-      });
-      
-      if (filteredChildren.length === 0) {
-        return null;
-      }
-      
       const isActiveParent = hasActiveAdminItem();
       
       // En modo colapsado, mostrar solo el ícono que abre temporalmente
@@ -276,9 +311,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
             <span className="absolute inset-0 bg-white/20 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></span>
           </button>
           
-          {item.isOpen && (
+          {item.isOpen && item.children && (
             <ul className="pl-9 mt-1 space-y-1">
-              {filteredChildren.map((child) => (
+              {item.children.map((child) => (
                 <li key={child.path}>
                   <Link
                     to={child.path || '#'}
@@ -287,15 +322,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
                         ? 'text-[var(--color-accent-1)] bg-white/10 font-medium' 
                         : 'text-white/60 hover:text-white/90 hover:bg-white/5'
                     }`}
-                    onClick={() => {
-                      console.log('🔍 SIDEBAR EXPANDED DEBUG:');
-                      console.log('- Child path:', child.path);
-                      console.log('- Current location:', location.pathname);
-                      console.log('- Child title:', child.title);
-                      console.log('✅ Using Link component for navigation');
-                      
-                      handleMenuItemClick();
-                    }}
+                    onClick={handleMenuItemClick}
                   >
                     <div className="flex items-center">
                       <span className={`mr-3 ${location.pathname === child.path ? 'text-[var(--color-accent-1)]' : 'text-white/50'}`}>
@@ -317,7 +344,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
       );
     }
     
-    // Items regulares
+    // Items regulares (TU LÓGICA ORIGINAL)
     if (isCollapsed && !tempExpanded) {
       return (
         <li key={item.path}>
@@ -384,7 +411,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
     <div className={`h-full flex flex-col bg-[var(--color-text-main)] relative transition-all duration-300 ${
       tempExpanded ? 'w-72' : shouldShowExpanded ? 'w-full' : 'w-full'
     }`}>
-      {/* Header con logo, texto y botón de colapsar integrado */}
+      {/* Header con logo, texto y botón de colapsar integrado (TU DISEÑO ORIGINAL) */}
       <div className="p-4 flex items-center justify-between border-b border-white/10 relative">
         {shouldShowExpanded ? (
           <>
@@ -445,7 +472,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
         )}
       </div>
 
-      {/* Tarjeta de usuario - mostrar solo avatar si está colapsado */}
+      {/* Tarjeta de usuario - mostrar solo avatar si está colapsado (TU DISEÑO ORIGINAL) */}
       {shouldShowExpanded ? (
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center">
@@ -480,7 +507,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
         </ul>
       </nav>
       
-      {/* Footer */}
+      {/* Footer (TU COMPONENTE ORIGINAL) */}
       <SidebarFooter collapsed={!shouldShowExpanded} />
     </div>
   );

@@ -1,19 +1,29 @@
 // src/features/dashboard/pages/settings/SmtpSettings.tsx
 import React, { useState, useEffect } from 'react';
+import ConfigPageHeader from '../../components/config/ConfigPageHeader';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
+import DashboardPlaceholder, { NoPermissionPlaceholder, ErrorPlaceholder } from '../../components/ui/DashboardPlaceholder';
 import SmtpConfigForm, { SmtpConfigFormData } from '../../components/config/SmtpConfigForm';
-import ConfigPageTemplate from '../../components/config/ConfigPageTemplate';
 import Badge from '../../components/ui/Badge';
-import { PlusIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, CheckCircleIcon, ServerIcon } from '@heroicons/react/24/outline';
 import { smtpService } from '../../../../services';
 import { SmtpConfig } from '../../../../services/smtp.service';
-import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 import TestEmailModal from '../../components/config/TestEmailModal';
 import { format } from 'date-fns';
+import { useAuth } from '../../../auth/hooks/useAuth';
 
 const SmtpSettings: React.FC = () => {
+  const { hasPermission } = useAuth();
+  
+  // Verificar permisos
+  const canView = hasPermission('smtp_view');
+  const canCreate = hasPermission('smtp_create');
+  const canEdit = hasPermission('smtp_edit');
+  const canDelete = hasPermission('smtp_delete');
+  const canTest = hasPermission('smtp_test');
+
   // Estado para SMTP configs
   const [smtpConfigs, setSmtpConfigs] = useState<SmtpConfig[]>([]);
   
@@ -38,8 +48,25 @@ const SmtpSettings: React.FC = () => {
   
   // Cargar datos al montar el componente
   useEffect(() => {
-    fetchSmtpConfigs();
-  }, []);
+    if (canView) {
+      fetchSmtpConfigs();
+    }
+  }, [canView]);
+
+  // Si no tiene permisos de visualización
+  if (!canView) {
+    return (
+      <NoPermissionPlaceholder
+        title="Acceso Restringido"
+        description="No tienes permisos para acceder a la configuración SMTP."
+        size="md"
+      >
+        <p className="text-xs text-gray-400 mt-2">
+          Permiso requerido: smtp_view
+        </p>
+      </NoPermissionPlaceholder>
+    );
+  }
   
   // Función para cargar configuraciones SMTP desde la API
   const fetchSmtpConfigs = async () => {
@@ -59,12 +86,14 @@ const SmtpSettings: React.FC = () => {
   
   // Handlers para configuraciones SMTP
   const handleAddConfig = () => {
+    if (!canCreate) return;
     setModalError(null);
     setSuccessMessage(null);
     setIsAddModalOpen(true);
   };
   
   const handleEditConfig = (config: SmtpConfig) => {
+    if (!canEdit) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentConfig(config);
@@ -72,6 +101,7 @@ const SmtpSettings: React.FC = () => {
   };
   
   const handleDeleteConfig = (config: SmtpConfig) => {
+    if (!canDelete) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentConfig(config);
@@ -79,6 +109,7 @@ const SmtpSettings: React.FC = () => {
   };
   
   const handleTestConfig = async (config: SmtpConfig) => {
+    if (!canTest) return;
     setIsTesting(true);
     setTestResult(null);
     
@@ -229,20 +260,49 @@ const SmtpSettings: React.FC = () => {
       setIsTesting(false);
     }
   };
+
+  // Estadísticas para el header
+  const stats = [
+    {
+      label: 'Total',
+      value: smtpConfigs.length,
+      variant: 'default' as const
+    },
+    {
+      label: 'Activas',
+      value: smtpConfigs.filter(c => c.is_active).length,
+      variant: 'success' as const
+    },
+    {
+      label: 'Inactivas',
+      value: smtpConfigs.filter(c => !c.is_active).length,
+      variant: 'warning' as const
+    },
+    {
+      label: 'Con SSL',
+      value: smtpConfigs.filter(c => c.use_ssl).length,
+      variant: 'default' as const
+    }
+  ];
   
   // Columnas para la tabla
   const columns = [
     {
       header: 'Servidor',
-      accessor: (config: SmtpConfig) => config.host,
-    },
-    {
-      header: 'Puerto',
-      accessor: (config: SmtpConfig) => config.port,
+      accessor: (config: SmtpConfig) => (
+        <div>
+          <div className="font-medium text-gray-900">{config.host}</div>
+          <div className="text-sm text-gray-500">Puerto {config.port}</div>
+        </div>
+      ),
     },
     {
       header: 'Usuario',
-      accessor: (config: SmtpConfig) => config.username,
+      accessor: (config: SmtpConfig) => (
+        <div className="font-mono text-sm bg-gray-100 px-2 py-1 rounded break-all">
+          {config.username}
+        </div>
+      ),
     },
     {
       header: 'Encriptación',
@@ -290,70 +350,126 @@ const SmtpSettings: React.FC = () => {
           Activar
         </DashboardButton>
       )}
-      <DashboardButton
-        variant="text"
-        size="sm"
-        onClick={() => handleTestConfig(config)}
-        disabled={isSubmitting || isTesting}
-        className="text-blue-600 hover:text-blue-900"
-      >
-        Probar
-      </DashboardButton>
-      <DashboardButton
-        variant="text"
-        size="sm"
-        onClick={() => handleEditConfig(config)}
-        className="text-blue-600 hover:text-blue-900"
-      >
-        Editar
-      </DashboardButton>
-      <DashboardButton
-        variant="text"
-        size="sm"
-        onClick={() => handleDeleteConfig(config)}
-        className="text-red-600 hover:text-red-900"
-        disabled={config.is_active && smtpConfigs.length === 1}
-      >
-        Eliminar
-      </DashboardButton>
+      {canTest && (
+        <DashboardButton
+          variant="text"
+          size="sm"
+          onClick={() => handleTestConfig(config)}
+          disabled={isSubmitting || isTesting}
+          className="text-blue-600 hover:text-blue-900"
+        >
+          <span className="hidden lg:inline">Probar</span>
+          <span className="lg:hidden">Test</span>
+        </DashboardButton>
+      )}
+      {canEdit && (
+        <DashboardButton
+          variant="text"
+          size="sm"
+          onClick={() => handleEditConfig(config)}
+          className="text-blue-600 hover:text-blue-900"
+        >
+          Editar
+        </DashboardButton>
+      )}
+      {canDelete && (
+        <DashboardButton
+          variant="text"
+          size="sm"
+          onClick={() => handleDeleteConfig(config)}
+          className="text-red-600 hover:text-red-900"
+          disabled={config.is_active && smtpConfigs.length === 1}
+        >
+          Eliminar
+        </DashboardButton>
+      )}
     </div>
   );
   
   return (
-    <ConfigPageTemplate
+    <div className="space-y-6">
+      {/* Header */}
+      <ConfigPageHeader
         title="Configuración SMTP"
+        subtitle="Gestiona las configuraciones de servidor de correo SMTP del sistema"
+        icon={<ServerIcon className="h-6 w-6" />}
+        isLoading={isLoading}
+        hasError={!!error}
+        onRetry={fetchSmtpConfigs}
+        stats={!isLoading ? stats : undefined}
         actionButton={
-        <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
             <DashboardButton
-            variant="secondary"
-            onClick={() => setIsTestEmailModalOpen(true)}
-            disabled={smtpConfigs.filter(c => c.is_active).length === 0}
+              variant="secondary"
+              onClick={() => setIsTestEmailModalOpen(true)}
+              disabled={smtpConfigs.filter(c => c.is_active).length === 0}
+              className="w-full sm:w-auto"
             >
-            Probar Envío
+              <span className="hidden sm:inline">Probar Envío</span>
+              <span className="sm:hidden">Test Email</span>
             </DashboardButton>
             
-            <DashboardButton
-            onClick={handleAddConfig}
-            leftIcon={<PlusIcon className="w-5 h-5" />}
-            >
-            Agregar Configuración
-            </DashboardButton>
-        </div>
+            {canCreate && (
+              <DashboardButton
+                onClick={handleAddConfig}
+                leftIcon={<PlusIcon className="w-5 h-5" />}
+                disabled={isLoading}
+                className="w-full sm:w-auto"
+              >
+                <span className="hidden sm:inline">Agregar Configuración</span>
+                <span className="sm:hidden">Nueva</span>
+              </DashboardButton>
+            )}
+          </div>
         }
-        error={error ? <ApiErrorHandler error={error} onRetry={fetchSmtpConfigs} resourceName="las configuraciones SMTP" /> : undefined}
-    >
-      <div className="p-0">
-        <DashboardDataTable
-          columns={columns}
-          data={smtpConfigs}
-          keyExtractor={(config) => config.id.toString()}
-          actionColumn={true}
-          emptyMessage={isLoading ? "Cargando configuraciones SMTP..." : "No hay configuraciones SMTP. Por favor, añada una configuración para habilitar el envío de correos."}
-          isLoading={isLoading}
-          renderActions={renderConfigActions}
-          className="max-h-[calc(100vh-280px)] scrollbar-thin"
+      />
+
+      {/* Contenido principal */}
+      {error ? (
+        <ErrorPlaceholder
+          title="Error al cargar configuraciones"
+          description={error}
+          onRetry={fetchSmtpConfigs}
+          size="sm"
+          showBackground={false}
         />
-      </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <DashboardDataTable
+            columns={columns}
+            data={smtpConfigs}
+            keyExtractor={(config) => config.id.toString()}
+            actionColumn={true}
+            emptyMessage=""
+            isLoading={isLoading}
+            renderActions={renderConfigActions}
+            striped={true}
+            hover={true}
+          />
+          
+          {/* Empty state */}
+          {!isLoading && !error && smtpConfigs.length === 0 && (
+            <div className="p-8">
+              <DashboardPlaceholder
+                type="empty"
+                title="No hay configuraciones SMTP"
+                description="No hay configuraciones de servidor de correo. Añade una configuración para habilitar el envío de correos."
+                size="sm"
+                showBackground={false}
+                primaryAction={canCreate ? {
+                  label: 'Crear Primera Configuración',
+                  onClick: () => {
+                    setModalError(null);
+                    setSuccessMessage(null);
+                    setIsAddModalOpen(true);
+                  },
+                  icon: <PlusIcon className="h-4 w-4" />
+                } : undefined}
+              />
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Modal para agregar configuración */}
       <DashboardModal
@@ -490,12 +606,13 @@ const SmtpSettings: React.FC = () => {
           </DashboardButton>
         </div>
       </DashboardModal>
-      {/* Añadir este componente al final, antes de cerrar el ConfigPageTemplate */}
+
+      {/* Modal de prueba de email */}
       <TestEmailModal
-          isOpen={isTestEmailModalOpen}
-          onClose={() => setIsTestEmailModalOpen(false)}
-        />
-    </ConfigPageTemplate>
+        isOpen={isTestEmailModalOpen}
+        onClose={() => setIsTestEmailModalOpen(false)}
+      />
+    </div>
   );
 };
 

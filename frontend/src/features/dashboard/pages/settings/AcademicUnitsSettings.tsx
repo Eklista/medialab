@@ -1,41 +1,75 @@
 // src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx
 import React, { useState, useEffect } from 'react';
+import ConfigPageHeader from '../../components/config/ConfigPageHeader';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
+import DashboardPlaceholder, { NoPermissionPlaceholder, ErrorPlaceholder } from '../../components/ui/DashboardPlaceholder';
 import AcademicUnitForm, { AcademicUnitFormData } from '../../components/config/AcademicUnitForm';
 import DashboardInputWithButton from '../../components/ui/DashboardInputWithButton';
-import ConfigPageTemplate from '../../components/config/ConfigPageTemplate';
-import { PlusIcon, AdjustmentsHorizontalIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import Badge from '../../components/ui/Badge';
+import { 
+  PlusIcon, 
+  AdjustmentsHorizontalIcon, 
+  PencilIcon, 
+  TrashIcon,
+  AcademicCapIcon 
+} from '@heroicons/react/24/outline';
 import { academicUnitService, departmentTypeService } from '../../../../services';
 import { AcademicUnit } from '../../../../services/academicUnits.service';
 import { DepartmentType } from '../../../../services/departmentTypes.service';
-import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
+import { useAuth } from '../../../auth/hooks/useAuth';
 
 const AcademicUnitsSettings: React.FC = () => {
+  const { hasPermission } = useAuth();
+  
+  // Verificar permisos
+  const canView = hasPermission('academic_unit_view');
+  const canCreate = hasPermission('academic_unit_create');
+  const canEdit = hasPermission('academic_unit_edit');
+  const canDelete = hasPermission('academic_unit_delete');
+  const canManageTypes = hasPermission('department_type_manage');
+
   // Estado para unidades académicas
   const [academicUnits, setAcademicUnits] = useState<AcademicUnit[]>([]);
   const [departmentTypes, setDepartmentTypes] = useState<DepartmentType[]>([]);
   
+  // Estado para modales de unidades
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
-  // Estado para modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
   const [currentUnit, setCurrentUnit] = useState<AcademicUnit | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Estado para carga y errores
+  // Estado para modal de tipos
+  const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
+  
+  // Estado para operaciones
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isTypesLoading, setIsTypesLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // Estado para filtros
   const [filterTypeId, setFilterTypeId] = useState<number | null>(null);
+  
+  // Si no tiene permisos de visualización
+  if (!canView) {
+    return (
+      <NoPermissionPlaceholder
+        title="Acceso Restringido"
+        description="No tienes permisos para acceder a la gestión de unidades académicas."
+        size="md"
+      >
+        <p className="text-xs text-gray-400 mt-2">
+          Permiso requerido: academic_unit_view
+        </p>
+      </NoPermissionPlaceholder>
+    );
+  }
   
   // Cargar datos al montar el componente
   useEffect(() => {
@@ -68,19 +102,19 @@ const AcademicUnitsSettings: React.FC = () => {
       setDepartmentTypes(data);
     } catch (err) {
       console.error('Error al cargar tipos de departamentos:', err);
-      // No bloqueamos toda la interfaz por este error
     } finally {
       setIsTypesLoading(false);
     }
   };
 
   const handleViewUnit = (unit: AcademicUnit) => {
+    setModalError(null);
+    setSuccessMessage(null);
     setCurrentUnit(unit);
     setIsViewModalOpen(true);
     setIsEditMode(false);
   };
   
-  // Handler para cambiar a modo edición
   const handleSwitchToEditMode = () => {
     setIsEditMode(true);
   };
@@ -88,15 +122,9 @@ const AcademicUnitsSettings: React.FC = () => {
   // Función para agregar nuevo tipo de departamento
   const handleAddDepartmentType = async (name: string): Promise<DepartmentType> => {
     try {
-      // Crear objeto con los datos del tipo
       const typeData = { name };
-      
-      // Llamar al servicio para crear el nuevo tipo
       const newType = await departmentTypeService.createDepartmentType(typeData);
-      
-      // Actualizar la lista de tipos
       setDepartmentTypes(prev => [...prev, newType]);
-      
       return newType;
     } catch (err) {
       console.error('Error al crear tipo de departamento:', err);
@@ -108,12 +136,9 @@ const AcademicUnitsSettings: React.FC = () => {
   const handleUpdateDepartmentType = async (id: number, name: string): Promise<DepartmentType> => {
     try {
       const updatedType = await departmentTypeService.updateDepartmentType(id, { name });
-      
-      // Actualizar la lista de tipos
       setDepartmentTypes(prev => 
         prev.map(type => type.id === id ? updatedType : type)
       );
-      
       return updatedType;
     } catch (err) {
       console.error('Error al actualizar tipo de departamento:', err);
@@ -125,10 +150,7 @@ const AcademicUnitsSettings: React.FC = () => {
   const handleDeleteDepartmentType = async (id: number): Promise<void> => {
     try {
       await departmentTypeService.deleteDepartmentType(id);
-      
-      // Actualizar la lista de tipos
       setDepartmentTypes(prev => prev.filter(type => type.id !== id));
-      
     } catch (err) {
       console.error('Error al eliminar tipo de departamento:', err);
       throw err;
@@ -137,29 +159,47 @@ const AcademicUnitsSettings: React.FC = () => {
   
   // Handlers para unidades académicas
   const handleAddUnit = () => {
+    if (!canCreate) return;
+    setModalError(null);
+    setSuccessMessage(null);
     setIsAddModalOpen(true);
+  };
+  
+  const handleEditUnit = (unit: AcademicUnit) => {
+    if (!canEdit) return;
+    setModalError(null);
+    setSuccessMessage(null);
+    setCurrentUnit(unit);
+    setIsEditModalOpen(true);
+  };
+  
+  const handleDeleteUnitClick = (unit: AcademicUnit) => {
+    if (!canDelete) return;
+    setModalError(null);
+    setSuccessMessage(null);
+    setCurrentUnit(unit);
+    setIsDeleteModalOpen(true);
   };
   
   const handleDeleteUnit = async () => {
     if (!currentUnit || !currentUnit.id) return;
     
     setIsSubmitting(true);
-    setError(null);
-    setSuccessMessage(null); // Limpiar mensaje de éxito anterior
+    setModalError(null);
     
     try {
       await academicUnitService.deleteAcademicUnit(currentUnit.id);
       
       setAcademicUnits(academicUnits.filter(unit => unit.id !== currentUnit.id));
-      setSuccessMessage("La unidad académica ha sido eliminada correctamente"); // Mostrar mensaje de éxito
+      setSuccessMessage("La unidad académica ha sido eliminada correctamente");
       
-      // Opcional: Cerrar automáticamente después de un tiempo
       setTimeout(() => {
         setIsDeleteModalOpen(false);
         setCurrentUnit(null);
-      }, 1500);
+        setSuccessMessage(null);
+      }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar la unidad académica');
+      setModalError(err instanceof Error ? err.message : 'Error al eliminar la unidad académica');
       console.error('Error al eliminar unidad académica:', err);
     } finally {
       setIsSubmitting(false);
@@ -168,21 +208,20 @@ const AcademicUnitsSettings: React.FC = () => {
 
   const handleAddSubmit = async (data: AcademicUnitFormData) => {
     setIsSubmitting(true);
-    setError(null);
-    setSuccessMessage(null); // Limpiar mensaje de éxito anterior
+    setModalError(null);
     
     try {
       const newUnit = await academicUnitService.createAcademicUnit(data);
       
       setAcademicUnits([...academicUnits, newUnit]);
-      setSuccessMessage("La unidad académica ha sido creada correctamente"); // Mostrar mensaje de éxito
+      setSuccessMessage("La unidad académica ha sido creada correctamente");
       
-      // Opcional: Cerrar automáticamente después de un tiempo
       setTimeout(() => {
         setIsAddModalOpen(false);
-      }, 1500);
+        setSuccessMessage(null);
+      }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la unidad académica');
+      setModalError(err instanceof Error ? err.message : 'Error al crear la unidad académica');
       console.error('Error al crear unidad académica:', err);
     } finally {
       setIsSubmitting(false);
@@ -193,8 +232,7 @@ const AcademicUnitsSettings: React.FC = () => {
     if (!currentUnit || !currentUnit.id) return;
     
     setIsSubmitting(true);
-    setError(null);
-    setSuccessMessage(null); // Limpiar mensaje de éxito anterior
+    setModalError(null);
     
     try {
       const updatedUnit = await academicUnitService.updateAcademicUnit(currentUnit.id, data);
@@ -203,16 +241,21 @@ const AcademicUnitsSettings: React.FC = () => {
         unit.id === currentUnit.id ? updatedUnit : unit
       ));
       
-      setSuccessMessage("La unidad académica ha sido actualizada correctamente"); // Mostrar mensaje de éxito
+      setSuccessMessage("La unidad académica ha sido actualizada correctamente");
       
-      // Opcional: Cerrar automáticamente después de un tiempo
       setTimeout(() => {
-        setIsEditMode(false);
-      }, 1500);
+        if (isEditMode) {
+          setIsEditMode(false);
+        } else {
+          setIsEditModalOpen(false);
+          setCurrentUnit(null);
+        }
+        setSuccessMessage(null);
+      }, 2000);
       
       setCurrentUnit(updatedUnit); 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar la unidad académica');
+      setModalError(err instanceof Error ? err.message : 'Error al actualizar la unidad académica');
       console.error('Error al actualizar unidad académica:', err);
     } finally {
       setIsSubmitting(false);
@@ -224,17 +267,64 @@ const AcademicUnitsSettings: React.FC = () => {
     setIsTypesModalOpen(true);
   };
   
-  // Filtramos las unidades por tipo
+  // Filtrar las unidades por tipo
   const filteredUnits = academicUnits.filter(unit => {
     if (filterTypeId === null) return true;
     return unit.type_id === filterTypeId;
   });
+
+  // Estadísticas para el header
+  const uniqueTypes = new Set(academicUnits.map(unit => unit.type_id)).size;
+  const stats = [
+    {
+      label: 'Total',
+      value: academicUnits.length,
+      variant: 'default' as const
+    },
+    {
+      label: 'Tipos diferentes',
+      value: uniqueTypes,
+      variant: 'success' as const
+    },
+    {
+      label: 'Con descripción',
+      value: academicUnits.filter(unit => unit.description && unit.description.trim().length > 0).length,
+      variant: 'warning' as const
+    }
+  ];
+
+  // Crear tabs para los filtros de tipo
+  const filterTabs = isTypesLoading 
+    ? [{ id: 'all', label: 'Cargando..', isActive: true, onClick: () => {}, count: 0 }] 
+    : [
+        {
+          id: 'all',
+          label: 'Todas',
+          isActive: filterTypeId === null,
+          onClick: () => setFilterTypeId(null),
+          count: academicUnits.length
+        },
+        ...departmentTypes.map(type => {
+          const count = academicUnits.filter(unit => unit.type_id === type.id).length;
+          return {
+            id: `type-${type.id}`,
+            label: type.name,
+            isActive: filterTypeId === type.id,
+            onClick: () => setFilterTypeId(type.id),
+            count: count
+          };
+        })
+      ];
   
   // Columnas para la tabla con truncamiento y tooltip elegante
   const columns = [
     {
       header: 'Siglas',
-      accessor: (unit: AcademicUnit) => unit.abbreviation,
+      accessor: (unit: AcademicUnit) => (
+        <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+          {unit.abbreviation}
+        </span>
+      ),
       width: '15%'
     },
     {
@@ -242,12 +332,18 @@ const AcademicUnitsSettings: React.FC = () => {
       accessor: (unit: AcademicUnit) => {
         const MAX_LENGTH = 25;
         if (!unit.name || unit.name.length <= MAX_LENGTH) {
-          return unit.name || '-';
+          return (
+            <div>
+              <div className="font-medium text-gray-900">{unit.name || '-'}</div>
+            </div>
+          );
         }
         
         return (
           <div className="group relative truncate max-w-full">
-            <span className="truncate">{unit.name.substring(0, MAX_LENGTH)}...</span>
+            <div className="font-medium text-gray-900 truncate">
+              {unit.name.substring(0, MAX_LENGTH)}...
+            </div>
             <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block">
               <div className="bg-gray-800 text-white text-sm rounded shadow-lg p-2 max-w-[300px] whitespace-normal break-words">
                 {unit.name}
@@ -263,9 +359,7 @@ const AcademicUnitsSettings: React.FC = () => {
       accessor: (unit: AcademicUnit) => {
         const type = departmentTypes.find(t => t.id === unit.type_id);
         return (
-          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-            {type?.name || 'Desconocido'}
-          </span>
+          <Badge variant="primary">{type?.name || 'Desconocido'}</Badge>
         );
       },
       width: '15%'
@@ -276,7 +370,7 @@ const AcademicUnitsSettings: React.FC = () => {
         const MAX_LENGTH = 40;
         const description = unit.description || '-';
         
-        if (description.length <= MAX_LENGTH) {
+        if (description === '-' || description.length <= MAX_LENGTH) {
           return <div className="text-sm text-gray-600 truncate">{description}</div>;
         }
         
@@ -295,103 +389,150 @@ const AcademicUnitsSettings: React.FC = () => {
     }
   ];
 
-  // Crear tabs para los filtros de tipo
-  const filterTabs = isTypesLoading 
-    ? [{ id: 'all', label: 'Cargando..', isActive: true, onClick: () => {} }] 
-    : [
-        {
-          id: 'all',
-          label: 'Todas',
-          isActive: filterTypeId === null,
-          onClick: () => setFilterTypeId(null)
-        },
-        ...departmentTypes.map(type => ({
-          id: `type-${type.id}`,
-          label: type.name,
-          isActive: filterTypeId === type.id,
-          onClick: () => setFilterTypeId(type.id)
-        }))
-      ];
-
-  // Configuración del botón de acción para el componente ConfigPageTemplate
-  const actionButtons = (
-    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-3 w-full sm:w-auto">
+  // Renderizar acciones personalizadas
+  const renderUnitActions = (unit: AcademicUnit) => (
+    <div className="flex space-x-2 justify-end">
       <DashboardButton
-        variant="outline"
-        onClick={handleOpenTypesManager}
-        leftIcon={<AdjustmentsHorizontalIcon className="w-5 h-5" />}
-        className="w-full sm:w-auto mb-2 sm:mb-0"
+        variant="text"
+        size="sm"
+        onClick={() => handleViewUnit(unit)}
+        className="text-blue-600 hover:text-blue-900"
       >
-        {window.innerWidth < 480 ? "Gestionar Tipos" : "Gestionar Tipos de Unidad"}
+        Ver
       </DashboardButton>
-      <DashboardButton
-        onClick={handleAddUnit}
-        leftIcon={<PlusIcon className="w-5 h-5" />}
-        className="w-full sm:w-auto"
-      >
-        {window.innerWidth < 480 ? "Agregar" : "Agregar Unidad"}
-      </DashboardButton>
+      
+      {canEdit && (
+        <DashboardButton
+          variant="text"
+          size="sm"
+          onClick={() => handleEditUnit(unit)}
+          className="text-blue-600 hover:text-blue-900"
+          leftIcon={<PencilIcon className="h-4 w-4" />}
+        >
+          Editar
+        </DashboardButton>
+      )}
+      
+      {canDelete && (
+        <DashboardButton
+          variant="text"
+          size="sm"
+          onClick={() => handleDeleteUnitClick(unit)}
+          className="text-red-600 hover:text-red-900"
+          leftIcon={<TrashIcon className="h-4 w-4" />}
+        >
+          Eliminar
+        </DashboardButton>
+      )}
     </div>
   );
-
-  // Preparar el mensaje de error para el ConfigPageTemplate
-  const errorComponent = error ? (
-    <ApiErrorHandler 
-      error={error} 
-      onRetry={fetchAcademicUnits} 
-      resourceName="las unidades académicas"
-    />
-  ) : null;
   
   return (
-    <ConfigPageTemplate
-      title="Gestión de Unidades Académicas"
-      actionButton={actionButtons}
-      tabs={filterTabs}
-      error={errorComponent}
-    >
-      <div className="p-0">
-        {/* Mensaje de carga de tipos */}
-        {isTypesLoading && (
-          <div className="bg-blue-50 p-3 rounded-md mt-4 mb-4 text-blue-700 text-sm">
-            <p>Cargando tipos de departamentos...</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <ConfigPageHeader
+        title="Unidades Académicas"
+        subtitle="Gestiona las unidades académicas y sus tipos en el sistema"
+        icon={<AcademicCapIcon className="h-6 w-6" />}
+        isLoading={isLoading}
+        hasError={!!error}
+        onRetry={fetchAcademicUnits}
+        stats={!isLoading ? stats : undefined}
+        tabs={filterTabs}
+        actionButton={
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-3 w-full sm:w-auto">
+            {canManageTypes && (
+              <DashboardButton
+                variant="outline"
+                onClick={handleOpenTypesManager}
+                leftIcon={<AdjustmentsHorizontalIcon className="w-5 h-5" />}
+                className="w-full sm:w-auto mb-2 sm:mb-0"
+                disabled={isLoading}
+              >
+                <span className="hidden sm:inline">Gestionar Tipos</span>
+                <span className="sm:hidden">Tipos</span>
+              </DashboardButton>
+            )}
+            {canCreate && (
+              <DashboardButton
+                onClick={handleAddUnit}
+                leftIcon={<PlusIcon className="w-5 h-5" />}
+                className="w-full sm:w-auto"
+                disabled={isLoading}
+              >
+                <span className="hidden sm:inline">Agregar Unidad</span>
+                <span className="sm:hidden">Nueva</span>
+              </DashboardButton>
+            )}
           </div>
-        )}
-        
-        {/* Tabla */}
-        <div>
+        }
+      />
+
+      {/* Contenido principal */}
+      {error ? (
+        <ErrorPlaceholder
+          title="Error al cargar unidades académicas"
+          description={error}
+          onRetry={fetchAcademicUnits}
+          size="sm"
+          showBackground={false}
+        />
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          {/* Mensaje de carga de tipos */}
+          {isTypesLoading && (
+            <div className="p-4 bg-blue-50 border-b border-blue-200 text-blue-700 text-sm">
+              <p>Cargando tipos de departamentos...</p>
+            </div>
+          )}
+          
           <DashboardDataTable
             columns={columns}
             data={filteredUnits}
             keyExtractor={(unit) => unit.id.toString()}
             actionColumn={true}
-            emptyMessage={isLoading ? "Cargando unidades académicas..." : "No hay unidades académicas configuradas"}
+            emptyMessage=""
             isLoading={isLoading}
+            renderActions={renderUnitActions}
+            striped={true}
+            hover={true}
             className="max-h-[calc(100vh-280px)] scrollbar-thin"
-            renderActions={(unit) => (
-              <DashboardButton
-                variant="text"
-                size="sm"
-                onClick={() => handleViewUnit(unit)}
-                className="text-blue-600 hover:text-blue-900"
-              >
-                Ver
-              </DashboardButton>
-            )}
           />
+          
+          {/* Empty state */}
+          {!isLoading && !error && filteredUnits.length === 0 && (
+            <div className="p-8">
+              <DashboardPlaceholder
+                type="empty"
+                title="No hay unidades académicas"
+                description={filterTypeId === null 
+                  ? "No hay unidades académicas configuradas. Crea la primera unidad para empezar."
+                  : "No hay unidades académicas de este tipo. Prueba con otro filtro o crea una nueva unidad."
+                }
+                size="sm"
+                showBackground={false}
+                primaryAction={canCreate ? {
+                  label: 'Crear Primera Unidad',
+                  onClick: handleAddUnit,
+                  icon: <PlusIcon className="h-4 w-4" />
+                } : undefined}
+              />
+            </div>
+          )}
         </div>
-      </div>
+      )}
       
       {/* Modal para agregar unidad académica */}
       <DashboardModal
         isOpen={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
-          setSuccessMessage(null); // Limpiar mensaje al cerrar
+          setModalError(null);
+          setSuccessMessage(null);
         }}
         title="Agregar Unidad Académica"
         size="lg"
-        error={error}
+        error={modalError}
         success={successMessage}
       >
         <AcademicUnitForm
@@ -399,7 +540,7 @@ const AcademicUnitsSettings: React.FC = () => {
           onCancel={() => setIsAddModalOpen(false)}
           isSubmitting={isSubmitting}
           departmentTypes={departmentTypes}
-          onManageTypes={handleOpenTypesManager}
+          onManageTypes={canManageTypes ? handleOpenTypesManager : undefined}
         />
       </DashboardModal>
       
@@ -409,9 +550,13 @@ const AcademicUnitsSettings: React.FC = () => {
         onClose={() => {
           setIsEditModalOpen(false);
           setCurrentUnit(null);
+          setModalError(null);
+          setSuccessMessage(null);
         }}
         title="Editar Unidad Académica"
         size="lg"
+        error={modalError}
+        success={successMessage}
       >
         {currentUnit && (
           <AcademicUnitForm
@@ -423,7 +568,7 @@ const AcademicUnitsSettings: React.FC = () => {
             }}
             isSubmitting={isSubmitting}
             departmentTypes={departmentTypes}
-            onManageTypes={handleOpenTypesManager}
+            onManageTypes={canManageTypes ? handleOpenTypesManager : undefined}
           />
         )}
       </DashboardModal>
@@ -434,19 +579,27 @@ const AcademicUnitsSettings: React.FC = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setCurrentUnit(null);
-          setSuccessMessage(null); // Limpiar mensaje al cerrar
+          setModalError(null);
+          setSuccessMessage(null);
         }}
         title="Confirmar Eliminación"
-        error={error}
+        error={modalError}
         success={successMessage}
       >
         <div className="py-3">
-          <p className="text-gray-700">
-            ¿Estás seguro de que deseas eliminar <span className="font-medium">{currentUnit?.abbreviation} - {currentUnit?.name}</span>?
-          </p>
-          <p className="text-gray-500 text-sm mt-2">
-            Esta acción no se puede deshacer.
-          </p>
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 p-2 bg-red-100 rounded-lg">
+              <TrashIcon className="h-5 w-5 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-900 font-medium">
+                ¿Eliminar unidad "{currentUnit?.abbreviation} - {currentUnit?.name}"?
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+          </div>
         </div>
         
         <div className="flex justify-end space-x-3 mt-6">
@@ -465,6 +618,7 @@ const AcademicUnitsSettings: React.FC = () => {
             onClick={handleDeleteUnit}
             loading={isSubmitting}
             disabled={isSubmitting}
+            leftIcon={<TrashIcon className="h-4 w-4" />}
           >
             Eliminar
           </DashboardButton>
@@ -575,11 +729,12 @@ const AcademicUnitsSettings: React.FC = () => {
           setIsViewModalOpen(false);
           setCurrentUnit(null);
           setIsEditMode(false);
-          setSuccessMessage(null); // Limpiar mensaje al cerrar
+          setModalError(null);
+          setSuccessMessage(null);
         }}
         title={isEditMode ? "Editar Unidad Académica" : "Detalle de Unidad Académica"}
         size="lg"
-        error={error}
+        error={modalError}
         success={successMessage}
       >
         {currentUnit && (
@@ -594,6 +749,7 @@ const AcademicUnitsSettings: React.FC = () => {
                 }}
                 isSubmitting={isSubmitting}
                 departmentTypes={departmentTypes}
+                onManageTypes={canManageTypes ? handleOpenTypesManager : undefined}
               />
             ) : (
               // Vista en modo lectura
@@ -601,14 +757,16 @@ const AcademicUnitsSettings: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Siglas</h3>
-                    <p className="mt-1 text-base text-gray-900">{currentUnit.abbreviation}</p>
+                    <p className="mt-1 text-base text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded inline-block">
+                      {currentUnit.abbreviation}
+                    </p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Tipo</h3>
                     <p className="mt-1">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      <Badge variant="primary">
                         {departmentTypes.find(t => t.id === currentUnit.type_id)?.name || 'Desconocido'}
-                      </span>
+                      </Badge>
                     </p>
                   </div>
                 </div>
@@ -635,33 +793,37 @@ const AcademicUnitsSettings: React.FC = () => {
                     Cerrar
                   </DashboardButton>
                   
-                  <DashboardButton
-                    type="button"
-                    variant="secondary"
-                    onClick={handleSwitchToEditMode}
-                    leftIcon={<PencilIcon className="h-4 w-4" />}
-                  >
-                    Editar
-                  </DashboardButton>
+                  {canEdit && (
+                    <DashboardButton
+                      type="button"
+                      variant="secondary"
+                      onClick={handleSwitchToEditMode}
+                      leftIcon={<PencilIcon className="h-4 w-4" />}
+                    >
+                      Editar
+                    </DashboardButton>
+                  )}
                   
-                  <DashboardButton
-                    type="button"
-                    variant="danger"
-                    onClick={() => {
-                      setIsViewModalOpen(false);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    leftIcon={<TrashIcon className="h-4 w-4" />}
-                  >
-                    Eliminar
-                  </DashboardButton>
+                  {canDelete && (
+                    <DashboardButton
+                      type="button"
+                      variant="danger"
+                      onClick={() => {
+                        setIsViewModalOpen(false);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      leftIcon={<TrashIcon className="h-4 w-4" />}
+                    >
+                      Eliminar
+                    </DashboardButton>
+                  )}
                 </div>
               </div>
             )}
           </>
         )}
       </DashboardModal>
-    </ConfigPageTemplate>
+    </div>
   );
 };
 
