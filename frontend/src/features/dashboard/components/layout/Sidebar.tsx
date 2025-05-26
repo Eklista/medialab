@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/Sidebar.tsx - Versión simplificada sin dropdown
+// src/features/dashboard/components/layout/Sidebar.tsx
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';

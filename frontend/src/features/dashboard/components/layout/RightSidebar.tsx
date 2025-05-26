@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/RightSidebar.tsx - Panel de contenido
+// src/features/dashboard/components/layout/RightSidebar.tsx
 
 import React from 'react';
 import { 

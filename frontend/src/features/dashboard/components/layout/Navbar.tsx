@@ -1,7 +1,6 @@
-// src/features/dashboard/components/layout/Navbar.tsx - UI mejorada según imagen
+// src/features/dashboard/components/layout/Navbar.tsx
 import React from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
-import { InstallButton } from '../../../../components/common/InstallButton';
 
 interface NavbarProps {
   // Sin props ya que quitamos el botón
@@ -35,11 +34,6 @@ const Navbar: React.FC<NavbarProps> = () => {
         <p className="text-sm text-[var(--color-text-secondary)]">
           Revisa tus proyectos, tareas o solicitudes de hoy
         </p>
-      </div>
-     
-      {/* Botón de instalación PWA */}
-      <div className="flex items-center">
-        <InstallButton />
       </div>
     </div>
   );

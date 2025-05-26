@@ -7,9 +7,11 @@ import DashboardDataTable from '../components/ui/DashboardDataTable';
 import DashboardButton from '../components/ui/DashboardButton';
 import DashboardModal from '../components/ui/DashboardModal';
 import DashboardCard from '../components/ui/DashboardCard';
+import UserProfilePhoto from '../components/ui/UserProfilePhoto';
 import UserForm, { UserFormData } from '../components/users/UserForm';
 import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
-import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import Badge from '../components/ui/Badge';
+import { PlusIcon, MagnifyingGlassIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { userService } from '../../../services';
 import { Role, Area } from '../../../services/users.service';
 
@@ -23,6 +25,8 @@ interface LocalUser {
   isActive: boolean;
   lastLogin: string;
   profileImage?: string;
+  firstName: string;
+  lastName: string;
 }
 
 const UsersPage: React.FC = () => {
@@ -51,6 +55,7 @@ const UsersPage: React.FC = () => {
   // Estado para búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   
   // Cargar datos iniciales al montar el componente
   useEffect(() => {
@@ -108,6 +113,8 @@ const UsersPage: React.FC = () => {
         return {
           id: apiUser.id.toString(),
           fullName: fullName || 'Usuario sin nombre',
+          firstName: firstName,
+          lastName: lastName,
           email: apiUser.email || 'Sin email',
           role: roleName,
           area: areaName,
@@ -126,31 +133,14 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const getFullImageUrl = (imagePath: string | undefined | null): string => {
-    if (!imagePath) return '';
-    
-    // Si la ruta ya comienza con http:// o https://, asumimos que es una URL completa
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    // Obtener la URL base del API
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const baseUrl = apiUrl.replace('/api/v1', '');
-    // Asegurarnos de que la ruta de la imagen comience con /
-    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    
-    return `${baseUrl}${path}`;
-  };
-
   // Manejadores para CRUD de usuarios
   const handleAddUser = () => {
-    setModalError(null); // Limpiar errores anteriores
+    setModalError(null);
     setIsAddModalOpen(true);
   };
   
   const handleEditUser = (user: LocalUser) => {
-    setModalError(null); // Limpiar errores anteriores
+    setModalError(null);
     setCurrentUser(user);
     setIsEditModalOpen(true);
   };
@@ -161,7 +151,7 @@ const UsersPage: React.FC = () => {
   };
   
   const handleDeleteClick = (user: LocalUser) => {
-    setModalError(null); // Limpiar errores anteriores
+    setModalError(null);
     setCurrentUser(user);
     setIsDeleteModalOpen(true);
   };
@@ -170,13 +160,10 @@ const UsersPage: React.FC = () => {
     if (!currentUser) return;
     
     setIsSubmitting(true);
-    setModalError(null); // Limpiar errores anteriores
+    setModalError(null);
     
     try {
-      // Llamar a la API para eliminar el usuario
       await userService.deleteUser(parseInt(currentUser.id));
-      
-      // Actualizar la lista local de usuarios
       setUsers(users.filter(user => user.id !== currentUser.id));
       setIsDeleteModalOpen(false);
       setCurrentUser(null);
@@ -190,10 +177,9 @@ const UsersPage: React.FC = () => {
   
   const handleAddSubmit = async (data: UserFormData) => {
     setIsSubmitting(true);
-    setModalError(null); // Limpiar errores anteriores
+    setModalError(null);
     
     try {
-      // Preparar los datos para la API
       const userData = {
         email: data.email,
         username: data.username || data.email.split('@')[0],
@@ -205,44 +191,28 @@ const UsersPage: React.FC = () => {
         areaId: data.areaId
       };
       
-      console.log('Enviando datos para crear usuario:', userData);
-      
-      // Crear el usuario
       const newApiUser = await userService.createUser(userData);
-      console.log('Usuario creado:', newApiUser);
-      
-      // Cerrar el modal inmediatamente
       setIsAddModalOpen(false);
       
-      // Usar setTimeout para desacoplar completamente las operaciones del DOM
       setTimeout(async () => {
         try {
-          // Asignar rol si se proporcionaron roleId y areaId
           if (data.roleId && data.areaId) {
-            console.log(`Asignando rol ${data.roleId} y área ${data.areaId} al usuario ${newApiUser.id}`);
             await userService.assignRole(newApiUser.id, data.roleId, data.areaId);
-            console.log("Rol asignado exitosamente");
           }
-          
-          // Usar otro setTimeout para separar la recarga de datos de la asignación de rol
           setTimeout(() => {
             loadInitialData();
           }, 100);
-          
         } catch (innerError) {
           console.error('Error en operaciones post-creación:', innerError);
-          // Aquí podemos manejar errores específicos si es necesario
         }
-      }, 200); // Un retraso más largo para asegurar que el modal se cierra completamente
+      }, 200);
       
     } catch (err) {
       console.error('Error al crear usuario:', err);
       setModalError(err instanceof Error ? err.message : 'Error al crear usuario');
-      setIsSubmitting(false); // Solo desactivamos el estado de envío aquí en caso de error
+      setIsSubmitting(false);
     }
     
-    // Desactivar el estado de envío fuera del try/catch para garantizar que se ejecute
-    // Sin importar si hay setTimeout en juego
     setTimeout(() => {
       setIsSubmitting(false);
     }, 300);
@@ -252,9 +222,7 @@ const UsersPage: React.FC = () => {
     if (dateString === '-') return '-';
     
     try {
-      // Crear la fecha a partir del string
       const date = new Date(dateString);
-
       const guatemalaDate = new Date(date.getTime() - (6 * 60 * 60 * 1000));
       
       return guatemalaDate.toLocaleDateString('es-GT', {
@@ -273,61 +241,50 @@ const UsersPage: React.FC = () => {
     if (!currentUser) return;
     
     setIsSubmitting(true);
-    setModalError(null); // Limpiar errores anteriores
+    setModalError(null);
 
     try {
-      // Preparar los datos para la API en formato camelCase
       const userData: any = {};
       
-      // Comparar con los valores actuales para añadir solo lo que ha cambiado
-      const currentFirstName = currentUser.fullName.split(' ')[0] || '';
-      const currentLastName = currentUser.fullName.split(' ').slice(1).join(' ') || '';
+      const currentFirstName = currentUser.firstName || '';
+      const currentLastName = currentUser.lastName || '';
       
-      // Añadir campos solo si son diferentes de los actuales
       if (data.firstName !== currentFirstName) userData.firstName = data.firstName;
       if (data.lastName !== currentLastName) userData.lastName = data.lastName;
       if (data.email !== currentUser.email) userData.email = data.email;
       if (data.isActive !== currentUser.isActive) userData.isActive = data.isActive;
       
-      console.log('Enviando datos para actualizar usuario (camelCase):', userData);
-      
-      // Solo actualizar si hay cambios
       if (Object.keys(userData).length > 0) {
-        // Llamar a la API para actualizar el usuario
-        const updatedApiUser = await userService.updateUser(parseInt(currentUser.id), userData);
-        console.log('Usuario actualizado:', updatedApiUser);
+        await userService.updateUser(parseInt(currentUser.id), userData);
       }
       
-      // Si se proporcionaron roleId y areaId y son diferentes a los actuales, actualizar rol
       if (data.roleId && data.areaId) {
         const currentRoleId = roles.find(r => r.name === currentUser.role)?.id;
         const currentAreaId = areas.find(a => a.name === currentUser.area)?.id;
         
         if (data.roleId !== currentRoleId || data.areaId !== currentAreaId) {
           try {
-            console.log(`Actualizando rol a ${data.roleId} y área a ${data.areaId} para usuario ${currentUser.id}`);
             await userService.assignRole(parseInt(currentUser.id), data.roleId, data.areaId);
           } catch (roleError) {
             console.error('Error al actualizar rol:', roleError);
-            // Continuamos aunque falle la actualización de rol
           }
         }
       }
       
-      // Encontrar los nombres del rol y área según sus IDs
       const roleName = roles.find(r => r.id === data.roleId)?.name || currentUser.role;
       const areaName = areas.find(a => a.id === data.areaId)?.name || currentUser.area;
       
-      // Actualizar el usuario en la lista local
       setUsers(users.map(user => 
         user.id === currentUser.id 
           ? {
               ...user,
               fullName: `${data.firstName} ${data.lastName}`,
+              firstName: data.firstName,
+              lastName: data.lastName,
               email: data.email,
               role: roleName,
               area: areaName,
-              isActive: data.isActive !== undefined ? data.isActive : user.isActive // Usar el valor del formulario
+              isActive: data.isActive !== undefined ? data.isActive : user.isActive
             }
           : user
       ));
@@ -349,44 +306,48 @@ const UsersPage: React.FC = () => {
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesRole = filterRole === 'all' || user.role === filterRole;
+    const matchesStatus = filterStatus === 'all' || 
+      (filterStatus === 'active' && user.isActive) ||
+      (filterStatus === 'inactive' && !user.isActive);
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesRole && matchesStatus;
   });
   
-  // Determinar las opciones de filtrado para roles
+  // Determinar las opciones de filtrado
   const roleFilterOptions = ['all', ...new Set(users.map(user => user.role))].filter(Boolean);
+  
+  // Estadísticas rápidas
+  const stats = {
+    total: users.length,
+    active: users.filter(u => u.isActive).length,
+    inactive: users.filter(u => !u.isActive).length,
+    withRoles: users.filter(u => u.role !== 'Sin rol asignado').length
+  };
   
   // Columnas para la tabla
   const columns = [
     {
-      header: 'Nombre',
+      header: 'Usuario',
       accessor: (user: LocalUser) => (
-        <div className="flex items-center">
-          <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-            {user.profileImage ? (
-              <img 
-                src={getFullImageUrl(user.profileImage)} 
-                alt={user.fullName} 
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  // Si la imagen falla, mostrar las iniciales
-                  e.currentTarget.style.display = 'none';
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const initials = user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2);
-                    parent.innerHTML = `<span class="text-gray-600 font-medium">${initials}</span>`;
-                  }
-                }}
-              />
-            ) : (
-              <span className="text-gray-600 font-medium">
-                {user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
-              </span>
-            )}
-          </div>
-          <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">{user.fullName}</div>
-            <div className="text-sm text-gray-500">{user.email}</div>
+        <div className="flex items-center gap-3">
+          <UserProfilePhoto 
+            user={{
+              id: parseInt(user.id),
+              firstName: user.firstName,
+              lastName: user.lastName,
+              profileImage: user.profileImage
+            }}
+            size="md"
+            clickable={true}
+            onClick={() => handleViewUser(user)}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-[var(--color-text-main)] truncate">
+              {user.fullName}
+            </div>
+            <div className="text-sm text-[var(--color-text-secondary)] truncate">
+              {user.email}
+            </div>
           </div>
         </div>
       )
@@ -394,105 +355,157 @@ const UsersPage: React.FC = () => {
     {
       header: 'Área',
       accessor: (user: LocalUser) => (
-        <span className="text-sm text-gray-900">{user.area}</span>
+        <div className="text-sm text-[var(--color-text-main)]">
+          {user.area}
+        </div>
       )
     },
     {
       header: 'Rol',
       accessor: (user: LocalUser) => (
-        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+        <Badge variant="primary">
           {user.role}
-        </span>
+        </Badge>
       )
     },
     {
       header: 'Estado',
       accessor: (user: LocalUser) => (
-        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-          user.isActive 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
+        <Badge variant={user.isActive ? "success" : "danger"}>
           {user.isActive ? 'Activo' : 'Inactivo'}
-        </span>
+        </Badge>
       )
     },
     {
       header: 'Último acceso',
-      accessor: (user: LocalUser) => formatDate(user.lastLogin)
+      accessor: (user: LocalUser) => (
+        <div className="text-sm text-[var(--color-text-secondary)]">
+          {formatDate(user.lastLogin)}
+        </div>
+      )
     }
   ];
   
   return (
     <DashboardLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Usuarios</h1>
-        <p className="text-gray-600">Gestiona los usuarios del sistema</p>
-      </div>
-      
-      {/* Panel de filtros y acciones */}
-      <DashboardCard className="mb-6">
-        <div className="flex flex-col space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="w-full sm:w-auto flex-grow">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre o email..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
+      <div className="space-y-6">
+        {/* Header con estadísticas */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <UsersIcon className="h-6 w-6 text-[var(--color-accent-1)]" />
+            <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Usuarios</h1>
+          </div>
+          <p className="text-[var(--color-text-secondary)]">Gestiona los usuarios del sistema</p>
+        </div>
+
+        {/* Estadísticas rápidas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
+            <div className="text-2xl font-bold text-[var(--color-text-main)]">{stats.total}</div>
+            <div className="text-sm text-[var(--color-text-secondary)]">Total usuarios</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
+            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+            <div className="text-sm text-[var(--color-text-secondary)]">Usuarios activos</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
+            <div className="text-2xl font-bold text-red-600">{stats.inactive}</div>
+            <div className="text-sm text-[var(--color-text-secondary)]">Usuarios inactivos</div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
+            <div className="text-2xl font-bold text-blue-600">{stats.withRoles}</div>
+            <div className="text-sm text-[var(--color-text-secondary)]">Con roles asignados</div>
+          </div>
+        </div>
+        
+        {/* Panel de filtros y acciones */}
+        <DashboardCard>
+          <div className="space-y-4">
+            {/* Primera fila: Búsqueda y botón agregar */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="w-full sm:w-auto flex-1 max-w-md">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre o email..."
+                    className="w-full px-4 py-2 pl-10 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-accent-1)] focus:border-[var(--color-accent-1)] transition-colors"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <MagnifyingGlassIcon className="w-5 h-5 text-[var(--color-text-secondary)]" />
+                  </div>
                 </div>
               </div>
+              
+              <DashboardButton
+                onClick={handleAddUser}
+                leftIcon={<PlusIcon className="w-5 h-5" />}
+              >
+                Agregar Usuario
+              </DashboardButton>
             </div>
             
-            <DashboardButton
-              onClick={handleAddUser}
-              leftIcon={<PlusIcon className="w-5 h-5" />}
-            >
-              Agregar Usuario
-            </DashboardButton>
-          </div>
-          
-          {roleFilterOptions.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              <select
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-              >
-                <option value="all">Todos los roles</option>
-                {roleFilterOptions.filter(role => role !== 'all').map(role => (
-                  <option key={role} value={role}>{role}</option>
-                ))}
-              </select>
+            {/* Segunda fila: Filtros */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                <select
+                  className="px-3 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-accent-1)] focus:border-[var(--color-accent-1)] bg-white transition-colors"
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                >
+                  <option value="all">Todos los roles</option>
+                  {roleFilterOptions.filter(role => role !== 'all').map(role => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+                
+                <select
+                  className="px-3 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-accent-1)] focus:border-[var(--color-accent-1)] bg-white transition-colors"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Solo activos</option>
+                  <option value="inactive">Solo inactivos</option>
+                </select>
+              </div>
+              
+              {/* Contador de resultados */}
+              <div className="flex items-center text-sm text-[var(--color-text-secondary)]">
+                Mostrando {filteredUsers.length} de {users.length} usuarios
+              </div>
             </div>
-          )}
-        </div>
-      </DashboardCard>
-      
-      {/* Usar el componente ApiErrorHandler */}
-      <ApiErrorHandler 
-        error={error} 
-        onRetry={loadInitialData} 
-        resourceName="los usuarios"
-      />
-      
-      {/* Tabla de usuarios */}
-      <DashboardDataTable
-        columns={columns}
-        data={filteredUsers}
-        keyExtractor={(user) => user.id}
-        onView={handleViewUser}
-        onEdit={handleEditUser}
-        onDelete={handleDeleteClick}
-        actionColumn={true}
-        emptyMessage={isLoading ? "Cargando usuarios..." : "No se encontraron usuarios"}
-        isLoading={isLoading}
-      />
+          </div>
+        </DashboardCard>
+        
+        {/* Manejo de errores */}
+        <ApiErrorHandler 
+          error={error} 
+          onRetry={loadInitialData} 
+          resourceName="los usuarios"
+        />
+        
+        {/* Tabla de usuarios */}
+        <DashboardCard>
+          <DashboardDataTable
+            columns={columns}
+            data={filteredUsers}
+            keyExtractor={(user) => user.id}
+            onView={handleViewUser}
+            onEdit={handleEditUser}
+            onDelete={handleDeleteClick}
+            actionColumn={true}
+            emptyMessage={
+              isLoading ? "Cargando usuarios..." : 
+              searchTerm || filterRole !== 'all' || filterStatus !== 'all' 
+                ? "No se encontraron usuarios con los filtros aplicados" 
+                : "No hay usuarios registrados"
+            }
+            isLoading={isLoading}
+          />
+        </DashboardCard>
+      </div>
       
       {/* Modal para agregar usuario */}
       <DashboardModal
@@ -511,6 +524,7 @@ const UsersPage: React.FC = () => {
         />
       </DashboardModal>
 
+      {/* Modal para editar usuario */}
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -524,12 +538,12 @@ const UsersPage: React.FC = () => {
         {currentUser && (
           <UserForm
             initialData={{
-              firstName: currentUser.fullName.split(' ')[0] || '',
-              lastName: currentUser.fullName.split(' ').slice(1).join(' ') || '',
+              firstName: currentUser.firstName,
+              lastName: currentUser.lastName,
               email: currentUser.email,
               roleId: roles.find(r => r.name === currentUser.role)?.id || '',
               areaId: areas.find(a => a.name === currentUser.area)?.id || '',
-              isActive: currentUser.isActive // Añadir el estado isActive
+              isActive: currentUser.isActive
             }}
             onSubmit={handleEditSubmit}
             onCancel={() => {
@@ -544,6 +558,7 @@ const UsersPage: React.FC = () => {
         )}
       </DashboardModal>
 
+      {/* Modal para eliminar usuario */}
       <DashboardModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
@@ -554,11 +569,33 @@ const UsersPage: React.FC = () => {
         error={modalError}
       >
         <div className="py-3">
-          <p className="text-gray-700">
-            ¿Estás seguro de que deseas eliminar al usuario <span className="font-medium">{currentUser?.fullName}</span>?
+          <div className="flex items-center gap-4 mb-4">
+            {currentUser && (
+              <UserProfilePhoto 
+                user={{
+                  id: parseInt(currentUser.id),
+                  firstName: currentUser.firstName,
+                  lastName: currentUser.lastName,
+                  profileImage: currentUser.profileImage
+                }}
+                size="lg"
+              />
+            )}
+            <div>
+              <p className="text-[var(--color-text-main)] font-medium">
+                {currentUser?.fullName}
+              </p>
+              <p className="text-[var(--color-text-secondary)] text-sm">
+                {currentUser?.email}
+              </p>
+            </div>
+          </div>
+          
+          <p className="text-[var(--color-text-main)]">
+            ¿Estás seguro de que deseas eliminar este usuario?
           </p>
-          <p className="text-gray-500 text-sm mt-2">
-            Esta acción no se puede deshacer.
+          <p className="text-[var(--color-text-secondary)] text-sm mt-2">
+            Esta acción no se puede deshacer y se perderán todos los datos asociados.
           </p>
         </div>
         
@@ -577,7 +614,7 @@ const UsersPage: React.FC = () => {
             onClick={handleDeleteUser}
             loading={isSubmitting}
           >
-            Eliminar
+            Eliminar Usuario
           </DashboardButton>
         </div>
       </DashboardModal>

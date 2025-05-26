@@ -2,17 +2,29 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import DashboardCard from '../components/ui/DashboardCard';
 import DashboardButton from '../components/ui/DashboardButton';
 import DashboardModal from '../components/ui/DashboardModal';
-import { CalendarDaysIcon, BriefcaseIcon, EnvelopeIcon, PhoneIcon, CakeIcon, ArrowLeftIcon, PencilIcon } from '@heroicons/react/24/outline';
+import UserProfilePhoto from '../components/ui/UserProfilePhoto';
+import Badge from '../components/ui/Badge';
+import { 
+  CalendarDaysIcon, 
+  BriefcaseIcon, 
+  EnvelopeIcon, 
+  PhoneIcon, 
+  CakeIcon, 
+  ArrowLeftIcon,
+  UserIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
 import { userService } from '../../../services';
 import { UserUpdateRequest } from '../../../services/users.service';
 import { getBaseUrl } from '../../../services/api';
 import fileUploadService from '../../../services/fileUpload.service';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
-import { formatFullDate } from '../../../utils/dateUtils';
+import { formatFullDate, parseDate, getDaysUntilBirthday, formatBirthday } from '../../../utils/dateUtils';
 
 // Importar imágenes
 import heroBanner from '../../../assets/images/medialab-hero.jpg';
@@ -36,10 +48,18 @@ interface UserProfile {
   location?: string;
 }
 
+interface ActivityStat {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  color: string;
+  bgColor: string;
+}
+
 const UserProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { state } = useAuth(); // Acceso al estado de autenticación
+  useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -58,26 +78,75 @@ const UserProfilePage: React.FC = () => {
   const [previewBannerImage, setPreviewBannerImage] = useState<string | null>(null);
 
   const [modalError, setModalError] = useState<string | null>(null);
-
-  // Verificar si el usuario actual es el dueño del perfil
-  const isCurrentUser = state.user && userId === state.user.id?.toString();
   
-  // Calcular el porcentaje de completitud del perfil
-  const calculateProfileCompleteness = (user: UserProfile | null): number => {
-    if (!user) return 0;
+  // Función para ir a la página anterior
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+  
+  // Calcular estadísticas del usuario
+  const getUserStats = (user: UserProfile | null): ActivityStat[] => {
+    if (!user) return [];
     
-    let totalFields = 4; // Campos básicos que siempre están (nombre, email, rol, área)
-    let completedFields = 4; // Estos campos son obligatorios
+    // Calcular días desde que se unió
+    const joinDate = new Date(user.joinDate);
+    const today = new Date();
+    const daysSinceJoin = Math.floor((today.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Verificar campos opcionales
-    if (user.profileImage) completedFields += 1;
-    if (user.phone) completedFields += 1;
-    if (user.birthday) completedFields += 1;
-    if (user.bannerImage) completedFields += 1;
+    // Calcular días hasta cumpleaños si existe
+    let birthdayInfo = null;
+    if (user.birthday) {
+      const birthDate = parseDate(user.birthday);
+      if (birthDate) {
+        const daysUntil = getDaysUntilBirthday(birthDate);
+        birthdayInfo = daysUntil === 0 ? '¡Hoy!' : `${daysUntil} días`;
+      }
+    }
     
-    totalFields += 4; // Añadir los campos opcionales al total
+    // Calcular último acceso
+    let lastLoginInfo = 'Nunca';
+    if (user.lastLogin && user.lastLogin !== '-') {
+      const lastLogin = new Date(user.lastLogin);
+      const daysAgo = Math.floor((today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24));
+      lastLoginInfo = daysAgo === 0 ? 'Hoy' : daysAgo === 1 ? 'Ayer' : `Hace ${daysAgo} días`;
+    }
     
-    return Math.round((completedFields / totalFields) * 100);
+    const stats: ActivityStat[] = [
+      {
+        label: 'Tiempo en equipo',
+        value: `${daysSinceJoin} días`,
+        icon: <CalendarDaysIcon className="h-5 w-5" />,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50'
+      },
+      {
+        label: 'Estado',
+        value: user.isActive ? 'Activo' : 'Inactivo',
+        icon: user.isActive ? <CheckCircleIcon className="h-5 w-5" /> : <ExclamationTriangleIcon className="h-5 w-5" />,
+        color: user.isActive ? 'text-green-600' : 'text-red-600',
+        bgColor: user.isActive ? 'bg-green-50' : 'bg-red-50'
+      },
+      {
+        label: 'Último acceso',
+        value: lastLoginInfo,
+        icon: <ClockIcon className="h-5 w-5" />,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-50'
+      }
+    ];
+    
+    // Agregar información de cumpleaños si existe
+    if (birthdayInfo) {
+      stats.push({
+        label: 'Próximo cumpleaños',
+        value: birthdayInfo,
+        icon: <CakeIcon className="h-5 w-5" />,
+        color: 'text-pink-600',
+        bgColor: 'bg-pink-50'
+      });
+    }
+    
+    return stats;
   };
   
   // Cargar datos del usuario desde la API
@@ -92,7 +161,6 @@ const UserProfilePage: React.FC = () => {
       setError(null);
       
       try {
-        // Obtener el usuario desde la API
         const userData = await userService.getUserById(parseInt(userId));
         
         // Determinar rol y área del usuario
@@ -162,14 +230,11 @@ const UserProfilePage: React.FC = () => {
       setIsSubmitting(true);
       setModalError(null);
       
-      // Preparar los datos para actualizar
       const updateData: Partial<UserUpdateRequest> = {};
       
-      // Procesar los campos de texto - solo añadir si hay cambios
       if (formData.phone !== user.phone) updateData.phone = formData.phone;
       
       if (formData.birthday) {
-        // Si hay un valor y es diferente al actual, actualizarlo
         if (formData.birthday !== user.birthday) {
           updateData.birthDate = formData.birthday;
         }
@@ -177,7 +242,6 @@ const UserProfilePage: React.FC = () => {
         updateData.birthDate = "";
       }
 
-      // Subir imágenes si se han seleccionado
       if (selectedProfileImage) {
         try {
           const profileImageUrl = await fileUploadService.uploadImage(selectedProfileImage, 'profile');
@@ -201,15 +265,11 @@ const UserProfilePage: React.FC = () => {
         }
       }
       
-      // Solo llamamos a la API si hay datos para actualizar
       if (Object.keys(updateData).length > 0) {
-        // Llamar al servicio para actualizar
         await userService.updateUser(parseInt(user.id), updateData);
         
-        // Recargar los datos completos del usuario después de la actualización
         const refreshedUserData = await userService.getUserById(parseInt(user.id));
         
-        // Determinar rol y área del usuario nuevamente
         let roleName = user.role;
         let areaName = user.area;
         
@@ -221,14 +281,12 @@ const UserProfilePage: React.FC = () => {
           areaName = refreshedUserData.areas.map(area => area.name).join(', ');
         }
         
-        // Actualizar el estado local con los datos completos y actualizados
         setUser({
           ...user,
           phone: refreshedUserData.phone || '',
           birthday: refreshedUserData.birth_date,
           profileImage: refreshedUserData.profileImage || refreshedUserData.profile_image,
           bannerImage: refreshedUserData.bannerImage || refreshedUserData.banner_image,
-          // Mantener el resto de campos actualizados
           email: refreshedUserData.email,
           firstName: refreshedUserData.firstName || refreshedUserData.first_name || '',
           lastName: refreshedUserData.lastName || refreshedUserData.last_name || '',
@@ -238,7 +296,6 @@ const UserProfilePage: React.FC = () => {
           isActive: refreshedUserData.isActive || !!refreshedUserData.is_active,
         });
         
-        // Actualizar también el formulario con los nuevos datos
         setFormData({
           phone: refreshedUserData.phone || '',
           birthday: refreshedUserData.birth_date ? new Date(refreshedUserData.birth_date).toISOString().split('T')[0] : '',
@@ -246,7 +303,6 @@ const UserProfilePage: React.FC = () => {
           bannerImage: refreshedUserData.bannerImage || refreshedUserData.banner_image || ''
         });
         
-        // Limpiar las previsualizaciones y archivos seleccionados
         setSelectedProfileImage(null);
         setSelectedBannerImage(null);
         if (previewProfileImage) URL.revokeObjectURL(previewProfileImage);
@@ -254,7 +310,6 @@ const UserProfilePage: React.FC = () => {
         setPreviewProfileImage(null);
         setPreviewBannerImage(null);
         
-        // Cerrar el modal
         setIsEditModalOpen(false);
         
         // Mostrar notificación de éxito
@@ -273,14 +328,11 @@ const UserProfilePage: React.FC = () => {
   const getFullImageUrl = (imagePath: string | undefined | null): string => {
     if (!imagePath) return defaultUserImage;
     
-    // Si la ruta ya comienza con http:// o https://, asumimos que es una URL completa
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
     
-    // Obtener la URL base del API
     const baseUrl = new URL(getBaseUrl()).origin;
-    // Asegurarnos de que la ruta de la imagen comience con /
     const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     
     return `${baseUrl}${path}`;
@@ -290,13 +342,11 @@ const UserProfilePage: React.FC = () => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
-      // Verificar el tamaño del archivo (máximo 1MB)
       if (file.size > 1 * 1024 * 1024) {
         alert('El archivo es demasiado grande. El tamaño máximo es 1MB.');
         return;
       }
       
-      // Crear una URL para previsualizar la imagen
       const previewUrl = URL.createObjectURL(file);
       
       if (type === 'profile') {
@@ -309,32 +359,11 @@ const UserProfilePage: React.FC = () => {
     }
   };
   
-  // Generar iniciales para el avatar si no hay imagen de perfil
-  const getInitials = (name: string): string => {
-    if (!name) return 'U';
-    const nameParts = name.split(' ');
-    if (nameParts.length >= 2) {
-      return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
-    }
-    return name.charAt(0).toUpperCase();
-  };
-  
-  // Generar color de fondo para el avatar basado en las iniciales
-  const getInitialBackgroundColor = (initials: string): string => {
-    const colors = [
-      'bg-gray-800', 'bg-blue-800', 'bg-green-800', 'bg-red-800', 
-      'bg-purple-800', 'bg-pink-800', 'bg-indigo-800', 'bg-yellow-800'
-    ];
-    
-    const charCode = initials.charCodeAt(0) || 65;
-    return colors[charCode % colors.length];
-  };
-  
   if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--color-accent-1)]"></div>
         </div>
       </DashboardLayout>
     );
@@ -356,273 +385,246 @@ const UserProfilePage: React.FC = () => {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <h2 className="text-xl font-medium text-gray-900">Usuario no encontrado</h2>
-          <p className="mt-2 text-gray-600">El usuario que buscas no existe.</p>
+          <UserIcon className="mx-auto h-12 w-12 text-[var(--color-text-secondary)]" />
+          <h2 className="mt-4 text-xl font-medium text-[var(--color-text-main)]">Usuario no encontrado</h2>
+          <p className="mt-2 text-[var(--color-text-secondary)]">El usuario que buscas no existe.</p>
           <DashboardButton 
             className="mt-4"
-            onClick={() => navigate('/dashboard/users')}
+            onClick={handleGoBack}
             leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
           >
-            Volver a la lista de usuarios
+            Volver
           </DashboardButton>
         </div>
       </DashboardLayout>
     );
   }
   
-    return (
+  const userStats = getUserStats(user);
+  
+  return (
     <DashboardLayout>
-      <div className="mb-4 flex justify-between items-center">
-        <DashboardButton
-          variant="outline"
-          onClick={() => navigate('/dashboard/users')}
-          leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
-        >
-          Volver a la lista
-        </DashboardButton>
-        
-        {/* Botón de completar perfil - visible para el propio usuario */}
-        {isCurrentUser && (
+      <div className="space-y-6">
+        {/* Header con navegación */}
+        <div className="flex items-center gap-4">
           <DashboardButton
-            onClick={() => setIsEditModalOpen(true)}
-            leftIcon={<PencilIcon className="h-5 w-5" />}
+            variant="outline"
+            onClick={handleGoBack}
+            leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
+            className="flex-shrink-0"
           >
-            Completar perfil
+            Volver
           </DashboardButton>
-        )}
-      </div>
-      
-      {/* Banner y foto de perfil */}
-      <div className="relative mb-8">
-        <div className="h-48 w-full overflow-hidden rounded-t-xl">
-          <img
-            src={user.bannerImage ? getFullImageUrl(user.bannerImage) : heroBanner}
-            alt="Perfil banner"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = heroBanner;
-            }}
-          />
+          
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Perfil de Usuario</h1>
+            <p className="text-[var(--color-text-secondary)]">Información detallada del miembro del equipo</p>
+          </div>
         </div>
-        
-        <div className="absolute bottom-0 left-8 transform translate-y-1/2 bg-white p-1 rounded-full shadow-lg">
-          {user.profileImage ? (
-            <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
-              <img 
-                src={getFullImageUrl(user.profileImage)}
-                alt={user.name}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = defaultUserImage;
+
+        {/* Banner y foto de perfil */}
+        <div className="relative">
+          <div className="h-48 w-full overflow-hidden rounded-xl shadow-sm">
+            <img
+              src={user.bannerImage ? getFullImageUrl(user.bannerImage) : heroBanner}
+              alt="Banner del perfil"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = heroBanner;
+              }}
+            />
+          </div>
+          
+          <div className="absolute bottom-0 left-8 transform translate-y-1/2">
+            <div className="bg-white p-1 rounded-full shadow-lg">
+              <UserProfilePhoto
+                user={{
+                  id: parseInt(user.id),
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  profileImage: user.profileImage
                 }}
+                size="2xl"
+                className="border-4 border-white"
               />
             </div>
-          ) : (
-            <div className={`h-32 w-32 rounded-full overflow-hidden border-4 border-white flex items-center justify-center text-white font-bold text-3xl ${getInitialBackgroundColor(getInitials(user.name))}`}>
-              {getInitials(user.name)}
-            </div>
-          )}
+          </div>
         </div>
-      </div>
-      
-      <div className="mt-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Información del perfil */}
-          <div className="lg:col-span-2 space-y-6">
-            <DashboardCard>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-                <div className="mt-1 flex items-center">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full mr-2 ${
-                    user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {user.isActive ? 'Activo' : 'Inactivo'}
-                  </span>
-                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                    {user.role}
-                  </span>
+        
+        {/* Información del usuario */}
+        <div className="mt-16 space-y-6">
+          {/* Primera fila - 2 tarjetas iguales */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Información básica */}
+            <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-[var(--color-text-main)]">{user.name}</h2>
+                  <p className="text-[var(--color-text-secondary)] mt-1">{user.email}</p>
+                  
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Badge variant={user.isActive ? "success" : "danger"}>
+                      {user.isActive ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                    <Badge variant="primary">{user.role}</Badge>
+                    <Badge variant="info">{user.area}</Badge>
+                  </div>
                 </div>
               </div>
+            </div>
+            
+            {/* Estadísticas del usuario */}
+            <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+              <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                Estadísticas del Usuario
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {userStats.map((stat, index) => (
+                  <div key={index} className={`${stat.bgColor} rounded-lg p-3 border border-white shadow-sm`}>
+                    <div className="flex items-center">
+                      <div className={`${stat.color} p-2 rounded-lg bg-white shadow-sm flex-shrink-0`}>
+                        {stat.icon}
+                      </div>
+                      <div className="ml-3 min-w-0">
+                        <p className="text-xs font-medium text-gray-600">{stat.label}</p>
+                        <p className="text-sm font-bold text-[var(--color-text-main)] truncate">{stat.value}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Segunda fila - 2 tarjetas iguales */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Panel de contacto rápido */}
+            <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+              <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                Contacto Rápido
+              </h3>
               
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <BriefcaseIcon className="h-5 w-5 text-gray-400" />
+              <div className="space-y-3">
+                <a 
+                  href={`mailto:${user.email}`}
+                  className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-200 group"
+                >
+                  <div className="p-2 bg-blue-500 rounded-lg group-hover:bg-blue-600 transition-colors">
+                    <EnvelopeIcon className="h-4 w-4 text-white" />
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Área</p>
-                    <p className="text-base text-gray-900">{user.area}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-blue-900">Enviar email</p>
+                    <p className="text-xs text-blue-600 truncate">{user.email}</p>
                   </div>
-                </div>
+                </a>
                 
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Fecha de ingreso</p>
-                    <p className="text-base text-gray-900">{formatFullDate(user.joinDate)}</p>
-                  </div>
-                </div>
+                {user.phone && (
+                  <a 
+                    href={`tel:${user.phone}`}
+                    className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors duration-200 group"
+                  >
+                    <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
+                      <PhoneIcon className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-green-900">Llamar</p>
+                      <p className="text-xs text-green-600">{user.phone}</p>
+                    </div>
+                  </a>
+                )}
                 
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Email</p>
-                    <p className="text-base text-gray-900">{user.email}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <PhoneIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Teléfono</p>
-                    <p className="text-base text-gray-900">
-                      {user.phone ? user.phone : 'No registrado'}
+                {user.birthday && (
+                  <div className="p-3 bg-gradient-to-r from-pink-50 to-pink-100 rounded-lg border border-pink-100">
+                    <div className="flex items-center gap-2">
+                      <CakeIcon className="h-4 w-4 text-pink-600" />
+                      <span className="text-sm font-medium text-pink-700">Próximo cumpleaños</span>
+                    </div>
+                    <p className="text-sm text-pink-600 mt-1">
+                      {(() => {
+                        const birthDate = parseDate(user.birthday);
+                        if (birthDate) {
+                          const daysUntil = getDaysUntilBirthday(birthDate);
+                          return daysUntil === 0 ? '¡Hoy es su cumpleaños! 🎉' : 
+                                 daysUntil === 1 ? '¡Mañana es su cumpleaños!' : 
+                                 `Faltan ${daysUntil} días`;
+                        }
+                        return 'Información de cumpleaños disponible';
+                      })()}
                     </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Información de contacto */}
+            <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+              <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                Información de Contacto
+              </h3>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 p-2 bg-blue-50 rounded-lg">
+                    <EnvelopeIcon className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--color-text-secondary)]">Email</p>
+                    <p className="text-base text-[var(--color-text-main)] truncate">{user.email}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 p-2 bg-green-50 rounded-lg">
+                    <PhoneIcon className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--color-text-secondary)]">Teléfono</p>
+                    <p className="text-base text-[var(--color-text-main)]">
+                      {user.phone || 'No registrado'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 p-2 bg-purple-50 rounded-lg">
+                    <BriefcaseIcon className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--color-text-secondary)]">Área de trabajo</p>
+                    <p className="text-base text-[var(--color-text-main)]">{user.area}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 p-2 bg-amber-50 rounded-lg">
+                    <CalendarDaysIcon className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--color-text-secondary)]">Fecha de ingreso</p>
+                    <p className="text-base text-[var(--color-text-main)]">{formatFullDate(user.joinDate)}</p>
                   </div>
                 </div>
 
                 {user.birthday && (
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <CakeIcon className="h-5 w-5 text-gray-400" />
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 p-2 bg-pink-50 rounded-lg">
+                      <CakeIcon className="h-5 w-5 text-pink-600" />
                     </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500">Fecha de nacimiento</p>
-                      <p className="text-base text-gray-900">
-                        {user.birthday ? formatFullDate(user.birthday) : 'No registrada'}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[var(--color-text-secondary)]">Fecha de nacimiento</p>
+                      <p className="text-base text-[var(--color-text-main)]">
+                        {formatBirthday(parseDate(user.birthday)!)}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
-            </DashboardCard>
-          </div>
-          
-          {/* Columna derecha - Con contenido alternativo si no es el usuario actual */}
-          <div className="lg:col-span-1 space-y-6">
-            {isCurrentUser ? (
-              /* Estado de completitud - Solo visible para el propio usuario */
-              <DashboardCard
-                title="Estado del perfil"
-                subtitle="Información de completitud"
-              >
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium text-gray-700">Completitud del perfil</span>
-                      <span className="text-sm font-medium text-black">{calculateProfileCompleteness(user)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-black h-2 rounded-full" style={{ width: `${calculateProfileCompleteness(user)}%` }}></div>
-                    </div>
-                  </div>
-                  
-                  <ul className="space-y-3 mt-4">
-                    <li className="flex items-center text-sm">
-                      <div className="flex-shrink-0 h-5 w-5 text-green-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="ml-2 text-gray-700">Información básica</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <div className={`flex-shrink-0 h-5 w-5 ${user.profileImage ? 'text-green-500' : 'text-gray-400'}`}>
-                        {user.profileImage ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className={`ml-2 ${user.profileImage ? 'text-gray-700' : 'text-gray-400'}`}>Foto de perfil</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <div className={`flex-shrink-0 h-5 w-5 ${user.phone ? 'text-green-500' : 'text-gray-400'}`}>
-                        {user.phone ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className={`ml-2 ${user.phone ? 'text-gray-700' : 'text-gray-400'}`}>Teléfono</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <div className={`flex-shrink-0 h-5 w-5 ${user.bannerImage ? 'text-green-500' : 'text-gray-400'}`}>
-                        {user.bannerImage ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className={`ml-2 ${user.bannerImage ? 'text-gray-700' : 'text-gray-400'}`}>Imagen de banner</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <div className={`flex-shrink-0 h-5 w-5 ${user.birthday ? 'text-green-500' : 'text-gray-400'}`}>
-                        {user.birthday ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className={`ml-2 ${user.birthday ? 'text-gray-700' : 'text-gray-400'}`}>Fecha de nacimiento</span>
-                    </li>
-                  </ul>
-                  
-                  <div className="mt-6">
-                    <DashboardButton
-                      onClick={() => setIsEditModalOpen(true)}
-                      className="w-full"
-                    >
-                      Completar perfil
-                    </DashboardButton>
-                  </div>
-                </div>
-              </DashboardCard>
-            ) : (
-              /* Información alternativa para usuarios que no son el propietario del perfil */
-              <DashboardCard
-                title="Información del miembro"
-              >
-                <div className="p-4 bg-gray-50 rounded-lg mt-2">
-                  <p className="text-gray-600">
-                    {user.name} forma parte del equipo de <span className="font-medium text-black">{user.area}</span> desde el {formatFullDate(user.joinDate).split(',')[0]}.
-                  </p>
-                  
-                  <p className="text-gray-500 text-sm mt-4">
-                    {user.isActive 
-                      ? 'Actualmente se encuentra activo en la plataforma.' 
-                      : 'Actualmente no se encuentra activo en la plataforma.'}
-                  </p>
-                </div>
-              </DashboardCard>
-            )}
+            </div>
           </div>
         </div>
       </div>
       
-      {/* Modal para completar perfil */}
+      {/* Modal para editar perfil */}
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -630,29 +632,25 @@ const UserProfilePage: React.FC = () => {
         size="md"
         error={modalError}
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Foto de perfil */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[var(--color-text-main)] mb-3">
               Foto de perfil
             </label>
-            <div className="flex items-center space-x-4">
-              {previewProfileImage || user?.profileImage ? (
-                <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white">
-                  <img
-                    src={previewProfileImage || (user?.profileImage ? getFullImageUrl(user.profileImage) : defaultUserImage)}
-                    alt="Foto de perfil"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className={`h-32 w-32 rounded-full overflow-hidden border-4 border-white flex items-center justify-center text-white font-bold text-3xl ${getInitialBackgroundColor(getInitials(user?.name || ''))}`}>
-                  {getInitials(user?.name || '')}
-                </div>
-              )}
+            <div className="flex items-center gap-4">
+              <UserProfilePhoto
+                user={{
+                  id: parseInt(user.id),
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  profileImage: previewProfileImage || user.profileImage
+                }}
+                size="xl"
+              />
               <div>
                 <label className="cursor-pointer">
-                  <span className="px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <span className="px-4 py-2 bg-white border border-[var(--color-border)] rounded-lg shadow-sm text-sm font-medium text-[var(--color-text-main)] hover:bg-gray-50 transition-colors">
                     Cambiar foto
                   </span>
                   <input
@@ -662,8 +660,8 @@ const UserProfilePage: React.FC = () => {
                     onChange={(e) => handleFileChange(e, 'profile')}
                   />
                 </label>
-                <p className="mt-1 text-xs text-gray-500">
-                  JPG o PNG. Máximo 1MB
+                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                  JPG, PNG o GIF. Máximo 1MB
                 </p>
               </div>
             </div>
@@ -671,10 +669,10 @@ const UserProfilePage: React.FC = () => {
 
           {/* Banner */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[var(--color-text-main)] mb-3">
               Imagen de banner
             </label>
-            <div className="border border-gray-300 rounded-lg p-2">
+            <div className="border border-[var(--color-border)] rounded-lg p-3">
               <div className="h-24 w-full rounded-lg overflow-hidden bg-gray-200">
                 <img
                   src={previewBannerImage || (user?.bannerImage ? getFullImageUrl(user.bannerImage) : heroBanner)}
@@ -682,9 +680,9 @@ const UserProfilePage: React.FC = () => {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <div className="mt-2 flex justify-end">
+              <div className="mt-3 flex justify-end">
                 <label className="cursor-pointer">
-                  <span className="px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <span className="px-4 py-2 bg-white border border-[var(--color-border)] rounded-lg shadow-sm text-sm font-medium text-[var(--color-text-main)] hover:bg-gray-50 transition-colors">
                     Cambiar banner
                   </span>
                   <input
@@ -700,7 +698,7 @@ const UserProfilePage: React.FC = () => {
 
           {/* Teléfono */}
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="phone" className="block text-sm font-medium text-[var(--color-text-main)] mb-2">
               Teléfono
             </label>
             <input
@@ -709,14 +707,14 @@ const UserProfilePage: React.FC = () => {
               name="phone"
               value={formData.phone}
               onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+              className="w-full px-4 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-accent-1)] focus:border-[var(--color-accent-1)] transition-colors"
               placeholder="+502 5555-1234"
             />
           </div>
           
           {/* Fecha de nacimiento */}
           <div>
-            <label htmlFor="birthday" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="birthday" className="block text-sm font-medium text-[var(--color-text-main)] mb-2">
               Fecha de nacimiento
             </label>
             <input
@@ -725,11 +723,11 @@ const UserProfilePage: React.FC = () => {
               name="birthday"
               value={formData.birthday}
               onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+              className="w-full px-4 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-accent-1)] focus:border-[var(--color-accent-1)] transition-colors"
             />
           </div>
           
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-[var(--color-border)]">
             <DashboardButton
               variant="outline"
               onClick={() => setIsEditModalOpen(false)}

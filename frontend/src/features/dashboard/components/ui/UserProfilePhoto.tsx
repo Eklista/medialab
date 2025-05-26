@@ -1,11 +1,13 @@
 // src/features/dashboard/components/ui/UserProfilePhoto.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import { userService } from '../../../../services';
+import type { User } from '../../../../services/users.service';
 
 export interface UserProfilePhotoProps {
   /** Tamaño del avatar */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  /** Usuario específico */
+  /** Usuario específico con datos completos */
   user?: {
     id?: number;
     firstName?: string;
@@ -14,6 +16,8 @@ export interface UserProfilePhotoProps {
     profileImage?: string;
     profile_image?: string;
   };
+  /** ID del usuario - si se proporciona, buscará los datos del backend */
+  userId?: number;
   /** Clase CSS adicional */
   className?: string;
   /** Si debe ser clickeable */
@@ -24,21 +28,64 @@ export interface UserProfilePhotoProps {
   showOnlineStatus?: boolean;
   /** Estado online personalizado */
   isOnline?: boolean;
+  /** Mostrar loading placeholder mientras carga */
+  showLoading?: boolean;
 }
+
+// Cache simple para usuarios ya consultados
+const userCache = new Map<number, User>();
 
 const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   size = 'md',
   user,
+  userId,
   className = '',
   clickable = false,
   onClick,
   showOnlineStatus = false,
-  isOnline = false
+  isOnline = false,
+  showLoading = true
 }) => {
   const { state } = useAuth();
+  const [fetchedUser, setFetchedUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   
-  // Usar el usuario pasado como prop o el usuario actual del contexto
-  const currentUser = user || state.user;
+  // Función para obtener usuario desde el backend
+  useEffect(() => {
+    // Solo buscar si tenemos userId pero no user
+    if (userId && !user) {
+      // Verificar cache primero
+      if (userCache.has(userId)) {
+        setFetchedUser(userCache.get(userId)!);
+        return;
+      }
+      
+      // Buscar desde backend
+      const fetchUser = async () => {
+        try {
+          setIsLoading(true);
+          setHasError(false);
+          
+          const userData = await userService.getUserById(userId);
+          
+          // Guardar en cache
+          userCache.set(userId, userData);
+          setFetchedUser(userData);
+        } catch (error) {
+          console.error(`Error al cargar usuario con ID ${userId}:`, error);
+          setHasError(true);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      fetchUser();
+    }
+  }, [userId, user]);
+  
+  // Determinar el usuario a usar (prioridad: user prop > fetched user > current user)
+  const currentUser = user || fetchedUser || state.user;
   
   // Función para obtener la URL completa de la imagen - CORREGIDA
   const getFullImageUrl = (imagePath: string | undefined | null): string => {
@@ -109,18 +156,21 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   const profileImage = currentUser?.profileImage || currentUser?.profile_image || null;
   const imageUrl = getFullImageUrl(profileImage);
   
-  // 🐛 DEBUG: Agregar logs para diagnosticar
-  React.useEffect(() => {
-    console.log('🖼️ UserProfilePhoto Debug - ALWAYS:', {
-      hasUser: !!currentUser,
-      profileImage: profileImage,
-      constructedUrl: imageUrl,
-      environment: import.meta.env.MODE,
-      windowOrigin: window.location.origin,
-      apiUrl: import.meta.env.VITE_API_URL,
-      userObject: currentUser
-    });
-  }, [currentUser, profileImage, imageUrl]);
+  // 🔇 DEBUG: Console.log comentado
+  // React.useEffect(() => {
+  //   console.log('🖼️ UserProfilePhoto Debug - ALWAYS:', {
+  //     hasUser: !!currentUser,
+  //     profileImage: profileImage,
+  //     constructedUrl: imageUrl,
+  //     environment: import.meta.env.MODE,
+  //     windowOrigin: window.location.origin,
+  //     apiUrl: import.meta.env.VITE_API_URL,
+  //     userObject: currentUser,
+  //     userId: userId,
+  //     isLoading: isLoading,
+  //     hasError: hasError
+  //   });
+  // }, [currentUser, profileImage, imageUrl, userId, isLoading, hasError]);
   
   // Clases base
   const baseClasses = `
@@ -152,7 +202,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   // 🔧 MEJORADO: Manejo de errores de imagen
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = e.target as HTMLImageElement;
-    console.warn('🚫 Error cargando imagen:', target.src);
+    // console.warn('🚫 Error cargando imagen:', target.src);
     target.style.display = 'none';
     
     const parent = target.parentElement;
@@ -164,12 +214,44 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
     }
   };
   
+  // Loading placeholder
+  if (isLoading && showLoading && !currentUser) {
+    return (
+      <div 
+        className={`${baseClasses} bg-gray-200 animate-pulse`}
+        onClick={clickable ? onClick : undefined}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+      >
+        <div className="w-full h-full bg-gray-300 rounded-full"></div>
+        {renderOnlineIndicator()}
+      </div>
+    );
+  }
+  
+  // Error state - mostrar iniciales genéricas
+  if (hasError || (!currentUser && userId)) {
+    return (
+      <div 
+        className={`${baseClasses} bg-gray-400`}
+        onClick={clickable ? onClick : undefined}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        title={hasError ? 'Error al cargar usuario' : 'Usuario no encontrado'}
+      >
+        <span className="text-white select-none">?</span>
+        {renderOnlineIndicator()}
+      </div>
+    );
+  }
+
   return (
     <div 
       className={baseClasses}
       onClick={clickable ? onClick : undefined}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
+      title={currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : undefined}
     >
       {imageUrl ? (
         <img
@@ -178,7 +260,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
           className="h-full w-full object-cover"
           onError={handleImageError}
           onLoad={() => {
-            console.log('✅ Imagen cargada exitosamente:', imageUrl);
+            // console.log('✅ Imagen cargada exitosamente:', imageUrl);
           }}
         />
       ) : (

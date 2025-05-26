@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/SidebarFooter.tsx - UI mejorada con soporte para modo colapsado
+// src/features/dashboard/components/layout/SidebarFooter.tsx
 import React from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { LockClosedIcon } from '@heroicons/react/24/solid';

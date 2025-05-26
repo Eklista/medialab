@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/DashboardLayout.tsx - Mejorado
+// src/features/dashboard/components/layout/DashboardLayout.tsx
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';

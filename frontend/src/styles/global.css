@@ -33,11 +33,11 @@
   --font-heading: "Poppins", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
 
-  /* Variables para scrollbar mejoradas */
+  /* Variables para scrollbar */
   --scrollbar-width: 6px;
-  --scrollbar-track: rgba(255, 255, 255, 0.1);
-  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --scrollbar-track: #f1f1f1;
+  --scrollbar-thumb: #c5c5c5;
+  --scrollbar-thumb-hover: #a0a0a0;
 
   /* Sidebar específico - Mejorado */
   --sidebar-bg: #1a1d29;

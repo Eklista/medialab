@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/DashboardHome.tsx - UI renovada y simplificada
+// src/features/dashboard/pages/DashboardHome.tsx
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -226,21 +226,22 @@ const DashboardHome: React.FC = () => {
         {/* Segunda fila: Colaborador del mes y Próximos cumpleaños */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Colaborador del mes */}
-          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 relative">
+            {/* PIN ICON - TROPHY */}
+            <div className="absolute top-4 right-4 z-10">
+              <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full p-2 shadow-md">
+                <TrophyIcon className="h-4 w-4 text-white" />
+              </div>
+            </div>
+            
             <div className="p-6 border-b border-[var(--color-border)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
-                    Colaborador del Mes
-                  </h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    Mejor desempeño en mayo 2025
-                  </p>
-                </div>
-                <div className="flex items-center bg-gradient-to-r from-yellow-100 to-yellow-200 px-3 py-1.5 rounded-full">
-                  <TrophyIcon className="h-4 w-4 text-yellow-600 mr-1" />
-                  <span className="text-sm font-medium text-yellow-700">El mejor de los mejores</span>
-                </div>
+              <div className="pr-12">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                  Colaborador del Mes
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Mejor desempeño en mayo 2025
+                </p>
               </div>
             </div>
             
@@ -257,7 +258,7 @@ const DashboardHome: React.FC = () => {
                     Pablito Lindo
                   </h4>
                   <p className="text-[var(--color-text-secondary)]">Área de Transmisión</p>
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-3">
                     <Badge variant="primary">1 Produccion</Badge>
                     <Badge variant="success">5000 Transmisiones</Badge>
                   </div>
@@ -272,21 +273,22 @@ const DashboardHome: React.FC = () => {
           </div>
 
           {/* Próximos cumpleaños */}
-          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 relative">
+            {/* PIN ICON - CAKE */}
+            <div className="absolute top-4 right-4 z-10">
+              <div className="bg-gradient-to-r from-pink-400 to-pink-500 rounded-full p-2 shadow-md">
+                <CakeIcon className="h-4 w-4 text-white" />
+              </div>
+            </div>
+            
             <div className="p-6 border-b border-[var(--color-border)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
-                    Próximos Cumpleaños
-                  </h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    Celebremos juntos estos momentos especiales
-                  </p>
-                </div>
-                <div className="flex items-center bg-gradient-to-r from-pink-100 to-pink-200 px-3 py-1.5 rounded-full">
-                  <CakeIcon className="h-4 w-4 text-pink-600 mr-1" />
-                  <span className="text-sm font-medium text-pink-700">Eventos</span>
-                </div>
+              <div className="pr-12">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                  Próximos Cumpleaños
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Celebremos juntos estos momentos especiales
+                </p>
               </div>
             </div>
 
@@ -312,25 +314,27 @@ const DashboardHome: React.FC = () => {
                         }}
                         size="lg"
                       />
-                      <div className="ml-4 flex-1">
-                        <p className="font-medium text-[var(--color-text-main)]">
+                      <div className="ml-4 flex-1 min-w-0">
+                        <p className="font-medium text-[var(--color-text-main)] truncate">
                           {user.name}
                         </p>
                         <div className="flex items-center text-sm text-[var(--color-text-secondary)] mt-1">
-                          <CalendarDaysIcon className="h-4 w-4 mr-1" />
-                          {formatBirthday(user.birthDate)}
+                          <CalendarDaysIcon className="h-4 w-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">{formatBirthday(user.birthDate)}</span>
                         </div>
                       </div>
-                      <Badge 
-                        variant={
-                          user.daysUntilBirthday === 0 ? "success" :
-                          user.daysUntilBirthday <= 7 ? "warning" : "info"
-                        }
-                      >
-                        {user.daysUntilBirthday === 0 ? "¡Hoy!" : 
-                         user.daysUntilBirthday === 1 ? "¡Mañana!" : 
-                         `En ${user.daysUntilBirthday} días`}
-                      </Badge>
+                      <div className="ml-2 flex-shrink-0">
+                        <Badge 
+                          variant={
+                            user.daysUntilBirthday === 0 ? "success" :
+                            user.daysUntilBirthday <= 7 ? "warning" : "info"
+                          }
+                        >
+                          {user.daysUntilBirthday === 0 ? "¡Hoy!" : 
+                           user.daysUntilBirthday === 1 ? "¡Mañana!" : 
+                           `En ${user.daysUntilBirthday} días`}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -341,11 +345,11 @@ const DashboardHome: React.FC = () => {
 
         {/* Proyectos destacados */}
         <div>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <h2 className="text-xl font-semibold text-[var(--color-text-main)]">
               Proyectos Destacados
             </h2>
-            <button className="text-sm font-medium text-[var(--color-accent-1)] hover:text-[var(--color-hover)] transition-colors">
+            <button className="text-sm font-medium text-[var(--color-accent-1)] hover:text-[var(--color-hover)] transition-colors self-start sm:self-center">
               Ver todos los proyectos →
             </button>
           </div>
@@ -354,11 +358,14 @@ const DashboardHome: React.FC = () => {
             {featuredProjects.map((project) => (
               <div key={project.id} className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-all duration-200 hover:border-[var(--color-accent-1)]">
                 <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-2 rounded-lg ${getProjectTypeColor(project.type)}`}>
+                  {/* HEADER DE PROYECTOS RESPONSIVE MEJORADO */}
+                  <div className="flex items-start justify-between mb-4 gap-3">
+                    <div className={`p-2 rounded-lg ${getProjectTypeColor(project.type)} flex-shrink-0`}>
                       {getProjectIcon(project.type)}
                     </div>
-                    {getStatusBadge(project.status)}
+                    <div className="flex-shrink-0">
+                      {getStatusBadge(project.status)}
+                    </div>
                   </div>
                   
                   <h3 className="font-semibold text-[var(--color-text-main)] mb-2 line-clamp-2">
@@ -382,25 +389,25 @@ const DashboardHome: React.FC = () => {
                     
                     {/* Fecha de entrega */}
                     <div className="flex items-center text-sm text-[var(--color-text-secondary)]">
-                      <ClockIcon className="h-4 w-4 mr-2" />
-                      Entrega: {new Date(project.dueDate).toLocaleDateString()}
+                      <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">Entrega: {new Date(project.dueDate).toLocaleDateString()}</span>
                     </div>
                     
                     {/* Equipo */}
                     <div className="flex items-center">
-                      <UserGroupIcon className="h-4 w-4 text-[var(--color-text-secondary)] mr-2" />
+                      <UserGroupIcon className="h-4 w-4 text-[var(--color-text-secondary)] mr-2 flex-shrink-0" />
                       <div className="flex -space-x-2">
                         {project.team.slice(0, 3).map((member, idx) => (
                           <div
                             key={idx}
-                            className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium border-2 border-white"
+                            className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium border-2 border-white flex-shrink-0"
                             title={member}
                           >
                             {getInitials(member)}
                           </div>
                         ))}
                         {project.team.length > 3 && (
-                          <div className="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium border-2 border-white">
+                          <div className="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium border-2 border-white flex-shrink-0">
                             +{project.team.length - 3}
                           </div>
                         )}
