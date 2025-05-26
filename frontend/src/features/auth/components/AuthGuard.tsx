@@ -7,43 +7,60 @@ import LockScreen from './LockScreen';
 interface AuthGuardProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  requireAuth?: boolean; // Nuevo: permite controlar si requiere autenticación
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ 
   children, 
-  fallback = <Navigate to="/ml-admin/login" replace /> 
+  fallback = <Navigate to="/ml-admin/login" replace />,
+  requireAuth = true
 }) => {
   const { state, checkAuthStatus } = useAuth();
-  const [isChecking, setIsChecking] = useState(true);
+  const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
     const performAuthCheck = async () => {
       try {
-        setIsChecking(true);
-        // Verificar autenticación usando cookies
-        await checkAuthStatus();
+        setHasChecked(false);
+        
+        // Solo verificar si requerimos autenticación y no estamos ya autenticados
+        if (requireAuth && !state.isAuthenticated && !state.isLoggingOut) {
+          console.log('🔍 AuthGuard: Verificando autenticación...');
+          await checkAuthStatus();
+        }
       } catch (error) {
         console.error('Error checking authentication:', error);
       } finally {
-        setIsChecking(false);
+        setHasChecked(true);
       }
     };
 
-    // Solo verificar si no estamos ya autenticados
-    if (!state.isAuthenticated) {
+    // Solo verificar si aún no hemos inicializado o si es necesario
+    if ((requireAuth && !state.hasInitialized) || 
+        (requireAuth && !state.isAuthenticated && !state.isLoggingOut)) {
       performAuthCheck();
     } else {
-      setIsChecking(false);
+      setHasChecked(true);
     }
-  }, [checkAuthStatus, state.isAuthenticated]);
+  }, [checkAuthStatus, state.isAuthenticated, state.hasInitialized, requireAuth]);
 
-  // Mostrar loading mientras verifica
-  if (isChecking || state.isLoading) {
+  // 🔥 MEJORADO: Manejo de estados de carga más específico
+  if (requireAuth && (state.isLoading || !state.hasInitialized || !hasChecked)) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {state.isLoading ? 'Verificando sesión...' : 'Cargando...'}
+          </p>
+        </div>
       </div>
     );
+  }
+
+  // Si no requiere autenticación, mostrar el contenido directamente
+  if (!requireAuth) {
+    return <>{children}</>;
   }
 
   // Si la sesión está bloqueada, mostrar la pantalla de bloqueo
