@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import DashboardButton from '../ui/DashboardButton';
+import DashboardTextInput from '../ui/DashboardTextInput';
+import DashboardTextArea from '../ui/DashboardTextArea';
+import DashboardSelect from '../ui/DashboardSelect';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 // Definimos el tipo para un sub-servicio
@@ -138,63 +141,42 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         {/* Campo Nombre */}
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-            Nombre <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            className={`mt-1 block w-full px-3 py-2 border ${
-              errors.name ? 'border-red-300' : 'border-gray-300'
-            } rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm`}
-            disabled={isSubmitting}
-          />
-          {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-        </div>
+        <DashboardTextInput
+          id="name"
+          name="name"
+          label="Nombre"
+          value={formData.name}
+          onChange={handleChange}
+          placeholder="Nombre del servicio"
+          required
+          disabled={isSubmitting}
+          error={errors.name}
+        />
         
         {/* Campo Descripción */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-            Descripción
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            rows={3}
-            value={formData.description}
-            onChange={handleChange}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm"
-            disabled={isSubmitting}
-          />
-        </div>
+        <DashboardTextArea
+          id="description"
+          name="description"
+          label="Descripción"
+          value={formData.description}
+          onChange={handleChange}
+          placeholder="Descripción del servicio"
+          rows={3}
+          disabled={isSubmitting}
+        />
         
         {/* Campo Icono */}
-        <div>
-          <label htmlFor="iconName" className="block text-sm font-medium text-gray-700">
-            Icono <span className="text-red-500">*</span>
-          </label>
-          <select
-            id="iconName"
-            name="iconName"
-            value={formData.iconName}
-            onChange={handleChange}
-            className={`mt-1 block w-full px-3 py-2 border ${
-              errors.iconName ? 'border-red-300' : 'border-gray-300'
-            } rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm`}
-            disabled={isSubmitting}
-          >
-            {ICON_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          {errors.iconName && <p className="mt-1 text-sm text-red-600">{errors.iconName}</p>}
-        </div>
+        <DashboardSelect
+          id="iconName"
+          name="iconName"
+          label="Icono"
+          value={formData.iconName}
+          onChange={handleChange}
+          options={ICON_OPTIONS}
+          required
+          disabled={isSubmitting}
+          error={errors.iconName}
+        />
       </div>
       
       {/* Sección Sub-servicios */}
@@ -222,45 +204,42 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
         ) : (
           <div className="space-y-4">
             {formData.subServices.map((subService, index) => (
-              <div key={index} className="border border-gray-200 p-3 rounded-md">
-                <div className="flex justify-between items-start mb-2">
+              <div key={index} className="border border-gray-200 p-4 rounded-md">
+                <div className="flex justify-between items-start mb-3">
                   <h4 className="text-sm font-medium text-gray-700">Sub-servicio {index + 1}</h4>
                   <button
                     type="button"
                     onClick={() => handleRemoveSubService(index)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-600 hover:text-red-800 p-1 rounded transition-colors"
                     disabled={isSubmitting}
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500">
-                      Nombre <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={subService.name}
-                      onChange={e => handleSubServiceChange(index, 'name', e.target.value)}
-                      className="mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black text-sm"
-                      disabled={isSubmitting}
-                    />
-                  </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <DashboardTextInput
+                    id={`subservice-name-${index}`}
+                    name={`subservice-name-${index}`}
+                    label="Nombre"
+                    value={subService.name}
+                    onChange={(e) => handleSubServiceChange(index, 'name', e.target.value)}
+                    placeholder="Nombre del sub-servicio"
+                    required
+                    disabled={isSubmitting}
+                    size="sm"
+                  />
                   
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500">
-                      Descripción
-                    </label>
-                    <input
-                      type="text"
-                      value={subService.description}
-                      onChange={e => handleSubServiceChange(index, 'description', e.target.value)}
-                      className="mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black text-sm"
-                      disabled={isSubmitting}
-                    />
-                  </div>
+                  <DashboardTextInput
+                    id={`subservice-description-${index}`}
+                    name={`subservice-description-${index}`}
+                    label="Descripción"
+                    value={subService.description}
+                    onChange={(e) => handleSubServiceChange(index, 'description', e.target.value)}
+                    placeholder="Descripción del sub-servicio"
+                    disabled={isSubmitting}
+                    size="sm"
+                  />
                 </div>
               </div>
             ))}
