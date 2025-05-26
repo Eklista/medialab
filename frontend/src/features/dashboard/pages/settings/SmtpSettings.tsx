@@ -12,17 +12,15 @@ import { smtpService } from '../../../../services';
 import { SmtpConfig } from '../../../../services/smtp.service';
 import TestEmailModal from '../../components/config/TestEmailModal';
 import { format } from 'date-fns';
-import { useAuth } from '../../../auth/hooks/useAuth';
+import { usePermissions } from '../../../../hooks/usePermissions';
 
 const SmtpSettings: React.FC = () => {
-  const { hasPermission } = useAuth();
-  
-  // Verificar permisos
-  const canView = hasPermission('smtp_view');
-  const canCreate = hasPermission('smtp_create');
-  const canEdit = hasPermission('smtp_edit');
-  const canDelete = hasPermission('smtp_delete');
-  const canTest = hasPermission('smtp_test');
+  // 🎯 Usar el nuevo hook de permisos
+  const { 
+    canView,
+    isLoading: permissionsLoading, 
+    error: permissionsError 
+  } = usePermissions();
 
   // Estado para SMTP configs
   const [smtpConfigs, setSmtpConfigs] = useState<SmtpConfig[]>([]);
@@ -48,13 +46,33 @@ const SmtpSettings: React.FC = () => {
   
   // Cargar datos al montar el componente
   useEffect(() => {
-    if (canView) {
+    if (!permissionsLoading && !permissionsError && canView('smtp_config')) {
       fetchSmtpConfigs();
     }
-  }, [canView]);
+  }, [permissionsLoading, permissionsError, canView]);
 
-  // Si no tiene permisos de visualización
-  if (!canView) {
+  // 🎯 Estados de carga y error mejorados
+  if (permissionsLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <span className="ml-3 text-gray-600">Cargando permisos...</span>
+      </div>
+    );
+  }
+
+  if (permissionsError) {
+    return (
+      <ErrorPlaceholder
+        title="Error al cargar permisos"
+        description={permissionsError}
+        onRetry={() => window.location.reload()}
+        size="md"
+      />
+    );
+  }
+
+  if (!canView('smtp_config')) {
     return (
       <NoPermissionPlaceholder
         title="Acceso Restringido"
@@ -62,7 +80,7 @@ const SmtpSettings: React.FC = () => {
         size="md"
       >
         <p className="text-xs text-gray-400 mt-2">
-          Permiso requerido: smtp_view
+          Permiso requerido: smtp_config_view
         </p>
       </NoPermissionPlaceholder>
     );
@@ -84,16 +102,14 @@ const SmtpSettings: React.FC = () => {
     }
   };
   
-  // Handlers para configuraciones SMTP
+  // 🎯 Handlers simplificados - los permisos se manejan en los botones
   const handleAddConfig = () => {
-    if (!canCreate) return;
     setModalError(null);
     setSuccessMessage(null);
     setIsAddModalOpen(true);
   };
   
   const handleEditConfig = (config: SmtpConfig) => {
-    if (!canEdit) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentConfig(config);
@@ -101,7 +117,6 @@ const SmtpSettings: React.FC = () => {
   };
   
   const handleDeleteConfig = (config: SmtpConfig) => {
-    if (!canDelete) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentConfig(config);
@@ -109,7 +124,6 @@ const SmtpSettings: React.FC = () => {
   };
   
   const handleTestConfig = async (config: SmtpConfig) => {
-    if (!canTest) return;
     setIsTesting(true);
     setTestResult(null);
     
@@ -145,7 +159,6 @@ const SmtpSettings: React.FC = () => {
       setSmtpConfigs(smtpConfigs.filter(config => config.id !== currentConfig.id));
       setSuccessMessage("Configuración SMTP eliminada correctamente");
       
-      // Cerrar el modal después de un tiempo
       setTimeout(() => {
         setIsDeleteModalOpen(false);
         setCurrentConfig(null);
@@ -166,7 +179,6 @@ const SmtpSettings: React.FC = () => {
     try {
       await smtpService.activateSmtpConfig(configId);
       
-      // Actualizar el estado local
       setSmtpConfigs(prevConfigs => 
         prevConfigs.map(config => ({
           ...config,
@@ -176,7 +188,6 @@ const SmtpSettings: React.FC = () => {
       
     } catch (err) {
       console.error('Error al activar configuración SMTP:', err);
-      // Mostrar un mensaje de error temporal
       setError(err instanceof Error ? err.message : 'Error al activar la configuración SMTP');
       setTimeout(() => setError(null), 3000);
     } finally {
@@ -194,7 +205,6 @@ const SmtpSettings: React.FC = () => {
       setSmtpConfigs([...smtpConfigs, newConfig]);
       setSuccessMessage("Configuración SMTP creada correctamente");
       
-      // Cerrar el modal después de un tiempo
       setTimeout(() => {
         setIsAddModalOpen(false);
         setSuccessMessage(null);
@@ -224,7 +234,6 @@ const SmtpSettings: React.FC = () => {
       );
       setSuccessMessage("Configuración SMTP actualizada correctamente");
       
-      // Cerrar el modal después de un tiempo
       setTimeout(() => {
         setIsEditModalOpen(false);
         setCurrentConfig(null);
@@ -336,53 +345,66 @@ const SmtpSettings: React.FC = () => {
     },
   ];
   
-  // Renderizar acciones personalizadas para cada configuración
+  // 🎯 Acciones con permisos automáticos integrados
   const renderConfigActions = (config: SmtpConfig) => (
     <div className="flex space-x-2 justify-end">
+      {/* Activar - requiere permiso de edición */}
       {!config.is_active && (
         <DashboardButton
+          permissionCategory="smtp_config"
+          permissionAction="edit"
           variant="text"
           size="sm"
           onClick={() => handleActivateConfig(config.id)}
           disabled={isSubmitting}
           className="text-green-600 hover:text-green-900"
+          showPermissionTooltip={true}
         >
           Activar
         </DashboardButton>
       )}
-      {canTest && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleTestConfig(config)}
-          disabled={isSubmitting || isTesting}
-          className="text-blue-600 hover:text-blue-900"
-        >
-          <span className="hidden lg:inline">Probar</span>
-          <span className="lg:hidden">Test</span>
-        </DashboardButton>
-      )}
-      {canEdit && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleEditConfig(config)}
-          className="text-blue-600 hover:text-blue-900"
-        >
-          Editar
-        </DashboardButton>
-      )}
-      {canDelete && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleDeleteConfig(config)}
-          className="text-red-600 hover:text-red-900"
-          disabled={config.is_active && smtpConfigs.length === 1}
-        >
-          Eliminar
-        </DashboardButton>
-      )}
+      
+      {/* Probar - requiere permiso de vista (consideramos que probar es como ver) */}
+      <DashboardButton
+        permissionCategory="smtp_config"
+        permissionAction="view"
+        variant="text"
+        size="sm"
+        onClick={() => handleTestConfig(config)}
+        disabled={isSubmitting || isTesting}
+        className="text-blue-600 hover:text-blue-900"
+        showPermissionTooltip={true}
+      >
+        <span className="hidden lg:inline">Probar</span>
+        <span className="lg:hidden">Test</span>
+      </DashboardButton>
+      
+      {/* Editar - automáticamente variant warning y permisos */}
+      <DashboardButton
+        permissionCategory="smtp_config"
+        permissionAction="edit"
+        variant="text"
+        size="sm"
+        onClick={() => handleEditConfig(config)}
+        className="text-blue-600 hover:text-blue-900"
+        showPermissionTooltip={true}
+      >
+        Editar
+      </DashboardButton>
+      
+      {/* Eliminar - automáticamente variant danger y permisos */}
+      <DashboardButton
+        permissionCategory="smtp_config"
+        permissionAction="delete"
+        variant="text"
+        size="sm"
+        onClick={() => handleDeleteConfig(config)}
+        className="text-red-600 hover:text-red-900"
+        disabled={config.is_active && smtpConfigs.length === 1}
+        showPermissionTooltip={true}
+      >
+        Eliminar
+      </DashboardButton>
     </div>
   );
   
@@ -399,27 +421,33 @@ const SmtpSettings: React.FC = () => {
         stats={!isLoading ? stats : undefined}
         actionButton={
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+            {/* 🎯 Botón de probar envío - requiere configuración activa */}
             <DashboardButton
+              permissionCategory="smtp_config"
+              permissionAction="view"
               variant="secondary"
               onClick={() => setIsTestEmailModalOpen(true)}
               disabled={smtpConfigs.filter(c => c.is_active).length === 0}
               className="w-full sm:w-auto"
+              showPermissionTooltip={true}
             >
               <span className="hidden sm:inline">Probar Envío</span>
               <span className="sm:hidden">Test Email</span>
             </DashboardButton>
             
-            {canCreate && (
-              <DashboardButton
-                onClick={handleAddConfig}
-                leftIcon={<PlusIcon className="w-5 h-5" />}
-                disabled={isLoading}
-                className="w-full sm:w-auto"
-              >
-                <span className="hidden sm:inline">Agregar Configuración</span>
-                <span className="sm:hidden">Nueva</span>
-              </DashboardButton>
-            )}
+            {/* 🎯 Botón crear - automáticamente variant success y permisos */}
+            <DashboardButton
+              permissionCategory="smtp_config"
+              permissionAction="create"
+              onClick={handleAddConfig}
+              leftIcon={<PlusIcon className="w-5 h-5" />}
+              disabled={isLoading}
+              className="w-full sm:w-auto"
+              showPermissionTooltip={true}
+            >
+              <span className="hidden sm:inline">Agregar Configuración</span>
+              <span className="sm:hidden">Nueva</span>
+            </DashboardButton>
           </div>
         }
       />
@@ -456,7 +484,7 @@ const SmtpSettings: React.FC = () => {
                 description="No hay configuraciones de servidor de correo. Añade una configuración para habilitar el envío de correos."
                 size="sm"
                 showBackground={false}
-                primaryAction={canCreate ? {
+                primaryAction={{
                   label: 'Crear Primera Configuración',
                   onClick: () => {
                     setModalError(null);
@@ -464,7 +492,7 @@ const SmtpSettings: React.FC = () => {
                     setIsAddModalOpen(true);
                   },
                   icon: <PlusIcon className="h-4 w-4" />
-                } : undefined}
+                }}
               />
             </div>
           )}
@@ -561,11 +589,15 @@ const SmtpSettings: React.FC = () => {
           >
             Cancelar
           </DashboardButton>
+          
+          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
-            variant="danger"
+            permissionCategory="smtp_config"
+            permissionAction="delete"
             onClick={handleConfirmDelete}
             loading={isSubmitting}
             disabled={isSubmitting || (currentConfig?.is_active && smtpConfigs.length === 1)}
+            showPermissionTooltip={true}
           >
             Eliminar
           </DashboardButton>

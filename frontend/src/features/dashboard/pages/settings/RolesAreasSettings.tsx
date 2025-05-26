@@ -1,5 +1,5 @@
-// src/features/dashboard/pages/settings/RolesAreasSettings.tsx - BLOQUE 1
-import React, { useState, useEffect } from 'react';
+// src/features/dashboard/pages/settings/RolesAreasSettings.tsx - PARTE 1
+import React, { useState, useEffect, useCallback } from 'react';
 import ConfigPageHeader from '../../components/config/ConfigPageHeader';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
@@ -9,7 +9,7 @@ import RoleForm, { RoleFormData } from '../../components/config/RoleForm';
 import AreaForm, { AreaFormData } from '../../components/config/AreaForm';
 import { userService } from '../../../../services';
 import { RoleCreateRequest, RoleUpdateRequest } from '../../../../services/users.service';
-import { useAuth } from '../../../auth/hooks/useAuth';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import { 
   PlusIcon, 
   ShieldCheckIcon,
@@ -33,18 +33,16 @@ interface Area {
 }
 
 const RolesAreasSettings: React.FC = () => {
-  const { hasPermission } = useAuth();
+  // 🎯 Usar el nuevo hook de permisos
+  const { 
+    canView,
+    isLoading: permissionsLoading, 
+    error: permissionsError 
+  } = usePermissions();
   
-  // Verificar permisos
-  const canViewRoles = hasPermission('role_view');
-  const canCreateRole = hasPermission('role_create');
-  const canEditRole = hasPermission('role_edit');
-  const canDeleteRole = hasPermission('role_delete');
-  
-  const canViewAreas = hasPermission('area_view');
-  const canCreateArea = hasPermission('area_create');
-  const canEditArea = hasPermission('area_edit');
-  const canDeleteArea = hasPermission('area_delete');
+  // 🎯 Verificaciones de permisos específicas
+  const canViewRoles = canView('role');
+  const canViewAreas = canView('area');
 
   // Estado para pestañas
   const [activeTab, setActiveTab] = useState<'roles' | 'areas'>(() => {
@@ -77,34 +75,11 @@ const RolesAreasSettings: React.FC = () => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  // Cargar datos al montar el componente o cambiar de pestaña
-  useEffect(() => {
-    if (activeTab === 'roles' && canViewRoles) {
-      fetchRoles();
-    } else if (activeTab === 'areas' && canViewAreas) {
-      fetchAreas();
-    }
-  }, [activeTab, canViewRoles, canViewAreas]);
-
   // Verificar si tiene permisos para al menos una tab
   const hasAnyPermission = canViewRoles || canViewAreas;
-
-  if (!hasAnyPermission) {
-    return (
-      <NoPermissionPlaceholder
-        title="Acceso Restringido"
-        description="No tienes permisos para acceder a la gestión de roles y áreas."
-        size="md"
-      >
-        <p className="text-xs text-gray-400 mt-2">
-          Permisos requeridos: role_view o area_view
-        </p>
-      </NoPermissionPlaceholder>
-    );
-  }
   
-  // Función para cargar roles desde la API
-  const fetchRoles = async () => {
+  // 🎯 Función para cargar roles desde la API (ÚNICA VERSIÓN)
+  const fetchRoles = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -141,10 +116,10 @@ const RolesAreasSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
   
-  // Función para cargar áreas desde la API
-  const fetchAreas = async () => {
+  // 🎯 Función para cargar áreas desde la API (ÚNICA VERSIÓN)
+  const fetchAreas = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -162,16 +137,64 @@ const RolesAreasSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+  
+  // Cargar datos al montar el componente o cambiar de pestaña
+  useEffect(() => {
+    if (activeTab === 'roles' && canViewRoles) {
+      fetchRoles();
+    } else if (activeTab === 'areas' && canViewAreas) {
+      fetchAreas();
+    }
+  }, [activeTab, canViewRoles, canViewAreas, fetchRoles, fetchAreas]);
+
+  // 🎯 TODOS LOS HOOKS DEBEN ESTAR ANTES DE CUALQUIER EARLY RETURN
+
+  // 🎯 Ahora sí podemos hacer early returns después de todos los hooks
+  if (permissionsLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <span className="ml-3 text-gray-600">Cargando permisos...</span>
+      </div>
+    );
+  }
+
+  if (permissionsError) {
+    return (
+      <ErrorPlaceholder
+        title="Error al cargar permisos"
+        description={permissionsError}
+        onRetry={() => window.location.reload()}
+        size="md"
+      />
+    );
+  }
+
+  if (!hasAnyPermission) {
+    return (
+      <NoPermissionPlaceholder
+        title="Acceso Restringido"
+        description="No tienes permisos para acceder a la gestión de roles y áreas."
+        size="md"
+      >
+        <p className="text-xs text-gray-400 mt-2">
+          Permisos requeridos: role_view o area_view
+        </p>
+      </NoPermissionPlaceholder>
+    );
+  }
+
+  // src/features/dashboard/pages/settings/RolesAreasSettings.tsx - PARTE 2
+
+  // 🎯 HANDLERS PARA ROLES - Simplificados sin verificaciones manuales
   const handleAddRole = () => {
-    if (!canCreateRole) return;
     setModalError(null);
     setSuccessMessage(null);
     setIsAddRoleModalOpen(true);
   };
 
   const handleEditRole = async (role: Role) => {
-    if (!canEditRole) return;
     setModalError(null);
     setSuccessMessage(null);
     
@@ -196,7 +219,6 @@ const RolesAreasSettings: React.FC = () => {
   };
   
   const handleDeleteRoleClick = (role: Role) => {
-    if (!canDeleteRole) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentRole(role);
@@ -313,16 +335,14 @@ const RolesAreasSettings: React.FC = () => {
     }
   };
 
-  // Handlers para áreas
+  // 🎯 HANDLERS PARA ÁREAS - Simplificados sin verificaciones manuales
   const handleAddArea = () => {
-    if (!canCreateArea) return;
     setModalError(null);
     setSuccessMessage(null);
     setIsAddAreaModalOpen(true);
   };
   
   const handleEditArea = (area: Area) => {
-    if (!canEditArea) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentArea(area);
@@ -330,7 +350,6 @@ const RolesAreasSettings: React.FC = () => {
   };
   
   const handleDeleteAreaClick = (area: Area) => {
-    if (!canDeleteArea) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentArea(area);
@@ -425,7 +444,6 @@ const RolesAreasSettings: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-  // BLOQUE 3 - Estadísticas, tabs, columnas y render
 
   // Estadísticas para el header
   const stats = activeTab === 'roles' ? [
@@ -456,6 +474,7 @@ const RolesAreasSettings: React.FC = () => {
       variant: 'success' as const
     }
   ];
+  // src/features/dashboard/pages/settings/RolesAreasSettings.tsx - PARTE 3
 
   // Configurar tabs
   const tabs = [
@@ -465,7 +484,7 @@ const RolesAreasSettings: React.FC = () => {
       count: roles.length,
       isActive: activeTab === 'roles',
       onClick: () => setActiveTab('roles'),
-      badge: <ShieldCheckIcon className="h-4 w-4" />
+      icon: <ShieldCheckIcon className="h-4 w-4" />
     },
     canViewAreas && {
       id: 'areas',
@@ -473,7 +492,7 @@ const RolesAreasSettings: React.FC = () => {
       count: areas.length,
       isActive: activeTab === 'areas',
       onClick: () => setActiveTab('areas'),
-      badge: <UserGroupIcon className="h-4 w-4" />
+      icon: <UserGroupIcon className="h-4 w-4" />
     }
   ].filter(Boolean) as Array<{
     id: string;
@@ -481,7 +500,7 @@ const RolesAreasSettings: React.FC = () => {
     count: number;
     isActive: boolean;
     onClick: () => void;
-    badge: React.ReactNode;
+    icon: React.ReactNode;
   }>;
   
   // Columnas para la tabla de roles
@@ -556,67 +575,67 @@ const RolesAreasSettings: React.FC = () => {
     }
   ];
 
-  // Renderizar acciones para roles
+  // 🎯 Renderizar acciones para roles con permisos automáticos
   const renderRoleActions = (role: Role) => (
     <div className="flex space-x-2 justify-end">
-      {canEditRole && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleEditRole(role)}
-          className="text-blue-600 hover:text-blue-900"
-          leftIcon={<PencilIcon className="h-4 w-4" />}
-        >
-          Editar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="role"
+        permissionAction="edit"
+        variant="text"
+        size="sm"
+        onClick={() => handleEditRole(role)}
+        className="text-blue-600 hover:text-blue-900"
+        leftIcon={<PencilIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Editar
+      </DashboardButton>
       
-      {canDeleteRole && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleDeleteRoleClick(role)}
-          className="text-red-600 hover:text-red-900"
-          leftIcon={<TrashIcon className="h-4 w-4" />}
-        >
-          Eliminar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="role"
+        permissionAction="delete"
+        variant="text"
+        size="sm"
+        onClick={() => handleDeleteRoleClick(role)}
+        className="text-red-600 hover:text-red-900"
+        leftIcon={<TrashIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Eliminar
+      </DashboardButton>
     </div>
   );
 
-  // Renderizar acciones para áreas
+  // 🎯 Renderizar acciones para áreas con permisos automáticos
   const renderAreaActions = (area: Area) => (
     <div className="flex space-x-2 justify-end">
-      {canEditArea && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleEditArea(area)}
-          className="text-blue-600 hover:text-blue-900"
-          leftIcon={<PencilIcon className="h-4 w-4" />}
-        >
-          Editar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="area"
+        permissionAction="edit"
+        variant="text"
+        size="sm"
+        onClick={() => handleEditArea(area)}
+        className="text-blue-600 hover:text-blue-900"
+        leftIcon={<PencilIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Editar
+      </DashboardButton>
       
-      {canDeleteArea && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleDeleteAreaClick(area)}
-          className="text-red-600 hover:text-red-900"
-          leftIcon={<TrashIcon className="h-4 w-4" />}
-        >
-          Eliminar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="area"
+        permissionAction="delete"
+        variant="text"
+        size="sm"
+        onClick={() => handleDeleteAreaClick(area)}
+        className="text-red-600 hover:text-red-900"
+        leftIcon={<TrashIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Eliminar
+      </DashboardButton>
     </div>
   );
-
-  const currentData = activeTab === 'roles' ? roles : areas;
-  const currentColumns = activeTab === 'roles' ? roleColumns : areaColumns;
-  const currentActions = activeTab === 'roles' ? renderRoleActions : renderAreaActions;
   
   return (
     <div className="space-y-6">
@@ -631,27 +650,33 @@ const RolesAreasSettings: React.FC = () => {
         stats={!isLoading ? stats : undefined}
         tabs={tabs}
         actionButton={
-          activeTab === 'roles' && canCreateRole ? (
+          activeTab === 'roles' ? (
             <DashboardButton
+              permissionCategory="role"
+              permissionAction="create"
               onClick={handleAddRole}
               leftIcon={<PlusIcon className="w-5 h-5" />}
               disabled={isLoading}
               className="w-full sm:w-auto"
+              showPermissionTooltip={true}
             >
               <span className="hidden sm:inline">Agregar Rol</span>
               <span className="sm:hidden">Nuevo</span>
             </DashboardButton>
-          ) : activeTab === 'areas' && canCreateArea ? (
+          ) : (
             <DashboardButton
+              permissionCategory="area"
+              permissionAction="create"
               onClick={handleAddArea}
               leftIcon={<PlusIcon className="w-5 h-5" />}
               disabled={isLoading}
               className="w-full sm:w-auto"
+              showPermissionTooltip={true}
             >
               <span className="hidden sm:inline">Agregar Área</span>
               <span className="sm:hidden">Nueva</span>
             </DashboardButton>
-          ) : undefined
+          )
         }
       />
 
@@ -666,20 +691,38 @@ const RolesAreasSettings: React.FC = () => {
         />
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <DashboardDataTable
-            columns={currentColumns}
-            data={currentData as any}  // <- Agregar as any aquí
-            keyExtractor={(item) => item.id}
-            actionColumn={true}
-            emptyMessage=""
-            isLoading={isLoading}
-            renderActions={currentActions as any}  // <- Y aquí también
-            striped={true}
-            hover={true}
-          />
+          {/* 🎯 Renderizar tabla específica según pestaña activa */}
+          {activeTab === 'roles' ? (
+            <DashboardDataTable
+              columns={roleColumns}
+              data={roles}
+              keyExtractor={(item) => item.id}
+              actionColumn={true}
+              emptyMessage=""
+              isLoading={isLoading}
+              renderActions={renderRoleActions}
+              striped={true}
+              hover={true}
+            />
+          ) : (
+            <DashboardDataTable
+              columns={areaColumns}
+              data={areas}
+              keyExtractor={(item) => item.id}
+              actionColumn={true}
+              emptyMessage=""
+              isLoading={isLoading}
+              renderActions={renderAreaActions}
+              striped={true}
+              hover={true}
+            />
+          )}
           
           {/* Empty state */}
-          {!isLoading && !error && currentData.length === 0 && (
+          {!isLoading && !error && (
+            (activeTab === 'roles' && roles.length === 0) || 
+            (activeTab === 'areas' && areas.length === 0)
+          ) && (
             <div className="p-8">
               <DashboardPlaceholder
                 type="empty"
@@ -687,20 +730,18 @@ const RolesAreasSettings: React.FC = () => {
                 description={`No hay ${activeTab === 'roles' ? 'roles' : 'áreas'} configurados. Crea ${activeTab === 'roles' ? 'el primer rol' : 'la primera área'} para empezar.`}
                 size="sm"
                 showBackground={false}
-                primaryAction={
-                  (activeTab === 'roles' && canCreateRole) || (activeTab === 'areas' && canCreateArea) ? {
-                    label: `Crear ${activeTab === 'roles' ? 'Primer Rol' : 'Primera Área'}`,
-                    onClick: activeTab === 'roles' ? handleAddRole : handleAddArea,
-                    icon: <PlusIcon className="h-4 w-4" />
-                  } : undefined
-                }
+                primaryAction={{
+                  label: `Crear ${activeTab === 'roles' ? 'Primer Rol' : 'Primera Área'}`,
+                  onClick: activeTab === 'roles' ? handleAddRole : handleAddArea,
+                  icon: <PlusIcon className="h-4 w-4" />
+                }}
               />
             </div>
           )}
         </div>
       )}
       
-      {/* Modales para Roles */}
+      {/* 🎯 Modales para Roles */}
       <DashboardModal
         isOpen={isAddRoleModalOpen}
         onClose={() => {
@@ -746,6 +787,7 @@ const RolesAreasSettings: React.FC = () => {
         )}
       </DashboardModal>
       
+      {/* 🎯 Modal de eliminación de roles con permisos automáticos */}
       <DashboardModal
         isOpen={isDeleteRoleModalOpen}
         onClose={() => {
@@ -764,12 +806,21 @@ const RolesAreasSettings: React.FC = () => {
               <TrashIcon className="h-5 w-5 text-red-600" />
             </div>
             <div className="flex-1">
-              <p className="text-gray-900 font-medium">
-                ¿Eliminar rol "{currentRole?.name}"?
-              </p>
               <p className="text-gray-500 text-sm mt-2">
                 Esta acción no se puede deshacer y eliminará todos los permisos asociados.
               </p>
+              
+              {/* Información adicional del rol */}
+              {currentRole && currentRole.permissions.length > 0 && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-700">Permisos asociados:</span>
+                    <span className="ml-2 text-gray-900">
+                      {currentRole.permissions.length} permisos
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -785,19 +836,23 @@ const RolesAreasSettings: React.FC = () => {
           >
             Cancelar
           </DashboardButton>
+          
+          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
-            variant="danger"
+            permissionCategory="role"
+            permissionAction="delete"
             onClick={handleDeleteRole}
             loading={isSubmitting}
             disabled={isSubmitting}
             leftIcon={<TrashIcon className="h-4 w-4" />}
+            showPermissionTooltip={true}
           >
             Eliminar
           </DashboardButton>
         </div>
       </DashboardModal>
       
-      {/* Modales para Áreas */}
+      {/* 🎯 Modales para Áreas */}
       <DashboardModal
         isOpen={isAddAreaModalOpen}
         onClose={() => {
@@ -844,6 +899,7 @@ const RolesAreasSettings: React.FC = () => {
         )}
       </DashboardModal>
 
+      {/* 🎯 Modal de eliminación de áreas con permisos automáticos */}
       <DashboardModal
         isOpen={isDeleteAreaModalOpen}
         onClose={() => {
@@ -868,6 +924,16 @@ const RolesAreasSettings: React.FC = () => {
               <p className="text-gray-500 text-sm mt-2">
                 Esta acción no se puede deshacer.
               </p>
+              
+              {/* Información adicional del área */}
+              {currentArea && currentArea.description && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-700">Descripción:</span>
+                    <p className="text-gray-900 mt-1">{currentArea.description}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -883,12 +949,16 @@ const RolesAreasSettings: React.FC = () => {
           >
             Cancelar
           </DashboardButton>
+          
+          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
-            variant="danger"
+            permissionCategory="area"
+            permissionAction="delete"
             onClick={handleDeleteArea}
             loading={isSubmitting}
             disabled={isSubmitting}
             leftIcon={<TrashIcon className="h-4 w-4" />}
+            showPermissionTooltip={true}
           >
             Eliminar
           </DashboardButton>

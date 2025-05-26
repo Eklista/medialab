@@ -1,5 +1,5 @@
-// src/features/dashboard/pages/settings/EmailTemplatesSettings.tsx
-import React, { useState, useEffect } from 'react';
+// src/features/dashboard/pages/settings/EmailTemplatesSettings.tsx - PARTE 1
+import React, { useState, useEffect, useCallback } from 'react';
 import ConfigPageHeader from '../../components/config/ConfigPageHeader';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
@@ -8,7 +8,7 @@ import DashboardPlaceholder, { NoPermissionPlaceholder, ErrorPlaceholder } from 
 import EmailTemplateForm, { EmailTemplateFormData } from '../../components/config/EmailTemplateForm';
 import Badge from '../../components/ui/Badge';
 import { emailTemplateService, EmailTemplate } from '../../../../services/emailTemplate.service';
-import { useAuth } from '../../../auth/hooks/useAuth';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import { 
   PlusIcon, 
   EnvelopeIcon,
@@ -18,13 +18,15 @@ import {
 } from '@heroicons/react/24/outline';
 
 const EmailTemplatesSettings: React.FC = () => {
-  const { hasPermission } = useAuth();
+  // 🎯 Usar el nuevo hook de permisos
+  const { 
+    canView,
+    isLoading: permissionsLoading, 
+    error: permissionsError 
+  } = usePermissions();
   
-  // Verificar permisos
-  const canView = hasPermission('email_template_view');
-  const canCreate = hasPermission('email_template_create');
-  const canEdit = hasPermission('email_template_edit');
-  const canDelete = hasPermission('email_template_delete');
+  // 🎯 Verificaciones de permisos específicas
+  const canViewTemplates = canView('email_template');
 
   // Estado para las plantillas
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
@@ -44,15 +46,8 @@ const EmailTemplatesSettings: React.FC = () => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  // Cargar datos al montar el componente
-  useEffect(() => {
-    if (canView) {
-      fetchEmailTemplates();
-    }
-  }, [canView]);
-  
-  // Función para cargar plantillas desde la API
-  const fetchEmailTemplates = async () => {
+  // 🎯 Función para cargar plantillas desde la API (ÚNICA VERSIÓN)
+  const fetchEmailTemplates = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -65,10 +60,39 @@ const EmailTemplatesSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+  
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    if (canViewTemplates) {
+      fetchEmailTemplates();
+    }
+  }, [canViewTemplates, fetchEmailTemplates]);
 
-  // Si no tiene permisos de visualización
-  if (!canView) {
+  // 🎯 TODOS LOS HOOKS DEBEN ESTAR ANTES DE CUALQUIER EARLY RETURN
+
+  // 🎯 Ahora sí podemos hacer early returns después de todos los hooks
+  if (permissionsLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <span className="ml-3 text-gray-600">Cargando permisos...</span>
+      </div>
+    );
+  }
+
+  if (permissionsError) {
+    return (
+      <ErrorPlaceholder
+        title="Error al cargar permisos"
+        description={permissionsError}
+        onRetry={() => window.location.reload()}
+        size="md"
+      />
+    );
+  }
+
+  if (!canViewTemplates) {
     return (
       <NoPermissionPlaceholder
         title="Acceso Restringido"
@@ -82,10 +106,8 @@ const EmailTemplatesSettings: React.FC = () => {
     );
   }
   
-  // Handlers para plantillas
+  // 🎯 HANDLERS PARA PLANTILLAS - Simplificados sin verificaciones manuales
   const handleEditTemplate = (template: EmailTemplate) => {
-    if (!canEdit) return;
-    
     setModalError(null);
     setSuccessMessage(null);
     setCurrentTemplate(template);
@@ -93,8 +115,6 @@ const EmailTemplatesSettings: React.FC = () => {
   };
   
   const handleDeleteTemplate = (template: EmailTemplate) => {
-    if (!canDelete) return;
-    
     setModalError(null);
     setSuccessMessage(null);
     setCurrentTemplate(template);
@@ -234,6 +254,8 @@ const EmailTemplatesSettings: React.FC = () => {
       variant: 'default' as const
     }
   ];
+
+  // src/features/dashboard/pages/settings/EmailTemplatesSettings.tsx - PARTE 2
   
   // Columnas para la tabla
   const columns = [
@@ -272,43 +294,48 @@ const EmailTemplatesSettings: React.FC = () => {
     }
   ];
   
-  // Renderizar acciones personalizadas
+  // 🎯 Renderizar acciones personalizadas con permisos automáticos
   const renderTemplateActions = (template: EmailTemplate) => (
     <div className="flex space-x-2 justify-end">
       <DashboardButton
+        permissionCategory="email_template"
+        permissionAction="view"
         variant="text"
         size="sm"
         onClick={() => handlePreviewTemplate(template)}
         className="text-blue-600 hover:text-blue-900"
         leftIcon={<EyeIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
       >
         <span className="hidden lg:inline">Vista previa</span>
         <span className="lg:hidden">Ver</span>
       </DashboardButton>
       
-      {canEdit && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleEditTemplate(template)}
-          className="text-blue-600 hover:text-blue-900"
-          leftIcon={<PencilIcon className="h-4 w-4" />}
-        >
-          Editar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="email_template"
+        permissionAction="edit"
+        variant="text"
+        size="sm"
+        onClick={() => handleEditTemplate(template)}
+        className="text-blue-600 hover:text-blue-900"
+        leftIcon={<PencilIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Editar
+      </DashboardButton>
       
-      {canDelete && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleDeleteTemplate(template)}
-          className="text-red-600 hover:text-red-900"
-          leftIcon={<TrashIcon className="h-4 w-4" />}
-        >
-          Eliminar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="email_template"
+        permissionAction="delete"
+        variant="text"
+        size="sm"
+        onClick={() => handleDeleteTemplate(template)}
+        className="text-red-600 hover:text-red-900"
+        leftIcon={<TrashIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Eliminar
+      </DashboardButton>
     </div>
   );
   
@@ -323,8 +350,10 @@ const EmailTemplatesSettings: React.FC = () => {
         hasError={!!error}
         onRetry={fetchEmailTemplates}
         stats={!isLoading ? stats : undefined}
-        actionButton={canCreate ? (
+        actionButton={
           <DashboardButton
+            permissionCategory="email_template"
+            permissionAction="create"
             onClick={() => {
               setModalError(null);
               setSuccessMessage(null);
@@ -333,11 +362,12 @@ const EmailTemplatesSettings: React.FC = () => {
             leftIcon={<PlusIcon className="w-5 h-5" />}
             disabled={isLoading}
             className="w-full sm:w-auto"
+            showPermissionTooltip={true}
           >
             <span className="hidden sm:inline">Nueva Plantilla</span>
             <span className="sm:hidden">Nueva</span>
           </DashboardButton>
-        ) : undefined}
+        }
       />
 
       {/* Contenido principal */}
@@ -372,7 +402,7 @@ const EmailTemplatesSettings: React.FC = () => {
                 description="No hay plantillas de correo. Crea una nueva plantilla para empezar."
                 size="sm"
                 showBackground={false}
-                primaryAction={canCreate ? {
+                primaryAction={{
                   label: 'Crear Primera Plantilla',
                   onClick: () => {
                     setModalError(null);
@@ -380,14 +410,14 @@ const EmailTemplatesSettings: React.FC = () => {
                     setIsAddModalOpen(true);
                   },
                   icon: <PlusIcon className="h-4 w-4" />
-                } : undefined}
+                }}
               />
             </div>
           )}
         </div>
       )}
       
-      {/* Modal para añadir plantilla */}
+      {/* 🎯 Modal para añadir plantilla */}
       <DashboardModal
         isOpen={isAddModalOpen}
         onClose={() => {
@@ -407,7 +437,7 @@ const EmailTemplatesSettings: React.FC = () => {
         />
       </DashboardModal>
       
-      {/* Modal para editar plantilla */}
+      {/* 🎯 Modal para editar plantilla */}
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -442,7 +472,7 @@ const EmailTemplatesSettings: React.FC = () => {
         )}
       </DashboardModal>
       
-      {/* Modal para confirmar eliminación */}
+      {/* 🎯 Modal para confirmar eliminación con permisos automáticos */}
       <DashboardModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
@@ -470,6 +500,33 @@ const EmailTemplatesSettings: React.FC = () => {
               <p className="text-gray-500 text-sm mt-2">
                 Esta acción no se puede deshacer.
               </p>
+              
+              {/* Información adicional de la plantilla */}
+              {currentTemplate && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Categoría:</span>
+                      <span className="ml-2">
+                        <Badge variant="primary" size="sm">{currentTemplate.category}</Badge>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Estado:</span>
+                      <span className="ml-2">
+                        {currentTemplate.is_active ? 
+                          <Badge variant="success" size="sm">Activa</Badge> : 
+                          <Badge variant="secondary" size="sm">Inactiva</Badge>
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <span className="font-medium text-gray-700">Asunto:</span>
+                    <p className="text-gray-900 mt-1 text-sm">{currentTemplate.subject}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -485,19 +542,23 @@ const EmailTemplatesSettings: React.FC = () => {
           >
             Cancelar
           </DashboardButton>
+          
+          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
-            variant="danger"
+            permissionCategory="email_template"
+            permissionAction="delete"
             onClick={handleConfirmDelete}
             loading={isSubmitting}
             disabled={isSubmitting}
             leftIcon={<TrashIcon className="h-4 w-4" />}
+            showPermissionTooltip={true}
           >
             Eliminar
           </DashboardButton>
         </div>
       </DashboardModal>
       
-      {/* Modal para previsualizar plantilla */}
+      {/* 🎯 Modal para previsualizar plantilla */}
       <DashboardModal
         isOpen={isPreviewModalOpen}
         onClose={() => setIsPreviewModalOpen(false)}

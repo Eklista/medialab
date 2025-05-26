@@ -1,5 +1,5 @@
 // src/features/dashboard/pages/settings/ServicesSettings.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ConfigPageHeader from '../../components/config/ConfigPageHeader';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardDataTable from '../../components/ui/DashboardDataTable';
@@ -11,7 +11,7 @@ import Badge from '../../components/ui/Badge';
 import { servicesService, serviceTemplatesService } from '../../../../services';
 import { Service } from '../../../../services/services.service';
 import { ServiceTemplate } from '../../../../services/serviceTemplates.service';
-import { useAuth } from '../../../auth/hooks/useAuth';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import { 
   PlusIcon,
   WrenchScrewdriverIcon,
@@ -21,18 +21,16 @@ import {
 } from '@heroicons/react/24/outline';
 
 const ServicesSettings: React.FC = () => {
-  const { hasPermission } = useAuth();
+  // 🎯 Usar el nuevo hook de permisos
+  const { 
+    canView,
+    isLoading: permissionsLoading, 
+    error: permissionsError 
+  } = usePermissions();
   
-  // Verificar permisos para servicios y plantillas
-  const canViewServices = hasPermission('service_view');
-  const canCreateService = hasPermission('service_create');
-  const canEditService = hasPermission('service_edit');
-  const canDeleteService = hasPermission('service_delete');
-  
-  const canViewTemplates = hasPermission('template_view');
-  const canCreateTemplate = hasPermission('template_create');
-  const canEditTemplate = hasPermission('template_edit');
-  const canDeleteTemplate = hasPermission('template_delete');
+  // 🎯 Verificaciones de permisos específicas
+  const canViewServices = canView('service');
+  const canViewTemplates = canView('template');
   
   // Determinar la pestaña inicial basada en permisos
   const getInitialTab = () => {
@@ -67,34 +65,11 @@ const ServicesSettings: React.FC = () => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Verificar si tiene permisos para al menos una tab
+  // 🎯 Verificación de permisos mejorada
   const hasAnyPermission = canViewServices || canViewTemplates;
-
-  if (!hasAnyPermission) {
-    return (
-      <NoPermissionPlaceholder
-        title="Acceso Restringido"
-        description="No tienes permisos para acceder a la gestión de servicios y plantillas."
-        size="md"
-      >
-        <p className="text-xs text-gray-400 mt-2">
-          Permisos requeridos: service_view o template_view
-        </p>
-      </NoPermissionPlaceholder>
-    );
-  }
   
-  // Cargar datos al montar el componente o cambiar de pestaña
-  useEffect(() => {
-    if (activeTab === 'services' && canViewServices) {
-      fetchServices();
-    } else if (activeTab === 'templates' && canViewTemplates) {
-      fetchTemplates();
-    }
-  }, [activeTab, canViewServices, canViewTemplates]);
-
-  // Función para cargar servicios desde la API
-  const fetchServices = async () => {
+  // 🎯 Función para cargar servicios desde la API (ÚNICA VERSIÓN)
+  const fetchServices = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -107,10 +82,10 @@ const ServicesSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
   
-  // Función para cargar plantillas desde la API
-  const fetchTemplates = async () => {
+  // 🎯 Función para cargar plantillas desde la API (ÚNICA VERSIÓN)
+  const fetchTemplates = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -149,7 +124,55 @@ const ServicesSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+  
+  // Cargar datos al montar el componente o cambiar de pestaña
+  useEffect(() => {
+    if (activeTab === 'services' && canViewServices) {
+      fetchServices();
+    } else if (activeTab === 'templates' && canViewTemplates) {
+      fetchTemplates();
+    }
+  }, [activeTab, canViewServices, canViewTemplates, fetchServices, fetchTemplates]);
+
+  // 🎯 TODOS LOS HOOKS DEBEN ESTAR ANTES DE CUALQUIER EARLY RETURN
+
+  // 🎯 Ahora sí podemos hacer early returns después de todos los hooks
+  if (permissionsLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <span className="ml-3 text-gray-600">Cargando permisos...</span>
+      </div>
+    );
+  }
+
+  if (permissionsError) {
+    return (
+      <ErrorPlaceholder
+        title="Error al cargar permisos"
+        description={permissionsError}
+        onRetry={() => window.location.reload()}
+        size="md"
+      />
+    );
+  }
+
+  if (!hasAnyPermission) {
+    return (
+      <NoPermissionPlaceholder
+        title="Acceso Restringido"
+        description="No tienes permisos para acceder a la gestión de servicios y plantillas."
+        size="md"
+      >
+        <p className="text-xs text-gray-400 mt-2">
+          Permisos requeridos: service_view o template_view
+        </p>
+      </NoPermissionPlaceholder>
+    );
+  }
+
+  // 🎯 NO HAY MÁS FUNCIONES DUPLICADAS AQUÍ
 
   const fetchTemplateDetails = async (templateId: number) => {
     setIsSubmitting(true);
@@ -186,16 +209,14 @@ const ServicesSettings: React.FC = () => {
     }
   };
   
-  // HANDLERS PARA SERVICIOS
+  // 🎯 HANDLERS PARA SERVICIOS - Simplificados sin verificaciones manuales
   const handleAddService = () => {
-    if (!canCreateService) return;
     setModalError(null);
     setSuccessMessage(null);
     setIsAddServiceModalOpen(true);
   };
   
   const handleEditService = (service: Service) => {
-    if (!canEditService) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentService(service);
@@ -203,7 +224,6 @@ const ServicesSettings: React.FC = () => {
   };
   
   const handleDeleteServiceClick = (service: Service) => {
-    if (!canDeleteService) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentService(service);
@@ -330,7 +350,7 @@ const ServicesSettings: React.FC = () => {
         }
       }
       
-      await fetchServices();
+      await fetchServices(); // 🎯 Usar la función definida arriba
       setSuccessMessage("Servicio actualizado correctamente");
       
       setTimeout(() => {
@@ -347,23 +367,20 @@ const ServicesSettings: React.FC = () => {
     }
   };
   
-  // HANDLERS PARA PLANTILLAS
+  // 🎯 HANDLERS PARA PLANTILLAS - Simplificados sin verificaciones manuales
   const handleAddTemplate = () => {
-    if (!canCreateTemplate) return;
     setModalError(null);
     setSuccessMessage(null);
     setIsAddTemplateModalOpen(true);
   };
   
   const handleEditTemplate = (template: ServiceTemplate) => {
-    if (!canEditTemplate) return;
     setModalError(null);
     setSuccessMessage(null);
     fetchTemplateDetails(template.id!);
   };
   
   const handleDeleteTemplateClick = (template: ServiceTemplate) => {
-    if (!canDeleteTemplate) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentTemplate(template);
@@ -411,7 +428,7 @@ const ServicesSettings: React.FC = () => {
       };
       
       await serviceTemplatesService.createServiceTemplate(templateData);
-      await fetchTemplates();
+      await fetchTemplates(); // 🎯 Usar la función definida arriba
       setSuccessMessage("Plantilla creada correctamente");
       
       setTimeout(() => {
@@ -448,7 +465,7 @@ const ServicesSettings: React.FC = () => {
         templateData
       );
       
-      await fetchTemplates();
+      await fetchTemplates(); // 🎯 Usar la función definida arriba
       setSuccessMessage("Plantilla actualizada correctamente");
       
       setTimeout(() => {
@@ -598,65 +615,67 @@ const ServicesSettings: React.FC = () => {
     }
   ];
 
-  // Renderizar acciones para servicios
+  // 🎯 Renderizar acciones para servicios con permisos automáticos
   const renderServiceActions = (service: Service) => (
     <div className="flex space-x-2 justify-end">
-      {canEditService && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleEditService(service)}
-          className="text-blue-600 hover:text-blue-900"
-          leftIcon={<PencilIcon className="h-4 w-4" />}
-        >
-          Editar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="service"
+        permissionAction="edit"
+        variant="text"
+        size="sm"
+        onClick={() => handleEditService(service)}
+        className="text-blue-600 hover:text-blue-900"
+        leftIcon={<PencilIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Editar
+      </DashboardButton>
       
-      {canDeleteService && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleDeleteServiceClick(service)}
-          className="text-red-600 hover:text-red-900"
-          leftIcon={<TrashIcon className="h-4 w-4" />}
-        >
-          Eliminar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="service"
+        permissionAction="delete"
+        variant="text"
+        size="sm"
+        onClick={() => handleDeleteServiceClick(service)}
+        className="text-red-600 hover:text-red-900"
+        leftIcon={<TrashIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Eliminar
+      </DashboardButton>
     </div>
   );
 
-  // Renderizar acciones para plantillas
+  // 🎯 Renderizar acciones para plantillas con permisos automáticos
   const renderTemplateActions = (template: ServiceTemplate) => (
     <div className="flex space-x-2 justify-end">
-      {canEditTemplate && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleEditTemplate(template)}
-          className="text-blue-600 hover:text-blue-900"
-          leftIcon={<PencilIcon className="h-4 w-4" />}
-        >
-          Editar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="template"
+        permissionAction="edit"
+        variant="text"
+        size="sm"
+        onClick={() => handleEditTemplate(template)}
+        className="text-blue-600 hover:text-blue-900"
+        leftIcon={<PencilIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Editar
+      </DashboardButton>
       
-      {canDeleteTemplate && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleDeleteTemplateClick(template)}
-          className="text-red-600 hover:text-red-900"
-          leftIcon={<TrashIcon className="h-4 w-4" />}
-        >
-          Eliminar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="template"
+        permissionAction="delete"
+        variant="text"
+        size="sm"
+        onClick={() => handleDeleteTemplateClick(template)}
+        className="text-red-600 hover:text-red-900"
+        leftIcon={<TrashIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Eliminar
+      </DashboardButton>
     </div>
   );
-
-  const currentData = activeTab === 'services' ? services : templates;
   
   return (
     <div className="space-y-6">
@@ -671,27 +690,33 @@ const ServicesSettings: React.FC = () => {
         stats={!isLoading ? stats : undefined}
         tabs={tabs}
         actionButton={
-          activeTab === 'services' && canCreateService ? (
+          activeTab === 'services' ? (
             <DashboardButton
+              permissionCategory="service"
+              permissionAction="create"
               onClick={handleAddService}
               leftIcon={<PlusIcon className="w-5 h-5" />}
               disabled={isLoading}
               className="w-full sm:w-auto"
+              showPermissionTooltip={true}
             >
               <span className="hidden sm:inline">Agregar Servicio</span>
               <span className="sm:hidden">Nuevo</span>
             </DashboardButton>
-          ) : activeTab === 'templates' && canCreateTemplate ? (
+          ) : (
             <DashboardButton
+              permissionCategory="template"
+              permissionAction="create"
               onClick={handleAddTemplate}
               leftIcon={<PlusIcon className="w-5 h-5" />}
               disabled={isLoading}
               className="w-full sm:w-auto"
+              showPermissionTooltip={true}
             >
               <span className="hidden sm:inline">Crear Plantilla</span>
               <span className="sm:hidden">Nueva</span>
             </DashboardButton>
-          ) : undefined
+          )
         }
       />
 
@@ -706,6 +731,7 @@ const ServicesSettings: React.FC = () => {
         />
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          {/* 🎯 Renderizar tabla específica según pestaña activa */}
           {activeTab === 'services' ? (
             <DashboardDataTable
               columns={serviceColumns}
@@ -733,7 +759,10 @@ const ServicesSettings: React.FC = () => {
           )}
           
           {/* Empty state */}
-          {!isLoading && !error && currentData.length === 0 && (
+          {!isLoading && !error && (
+            (activeTab === 'services' && services.length === 0) || 
+            (activeTab === 'templates' && templates.length === 0)
+          ) && (
             <div className="p-8">
               <DashboardPlaceholder
                 type="empty"
@@ -741,20 +770,18 @@ const ServicesSettings: React.FC = () => {
                 description={`No hay ${activeTab === 'services' ? 'servicios' : 'plantillas'} configurados. Crea ${activeTab === 'services' ? 'el primer servicio' : 'la primera plantilla'} para empezar.`}
                 size="sm"
                 showBackground={false}
-                primaryAction={
-                  (activeTab === 'services' && canCreateService) || (activeTab === 'templates' && canCreateTemplate) ? {
-                    label: `Crear ${activeTab === 'services' ? 'Primer Servicio' : 'Primera Plantilla'}`,
-                    onClick: activeTab === 'services' ? handleAddService : handleAddTemplate,
-                    icon: <PlusIcon className="h-4 w-4" />
-                  } : undefined
-                }
+                primaryAction={{
+                  label: `Crear ${activeTab === 'services' ? 'Primer Servicio' : 'Primera Plantilla'}`,
+                  onClick: activeTab === 'services' ? handleAddService : handleAddTemplate,
+                  icon: <PlusIcon className="h-4 w-4" />
+                }}
               />
             </div>
           )}
         </div>
       )}
       
-      {/* Modales para Servicios */}
+      {/* 🎯 Modales para Servicios */}
       <DashboardModal
         isOpen={isAddServiceModalOpen}
         onClose={() => {
@@ -809,6 +836,7 @@ const ServicesSettings: React.FC = () => {
         )}
       </DashboardModal>
 
+      {/* 🎯 Modal de eliminación de servicios con permisos automáticos */}
       <DashboardModal
         isOpen={isDeleteServiceModalOpen}
         onClose={() => {
@@ -848,19 +876,23 @@ const ServicesSettings: React.FC = () => {
           >
             Cancelar
           </DashboardButton>
+          
+          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
-            variant="danger"
+            permissionCategory="service"
+            permissionAction="delete"
             onClick={handleDeleteService}
             loading={isSubmitting}
             disabled={isSubmitting}
             leftIcon={<TrashIcon className="h-4 w-4" />}
+            showPermissionTooltip={true}
           >
             Eliminar
           </DashboardButton>
         </div>
       </DashboardModal>
       
-      {/* Modales para Plantillas */}
+      {/* 🎯 Modales para Plantillas */}
       <DashboardModal
         isOpen={isAddTemplateModalOpen}
         onClose={() => {
@@ -935,6 +967,7 @@ const ServicesSettings: React.FC = () => {
         )}
       </DashboardModal>
 
+      {/* 🎯 Modal de eliminación de plantillas con permisos automáticos */}
       <DashboardModal
         isOpen={isDeleteTemplateModalOpen}
         onClose={() => {
@@ -959,6 +992,27 @@ const ServicesSettings: React.FC = () => {
               <p className="text-gray-500 text-sm mt-2">
                 Esta acción no se puede deshacer.
               </p>
+              
+              {/* Información adicional de la plantilla */}
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Estado:</span>
+                    <span className="ml-2">
+                      {currentTemplate?.is_public ? 
+                        <Badge variant="success" size="sm">Pública</Badge> : 
+                        <Badge variant="secondary" size="sm">Privada</Badge>
+                      }
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Servicios:</span>
+                    <span className="ml-2 text-gray-900">
+                      {currentTemplate?.services?.length || 0} servicios
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -974,12 +1028,16 @@ const ServicesSettings: React.FC = () => {
           >
             Cancelar
           </DashboardButton>
+          
+          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
-            variant="danger"
+            permissionCategory="template"
+            permissionAction="delete"
             onClick={handleDeleteTemplate}
             loading={isSubmitting}
             disabled={isSubmitting}
             leftIcon={<TrashIcon className="h-4 w-4" />}
+            showPermissionTooltip={true}
           >
             Eliminar
           </DashboardButton>

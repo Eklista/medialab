@@ -1,5 +1,5 @@
-// src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx
-import React, { useState, useEffect } from 'react';
+// src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx - PARTE 1
+import React, { useState, useEffect, useCallback } from 'react';
 import ConfigPageHeader from '../../components/config/ConfigPageHeader';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardModal from '../../components/ui/DashboardModal';
@@ -18,17 +18,20 @@ import {
 import { academicUnitService, departmentTypeService } from '../../../../services';
 import { AcademicUnit } from '../../../../services/academicUnits.service';
 import { DepartmentType } from '../../../../services/departmentTypes.service';
-import { useAuth } from '../../../auth/hooks/useAuth';
+import { usePermissions } from '../../../../hooks/usePermissions';
 
 const AcademicUnitsSettings: React.FC = () => {
-  const { hasPermission } = useAuth();
+  // 🎯 Usar el nuevo hook de permisos
+  const { 
+    canView,
+    canCreate,
+    isLoading: permissionsLoading, 
+    error: permissionsError 
+  } = usePermissions();
   
-  // Verificar permisos
-  const canView = hasPermission('academic_unit_view');
-  const canCreate = hasPermission('academic_unit_create');
-  const canEdit = hasPermission('academic_unit_edit');
-  const canDelete = hasPermission('academic_unit_delete');
-  const canManageTypes = hasPermission('department_type_manage');
+  // 🎯 Verificaciones de permisos específica
+  const canViewUnits = canView('department');
+  const canManageTypes = canView('department_type') && canCreate('department_type');
 
   // Estado para unidades académicas
   const [academicUnits, setAcademicUnits] = useState<AcademicUnit[]>([]);
@@ -56,29 +59,8 @@ const AcademicUnitsSettings: React.FC = () => {
   // Estado para filtros
   const [filterTypeId, setFilterTypeId] = useState<number | null>(null);
   
-  // Si no tiene permisos de visualización
-  if (!canView) {
-    return (
-      <NoPermissionPlaceholder
-        title="Acceso Restringido"
-        description="No tienes permisos para acceder a la gestión de unidades académicas."
-        size="md"
-      >
-        <p className="text-xs text-gray-400 mt-2">
-          Permiso requerido: academic_unit_view
-        </p>
-      </NoPermissionPlaceholder>
-    );
-  }
-  
-  // Cargar datos al montar el componente
-  useEffect(() => {
-    fetchAcademicUnits();
-    fetchDepartmentTypes();
-  }, []);
-  
-  // Función para cargar unidades académicas desde la API
-  const fetchAcademicUnits = async () => {
+  // 🎯 Función para cargar unidades académicas desde la API (ÚNICA VERSIÓN)
+  const fetchAcademicUnits = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -91,10 +73,10 @@ const AcademicUnitsSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
   
-  // Función para cargar tipos de departamentos
-  const fetchDepartmentTypes = async () => {
+  // 🎯 Función para cargar tipos de departamentos (ÚNICA VERSIÓN)
+  const fetchDepartmentTypes = useCallback(async () => {
     setIsTypesLoading(true);
     
     try {
@@ -105,8 +87,56 @@ const AcademicUnitsSettings: React.FC = () => {
     } finally {
       setIsTypesLoading(false);
     }
-  };
+  }, []);
+  
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    if (canViewUnits) {
+      fetchAcademicUnits();
+      fetchDepartmentTypes();
+    }
+  }, [canViewUnits, fetchAcademicUnits, fetchDepartmentTypes]);
 
+  // 🎯 TODOS LOS HOOKS DEBEN ESTAR ANTES DE CUALQUIER EARLY RETURN
+
+  // 🎯 Ahora sí podemos hacer early returns después de todos los hooks
+  if (permissionsLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <span className="ml-3 text-gray-600">Cargando permisos...</span>
+      </div>
+    );
+  }
+
+  if (permissionsError) {
+    return (
+      <ErrorPlaceholder
+        title="Error al cargar permisos"
+        description={permissionsError}
+        onRetry={() => window.location.reload()}
+        size="md"
+      />
+    );
+  }
+
+  if (!canViewUnits) {
+    return (
+      <NoPermissionPlaceholder
+        title="Acceso Restringido"
+        description="No tienes permisos para acceder a la gestión de unidades académicas."
+        size="md"
+      >
+        <p className="text-xs text-gray-400 mt-2">
+          Permiso requerido: department_view
+        </p>
+      </NoPermissionPlaceholder>
+    );
+  }
+
+  // src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx - PARTE 2
+
+  // 🎯 HANDLERS PARA VISTAS Y NAVEGACIÓN - Simplificados sin verificaciones manuales
   const handleViewUnit = (unit: AcademicUnit) => {
     setModalError(null);
     setSuccessMessage(null);
@@ -119,7 +149,7 @@ const AcademicUnitsSettings: React.FC = () => {
     setIsEditMode(true);
   };
   
-  // Función para agregar nuevo tipo de departamento
+  // 🎯 HANDLERS PARA TIPOS DE DEPARTAMENTOS - Simplificados
   const handleAddDepartmentType = async (name: string): Promise<DepartmentType> => {
     try {
       const typeData = { name };
@@ -132,7 +162,6 @@ const AcademicUnitsSettings: React.FC = () => {
     }
   };
 
-  // Función para actualizar un tipo de departamento
   const handleUpdateDepartmentType = async (id: number, name: string): Promise<DepartmentType> => {
     try {
       const updatedType = await departmentTypeService.updateDepartmentType(id, { name });
@@ -146,7 +175,6 @@ const AcademicUnitsSettings: React.FC = () => {
     }
   };
 
-  // Función para eliminar un tipo de departamento
   const handleDeleteDepartmentType = async (id: number): Promise<void> => {
     try {
       await departmentTypeService.deleteDepartmentType(id);
@@ -157,16 +185,14 @@ const AcademicUnitsSettings: React.FC = () => {
     }
   };
   
-  // Handlers para unidades académicas
+  // 🎯 HANDLERS PARA UNIDADES ACADÉMICAS - Simplificados sin verificaciones manuales
   const handleAddUnit = () => {
-    if (!canCreate) return;
     setModalError(null);
     setSuccessMessage(null);
     setIsAddModalOpen(true);
   };
   
   const handleEditUnit = (unit: AcademicUnit) => {
-    if (!canEdit) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentUnit(unit);
@@ -174,7 +200,6 @@ const AcademicUnitsSettings: React.FC = () => {
   };
   
   const handleDeleteUnitClick = (unit: AcademicUnit) => {
-    if (!canDelete) return;
     setModalError(null);
     setSuccessMessage(null);
     setCurrentUnit(unit);
@@ -315,6 +340,8 @@ const AcademicUnitsSettings: React.FC = () => {
           };
         })
       ];
+
+      // src/features/dashboard/pages/settings/AcademicUnitsSettings.tsx - PARTE 3
   
   // Columnas para la tabla con truncamiento y tooltip elegante
   const columns = [
@@ -389,41 +416,46 @@ const AcademicUnitsSettings: React.FC = () => {
     }
   ];
 
-  // Renderizar acciones personalizadas
+  // 🎯 Renderizar acciones personalizadas con permisos automáticos
   const renderUnitActions = (unit: AcademicUnit) => (
     <div className="flex space-x-2 justify-end">
       <DashboardButton
+        permissionCategory="department"
+        permissionAction="view"
         variant="text"
         size="sm"
         onClick={() => handleViewUnit(unit)}
         className="text-blue-600 hover:text-blue-900"
+        showPermissionTooltip={true}
       >
         Ver
       </DashboardButton>
       
-      {canEdit && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleEditUnit(unit)}
-          className="text-blue-600 hover:text-blue-900"
-          leftIcon={<PencilIcon className="h-4 w-4" />}
-        >
-          Editar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="department"
+        permissionAction="edit"
+        variant="text"
+        size="sm"
+        onClick={() => handleEditUnit(unit)}
+        className="text-blue-600 hover:text-blue-900"
+        leftIcon={<PencilIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Editar
+      </DashboardButton>
       
-      {canDelete && (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleDeleteUnitClick(unit)}
-          className="text-red-600 hover:text-red-900"
-          leftIcon={<TrashIcon className="h-4 w-4" />}
-        >
-          Eliminar
-        </DashboardButton>
-      )}
+      <DashboardButton
+        permissionCategory="department"
+        permissionAction="delete"
+        variant="text"
+        size="sm"
+        onClick={() => handleDeleteUnitClick(unit)}
+        className="text-red-600 hover:text-red-900"
+        leftIcon={<TrashIcon className="h-4 w-4" />}
+        showPermissionTooltip={true}
+      >
+        Eliminar
+      </DashboardButton>
     </div>
   );
   
@@ -441,29 +473,34 @@ const AcademicUnitsSettings: React.FC = () => {
         tabs={filterTabs}
         actionButton={
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 space-x-0 sm:space-x-3 w-full sm:w-auto">
-            {canManageTypes && (
-              <DashboardButton
-                variant="outline"
-                onClick={handleOpenTypesManager}
-                leftIcon={<AdjustmentsHorizontalIcon className="w-5 h-5" />}
-                className="w-full sm:w-auto mb-2 sm:mb-0"
-                disabled={isLoading}
-              >
-                <span className="hidden sm:inline">Gestionar Tipos</span>
-                <span className="sm:hidden">Tipos</span>
-              </DashboardButton>
-            )}
-            {canCreate && (
-              <DashboardButton
-                onClick={handleAddUnit}
-                leftIcon={<PlusIcon className="w-5 h-5" />}
-                className="w-full sm:w-auto"
-                disabled={isLoading}
-              >
-                <span className="hidden sm:inline">Agregar Unidad</span>
-                <span className="sm:hidden">Nueva</span>
-              </DashboardButton>
-            )}
+            {/* 🎯 Botón gestionar tipos con permisos automáticos */}
+            <DashboardButton
+              permissionCategory="department_type"
+              permissionAction="view"
+              variant="outline"
+              onClick={handleOpenTypesManager}
+              leftIcon={<AdjustmentsHorizontalIcon className="w-5 h-5" />}
+              className="w-full sm:w-auto mb-2 sm:mb-0"
+              disabled={isLoading}
+              showPermissionTooltip={true}
+            >
+              <span className="hidden sm:inline">Gestionar Tipos</span>
+              <span className="sm:hidden">Tipos</span>
+            </DashboardButton>
+            
+            {/* 🎯 Botón crear con permisos automáticos */}
+            <DashboardButton
+              permissionCategory="department"
+              permissionAction="create"
+              onClick={handleAddUnit}
+              leftIcon={<PlusIcon className="w-5 h-5" />}
+              className="w-full sm:w-auto"
+              disabled={isLoading}
+              showPermissionTooltip={true}
+            >
+              <span className="hidden sm:inline">Agregar Unidad</span>
+              <span className="sm:hidden">Nueva</span>
+            </DashboardButton>
           </div>
         }
       />
@@ -511,18 +548,18 @@ const AcademicUnitsSettings: React.FC = () => {
                 }
                 size="sm"
                 showBackground={false}
-                primaryAction={canCreate ? {
+                primaryAction={{
                   label: 'Crear Primera Unidad',
                   onClick: handleAddUnit,
                   icon: <PlusIcon className="h-4 w-4" />
-                } : undefined}
+                }}
               />
             </div>
           )}
         </div>
       )}
       
-      {/* Modal para agregar unidad académica */}
+      {/* 🎯 Modal para agregar unidad académica */}
       <DashboardModal
         isOpen={isAddModalOpen}
         onClose={() => {
@@ -544,7 +581,7 @@ const AcademicUnitsSettings: React.FC = () => {
         />
       </DashboardModal>
       
-      {/* Modal para editar unidad académica */}
+      {/* 🎯 Modal para editar unidad académica */}
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -573,7 +610,7 @@ const AcademicUnitsSettings: React.FC = () => {
         )}
       </DashboardModal>
       
-      {/* Modal para confirmar eliminación */}
+      {/* 🎯 Modal para confirmar eliminación con permisos automáticos */}
       <DashboardModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
@@ -598,6 +635,26 @@ const AcademicUnitsSettings: React.FC = () => {
               <p className="text-gray-500 text-sm mt-2">
                 Esta acción no se puede deshacer.
               </p>
+              
+              {/* Información adicional de la unidad */}
+              {currentUnit && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Tipo:</span>
+                      <span className="ml-2 text-gray-900">
+                        {departmentTypes.find(t => t.id === currentUnit.type_id)?.name || 'Desconocido'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Siglas:</span>
+                      <span className="ml-2 text-gray-900 font-mono">
+                        {currentUnit.abbreviation}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -613,19 +670,23 @@ const AcademicUnitsSettings: React.FC = () => {
           >
             Cancelar
           </DashboardButton>
+          
+          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
-            variant="danger"
+            permissionCategory="department"
+            permissionAction="delete"
             onClick={handleDeleteUnit}
             loading={isSubmitting}
             disabled={isSubmitting}
             leftIcon={<TrashIcon className="h-4 w-4" />}
+            showPermissionTooltip={true}
           >
             Eliminar
           </DashboardButton>
         </div>
       </DashboardModal>
 
-      {/* Modal para gestionar tipos de departamentos */}
+      {/* 🎯 Modal para gestionar tipos de departamentos con permisos integrados */}
       <DashboardModal
         isOpen={isTypesModalOpen}
         onClose={() => setIsTypesModalOpen(false)}
@@ -681,7 +742,12 @@ const AcademicUnitsSettings: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex space-x-2 justify-end">
-                        <button
+                        {/* 🎯 Botón editar tipo con permisos automáticos */}
+                        <DashboardButton
+                          permissionCategory="department_type"
+                          permissionAction="edit"
+                          variant="text"
+                          size="sm"
                           onClick={() => {
                             const newName = prompt('Nuevo nombre:', type.name);
                             if (newName && newName !== type.name) {
@@ -689,19 +755,27 @@ const AcademicUnitsSettings: React.FC = () => {
                             }
                           }}
                           className="text-blue-600 hover:text-blue-900"
+                          showPermissionTooltip={true}
                         >
                           <PencilIcon className="h-5 w-5" />
-                        </button>
-                        <button
+                        </DashboardButton>
+                        
+                        {/* 🎯 Botón eliminar tipo con permisos automáticos */}
+                        <DashboardButton
+                          permissionCategory="department_type"
+                          permissionAction="delete"
+                          variant="text"
+                          size="sm"
                           onClick={() => {
                             if (window.confirm(`¿Estás seguro de que deseas eliminar el tipo "${type.name}"?`)) {
                               handleDeleteDepartmentType(type.id);
                             }
                           }}
                           className="text-red-600 hover:text-red-900"
+                          showPermissionTooltip={true}
                         >
                           <TrashIcon className="h-5 w-5" />
-                        </button>
+                        </DashboardButton>
                       </div>
                     </td>
                   </tr>
@@ -722,7 +796,7 @@ const AcademicUnitsSettings: React.FC = () => {
         </div>
       </DashboardModal>
 
-      {/* Modal para ver detalles y editar */}
+      {/* 🎯 Modal para ver detalles y editar con permisos automáticos */}
       <DashboardModal
         isOpen={isViewModalOpen}
         onClose={() => {
@@ -793,30 +867,33 @@ const AcademicUnitsSettings: React.FC = () => {
                     Cerrar
                   </DashboardButton>
                   
-                  {canEdit && (
-                    <DashboardButton
-                      type="button"
-                      variant="secondary"
-                      onClick={handleSwitchToEditMode}
-                      leftIcon={<PencilIcon className="h-4 w-4" />}
-                    >
-                      Editar
-                    </DashboardButton>
-                  )}
+                  {/* 🎯 Botón editar con permisos automáticos */}
+                  <DashboardButton
+                    permissionCategory="department"
+                    permissionAction="edit"
+                    type="button"
+                    variant="secondary"
+                    onClick={handleSwitchToEditMode}
+                    leftIcon={<PencilIcon className="h-4 w-4" />}
+                    showPermissionTooltip={true}
+                  >
+                    Editar
+                  </DashboardButton>
                   
-                  {canDelete && (
-                    <DashboardButton
-                      type="button"
-                      variant="danger"
-                      onClick={() => {
-                        setIsViewModalOpen(false);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      leftIcon={<TrashIcon className="h-4 w-4" />}
-                    >
-                      Eliminar
-                    </DashboardButton>
-                  )}
+                  {/* 🎯 Botón eliminar con permisos automáticos */}
+                  <DashboardButton
+                    permissionCategory="department"
+                    permissionAction="delete"
+                    type="button"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      setIsDeleteModalOpen(true);
+                    }}
+                    leftIcon={<TrashIcon className="h-4 w-4" />}
+                    showPermissionTooltip={true}
+                  >
+                    Eliminar
+                  </DashboardButton>
                 </div>
               </div>
             )}
