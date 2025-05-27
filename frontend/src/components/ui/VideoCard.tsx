@@ -80,7 +80,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     <div 
       className={`
         ${currentSize.container} cursor-pointer group transition-all duration-200 
-        hover:scale-105 hover:shadow-lg bg-white dark:bg-gray-800 rounded-lg overflow-hidden
+        hover:scale-105 hover:shadow-lg bg-white rounded-lg overflow-hidden
       `}
       onClick={onClick}
     >
@@ -106,32 +106,32 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           )}
           
           {/* Category badge */}
-          <div className="absolute top-2 left-2 bg-(--color-accent-1) text-(--color-text-main) px-2 py-1 rounded text-xs font-medium">
+          <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
             {category}
           </div>
         </div>
         
         {/* Content */}
         <div className={`${isVertical ? 'p-4' : 'flex-1 py-2'} space-y-2`}>
-          <h3 className={`${currentSize.title} text-(--color-text-main) dark:text-white line-clamp-2 group-hover:text-(--color-accent-1) transition-colors`}>
+          <h3 className={`${currentSize.title} text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors`}>
             {title}
           </h3>
           
           {description && (
-            <p className={`${currentSize.description} text-(--color-text-secondary) dark:text-gray-300 line-clamp-2`}>
+            <p className={`${currentSize.description} text-gray-600 line-clamp-2`}>
               {description}
             </p>
           )}
           
           {/* Faculty */}
           {faculty && (
-            <p className={`${currentSize.meta} text-(--color-accent-1) font-medium`}>
+            <p className={`${currentSize.meta} text-blue-600 font-medium`}>
               {faculty}
             </p>
           )}
           
           {/* Meta info */}
-          <div className={`flex items-center gap-3 ${currentSize.meta} text-(--color-text-secondary) dark:text-gray-400`}>
+          <div className={`flex items-center gap-3 ${currentSize.meta} text-gray-500`}>
             {views && (
               <div className="flex items-center gap-1">
                 <EyeIcon className="h-4 w-4" />
@@ -199,10 +199,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
       <div className={`grid ${gridCols[columns]} ${gaps[gap]}`}>
         {Array.from({ length: columns * 2 }).map((_, i) => (
           <div key={i} className="animate-pulse">
-            <div className="bg-gray-200 dark:bg-gray-700 rounded-lg h-40 mb-4"></div>
+            <div className="bg-gray-200 rounded-lg h-40 mb-4"></div>
             <div className="space-y-2">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
             </div>
           </div>
         ))}
@@ -213,11 +213,11 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   if (videos.length === 0) {
     return (
       <div className="text-center py-12">
-        <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
-        <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">Sin videos</h3>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</p>
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Sin videos</h3>
+        <p className="mt-1 text-sm text-gray-500">{emptyMessage}</p>
       </div>
     );
   }

@@ -21,7 +21,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className = ''
 }) => {
   const defaultIcon = (
-    <svg className="h-12 w-12 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   );
@@ -32,12 +32,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         {icon || defaultIcon}
       </div>
       
-      <h3 className="text-lg font-medium text-(--color-text-main) dark:text-white mb-2">
+      <h3 className="text-lg font-medium text-(--color-text-main)">
         {title}
       </h3>
       
       {description && (
-        <p className="text-(--color-text-secondary) dark:text-gray-300 mb-6 max-w-sm mx-auto">
+        <p className="text-(--color-text-secondary) mb-6 max-w-sm mx-auto">
           {description}
         </p>
       )}

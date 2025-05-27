@@ -1,5 +1,5 @@
-// src/pages/home/HomePage.tsx - Código Limpio y Corregido
-import React, { useState } from 'react';
+// src/pages/home/HomePage.tsx - Versión mejorada sin sidebar y responsive
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   PublicLayout, 
@@ -8,11 +8,14 @@ import {
 } from '../../components';
 import { HeroSlider } from '../../components/ui/HeroSlider';
 import { CardSlider } from '../../components/ui/CardSlider';
+import { BottomNavigation } from '../../components/layout/BottomNavigation';
 import { 
   AcademicCapIcon, 
   VideoCameraIcon, 
   MicrophoneIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  EyeIcon,
+  PlayIcon
 } from '@heroicons/react/24/outline';
 
 // Importar imágenes reales
@@ -24,7 +27,7 @@ import serviceAudiovisual from '../../assets/images/service-audiovisual.jpg';
 import serviceContent from '../../assets/images/service-content.jpg';
 import serviceAcademic from '../../assets/images/service-academic.jpg';
 
-// Datos para el hero slider con imágenes reales
+// Datos para el hero slider
 const heroSlides = [
   {
     id: '1',
@@ -71,8 +74,8 @@ const heroSlides = [
   }
 ];
 
-// Videos de ejemplo con imágenes reales
-const videosByCategory = {
+// Videos destacados por categoría (solo los más vistos)
+const featuredVideos = {
   conferencias: [
     {
       id: '1',
@@ -98,17 +101,6 @@ const videosByCategory = {
     },
     {
       id: '3',
-      title: 'Conferencia de Innovación Educativa',
-      description: 'Nuevas metodologías en educación superior',
-      thumbnail: serviceAcademic,
-      duration: '1:30:15',
-      views: 9600,
-      category: 'Conferencias',
-      faculty: 'IDEA',
-      publishedAt: '2024-03-05'
-    },
-    {
-      id: '4',
       title: 'Foro de Emprendimiento Digital',
       description: 'Startups y tecnología en Guatemala',
       thumbnail: gallery3,
@@ -117,6 +109,17 @@ const videosByCategory = {
       category: 'Conferencias',
       faculty: 'FCEA',
       publishedAt: '2024-02-28'
+    },
+    {
+      id: '4',
+      title: 'Conferencia de Innovación Educativa',
+      description: 'Nuevas metodologías en educación superior',
+      thumbnail: serviceAcademic,
+      duration: '1:30:15',
+      views: 9600,
+      category: 'Conferencias',
+      faculty: 'IDEA',
+      publishedAt: '2024-03-05'
     }
   ],
   reportajes: [
@@ -133,17 +136,6 @@ const videosByCategory = {
     },
     {
       id: '6',
-      title: 'Campus Sustentable UG',
-      description: 'Iniciativas verdes y sostenibles en el campus universitario',
-      thumbnail: gallery1,
-      duration: '18:40',
-      views: 6780,
-      category: 'Reportajes',
-      faculty: 'Universidad Galileo',
-      publishedAt: '2024-03-05'
-    },
-    {
-      id: '7',
       title: 'Vida Estudiantil en FISICC',
       description: 'Un día en la facultad de ingeniería',
       thumbnail: serviceContent,
@@ -154,7 +146,7 @@ const videosByCategory = {
       publishedAt: '2024-03-01'
     },
     {
-      id: '8',
+      id: '7',
       title: 'Investigación Médica en FACIMED',
       description: 'Proyectos de investigación que salvan vidas',
       thumbnail: gallery2,
@@ -163,6 +155,17 @@ const videosByCategory = {
       category: 'Reportajes',
       faculty: 'FACIMED',
       publishedAt: '2024-02-25'
+    },
+    {
+      id: '8',
+      title: 'Campus Sustentable UG',
+      description: 'Iniciativas verdes y sostenibles en el campus universitario',
+      thumbnail: gallery1,
+      duration: '18:40',
+      views: 6780,
+      category: 'Reportajes',
+      faculty: 'Universidad Galileo',
+      publishedAt: '2024-03-05'
     }
   ],
   graduaciones: [
@@ -190,17 +193,6 @@ const videosByCategory = {
     },
     {
       id: '11',
-      title: 'Graduación Comunicación 2024',
-      description: 'Nuevos profesionales en comunicación',
-      thumbnail: serviceAudiovisual,
-      duration: '1:10:30',
-      views: 16500,
-      category: 'Graduaciones',
-      faculty: 'FACOM',
-      publishedAt: '2024-02-20'
-    },
-    {
-      id: '12',
       title: 'Graduación Administración de Empresas',
       description: 'Ceremonia de graduación FCEA',
       thumbnail: gallery1,
@@ -209,6 +201,17 @@ const videosByCategory = {
       category: 'Graduaciones',
       faculty: 'FCEA',
       publishedAt: '2024-02-15'
+    },
+    {
+      id: '12',
+      title: 'Graduación Comunicación 2024',
+      description: 'Nuevos profesionales en comunicación',
+      thumbnail: serviceAudiovisual,
+      duration: '1:10:30',
+      views: 16500,
+      category: 'Graduaciones',
+      faculty: 'FACOM',
+      publishedAt: '2024-02-20'
     }
   ],
   podcasts: [
@@ -259,50 +262,39 @@ const videosByCategory = {
   ]
 };
 
-// Facultades de Universidad Galileo - Versión compacta
-const facultades = [
-  { id: 'todas', name: 'Todas las Facultades' },
-  { id: 'fisicc', name: 'FISICC' },
-  { id: 'facimed', name: 'FACIMED' },
-  { id: 'idea', name: 'IDEA' },
-  { id: 'facom', name: 'FACOM' },
-  { id: 'fcea', name: 'FCEA' },
-  { id: 'face', name: 'FACE' },
-  { id: 'facti', name: 'FACTI' },
-  { id: 'medialab', name: 'MediaLab' }
-];
-
-// Categorías principales con iconos
+// Categorías principales
 const categorias = [
   {
     id: 'conferencias',
     name: 'Conferencias',
-    icon: <UserGroupIcon className="h-5 w-5" />,
-    description: 'Conferencias académicas y eventos especiales'
+    icon: <UserGroupIcon className="h-6 w-6" />,
+    description: 'Conferencias académicas y eventos especiales',
+    color: 'bg-blue-50 text-blue-600'
   },
   {
     id: 'reportajes',
     name: 'Reportajes',
-    icon: <VideoCameraIcon className="h-5 w-5" />,
-    description: 'Documentales y reportajes institucionales'
+    icon: <VideoCameraIcon className="h-6 w-6" />,
+    description: 'Documentales y reportajes institucionales',
+    color: 'bg-green-50 text-green-600'
   },
   {
     id: 'graduaciones',
     name: 'Graduaciones',
-    icon: <AcademicCapIcon className="h-5 w-5" />,
-    description: 'Ceremonias de graduación por facultad'
+    icon: <AcademicCapIcon className="h-6 w-6" />,
+    description: 'Ceremonias de graduación por facultad',
+    color: 'bg-purple-50 text-purple-600'
   },
   {
     id: 'podcasts',
     name: 'Podcasts',
-    icon: <MicrophoneIcon className="h-5 w-5" />,
-    description: 'Contenido de audio y conversaciones'
+    icon: <MicrophoneIcon className="h-6 w-6" />,
+    description: 'Contenido de audio y conversaciones',
+    color: 'bg-orange-50 text-orange-600'
   }
 ];
 
 const HomePage: React.FC = () => {
-  const [selectedFacultad, setSelectedFacultad] = useState('todas');
-
   // Manejar click en video
   const handleVideoClick = (video: any) => {
     console.log('Reproducir video:', video.title);
@@ -314,15 +306,15 @@ const HomePage: React.FC = () => {
     console.log('Reproducir video del hero:', videoId);
   };
 
-  // Manejar navegación a categorías
-  const handleCategoryClick = (categoryId: string) => {
+  // Manejar navegación a categorías (desde bottom navigation o categorías)
+  const handleCategorySelect = (categoryId: string) => {
     console.log('Navegar a categoría:', categoryId);
-    // Aquí navegarías a /categoria/[categoryId]
+    // Aquí navegarías a /categoria/[categoryId] o filtrarías la vista actual
   };
 
   return (
     <PublicLayout>
-      {/* Hero Section - ANCHO COMPLETO SIN MÁRGENES */}
+      {/* Hero Section - ANCHO COMPLETO */}
       <div className="w-full">
         <HeroSlider
           slides={heroSlides}
@@ -332,122 +324,148 @@ const HomePage: React.FC = () => {
         />
       </div>
 
-      {/* Main Content - ANCHO COMPLETO */}
+      {/* Main Content */}
       <Section padding="lg" background="white">
-        <div className="w-full">
-          <div className="flex gap-6">
-            {/* Sidebar Compacto de Facultades */}
-            <aside className="w-64 flex-shrink-0">
-              <div className="sticky top-8">
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                    Filtrar por Facultad
+        <div className="max-w-7xl mx-auto">
+          {/* Quick Access Categories - Solo Desktop */}
+          <div className="hidden lg:block mb-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-8">
+              Explorar Contenido MediaLab
+            </h2>
+            
+            <div className="grid grid-cols-4 gap-6">
+              {categorias.map((categoria) => (
+                <button
+                  key={categoria.id}
+                  onClick={() => handleCategorySelect(categoria.id)}
+                  className="group p-6 rounded-xl border-2 border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-200 text-left bg-white"
+                >
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${categoria.color} group-hover:scale-110 transition-transform`}>
+                    {categoria.icon}
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    {categoria.name}
                   </h3>
-                  
-                  <div className="space-y-1">
-                    {facultades.map((facultad) => (
-                      <button
-                        key={facultad.id}
-                        onClick={() => setSelectedFacultad(facultad.id)}
-                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                          selectedFacultad === facultad.id 
-                            ? 'bg-gray-900 text-white' 
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {facultad.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </aside>
+                  <p className="text-sm text-gray-600">
+                    {categoria.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
 
-            {/* Content Area Principal - ANCHO COMPLETO */}
-            <main className="flex-1 min-w-0">
-              {/* Explorar Categorías */}
-              <div className="mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-8">
-                  Explorar Contenido MediaLab
+          {/* Featured Content Sections */}
+          <div className="space-y-12">
+            {/* Videos Más Vistos */}
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
+                  <EyeIcon className="h-6 w-6 inline-block mr-2" />
+                  Más Vistos
                 </h2>
-                
-                <div className="grid grid-cols-4 gap-6 mb-12">
-                  {categorias.map((categoria) => (
-                    <button
-                      key={categoria.id}
-                      onClick={() => handleCategoryClick(categoria.id)}
-                      className="p-6 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all group"
-                    >
-                      <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
-                        <div className="text-gray-600 group-hover:text-gray-900">
-                          {categoria.icon}
-                        </div>
-                      </div>
-                      <h3 className="font-semibold text-gray-900 mb-2">
-                        {categoria.name}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {categoria.description}
-                      </p>
-                    </button>
-                  ))}
+              </div>
+              
+              {/* Mezclar videos más vistos de todas las categorías */}
+              <CardSlider
+                title=""
+                items={[
+                  featuredVideos.graduaciones[0], // 25,600 views
+                  featuredVideos.graduaciones[1], // 19,800 views
+                  featuredVideos.graduaciones[2], // 18,900 views
+                  featuredVideos.conferencias[0], // 18,750 views
+                  featuredVideos.graduaciones[3], // 16,500 views
+                  featuredVideos.conferencias[2], // 15,300 views
+                  featuredVideos.podcasts[0]      // 15,200 views
+                ]}
+                onItemClick={handleVideoClick}
+                itemsPerView={4}
+                className="mb-0"
+              />
+            </div>
+
+            {/* Conferencias Destacadas */}
+            <CardSlider
+              title="Conferencias Destacadas"
+              items={featuredVideos.conferencias}
+              onItemClick={handleVideoClick}
+              onViewAll={() => handleCategorySelect('conferencias')}
+              itemsPerView={4}
+            />
+
+            {/* Graduaciones Recientes */}
+            <CardSlider
+              title="Graduaciones Recientes"
+              items={featuredVideos.graduaciones}
+              onItemClick={handleVideoClick}
+              onViewAll={() => handleCategorySelect('graduaciones')}
+              itemsPerView={4}
+            />
+
+            {/* Reportajes Institucionales */}
+            <CardSlider
+              title="Reportajes Institucionales"
+              items={featuredVideos.reportajes}
+              onItemClick={handleVideoClick}
+              onViewAll={() => handleCategorySelect('reportajes')}
+              itemsPerView={4}
+            />
+
+            {/* Podcasts y Audio */}
+            <CardSlider
+              title="Podcasts y Audio"
+              items={featuredVideos.podcasts}
+              onItemClick={handleVideoClick}
+              onViewAll={() => handleCategorySelect('podcasts')}
+              itemsPerView={4}
+            />
+          </div>
+
+          {/* Call to Action Section */}
+          <div className="bg-gray-50 rounded-xl p-8 text-center mt-16 mb-20 lg:mb-8">
+            <div className="max-w-2xl mx-auto">
+              <PlayIcon className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-4">
+                ¿Necesitas servicios de MediaLab?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Creamos contenido audiovisual profesional para eventos, conferencias, graduaciones y más.
+              </p>
+              
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="text-center">
+                  <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">1,500+</div>
+                  <div className="text-sm text-gray-600">Videos</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">300+</div>
+                  <div className="text-sm text-gray-600">Graduaciones</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">150+</div>
+                  <div className="text-sm text-gray-600">Conferencias</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">8</div>
+                  <div className="text-sm text-gray-600">Facultades</div>
                 </div>
               </div>
-
-              {/* Contenido por Categoría con CardSlider */}
-              <div className="space-y-12">
-                {categorias.map((categoria) => (
-                  <CardSlider
-                    key={categoria.id}
-                    title={categoria.name}
-                    items={videosByCategory[categoria.id as keyof typeof videosByCategory] || []}
-                    onItemClick={handleVideoClick}
-                    onViewAll={() => handleCategoryClick(categoria.id)}
-                    itemsPerView={4}
-                    className="mb-12"
-                  />
-                ))}
-              </div>
-
-              {/* Estadísticas y CTA */}
-              <div className="bg-gray-50 rounded-lg p-8 text-center mt-16">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  Contenido MediaLab Universidad Galileo
-                </h3>
-                <div className="grid grid-cols-4 gap-6 mb-8">
-                  <div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">1,500+</div>
-                    <div className="text-gray-600">Videos</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">300+</div>
-                    <div className="text-gray-600">Graduaciones</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">150+</div>
-                    <div className="text-gray-600">Conferencias</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">8</div>
-                    <div className="text-gray-600">Facultades</div>
-                  </div>
-                </div>
-                
-                {/* CTA con colores coherentes */}
-                <Link to="/request">
-                  <Button 
-                    variant="primary" 
-                    size="lg"
-                    className="px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white"
-                  >
-                    Solicitar Servicio MediaLab
-                  </Button>
-                </Link>
-              </div>
-            </main>
+              
+              <Link to="/request">
+                <Button 
+                  variant="primary" 
+                  size="lg"
+                  className="px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white font-semibold"
+                >
+                  Solicitar Servicio MediaLab
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </Section>
+
+      {/* Bottom Navigation para móviles */}
+      <BottomNavigation onCategorySelect={handleCategorySelect} />
     </PublicLayout>
   );
 };

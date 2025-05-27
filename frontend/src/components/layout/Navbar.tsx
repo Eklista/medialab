@@ -4,7 +4,7 @@ import logo from '../../assets/images/logo.png'
 import { useAuth } from '../../features/auth/hooks'
 import LockScreen from '../../features/auth/components/LockScreen'
 import { SearchInput } from '../ui/SearchInput'
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { ExploreDropdown } from '../ui/ExploreDropdown'
 
 export const Navbar = () => {
   const [searchValue, setSearchValue] = useState('');
@@ -15,6 +15,16 @@ export const Navbar = () => {
     console.log('Buscando en navbar:', query);
     // Implementar lógica de búsqueda global
     setShowMobileSearch(false); // Cerrar search móvil después de buscar
+  };
+
+  const handleCategorySelect = (facultadId: string, categoryId: string) => {
+    console.log('Navegando a:', facultadId, categoryId);
+    // Navegar a /facultad/[facultadId]/categoria/[categoryId] o filtrar resultados
+  };
+
+  const handleFacultySelect = (facultadId: string) => {
+    console.log('Navegando a facultad:', facultadId);
+    // Navegar a /facultad/[facultadId] o mostrar contenido de la facultad
   };
 
   if (state.isAuthenticated && state.isLocked) {
@@ -99,30 +109,30 @@ export const Navbar = () => {
               </Link>
             </div>
             
-            {/* Search Bar - SOLO DESKTOP */}
-            <div className="hidden lg:flex flex-1 max-w-2xl mx-8">
-              <SearchInput
-                value={searchValue}
-                onChange={setSearchValue}
-                onSearch={handleSearch}
-                suggestions={suggestions}
-                size="md"
-                placeholder="Buscar videos, eventos, facultades..."
-                className="w-full"
+            {/* Navegación central - SOLO DESKTOP */}
+            <div className="hidden lg:flex items-center gap-6">
+              {/* Botón Explorar */}
+              <ExploreDropdown 
+                onCategorySelect={handleCategorySelect}
+                onFacultySelect={handleFacultySelect}
               />
+              
+              {/* Search Bar */}
+              <div className="flex-1 max-w-2xl">
+                <SearchInput
+                  value={searchValue}
+                  onChange={setSearchValue}
+                  onSearch={handleSearch}
+                  suggestions={suggestions}
+                  size="md"
+                  placeholder="Buscar videos, eventos, facultades..."
+                  className="w-full"
+                />
+              </div>
             </div>
             
-            {/* Botones */}
+            {/* Botones de acción */}
             <div className="flex items-center gap-3">
-              {/* Botón de búsqueda SOLO MÓVIL/TABLET */}
-              <button 
-                className="lg:hidden p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" 
-                onClick={() => setShowMobileSearch(!showMobileSearch)}
-                aria-label="Buscar"
-              >
-                <MagnifyingGlassIcon className="h-6 w-6" />
-              </button>
-              
               {/* Botón Solicitar Servicio - NEGRO */}
               <Link 
                 to="/request" 
@@ -134,17 +144,17 @@ export const Navbar = () => {
             </div>
           </div>
 
-          {/* Barra de búsqueda móvil/tablet - FULLSCREEN */}
+          {/* Barra de búsqueda móvil/tablet - SOLO PARA DESKTOP AHORA */}
           {showMobileSearch && (
             <>
               {/* Overlay */}
               <div 
-                className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+                className="fixed inset-0 bg-black bg-opacity-50 z-30"
                 onClick={() => setShowMobileSearch(false)}
               />
               
               {/* Search Modal */}
-              <div className="fixed top-0 left-0 right-0 bg-white p-4 shadow-lg z-40 lg:hidden">
+              <div className="fixed top-0 left-0 right-0 bg-white p-4 shadow-lg z-40">
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
                     <SearchInput
@@ -173,4 +183,4 @@ export const Navbar = () => {
       </header>
     </div>
   )
-} 
+}

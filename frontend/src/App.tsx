@@ -2,7 +2,6 @@
 import React, { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './features/auth/context'
-import { ThemeProvider } from './contexts/ThemeContext'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
 import './styles/global.css'
 
@@ -32,10 +31,10 @@ import { ProtectedRoute } from './features/auth/components'
 
 // Componente de loading personalizado
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-(--color-bg-main) dark:bg-gray-900">
+  <div className="min-h-screen flex items-center justify-center bg-(--color-bg-main)">
     <div className="text-center">
       <LoadingSpinner size="lg" />
-      <p className="mt-4 text-(--color-text-secondary) dark:text-gray-300">
+      <p className="mt-4 text-(--color-text-secondary)">
         Cargando página...
       </p>
     </div>
@@ -53,7 +52,7 @@ const LazyErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <ThemeProvider>
+    <AuthProvider>
       <AuthProvider>
         <Routes>
           {/* Rutas públicas */}
@@ -187,7 +186,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
-    </ThemeProvider>
+    </AuthProvider>
   )
 }
 

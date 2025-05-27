@@ -32,15 +32,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   );
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 ${className}`}>
+    <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
       <div className="flex flex-wrap items-center gap-4">
-        <span className="text-sm font-medium text-(--color-text-main) dark:text-white">
+        <span className="text-sm font-medium text-(--color-text-main)">
           Filtros:
         </span>
         
         {filters.map((filter) => (
           <div key={filter.id} className="flex items-center gap-2">
-            <label className="text-sm text-(--color-text-secondary) dark:text-gray-300">
+            <label className="text-sm text-(--color-text-secondary)">
               {filter.label}:
             </label>
             
@@ -48,7 +48,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <select
                 value={selectedFilters[filter.id] as string || ''}
                 onChange={(e) => onFilterChange(filter.id, e.target.value)}
-                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-(--color-text-main) dark:text-white text-sm"
+                className="px-3 py-1 border border-gray-300 rounded bg-white text-(--color-text-main) text-sm"
               >
                 <option value="">Todos</option>
                 {filter.options.map((option) => (
@@ -62,7 +62,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             {filter.type === 'multiselect' && (
               <div className="relative">
                 {/* Implementar multiselect dropdown */}
-                <button className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-(--color-text-main) dark:text-white text-sm">
+                <button className="px-3 py-1 border border-gray-300 rounded bg-white text-(--color-text-main) text-sm">
                   Seleccionar...
                 </button>
               </div>

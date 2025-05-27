@@ -60,18 +60,18 @@ const DefaultErrorFallback: React.FC<{ error?: Error; resetError: () => void }> 
         />
       </svg>
       
-      <h3 className="text-lg font-medium text-(--color-text-main) dark:text-white mb-2">
+      <h3 className="text-lg font-medium text-(--color-text-main) mb-2">
         Algo salió mal
       </h3>
       
-      <p className="text-(--color-text-secondary) dark:text-gray-300 mb-4">
+      <p className="text-(--color-text-secondary) mb-4">
         Lo sentimos, ocurrió un error inesperado. Por favor intenta nuevamente.
       </p>
       
       {error && import.meta.env.DEV && (
-        <details className="text-left text-sm text-red-600 dark:text-red-400 mb-4">
+        <details className="text-left text-sm text-red-600 mb-4">
           <summary className="cursor-pointer">Detalles del error</summary>
-          <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-auto">
+          <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
             {error.message}
           </pre>
         </details>

@@ -47,8 +47,8 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 ${className}`}>
-      <h3 className="text-lg font-semibold text-(--color-text-main) dark:text-white mb-4">
+    <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
+      <h3 className="text-lg font-semibold text-(--color-text-main)">
         {title}
       </h3>
       
@@ -59,7 +59,7 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
           className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
             !selectedCategory 
               ? 'bg-(--color-accent-1) text-(--color-text-main)' 
-              : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-(--color-text-secondary) dark:text-gray-300'
+              : 'hover:bg-gray-50'
           }`}
         >
           <div className="flex items-center gap-3">
@@ -86,7 +86,7 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
               className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
                 selectedCategory === category.id 
                   ? 'bg-(--color-accent-1) text-(--color-text-main)' 
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-(--color-text-secondary) dark:text-gray-300'
+                  : 'hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -126,7 +126,7 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
                     className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors text-sm ${
                       selectedSubcategory === subcategory.id 
                         ? 'bg-(--color-accent-1) text-(--color-text-main)' 
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-(--color-text-secondary) dark:text-gray-300'
+                        : 'hover:bg-gray-50'
                     }`}
                   >
                     <span>{subcategory.name}</span>

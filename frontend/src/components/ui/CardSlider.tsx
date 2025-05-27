@@ -1,4 +1,4 @@
-// src/components/ui/CardSlider.tsx - Limpio y corregido
+// src/components/ui/CardSlider.tsx - Corregido con colores CSS variables
 import React, { useState, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, EyeIcon, ClockIcon } from '@heroicons/react/24/outline';
 
@@ -25,7 +25,6 @@ export const CardSlider: React.FC<CardSliderProps> = ({
   title,
   items,
   onItemClick,
-  onViewAll,
   itemsPerView = 4,
   className = ''
 }) => {
@@ -65,9 +64,11 @@ export const CardSlider: React.FC<CardSliderProps> = ({
     return (
       <div className={`${className}`}>
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text-main)' }}>
+            {title}
+          </h3>
         </div>
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12" style={{ color: 'var(--color-text-secondary)' }}>
           No hay contenido disponible
         </div>
       </div>
@@ -77,49 +78,55 @@ export const CardSlider: React.FC<CardSliderProps> = ({
   return (
     <div className={`${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-        
-        <div className="flex items-center gap-3">
-          {onViewAll && (
-            <button
-              onClick={onViewAll}
-              className="text-gray-600 hover:text-gray-900 font-medium text-sm"
-            >
-              Ver todos
-            </button>
-          )}
+      {title && (
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text-main)' }}>
+            {title}
+          </h3>
           
-          {/* Navigation arrows */}
-          {items.length > itemsPerView && (
-            <div className="flex gap-2">
-              <button
-                onClick={prevSlide}
-                disabled={currentIndex === 0}
-                className={`p-2 rounded-full border transition-all ${
-                  currentIndex === 0
-                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-              </button>
-              
-              <button
-                onClick={nextSlide}
-                disabled={currentIndex >= maxIndex}
-                className={`p-2 rounded-full border transition-all ${
-                  currentIndex >= maxIndex
-                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            
+            {/* Navigation arrows */}
+            {items.length > itemsPerView && (
+              <div className="flex gap-2">
+                <button
+                  onClick={prevSlide}
+                  disabled={currentIndex === 0}
+                  className={`p-2 rounded-full border transition-all ${
+                    currentIndex === 0
+                      ? 'cursor-not-allowed opacity-50'
+                      : 'hover:shadow-md'
+                  }`}
+                  style={{
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                    backgroundColor: 'var(--color-bg-secondary)'
+                  }}
+                >
+                  <ChevronLeftIcon className="h-4 w-4" />
+                </button>
+                
+                <button
+                  onClick={nextSlide}
+                  disabled={currentIndex >= maxIndex}
+                  className={`p-2 rounded-full border transition-all ${
+                    currentIndex >= maxIndex
+                      ? 'cursor-not-allowed opacity-50'
+                      : 'hover:shadow-md'
+                  }`}
+                  style={{
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                    backgroundColor: 'var(--color-bg-secondary)'
+                  }}
+                >
+                  <ChevronRightIcon className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Slider container */}
       <div className="relative overflow-hidden">
@@ -137,7 +144,11 @@ export const CardSlider: React.FC<CardSliderProps> = ({
               style={{ width: `${100 / itemsPerView}%` }}
             >
               <div 
-                className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                className="rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                style={{
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  borderColor: 'var(--color-border)'
+                }}
                 onClick={() => onItemClick?.(item)}
               >
                 {/* Thumbnail */}
@@ -161,32 +172,50 @@ export const CardSlider: React.FC<CardSliderProps> = ({
                   )}
                   
                   {/* Category badge */}
-                  <div className="absolute top-2 left-2 bg-gray-900 text-white px-2 py-1 rounded text-xs font-medium">
+                  <div 
+                    className="absolute top-2 left-2 px-2 py-1 rounded text-xs font-medium"
+                    style={{ 
+                      backgroundColor: 'var(--color-accent-1)', 
+                      color: 'var(--color-text-main)' 
+                    }}
+                  >
                     {item.category}
                   </div>
                 </div>
                 
                 {/* Content */}
                 <div className="p-4">
-                  <h4 className="font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-gray-700 transition-colors">
+                  <h4 
+                    className="font-semibold line-clamp-2 mb-2 group-hover:opacity-75 transition-colors"
+                    style={{ color: 'var(--color-text-main)' }}
+                  >
                     {item.title}
                   </h4>
                   
                   {item.description && (
-                    <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+                    <p 
+                      className="text-sm line-clamp-2 mb-3"
+                      style={{ color: 'var(--color-text-secondary)' }}
+                    >
                       {item.description}
                     </p>
                   )}
                   
                   {/* Faculty */}
                   {item.faculty && (
-                    <p className="text-gray-700 font-medium text-sm mb-2">
+                    <p 
+                      className="font-medium text-sm mb-2"
+                      style={{ color: 'var(--color-accent-1)' }}
+                    >
                       {item.faculty}
                     </p>
                   )}
                   
                   {/* Meta info */}
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div 
+                    className="flex items-center justify-between text-xs"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
                     <div className="flex items-center gap-3">
                       {item.views && (
                         <div className="flex items-center gap-1">
@@ -215,11 +244,12 @@ export const CardSlider: React.FC<CardSliderProps> = ({
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === currentIndex
-                  ? 'bg-gray-900'
-                  : 'bg-gray-300 hover:bg-gray-400'
-              }`}
+              className="w-2 h-2 rounded-full transition-all"
+              style={{
+                backgroundColor: index === currentIndex 
+                  ? 'var(--color-accent-1)' 
+                  : 'var(--color-border)'
+              }}
             />
           ))}
         </div>
@@ -251,8 +281,19 @@ export const CompactCardSlider: React.FC<CompactCardSliderProps> = ({
   const displayItems = items.slice(0, maxItems);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <h4 className="font-semibold text-gray-900 mb-4">{title}</h4>
+    <div 
+      className="rounded-lg border p-4"
+      style={{
+        backgroundColor: 'var(--color-bg-secondary)',
+        borderColor: 'var(--color-border)'
+      }}
+    >
+      <h4 
+        className="font-semibold mb-4"
+        style={{ color: 'var(--color-text-main)' }}
+      >
+        {title}
+      </h4>
       
       <div className="space-y-3">
         {displayItems.map((item) => (
@@ -267,16 +308,28 @@ export const CompactCardSlider: React.FC<CompactCardSliderProps> = ({
                 alt={item.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
               />
-              <div className="absolute top-1 left-1 bg-gray-900 text-white px-1 py-0.5 rounded text-xs">
+              <div 
+                className="absolute top-1 left-1 px-1 py-0.5 rounded text-xs"
+                style={{ 
+                  backgroundColor: 'var(--color-accent-1)', 
+                  color: 'var(--color-text-main)' 
+                }}
+              >
                 {item.category}
               </div>
             </div>
             
             <div className="flex-1 min-w-0">
-              <h5 className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-gray-700 transition-colors">
+              <h5 
+                className="text-sm font-medium line-clamp-2 group-hover:opacity-75 transition-colors"
+                style={{ color: 'var(--color-text-main)' }}
+              >
                 {item.title}
               </h5>
-              <p className="text-xs text-gray-500 mt-1">
+              <p 
+                className="text-xs mt-1"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
                 {new Date(item.publishedAt).toLocaleDateString('es-ES')}
               </p>
             </div>
