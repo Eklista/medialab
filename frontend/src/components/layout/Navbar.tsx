@@ -1,3 +1,4 @@
+// src/components/layout/Navbar.tsx - Versión mejorada
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import logo from '../../assets/images/logo.png'
@@ -5,6 +6,7 @@ import { useAuth } from '../../features/auth/hooks'
 import LockScreen from '../../features/auth/components/LockScreen'
 import { SearchInput } from '../ui/SearchInput'
 import { ExploreDropdown } from '../ui/ExploreDropdown'
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 
 export const Navbar = () => {
   const [searchValue, setSearchValue] = useState('');
@@ -110,21 +112,21 @@ export const Navbar = () => {
             </div>
             
             {/* Navegación central - SOLO DESKTOP */}
-            <div className="hidden lg:flex items-center gap-6">
-              {/* Botón Explorar */}
+            <div className="hidden lg:flex items-center gap-8 flex-1 max-w-4xl mx-8">
+              {/* Botón Explorar - SIN ICONO */}
               <ExploreDropdown 
                 onCategorySelect={handleCategorySelect}
                 onFacultySelect={handleFacultySelect}
               />
               
-              {/* Search Bar */}
-              <div className="flex-1 max-w-2xl">
+              {/* Search Bar - MÁS GRANDE */}
+              <div className="flex-1">
                 <SearchInput
                   value={searchValue}
                   onChange={setSearchValue}
                   onSearch={handleSearch}
                   suggestions={suggestions}
-                  size="md"
+                  size="lg"
                   placeholder="Buscar videos, eventos, facultades..."
                   className="w-full"
                 />
@@ -133,6 +135,14 @@ export const Navbar = () => {
             
             {/* Botones de acción */}
             <div className="flex items-center gap-3">
+              {/* Botón de búsqueda móvil - ICONO SEARCH */}
+              <button
+                onClick={() => setShowMobileSearch(true)}
+                className="lg:hidden p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <MagnifyingGlassIcon className="h-6 w-6" />
+              </button>
+
               {/* Botón Solicitar Servicio - NEGRO */}
               <Link 
                 to="/request" 
@@ -144,7 +154,7 @@ export const Navbar = () => {
             </div>
           </div>
 
-          {/* Barra de búsqueda móvil/tablet - SOLO PARA DESKTOP AHORA */}
+          {/* Modal de búsqueda móvil */}
           {showMobileSearch && (
             <>
               {/* Overlay */}

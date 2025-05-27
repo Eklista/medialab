@@ -1,4 +1,4 @@
-// src/components/ui/CardSlider.tsx - Corregido con colores CSS variables
+// src/components/ui/CardSlider.tsx - Versión con mejor responsive y flechas
 import React, { useState, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, EyeIcon, ClockIcon } from '@heroicons/react/24/outline';
 
@@ -17,7 +17,6 @@ interface CardSliderProps {
   }>;
   onItemClick?: (item: any) => void;
   onViewAll?: () => void;
-  itemsPerView?: number;
   className?: string;
 }
 
@@ -25,13 +24,36 @@ export const CardSlider: React.FC<CardSliderProps> = ({
   title,
   items,
   onItemClick,
-  itemsPerView = 4,
+  onViewAll,
   className = ''
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const sliderRef = useRef<HTMLDivElement>(null);
 
-  const maxIndex = Math.max(0, items.length - itemsPerView);
+  // Responsive items per view
+  const getItemsPerView = () => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 640) return 1.5; // Mobile: 1 completo + mitad del siguiente
+      if (window.innerWidth < 1024) return 2; // Tablet: 2 completos
+      if (window.innerWidth < 1280) return 3; // Desktop pequeño: 3 completos
+      return 4; // Desktop grande: 4 completos
+    }
+    return 4;
+  };
+
+  const [itemsPerView, setItemsPerView] = useState(getItemsPerView());
+
+  // Update items per view on resize
+  React.useEffect(() => {
+    const handleResize = () => {
+      setItemsPerView(getItemsPerView());
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const maxIndex = Math.max(0, items.length - Math.floor(itemsPerView));
   
   const nextSlide = () => {
     setCurrentIndex(prev => Math.min(prev + 1, maxIndex));
@@ -76,170 +98,178 @@ export const CardSlider: React.FC<CardSliderProps> = ({
   }
 
   return (
-    <div className={`${className}`}>
+    <div className={`relative ${className}`}>
       {/* Header */}
       {title && (
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text-main)' }}>
+          <h3 className="text-xl lg:text-2xl font-semibold" style={{ color: 'var(--color-text-main)' }}>
             {title}
           </h3>
           
-          <div className="flex items-center gap-3">
-            
-            {/* Navigation arrows */}
-            {items.length > itemsPerView && (
-              <div className="flex gap-2">
-                <button
-                  onClick={prevSlide}
-                  disabled={currentIndex === 0}
-                  className={`p-2 rounded-full border transition-all ${
-                    currentIndex === 0
-                      ? 'cursor-not-allowed opacity-50'
-                      : 'hover:shadow-md'
-                  }`}
-                  style={{
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text-secondary)',
-                    backgroundColor: 'var(--color-bg-secondary)'
-                  }}
-                >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                </button>
-                
-                <button
-                  onClick={nextSlide}
-                  disabled={currentIndex >= maxIndex}
-                  className={`p-2 rounded-full border transition-all ${
-                    currentIndex >= maxIndex
-                      ? 'cursor-not-allowed opacity-50'
-                      : 'hover:shadow-md'
-                  }`}
-                  style={{
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text-secondary)',
-                    backgroundColor: 'var(--color-bg-secondary)'
-                  }}
-                >
-                  <ChevronRightIcon className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-          </div>
+          {onViewAll && (
+            <button
+              onClick={onViewAll}
+              className="text-sm font-medium hover:underline"
+              style={{ color: 'var(--color-accent-1)' }}
+            >
+              Ver todos →
+            </button>
+          )}
         </div>
       )}
 
       {/* Slider container */}
-      <div className="relative overflow-hidden">
-        <div 
-          ref={sliderRef}
-          className="flex transition-transform duration-300 ease-out"
-          style={{
-            transform: `translateX(-${currentIndex * (100 / itemsPerView)}%)`
-          }}
-        >
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex-shrink-0 px-2"
-              style={{ width: `${100 / itemsPerView}%` }}
+      <div className="relative group">
+        {/* Navigation arrows - SIEMPRE VISIBLES */}
+        {items.length > itemsPerView && (
+          <>
+            <button
+              onClick={prevSlide}
+              disabled={currentIndex === 0}
+              className={`absolute left-2 top-1/2 -translate-y-1/2 z-10 p-3 bg-white shadow-lg border border-gray-200 rounded-full transition-all hover:shadow-xl ${
+                currentIndex === 0
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:scale-110'
+              }`}
+              style={{
+                color: 'var(--color-text-main)'
+              }}
             >
-              <div 
-                className="rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
-                style={{
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  borderColor: 'var(--color-border)'
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+            
+            <button
+              onClick={nextSlide}
+              disabled={currentIndex >= maxIndex}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 z-10 p-3 bg-white shadow-lg border border-gray-200 rounded-full transition-all hover:shadow-xl ${
+                currentIndex >= maxIndex
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:scale-110'
+              }`}
+              style={{
+                color: 'var(--color-text-main)'
+              }}
+            >
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+          </>
+        )}
+
+        {/* Slider overflow container */}
+        <div className="overflow-hidden px-4">
+          <div 
+            ref={sliderRef}
+            className="flex transition-transform duration-300 ease-out"
+            style={{
+              transform: `translateX(-${currentIndex * (100 / itemsPerView)}%)`
+            }}
+          >
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex-shrink-0 px-2"
+                style={{ 
+                  width: `${100 / itemsPerView}%`
                 }}
-                onClick={() => onItemClick?.(item)}
               >
-                {/* Thumbnail */}
-                <div className="relative aspect-video overflow-hidden">
-                  <img 
-                    src={item.thumbnail} 
-                    alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                  />
-                  
-                  {/* Play overlay */}
-                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <PlayIcon className="h-12 w-12 text-white" />
-                  </div>
-                  
-                  {/* Duration badge */}
-                  {item.duration && (
-                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs font-medium">
-                      {item.duration}
+                <div 
+                  className="rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group h-full"
+                  style={{
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    borderColor: 'var(--color-border)'
+                  }}
+                  onClick={() => onItemClick?.(item)}
+                >
+                  {/* Thumbnail */}
+                  <div className="relative aspect-video overflow-hidden">
+                    <img 
+                      src={item.thumbnail} 
+                      alt={item.title}
+                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                    
+                    {/* Play overlay */}
+                    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <PlayIcon className="h-12 w-12 text-white" />
                     </div>
-                  )}
-                  
-                  {/* Category badge */}
-                  <div 
-                    className="absolute top-2 left-2 px-2 py-1 rounded text-xs font-medium"
-                    style={{ 
-                      backgroundColor: 'var(--color-accent-1)', 
-                      color: 'var(--color-text-main)' 
-                    }}
-                  >
-                    {item.category}
+                    
+                    {/* Duration badge */}
+                    {item.duration && (
+                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs font-medium">
+                        {item.duration}
+                      </div>
+                    )}
+                    
+                    {/* Category badge */}
+                    <div 
+                      className="absolute top-2 left-2 px-2 py-1 rounded text-xs font-medium"
+                      style={{ 
+                        backgroundColor: 'var(--color-accent-1)', 
+                        color: 'var(--color-text-main)' 
+                      }}
+                    >
+                      {item.category}
+                    </div>
                   </div>
-                </div>
-                
-                {/* Content */}
-                <div className="p-4">
-                  <h4 
-                    className="font-semibold line-clamp-2 mb-2 group-hover:opacity-75 transition-colors"
-                    style={{ color: 'var(--color-text-main)' }}
-                  >
-                    {item.title}
-                  </h4>
                   
-                  {item.description && (
-                    <p 
-                      className="text-sm line-clamp-2 mb-3"
+                  {/* Content */}
+                  <div className="p-4 flex-1">
+                    <h4 
+                      className="font-semibold line-clamp-2 mb-2 group-hover:opacity-75 transition-colors text-sm lg:text-base"
+                      style={{ color: 'var(--color-text-main)' }}
+                    >
+                      {item.title}
+                    </h4>
+                    
+                    {item.description && (
+                      <p 
+                        className="text-xs lg:text-sm line-clamp-2 mb-3"
+                        style={{ color: 'var(--color-text-secondary)' }}
+                      >
+                        {item.description}
+                      </p>
+                    )}
+                    
+                    {/* Faculty */}
+                    {item.faculty && (
+                      <p 
+                        className="font-medium text-xs lg:text-sm mb-2"
+                        style={{ color: 'var(--color-accent-1)' }}
+                      >
+                        {item.faculty}
+                      </p>
+                    )}
+                    
+                    {/* Meta info */}
+                    <div 
+                      className="flex items-center justify-between text-xs"
                       style={{ color: 'var(--color-text-secondary)' }}
                     >
-                      {item.description}
-                    </p>
-                  )}
-                  
-                  {/* Faculty */}
-                  {item.faculty && (
-                    <p 
-                      className="font-medium text-sm mb-2"
-                      style={{ color: 'var(--color-accent-1)' }}
-                    >
-                      {item.faculty}
-                    </p>
-                  )}
-                  
-                  {/* Meta info */}
-                  <div 
-                    className="flex items-center justify-between text-xs"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.views && (
+                      <div className="flex items-center gap-3">
+                        {item.views && (
+                          <div className="flex items-center gap-1">
+                            <EyeIcon className="h-3 w-3" />
+                            <span>{formatViews(item.views)}</span>
+                          </div>
+                        )}
+                        
                         <div className="flex items-center gap-1">
-                          <EyeIcon className="h-3 w-3" />
-                          <span>{formatViews(item.views)}</span>
+                          <ClockIcon className="h-3 w-3" />
+                          <span>{formatDate(item.publishedAt)}</span>
                         </div>
-                      )}
-                      
-                      <div className="flex items-center gap-1">
-                        <ClockIcon className="h-3 w-3" />
-                        <span>{formatDate(item.publishedAt)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Progress indicator */}
+      {/* Progress indicator dots - Solo en desktop */}
       {items.length > itemsPerView && (
-        <div className="flex justify-center mt-4 gap-2">
+        <div className="hidden lg:flex justify-center mt-4 gap-2">
           {Array.from({ length: maxIndex + 1 }).map((_, index) => (
             <button
               key={index}

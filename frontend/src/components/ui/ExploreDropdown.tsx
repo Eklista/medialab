@@ -1,73 +1,47 @@
-// src/components/ui/ExploreDropdown.tsx - Mega menú con facultades y categorías
+// src/components/ui/ExploreDropdown.tsx - Versión simplificada sin iconos
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Squares2X2Icon,
-  UserGroupIcon,
-  VideoCameraIcon,
-  MicrophoneIcon,
-  AcademicCapIcon,
-  ChevronDownIcon,
-  PhotoIcon,
-  StarIcon,
-  BuildingOfficeIcon
-} from '@heroicons/react/24/outline';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 const facultades = [
   {
     id: 'fisicc',
     name: 'FISICC',
-    fullName: 'Facultad de Ingeniería de Sistemas, Informática y Ciencias de la Computación',
-    icon: <BuildingOfficeIcon className="h-5 w-5" />,
-    color: 'text-blue-600'
+    fullName: 'Facultad de Ingeniería de Sistemas, Informática y Ciencias de la Computación'
   },
   {
     id: 'facimed',
     name: 'FACIMED',
-    fullName: 'Facultad de Ciencias de la Salud',
-    icon: <BuildingOfficeIcon className="h-5 w-5" />,
-    color: 'text-red-600'
+    fullName: 'Facultad de Ciencias de la Salud'
   },
   {
     id: 'idea',
     name: 'IDEA',
-    fullName: 'Instituto de Educación Abierta',
-    icon: <BuildingOfficeIcon className="h-5 w-5" />,
-    color: 'text-green-600'
+    fullName: 'Instituto de Educación Abierta'
   },
   {
     id: 'facom',
     name: 'FACOM',
-    fullName: 'Facultad de Comunicación',
-    icon: <BuildingOfficeIcon className="h-5 w-5" />,
-    color: 'text-purple-600'
+    fullName: 'Facultad de Comunicación'
   },
   {
     id: 'fcea',
     name: 'FCEA',
-    fullName: 'Facultad de Ciencias Económicas y Administrativas',
-    icon: <BuildingOfficeIcon className="h-5 w-5" />,
-    color: 'text-orange-600'
+    fullName: 'Facultad de Ciencias Económicas y Administrativas'
   },
   {
     id: 'face',
     name: 'FACE',
-    fullName: 'Facultad de Ciencias de la Educación',
-    icon: <BuildingOfficeIcon className="h-5 w-5" />,
-    color: 'text-indigo-600'
+    fullName: 'Facultad de Ciencias de la Educación'
   },
   {
     id: 'facti',
     name: 'FACTI',
-    fullName: 'Facultad de Ciencias, Tecnología e Industria',
-    icon: <BuildingOfficeIcon className="h-5 w-5" />,
-    color: 'text-teal-600'
+    fullName: 'Facultad de Ciencias, Tecnología e Industria'
   },
   {
     id: 'medialab',
     name: 'MediaLab',
-    fullName: 'Laboratorio de Multimedia',
-    icon: <VideoCameraIcon className="h-5 w-5" />,
-    color: 'text-yellow-600'
+    fullName: 'Laboratorio de Multimedia'
   }
 ];
 
@@ -75,37 +49,31 @@ const categorias = [
   {
     id: 'conferencias',
     name: 'Conferencias',
-    icon: <UserGroupIcon className="h-4 w-4" />,
     description: 'Eventos académicos'
   },
   {
     id: 'reportajes',
     name: 'Reportajes',
-    icon: <VideoCameraIcon className="h-4 w-4" />,
     description: 'Documentales'
   },
   {
     id: 'graduaciones',
     name: 'Graduaciones',
-    icon: <AcademicCapIcon className="h-4 w-4" />,
     description: 'Ceremonias'
   },
   {
     id: 'podcasts',
     name: 'Podcasts',
-    icon: <MicrophoneIcon className="h-4 w-4" />,
     description: 'Audio y radio'
   },
   {
     id: 'galerias',
     name: 'Galerías',
-    icon: <PhotoIcon className="h-4 w-4" />,
     description: 'Fotos y eventos'
   },
   {
     id: 'destacados',
     name: 'Destacados',
-    icon: <StarIcon className="h-4 w-4" />,
     description: 'Contenido especial'
   }
 ];
@@ -152,19 +120,18 @@ export const ExploreDropdown: React.FC<ExploreDropdownProps> = ({
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
-      {/* Trigger Button */}
+      {/* Trigger Button - SIN ICONO */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={() => setIsOpen(true)}
         className={`
-          flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all
+          flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-base
           ${isOpen 
             ? 'bg-gray-100 text-gray-900' 
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
           }
         `}
       >
-        <Squares2X2Icon className="h-5 w-5" />
         <span>Explorar</span>
         <ChevronDownIcon 
           className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
@@ -174,7 +141,7 @@ export const ExploreDropdown: React.FC<ExploreDropdownProps> = ({
       {/* Mega Menu */}
       {isOpen && (
         <div 
-          className="absolute top-full left-0 mt-2 w-screen max-w-5xl bg-white border border-gray-200 rounded-lg shadow-xl z-50"
+          className="absolute top-full left-0 mt-2 w-screen max-w-4xl bg-white border border-gray-200 rounded-lg shadow-xl z-50"
           onMouseLeave={() => {
             setIsOpen(false);
             setHoveredFaculty(null);
@@ -184,7 +151,7 @@ export const ExploreDropdown: React.FC<ExploreDropdownProps> = ({
             {/* Facultades Column */}
             <div className="w-2/5 border-r border-gray-200">
               <div className="p-4 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-900">Facultades</h3>
+                <h3 className="font-semibold text-gray-900 text-lg">Facultades</h3>
                 <p className="text-sm text-gray-600">Explora por facultad</p>
               </div>
               
@@ -197,22 +164,17 @@ export const ExploreDropdown: React.FC<ExploreDropdownProps> = ({
                   >
                     <button
                       onClick={() => handleFacultyClick(facultad.id)}
-                      className={`w-full flex items-start gap-3 p-3 rounded-lg transition-colors text-left ${
+                      className={`w-full text-left p-4 rounded-lg transition-colors ${
                         hoveredFaculty === facultad.id
                           ? 'bg-gray-50'
                           : 'hover:bg-gray-50'
                       }`}
                     >
-                      <div className={`flex-shrink-0 mt-0.5 ${facultad.color}`}>
-                        {facultad.icon}
+                      <div className="font-medium text-gray-900 text-base mb-1">
+                        {facultad.name}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900">
-                          {facultad.name}
-                        </div>
-                        <div className="text-xs text-gray-600 line-clamp-2">
-                          {facultad.fullName}
-                        </div>
+                      <div className="text-sm text-gray-600 line-clamp-2">
+                        {facultad.fullName}
                       </div>
                     </button>
                   </div>
@@ -223,7 +185,7 @@ export const ExploreDropdown: React.FC<ExploreDropdownProps> = ({
             {/* Categorías Column */}
             <div className="w-3/5">
               <div className="p-4 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-900">
+                <h3 className="font-semibold text-gray-900 text-lg">
                   {hoveredFaculty 
                     ? `Contenido de ${facultades.find(f => f.id === hoveredFaculty)?.name}`
                     : 'Categorías de Contenido'
@@ -244,25 +206,20 @@ export const ExploreDropdown: React.FC<ExploreDropdownProps> = ({
                       <button
                         key={categoria.id}
                         onClick={() => handleCategoryClick(hoveredFaculty, categoria.id)}
-                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                        className="text-left p-4 rounded-lg hover:bg-gray-50 transition-colors"
                       >
-                        <div className="flex-shrink-0 mt-0.5 text-gray-600">
-                          {categoria.icon}
+                        <div className="font-medium text-gray-900 mb-1">
+                          {categoria.name}
                         </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900 text-sm">
-                            {categoria.name}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {categoria.description}
-                          </div>
+                        <div className="text-sm text-gray-600">
+                          {categoria.description}
                         </div>
                       </button>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    <Squares2X2Icon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <div className="text-4xl mb-3">📚</div>
                     <p>Selecciona una facultad para ver las categorías disponibles</p>
                   </div>
                 )}
@@ -270,7 +227,7 @@ export const ExploreDropdown: React.FC<ExploreDropdownProps> = ({
               
               {/* Quick Links Footer */}
               <div className="border-t border-gray-100 p-4">
-                <div className="flex gap-4 text-sm">
+                <div className="flex gap-6 text-sm">
                   <button
                     onClick={() => {
                       console.log('Ver todo el contenido');

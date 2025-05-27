@@ -10,3 +10,4 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { EmptyState } from './EmptyState';
 export { CardSlider, CompactCardSlider } from './CardSlider';
 export { ExploreDropdown } from './ExploreDropdown';
+export { Tabs, useTabs } from './Tabs';
