@@ -22,7 +22,8 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
       <svg 
-        className={`animate-spin ${sizes[size]} text-(--color-accent-1)`} 
+        className={`animate-spin ${sizes[size]}`}
+        style={{ color: 'var(--color-accent-1)' }}
         fill="none" 
         viewBox="0 0 24 24"
       >
@@ -42,7 +43,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
       </svg>
       
       {text && (
-        <p className="mt-2 text-sm text-(--color-text-secondary) dark:text-gray-300">
+        <p className="mt-2 text-sm text-gray-600">
           {text}
         </p>
       )}

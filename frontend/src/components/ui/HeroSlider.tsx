@@ -1,4 +1,4 @@
-// src/components/ui/HeroSlider.tsx
+// src/components/ui/HeroSlider.tsx - Versión corregida con tu paleta CSS
 import React, { useState, useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon } from '@heroicons/react/24/solid';
 import { Button } from './Button';
@@ -78,8 +78,8 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
 
   if (slides.length === 0) {
     return (
-      <div className="relative h-[600px] bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
-        <p className="text-gray-500 dark:text-gray-400">No hay slides disponibles</p>
+      <div className="relative h-[600px] bg-gray-200 flex items-center justify-center w-full">
+        <p className="text-gray-500">No hay slides disponibles</p>
       </div>
     );
   }
@@ -87,52 +87,63 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
   const currentSlideData = slides[currentSlide];
 
   return (
-    <div className="relative h-[600px] overflow-hidden rounded-xl group">
+    <div className="relative h-[600px] w-full overflow-hidden group">
       {/* Main slide */}
       <div className="relative h-full w-full">
         <img
           src={currentSlideData.image}
           alt={currentSlideData.title}
-          className="w-full h-full object-cover transition-transform duration-700"
+          className="w-full h-full object-cover"
         />
         
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+        {/* Gradient overlay - SOLO desde la izquierda */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent" />
         
-        {/* Content */}
-        <div className="absolute inset-0 flex items-center">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-2xl text-white">
-              {/* Category badge */}
+        {/* Content - CONTENEDOR MÁS ANCHO */}
+        <div className="absolute inset-0 flex items-center w-full">
+          <div className="w-full max-w-7xl mx-auto px-8 lg:px-12">
+            <div className="max-w-4xl">
+              {/* Category badge - USANDO TUS COLORES */}
               <div className="inline-flex items-center gap-2 mb-4">
-                <span className="bg-(--color-accent-1) text-(--color-text-main) px-3 py-1 rounded-full text-sm font-medium">
+                <span 
+                  className="px-3 py-1.5 rounded-full text-sm font-bold text-white"
+                  style={{ backgroundColor: 'var(--color-accent-1)', color: 'var(--color-text-main)' }}
+                >
                   {currentSlideData.category}
                 </span>
                 {currentSlideData.faculty && (
-                  <span className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
+                  <span className="bg-white/20 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-medium">
                     {currentSlideData.faculty}
                   </span>
                 )}
               </div>
               
-              {/* Title */}
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+              {/* Title - TEXTO MÁS PEQUEÑO */}
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 leading-tight text-white">
                 {currentSlideData.title}
               </h1>
               
-              {/* Description */}
-              <p className="text-xl text-white/90 mb-8 leading-relaxed">
-                {currentSlideData.description}
-              </p>
+              {/* Description - TEXTO MÁS PEQUEÑO Y LIMITADO */}
+              <div className="mb-6 max-h-24 overflow-hidden">
+                <p className="text-base md:text-lg text-white/90 leading-relaxed">
+                  {currentSlideData.description}
+                </p>
+              </div>
               
-              {/* Actions */}
-              <div className="flex flex-col sm:flex-row gap-4">
+              {/* Actions - BOTONES MÁS PEQUEÑOS */}
+              <div className="flex flex-col sm:flex-row gap-3">
                 {currentSlideData.video && (
                   <Button
                     variant="primary"
-                    size="lg"
-                    leftIcon={<PlayIcon className="h-5 w-5" />}
+                    size="md"
+                    leftIcon={<PlayIcon className="h-4 w-4" />}
                     onClick={() => handleVideoPlay(currentSlideData.video!.id)}
+                    className="font-semibold px-5 py-2.5 text-sm"
+                    style={{ 
+                      backgroundColor: 'var(--color-accent-1)', 
+                      color: 'var(--color-text-main)',
+                      border: 'none'
+                    }}
                   >
                     Ver Video
                   </Button>
@@ -141,9 +152,9 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
                 {currentSlideData.cta && (
                   <Button
                     variant="outline"
-                    size="lg"
+                    size="md"
                     onClick={currentSlideData.cta.action}
-                    className="border-white text-white hover:bg-white hover:text-(--color-text-main)"
+                    className="border-2 border-white text-white hover:bg-white hover:text-black font-semibold px-5 py-2.5 text-sm"
                   >
                     {currentSlideData.cta.text}
                   </Button>
@@ -153,11 +164,11 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
           </div>
         </div>
         
-        {/* Video thumbnail overlay */}
+        {/* Video thumbnail overlay - MÁS PEQUEÑO Y CONTROLADO */}
         {currentSlideData.video && (
           <div className="absolute bottom-6 right-6 hidden lg:block">
             <div 
-              className="relative w-48 h-28 rounded-lg overflow-hidden cursor-pointer group/video bg-black/50 backdrop-blur-sm"
+              className="relative w-48 h-28 rounded-lg overflow-hidden cursor-pointer group/video bg-black/50 backdrop-blur-sm border border-white/20"
               onClick={() => handleVideoPlay(currentSlideData.video!.id)}
             >
               <img
@@ -166,9 +177,14 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
                 className="w-full h-full object-cover opacity-80 group-hover/video:opacity-100 transition-opacity"
               />
               <div className="absolute inset-0 flex items-center justify-center">
-                <PlayIcon className="h-8 w-8 text-white" />
+                <div 
+                  className="rounded-full p-2"
+                  style={{ backgroundColor: 'var(--color-accent-1)' }}
+                >
+                  <PlayIcon className="h-5 w-5" style={{ color: 'var(--color-text-main)' }} />
+                </div>
               </div>
-              <div className="absolute bottom-1 right-1 bg-black/75 text-white px-2 py-1 rounded text-xs">
+              <div className="absolute bottom-2 right-2 bg-black/75 text-white px-2 py-1 rounded text-xs font-medium">
                 {currentSlideData.video.duration}
               </div>
             </div>
@@ -176,48 +192,52 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
         )}
       </div>
       
-      {/* Navigation arrows */}
+      {/* Navigation arrows - USANDO TUS COLORES */}
       {showArrows && slides.length > 1 && (
         <>
           <button
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100"
+            className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 border border-white/20"
           >
-            <ChevronLeftIcon className="h-6 w-6" />
+            <ChevronLeftIcon className="h-5 w-5" />
           </button>
           
           <button
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100"
+            className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 border border-white/20"
           >
-            <ChevronRightIcon className="h-6 w-6" />
+            <ChevronRightIcon className="h-5 w-5" />
           </button>
         </>
       )}
       
-      {/* Dots indicator */}
+      {/* Dots indicator - EN LA IZQUIERDA USANDO TUS COLORES */}
       {showDots && slides.length > 1 && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
+        <div className="absolute bottom-6 left-8 lg:left-12 flex gap-3">
           {slides.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
               className={`w-3 h-3 rounded-full transition-all ${
                 index === currentSlide 
-                  ? 'bg-(--color-accent-1) scale-125' 
+                  ? 'scale-125' 
                   : 'bg-white/50 hover:bg-white/75'
               }`}
+              style={{
+                backgroundColor: index === currentSlide ? 'var(--color-accent-1)' : undefined
+              }}
             />
           ))}
         </div>
       )}
       
-      {/* Progress bar */}
+      {/* Progress bar - USANDO TUS COLORES */}
       {isPlaying && slides.length > 1 && (
         <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30">
           <div 
-            className="h-full bg-(--color-accent-1) transition-all duration-100 ease-linear"
+            className="h-full transition-all duration-100 ease-linear"
             style={{
+              backgroundColor: 'var(--color-accent-1)',
               width: `${((currentSlide + 1) / slides.length) * 100}%`
             }}
           />
@@ -225,95 +245,8 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
       )}
       
       {/* Slide counter */}
-      <div className="absolute top-6 right-6 bg-black/30 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm">
+      <div className="absolute top-6 right-6 bg-black/50 backdrop-blur-sm text-white px-3 py-2 rounded-full text-sm font-medium border border-white/20">
         {currentSlide + 1} / {slides.length}
-      </div>
-    </div>
-  );
-};
-
-// Mini slider for related content
-interface MiniSliderProps {
-  items: Array<{
-    id: string;
-    title: string;
-    thumbnail: string;
-    category: string;
-  }>;
-  onItemClick: (item: any) => void;
-  title?: string;
-}
-
-export const MiniSlider: React.FC<MiniSliderProps> = ({
-  items,
-  onItemClick,
-  title = "Contenido relacionado"
-}) => {
-  const [startIndex, setStartIndex] = useState(0);
-  const itemsToShow = 4;
-  
-  const canGoNext = startIndex < items.length - itemsToShow;
-  const canGoPrev = startIndex > 0;
-  
-  const next = () => {
-    if (canGoNext) setStartIndex(prev => prev + 1);
-  };
-  
-  const prev = () => {
-    if (canGoPrev) setStartIndex(prev => prev - 1);
-  };
-  
-  const visibleItems = items.slice(startIndex, startIndex + itemsToShow);
-  
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-(--color-text-main) dark:text-white">
-          {title}
-        </h3>
-        
-        {items.length > itemsToShow && (
-          <div className="flex gap-2">
-            <button
-              onClick={prev}
-              disabled={!canGoPrev}
-              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-            </button>
-            <button
-              onClick={next}
-              disabled={!canGoNext}
-              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              <ChevronRightIcon className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {visibleItems.map(item => (
-          <div
-            key={item.id}
-            onClick={() => onItemClick(item)}
-            className="cursor-pointer group"
-          >
-            <div className="relative aspect-video rounded-lg overflow-hidden mb-2">
-              <img
-                src={item.thumbnail}
-                alt={item.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-              />
-              <div className="absolute top-2 left-2 bg-(--color-accent-1) text-(--color-text-main) px-2 py-1 rounded text-xs font-medium">
-                {item.category}
-              </div>
-            </div>
-            <h4 className="text-sm font-medium text-(--color-text-main) dark:text-white line-clamp-2 group-hover:text-(--color-accent-1) transition-colors">
-              {item.title}
-            </h4>
-          </div>
-        ))}
       </div>
     </div>
   );

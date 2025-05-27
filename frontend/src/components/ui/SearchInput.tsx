@@ -1,4 +1,4 @@
-// src/components/ui/SearchInput.tsx
+// src/components/ui/SearchInput.tsx - Sin colores azules
 import React, { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -68,12 +68,12 @@ export const SearchInput: React.FC<SearchInputProps> = ({
             placeholder={placeholder}
             className={`
               w-full ${sizes[size]} pl-10 pr-20 
-              border border-gray-300 dark:border-gray-600 
+              border border-gray-300 
               rounded-full 
-              bg-white dark:bg-gray-800 
-              text-(--color-text-main) dark:text-white
-              placeholder-gray-500 dark:placeholder-gray-400
-              focus:outline-none focus:ring-2 focus:ring-(--color-accent-1) focus:border-(--color-accent-1)
+              bg-white 
+              text-gray-900
+              placeholder-gray-500
+              focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900
               transition-all duration-200
             `}
           />
@@ -83,7 +83,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-12 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="absolute right-12 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
@@ -93,7 +93,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-(--color-accent-1) text-(--color-text-main) rounded-full hover:bg-(--color-hover) transition-colors disabled:opacity-50"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-gray-900 text-white rounded-full hover:bg-gray-800 transition-colors disabled:opacity-50"
           >
             {loading ? (
               <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -109,16 +109,16 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 
       {/* Suggestions dropdown */}
       {showSuggestions && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
           {suggestions.map((suggestion, index) => (
             <button
               key={index}
               onClick={() => handleSuggestionClick(suggestion)}
-              className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
             >
               <div className="flex items-center gap-3">
                 <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
-                <span className="text-(--color-text-main) dark:text-white">{suggestion}</span>
+                <span className="text-gray-900">{suggestion}</span>
               </div>
             </button>
           ))}
