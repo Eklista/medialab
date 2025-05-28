@@ -1,13 +1,35 @@
-// src/components/video/CustomVideoPlayer.tsx - Con YouTube Player API oficial
+// src/components/video/CustomVideoPlayer.tsx - Responsive con iconos SVG inline
 import { useState, useRef, useEffect } from 'react';
 import { VideoData } from '../../types/video';
-import { 
-  PlayIcon, 
-  PauseIcon, 
-  SpeakerWaveIcon, 
-  SpeakerXMarkIcon,
-  ArrowsPointingOutIcon,
-} from '@heroicons/react/24/outline';
+
+// Iconos SVG inline para evitar problemas de dependencias
+const PlayIcon = () => (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M8 5v14l11-7z"/>
+  </svg>
+);
+
+const PauseIcon = () => (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+  </svg>
+);
+
+const VolumeIcon = ({ muted }: { muted: boolean }) => (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    {muted ? (
+      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+    ) : (
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+    )}
+  </svg>
+);
+
+const FullscreenIcon = () => (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+  </svg>
+);
 
 // Declarar tipos para YouTube API
 declare global {
@@ -47,12 +69,24 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
   const [bufferedTime, setBufferedTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [apiReady, setApiReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   const playerRef = useRef<HTMLDivElement>(null);
   const youtubePlayerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
   const updateIntervalRef = useRef<number | null>(null);
+
+  // Detectar dispositivo móvil
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Extraer YouTube ID
   const extractYouTubeId = (url: string): string | null => {
@@ -77,12 +111,10 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       return;
     }
 
-    // Cargar script de YouTube API
     const script = document.createElement('script');
     script.src = 'https://www.youtube.com/iframe_api';
     script.async = true;
     
-    // Callback cuando la API esté lista
     window.onYouTubeIframeAPIReady = () => {
       console.log('✅ YouTube API cargada');
       setApiReady(true);
@@ -91,7 +123,6 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
     document.head.appendChild(script);
 
     return () => {
-      // Cleanup si es necesario
       if (document.head.contains(script)) {
         document.head.removeChild(script);
       }
@@ -110,7 +141,6 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
         width: '100%',
         videoId: videoId,
         playerVars: {
-          // Configuración para controles personalizados
           controls: 0,
           disablekb: 1,
           fs: 0,
@@ -132,7 +162,6 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
             setIsLoading(false);
             setError(null);
             
-            // Obtener información inicial
             setTimeout(() => {
               updateVideoInfo();
             }, 500);
@@ -166,32 +195,27 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
     if (!youtubePlayerRef.current) return;
 
     try {
-      // Obtener duración
       const videoDuration = youtubePlayerRef.current.getDuration();
       if (videoDuration && videoDuration > 0) {
         setDuration(videoDuration);
       }
 
-      // Obtener tiempo actual
       const currentVideoTime = youtubePlayerRef.current.getCurrentTime();
       if (typeof currentVideoTime === 'number') {
         setCurrentTime(currentVideoTime);
         onTimeUpdate?.(currentVideoTime);
       }
 
-      // Obtener volumen
       const videoVolume = youtubePlayerRef.current.getVolume();
       if (typeof videoVolume === 'number') {
         setVolume(videoVolume);
       }
 
-      // Obtener estado de mute
       const mutedState = youtubePlayerRef.current.isMuted();
       if (typeof mutedState === 'boolean') {
         setIsMuted(mutedState);
       }
 
-      // Obtener información de buffer
       const loadedFraction = youtubePlayerRef.current.getVideoLoadedFraction();
       if (typeof loadedFraction === 'number' && videoDuration) {
         setBufferedTime(loadedFraction * videoDuration);
@@ -218,7 +242,6 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
         onEnded?.();
         break;
       case window.YT.PlayerState.BUFFERING:
-        // Actualizar info durante buffering
         setTimeout(updateVideoInfo, 100);
         break;
     }
@@ -260,7 +283,7 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
   };
 
   const handleMouseLeave = () => {
-    if (isPlaying) {
+    if (isPlaying && !isMobile) {
       setShowControls(false);
     }
   };
@@ -289,7 +312,6 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       } else {
         youtubePlayerRef.current.mute();
       }
-      // Actualizar estado inmediatamente
       setTimeout(updateVideoInfo, 100);
     } catch (error) {
       console.error('Mute toggle error:', error);
@@ -303,7 +325,6 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       youtubePlayerRef.current.setVolume(newVolume);
       setVolume(newVolume);
       
-      // Si ponemos volumen > 0 y estaba muted, desmutear
       if (newVolume > 0 && isMuted) {
         youtubePlayerRef.current.unMute();
         setIsMuted(false);
@@ -388,10 +409,10 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
     return (
       <div className={`relative bg-gray-900 rounded-lg overflow-hidden ${className}`}>
         <div className="aspect-video flex items-center justify-center text-white">
-          <div className="text-center">
+          <div className="text-center p-4">
             <div className="text-4xl mb-4">❌</div>
             <p className="text-lg font-medium">Video no disponible</p>
-            <p className="text-sm opacity-75">URL: {video.videoUrl}</p>
+            <p className="text-sm opacity-75 break-all">URL: {video.videoUrl}</p>
           </div>
         </div>
       </div>
@@ -404,6 +425,7 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       className={`relative bg-black rounded-lg overflow-hidden group ${className}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={() => setShowControls(true)}
     >
       {/* Aspect Ratio Container */}
       <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
@@ -421,8 +443,8 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           {/* Loading Overlay */}
           {(isLoading || !apiReady) && (
             <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center pointer-events-auto">
-              <div className="text-center text-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+              <div className="text-center text-white p-4">
+                <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-white mx-auto mb-4"></div>
                 <p className="text-sm">
                   {!apiReady ? 'Cargando YouTube API...' : 'Cargando video...'}
                 </p>
@@ -434,17 +456,17 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           {/* Error Overlay */}
           {error && (
             <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center pointer-events-auto">
-              <div className="text-center text-white">
-                <div className="text-4xl mb-4">⚠️</div>
-                <p className="text-lg font-medium mb-2">Error</p>
-                <p className="text-sm opacity-75 mb-4">{error}</p>
+              <div className="text-center text-white p-4">
+                <div className="text-2xl sm:text-4xl mb-4">⚠️</div>
+                <p className="text-base sm:text-lg font-medium mb-2">Error</p>
+                <p className="text-xs sm:text-sm opacity-75 mb-4">{error}</p>
                 <button 
                   onClick={() => {
                     setError(null);
                     setIsLoading(true);
                     window.location.reload();
                   }}
-                  className="px-4 py-2 bg-accent-1 hover:bg-red-700 rounded-lg transition-colors"
+                  className="px-3 py-2 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm"
                 >
                   Recargar página
                 </button>
@@ -456,25 +478,25 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           {!isLoading && !error && (
             <div 
               className={`absolute inset-0 transition-opacity duration-300 pointer-events-auto ${
-                showControls ? 'opacity-100' : 'opacity-0'
+                showControls || isMobile ? 'opacity-100' : 'opacity-0'
               }`}
             >
               {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30" />
               
               {/* Top info bar */}
-              <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white z-10">
-                <div className="flex items-center gap-3">
-                  <span className="bg-accent-1 text-black px-2 py-1 rounded text-sm font-medium">
+              <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex items-center justify-between text-white z-10">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="bg-accent-1 text-black px-2 py-1 rounded text-xs sm:text-sm font-medium">
                     {video.category}
                   </span>
-                  {video.faculty && (
-                    <span className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                  {video.faculty && !isMobile && (
+                    <span className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs sm:text-sm">
                       {video.faculty}
                     </span>
                   )}
                 </div>
-                <div className="text-sm font-medium">
+                <div className="text-xs sm:text-sm font-medium">
                   {duration > 0 ? formatTime(duration) : (video.duration || '---')}
                 </div>
               </div>
@@ -484,9 +506,11 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
                 {!isPlaying && (
                   <button
                     onClick={handlePlayPause}
-                    className="w-20 h-20 bg-accent-1 bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all transform hover:scale-105"
+                    className="w-16 h-16 sm:w-20 sm:h-20 bg-accent-1 bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all transform hover:scale-105"
                   >
-                    <PlayIcon className="h-10 w-10 text-black ml-1" />
+                    <div className="text-black ml-1">
+                      <PlayIcon />
+                    </div>
                   </button>
                 )}
                 
@@ -499,12 +523,12 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
               </div>
 
               {/* Bottom controls */}
-              <div className="absolute bottom-4 left-4 right-4 text-white z-10">
+              <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 text-white z-10">
                 
                 {/* Progress bar */}
-                <div className="mb-3">
+                <div className="mb-2 sm:mb-3">
                   <div 
-                    className="w-full h-2 bg-white bg-opacity-30 rounded-full cursor-pointer hover:h-3 transition-all relative"
+                    className="w-full h-1 sm:h-2 bg-white bg-opacity-30 rounded-full cursor-pointer hover:h-2 sm:hover:h-3 transition-all relative"
                     onClick={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       const clickX = e.clientX - rect.left;
@@ -523,93 +547,97 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
                       className="absolute top-0 left-0 h-full bg-accent-1 rounded-full transition-all duration-200"
                       style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
                     >
-                      <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-accent-1 rounded-full opacity-0 hover:opacity-100 transition-opacity" />
+                      <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 bg-accent-1 rounded-full opacity-0 hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
                 </div>
 
                 {/* Controls row */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    {/* Skip buttons */}
                     <button
                       onClick={() => handleSkip(-10)}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
                       title="Retroceder 10 segundos"
                     >
-                      <span className="text-sm font-bold">-10</span>
+                      <span className="text-xs sm:text-sm font-bold">-10</span>
                     </button>
 
+                    {/* Play/Pause */}
                     <button
                       onClick={handlePlayPause}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
                     >
-                      {isPlaying ? 
-                        <PauseIcon className="h-6 w-6" /> : 
-                        <PlayIcon className="h-6 w-6 ml-0.5" />
-                      }
+                      {isPlaying ? <PauseIcon /> : <PlayIcon />}
                     </button>
 
                     <button
                       onClick={() => handleSkip(10)}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
                       title="Adelantar 10 segundos"
                     >
-                      <span className="text-sm font-bold">+10</span>
+                      <span className="text-xs sm:text-sm font-bold">+10</span>
                     </button>
 
-                    <button
-                      onClick={handleMuteToggle}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-                    >
-                      {isMuted ? 
-                        <SpeakerXMarkIcon className="h-6 w-6" /> : 
-                        <SpeakerWaveIcon className="h-6 w-6" />
-                      }
-                    </button>
+                    {/* Volume controls - hidden on mobile */}
+                    {!isMobile && (
+                      <>
+                        <button
+                          onClick={handleMuteToggle}
+                          className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                        >
+                          <VolumeIcon muted={isMuted} />
+                        </button>
 
-                    {/* Control de volumen */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={volume}
-                        onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                        className="w-20 h-1 bg-white bg-opacity-30 rounded-lg appearance-none cursor-pointer"
-                        style={{
-                          background: `linear-gradient(to right, #cbe81a 0%, #cbe81a ${volume}%, rgba(255,255,255,0.3) ${volume}%, rgba(255,255,255,0.3) 100%)`
-                        }}
-                      />
-                      <span className="text-xs font-mono w-8 text-center">{Math.round(volume)}</span>
-                    </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={volume}
+                            onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                            className="w-16 sm:w-20 h-1 bg-white bg-opacity-30 rounded-lg appearance-none cursor-pointer"
+                            style={{
+                              background: `linear-gradient(to right, #cbe81a 0%, #cbe81a ${volume}%, rgba(255,255,255,0.3) ${volume}%, rgba(255,255,255,0.3) 100%)`
+                            }}
+                          />
+                          <span className="text-xs font-mono w-6 sm:w-8 text-center">{Math.round(volume)}</span>
+                        </div>
+                      </>
+                    )}
 
-                    <div className="text-sm font-medium">
+                    {/* Time display */}
+                    <div className="text-xs sm:text-sm font-medium">
                       {formatTime(currentTime)} / {formatTime(duration)}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* Control de velocidad */}
-                    <select
-                      value={playbackRate}
-                      onChange={(e) => handlePlaybackRateChange(Number(e.target.value))}
-                      className="bg-black bg-opacity-50 text-white text-sm rounded px-2 py-1 border border-white border-opacity-30"
-                    >
-                      <option value={0.25}>0.25x</option>
-                      <option value={0.5}>0.5x</option>
-                      <option value={0.75}>0.75x</option>
-                      <option value={1}>1x</option>
-                      <option value={1.25}>1.25x</option>
-                      <option value={1.5}>1.5x</option>
-                      <option value={2}>2x</option>
-                    </select>
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    {/* Speed control - hidden on mobile */}
+                    {!isMobile && (
+                      <select
+                        value={playbackRate}
+                        onChange={(e) => handlePlaybackRateChange(Number(e.target.value))}
+                        className="bg-black bg-opacity-50 text-white text-xs sm:text-sm rounded px-1 sm:px-2 py-1 border border-white border-opacity-30"
+                      >
+                        <option value={0.25}>0.25x</option>
+                        <option value={0.5}>0.5x</option>
+                        <option value={0.75}>0.75x</option>
+                        <option value={1}>1x</option>
+                        <option value={1.25}>1.25x</option>
+                        <option value={1.5}>1.5x</option>
+                        <option value={2}>2x</option>
+                      </select>
+                    )}
                     
+                    {/* Fullscreen */}
                     <button
                       onClick={handleFullscreen}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                      className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
                       title={isFullscreen ? "Salir de pantalla completa (ESC)" : "Pantalla completa"}
                     >
-                      <ArrowsPointingOutIcon className="h-6 w-6" />
+                      <FullscreenIcon />
                     </button>
                   </div>
                 </div>
@@ -618,7 +646,7 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           )}
 
           {/* Click overlay para mostrar controles */}
-          {!showControls && !isLoading && !error && (
+          {!showControls && !isLoading && !error && !isMobile && (
             <div 
               className="absolute inset-0 cursor-pointer"
               onClick={() => setShowControls(true)}

@@ -4,6 +4,7 @@ from app.repositories.area_repository import AreaRepository
 from app.repositories.service_repository import ServiceRepository
 from app.repositories.department_repository import DepartmentRepository
 from app.repositories.department_type_repository import DepartmentTypeRepository
+from app.repositories.auth_repository import AuthRepository
 
 __all__ = [
     'UserRepository',
@@ -11,5 +12,6 @@ __all__ = [
     'AreaRepository',
     'ServiceRepository',
     'DepartmentRepository',
-    'DepartmentTypeRepository',
+    'DepartmentTypeRepository'
+    'AuthRepository'
 ]
