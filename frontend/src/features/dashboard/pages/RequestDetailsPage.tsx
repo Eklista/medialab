@@ -43,7 +43,8 @@ const RequestDetailsPage: React.FC = () => {
           setError('Solicitud no encontrada');
         }
         setLoading(false);
-      } catch (err) {
+      } catch (error) {
+        console.error('Error loading request details:', error);
         setError('Error al cargar los detalles de la solicitud');
         setLoading(false);
       }

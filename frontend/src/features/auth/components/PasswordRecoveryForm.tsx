@@ -219,7 +219,7 @@ const PasswordRecoveryForm: React.FC = () => {
             } else {
               setFormErrors(prev => ({ ...prev, token: 'Código inválido. Inténtalo de nuevo.' }));
             }
-          } catch (error) {
+          } catch (_error) {
             setFormErrors(prev => ({ ...prev, token: 'Código inválido o expirado. Inténtalo de nuevo.' }));
           }
           break;

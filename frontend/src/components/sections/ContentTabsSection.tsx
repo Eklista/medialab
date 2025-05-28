@@ -1,6 +1,7 @@
 // src/components/sections/ContentTabsSection.tsx
 import React from 'react';
-import { Tabs, Tab, useTabs } from '../ui/Tabs';
+import { Tabs, Tab } from '../ui/Tabs';
+import { useTabs } from '../../hooks/useTabs';
 import { CardSlider } from '../ui/CardSlider';
 import { Button } from '../ui/Button';
 import { 

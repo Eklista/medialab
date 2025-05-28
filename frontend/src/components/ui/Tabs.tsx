@@ -118,18 +118,3 @@ export const Tabs: React.FC<TabsProps> = ({
     </div>
   );
 };
-
-// Hook para manejar el estado de tabs
-export const useTabs = (initialTab?: string) => {
-  const [activeTab, setActiveTab] = useState(initialTab || '');
-
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-  };
-
-  return {
-    activeTab,
-    setActiveTab,
-    handleTabChange
-  };
-};

@@ -41,9 +41,9 @@ interface UserProfile {
   isActive: boolean;
   joinDate: string;
   lastLogin: string;
-  profileImage?: string;
-  bannerImage?: string;
-  birthday?: string;
+  profileImage?: string | null;   
+  bannerImage?: string | null;    
+  birthday?: string | null;       
   phone?: string;
   location?: string;
 }
@@ -442,7 +442,7 @@ const UserProfilePage: React.FC = () => {
                   id: parseInt(user.id),
                   firstName: user.firstName,
                   lastName: user.lastName,
-                  profileImage: user.profileImage
+                  profileImage: user.profileImage || undefined
                 }}
                 size="2xl"
                 className="border-4 border-white"
@@ -644,7 +644,7 @@ const UserProfilePage: React.FC = () => {
                   id: parseInt(user.id),
                   firstName: user.firstName,
                   lastName: user.lastName,
-                  profileImage: previewProfileImage || user.profileImage
+                  profileImage: previewProfileImage || user.profileImage || undefined
                 }}
                 size="xl"
               />

@@ -1,4 +1,4 @@
-// src/pages/home/HomePage.tsx - Nueva estructura completa
+// src/pages/home/HomePage.tsx - Con links actualizados a videos reales
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PublicLayout } from '../../components';
@@ -23,69 +23,69 @@ import serviceAudiovisual from '../../assets/images/service-audiovisual.jpg';
 import serviceContent from '../../assets/images/service-content.jpg';
 import serviceAcademic from '../../assets/images/service-academic.jpg';
 
-// Datos para el hero slider
+// Datos para el hero slider con links a videos reales
 const heroSlides = [
   {
     id: '1',
-    title: 'Laboratorio de Multimedia Universidad Galileo',
-    description: 'Creamos contenido audiovisual de alta calidad para documentar y compartir los momentos más importantes de nuestra comunidad académica.',
+    title: 'Graduación Universidad Galileo 2024',
+    description: 'Ceremonia de graduación de la promoción 2024. Una celebración llena de emoción y logros académicos de nuestros estudiantes.',
     image: medialabHero,
-    category: 'MediaLab',
+    category: 'Graduaciones',
     faculty: 'Universidad Galileo',
     video: {
-      id: 'medialab-intro',
+      id: 'graduacion',
       thumbnail: gallery1,
-      duration: '3:45'
+      duration: '1:20:45'
     },
     cta: {
-      text: 'Conocer más',
-      action: () => console.log('Ver más sobre MediaLab')
+      text: 'Ver ceremonia completa',
+      action: () => console.log('Ver graduación completa')
     }
   },
   {
     id: '2',
-    title: 'Galería Visual Universidad Galileo',
-    description: 'Explora nuestro archivo visual que documenta la vida académica, eventos especiales y logros de nuestra comunidad universitaria.',
+    title: 'Innovación y Tecnología en Universidad Galileo',
+    description: 'Conoce los proyectos más innovadores que se desarrollan en nuestros laboratorios y centros de investigación.',
     image: gallery1,
-    category: 'Galerías',
+    category: 'Reportajes',
     faculty: 'Universidad Galileo',
     video: {
-      id: 'gallery-showcase',
+      id: 'reportaje',
       thumbnail: gallery2,
-      duration: '5:20'
+      duration: '25:30'
     }
   },
   {
     id: '3',
-    title: 'Servicios Multimedia Profesionales',
-    description: 'Ofrecemos servicios completos de producción audiovisual, desde transmisiones en vivo hasta contenido para redes sociales.',
+    title: 'Vida Universitaria en Universidad Galileo',
+    description: 'Descubre la experiencia estudiantil y todo lo que nuestra universidad tiene para ofrecer a la comunidad académica.',
     image: gallery3,
-    category: 'Servicios',
-    faculty: 'MediaLab',
+    category: 'Institucional',
+    faculty: 'Universidad Galileo',
     video: {
-      id: 'services-overview',
+      id: 'video-random',
       thumbnail: serviceAudiovisual,
-      duration: '4:15'
+      duration: '15:45'
     }
   }
 ];
 
-// Datos de contenido organizados por categoría
+// Datos de contenido organizados por categoría - ACTUALIZADOS CON IDS REALES
 const contentData = {
   graduaciones: [
     {
-      id: '1',
-      title: 'Graduación Medicina 2024',
-      description: 'Ceremonia de graduación de nuevos médicos',
+      id: 'graduacion',
+      title: 'Graduación Universidad Galileo 2024',
+      description: 'Ceremonia de graduación de la promoción 2024',
       thumbnail: gallery3,
       duration: '1:20:45',
       views: 25600,
       category: 'Graduaciones',
-      faculty: 'FACIMED',
+      faculty: 'Universidad Galileo',
       publishedAt: '2024-02-28'
     },
     {
-      id: '2',
+      id: 'graduacion-2',
       title: 'Graduación Ingeniería en Sistemas',
       description: 'Nuevos ingenieros en sistemas se gradúan con honores',
       thumbnail: serviceContent,
@@ -96,7 +96,7 @@ const contentData = {
       publishedAt: '2024-02-25'
     },
     {
-      id: '3',
+      id: 'graduacion-3',
       title: 'Graduación Administración de Empresas',
       description: 'Ceremonia de graduación FCEA',
       thumbnail: gallery1,
@@ -107,7 +107,7 @@ const contentData = {
       publishedAt: '2024-02-15'
     },
     {
-      id: '4',
+      id: 'graduacion-4',
       title: 'Graduación Comunicación 2024',
       description: 'Nuevos profesionales en comunicación',
       thumbnail: serviceAudiovisual,
@@ -118,7 +118,7 @@ const contentData = {
       publishedAt: '2024-02-20'
     },
     {
-      id: '5',
+      id: 'graduacion-5',
       title: 'Graduación FACE 2024',
       description: 'Ceremonia de graduación Facultad de Educación',
       thumbnail: gallery2,
@@ -132,7 +132,7 @@ const contentData = {
   
   conferencias: [
     {
-      id: '6',
+      id: 'conferencia-1',
       title: 'Conferencia Internacional de Tecnología',
       description: 'Expertos mundiales discuten las últimas tendencias tecnológicas',
       thumbnail: serviceContent,
@@ -143,7 +143,7 @@ const contentData = {
       publishedAt: '2024-03-15'
     },
     {
-      id: '7',
+      id: 'conferencia-2',
       title: 'Simposio de Medicina Moderna',
       description: 'Avances en medicina y nuevos tratamientos',
       thumbnail: gallery2,
@@ -154,7 +154,7 @@ const contentData = {
       publishedAt: '2024-03-10'
     },
     {
-      id: '8',
+      id: 'conferencia-3',
       title: 'Foro de Emprendimiento Digital',
       description: 'Startups y tecnología en Guatemala',
       thumbnail: gallery3,
@@ -165,7 +165,7 @@ const contentData = {
       publishedAt: '2024-02-28'
     },
     {
-      id: '9',
+      id: 'conferencia-4',
       title: 'Conferencia de Innovación Educativa',
       description: 'Nuevas metodologías en educación superior',
       thumbnail: serviceAcademic,
@@ -179,18 +179,18 @@ const contentData = {
   
   reportajes: [
     {
-      id: '10',
-      title: 'Reportaje: Innovación en Universidad Galileo',
+      id: 'reportaje',
+      title: 'Reportaje: Innovación y Tecnología en Universidad Galileo',
       description: 'Conoce los proyectos más innovadores de nuestros estudiantes',
       thumbnail: serviceAcademic,
-      duration: '25:15',
-      views: 8950,
+      duration: '25:30',
+      views: 18700,
       category: 'Reportajes',
       faculty: 'Universidad Galileo',
-      publishedAt: '2024-03-08'
+      publishedAt: '2024-03-15'
     },
     {
-      id: '11',
+      id: 'reportaje-2',
       title: 'Vida Estudiantil en FISICC',
       description: 'Un día en la facultad de ingeniería',
       thumbnail: serviceContent,
@@ -201,7 +201,7 @@ const contentData = {
       publishedAt: '2024-03-01'
     },
     {
-      id: '12',
+      id: 'reportaje-3',
       title: 'Investigación Médica en FACIMED',
       description: 'Proyectos de investigación que salvan vidas',
       thumbnail: gallery2,
@@ -212,7 +212,7 @@ const contentData = {
       publishedAt: '2024-02-25'
     },
     {
-      id: '13',
+      id: 'reportaje-4',
       title: 'Campus Sustentable UG',
       description: 'Iniciativas verdes y sostenibles en el campus universitario',
       thumbnail: gallery1,
@@ -226,18 +226,18 @@ const contentData = {
   
   fotografias: [
     {
-      id: '14',
-      title: 'Galería: Festival Cultural UG 2024',
-      description: 'Las mejores fotografías del festival cultural anual',
+      id: 'video-random',
+      title: 'Evento Especial Universidad Galileo',
+      description: 'Video especial mostrando diversos aspectos de la vida universitaria',
       thumbnail: gallery1,
-      duration: '15:30',
-      views: 7200,
-      category: 'Fotografías',
+      duration: '15:45',
+      views: 12400,
+      category: 'Eventos',
       faculty: 'Universidad Galileo',
-      publishedAt: '2024-03-12'
+      publishedAt: '2024-03-10'
     },
     {
-      id: '15',
+      id: 'galeria-2',
       title: 'Detrás de Cámaras: MediaLab',
       description: 'Conoce el trabajo diario del equipo de MediaLab',
       thumbnail: serviceAudiovisual,
@@ -248,7 +248,7 @@ const contentData = {
       publishedAt: '2024-03-08'
     },
     {
-      id: '16',
+      id: 'galeria-3',
       title: 'Arquitectura del Campus UG',
       description: 'Tour visual por los edificios más emblemáticos',
       thumbnail: gallery3,
@@ -259,7 +259,7 @@ const contentData = {
       publishedAt: '2024-02-28'
     },
     {
-      id: '17',
+      id: 'galeria-4',
       title: 'Laboratorios FISICC en Acción',
       description: 'Estudiantes trabajando en proyectos tecnológicos',
       thumbnail: serviceContent,
@@ -283,17 +283,15 @@ const allVideos = [
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Handlers para navegación
+  // Handlers para navegación - ACTUALIZADOS
   const handleVideoClick = (video: any) => {
-    console.log('Navegando a video:', video.title);
+    console.log('Navegando a video:', video.title, 'ID:', video.id);
     navigate(`/video/${video.id}`);
   };
 
   const handleHeroVideoPlay = (videoId: string) => {
     console.log('Navegando a video del hero:', videoId);
-    // Podrías mapear videoId a un ID real de video
-    // Por ahora navegar a un video de ejemplo
-    navigate('/video/0');
+    navigate(`/video/${videoId}`);
   };
 
   const handleViewAllClick = (category: string) => {

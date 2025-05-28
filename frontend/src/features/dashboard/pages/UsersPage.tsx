@@ -29,6 +29,13 @@ interface LocalUser {
   lastName: string;
 }
 
+interface UserUpdateData {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  isActive?: boolean;
+}
+
 const UsersPage: React.FC = () => {
   const navigate = useNavigate();
   
@@ -167,9 +174,9 @@ const UsersPage: React.FC = () => {
       setUsers(users.filter(user => user.id !== currentUser.id));
       setIsDeleteModalOpen(false);
       setCurrentUser(null);
-    } catch (err) {
-      console.error('Error al eliminar usuario:', err);
-      setModalError(err instanceof Error ? err.message : 'Error al eliminar usuario');
+    } catch (error) {
+      console.error('Error al eliminar usuario:', error);
+      setModalError(error instanceof Error ? error.message : 'Error al eliminar usuario');
     } finally {
       setIsSubmitting(false);
     }
@@ -244,7 +251,7 @@ const UsersPage: React.FC = () => {
     setModalError(null);
 
     try {
-      const userData: any = {};
+      const userData: UserUpdateData = {};
       
       const currentFirstName = currentUser.firstName || '';
       const currentLastName = currentUser.lastName || '';

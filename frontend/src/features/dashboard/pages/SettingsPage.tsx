@@ -34,15 +34,15 @@ interface ExtendedUser {
   email: string;
   firstName?: string;
   lastName?: string;
-  profileImage?: string;
-  bannerImage?: string;
+  profileImage?: string | null;    
+  bannerImage?: string | null;     
   phone?: string;
-  birth_date?: string;
+  birth_date?: string | null;
   roles?: string[];
   areas?: Array<{id: number, name: string}>;
   isActive?: boolean;
-  joinDate?: string;
-  lastLogin?: string;
+  joinDate?: string | null;         
+  lastLogin?: string | null;       
   username?: string;
 }
 
@@ -388,7 +388,7 @@ const SettingsPage: React.FC = () => {
                       id: typeof user?.id === 'string' ? parseInt(user.id) : user?.id || 0,
                       firstName: readOnlyFields.firstName,
                       lastName: readOnlyFields.lastName,
-                      profileImage: previewProfileImage || extendedUser?.profileImage
+                      profileImage: previewProfileImage || extendedUser?.profileImage || undefined
                     }}
                     size="2xl"
                   />
@@ -587,7 +587,7 @@ const SettingsPage: React.FC = () => {
                       id: typeof user?.id === 'string' ? parseInt(user.id) : user?.id || 0,
                       firstName: readOnlyFields.firstName,
                       lastName: readOnlyFields.lastName,
-                      profileImage: previewProfileImage || extendedUser?.profileImage
+                      profileImage: previewProfileImage || extendedUser?.profileImage || undefined
                     }}
                     size="xl"
                   />

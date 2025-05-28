@@ -11,20 +11,20 @@ export interface User {
   lastName?: string;
   first_name?: string;
   last_name?: string;
-  profileImage?: string;
+  profileImage?: string | null;
   profile_image?: string;
-  bannerImage?: string;
+  bannerImage?: string | null;
   banner_image?: string;
   isActive: boolean;
   is_active?: boolean;
-  lastLogin?: string;
+  lastLogin?: string | null;
   last_login?: string;
   roles: string[];
   areas?: Array<{id: number, name: string}>;
   joinDate?: string;
-  join_date?: string;
+  join_date?: string | null;     
   phone?: string;
-  birth_date?: string;
+  birth_date?: string | null;    
 }
 
 export interface UserCreateRequest {
@@ -36,7 +36,11 @@ export interface UserCreateRequest {
   roleId?: string;
   areaId?: string;
   joinDate?: string;
+  first_name?: string;
+  last_name?: string;
+  join_date?: string;
 }
+
 
 export interface UserUpdateRequest {
   email?: string;
@@ -94,7 +98,65 @@ interface ApiRoleResponse {
   id: number | string;
   name: string;
   description?: string;
-  permissions?: any[] | string[];
+  permissions?: Array<{name: string} | string> | string[];
+}
+
+interface ApiCurrentUserUpdateData {
+  email?: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  is_active?: boolean;
+}
+
+// Para normalizar datos de usuario de la API (línea 121)
+interface ApiUserResponse {
+  id: number;
+  email?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  first_name?: string;
+  last_name?: string;
+  profileImage?: string | null;      
+  profile_image?: string | null;     
+  bannerImage?: string | null;       
+  banner_image?: string | null;      
+  isActive?: boolean;
+  is_active?: boolean;
+  lastLogin?: string | null;         
+  last_login?: string | null;        
+  roles?: string[];
+  areas?: Array<{id: number, name: string}>;
+  joinDate?: string;
+  join_date?: string | null;         
+  phone?: string;
+  birth_date?: string | null;        
+}
+
+// Para datos de creación de usuario (línea 155)
+interface ApiUserCreateData {
+  email: string;
+  username: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  join_date: string;
+  roleId?: string;
+  areaId?: string;
+}
+
+// Para datos de actualización de usuario (líneas 182 y 207)
+interface ApiUserUpdateData {
+  email?: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  is_active?: boolean;
+  phone?: string;
+  birth_date?: string;
+  profile_image?: string;
+  banner_image?: string;
 }
 
 // ===== IMPLEMENTACIÓN DEL SERVICIO =====
@@ -118,21 +180,21 @@ class UserService {
   /**
    * Normaliza el formato del usuario
    */
-  private normalizeUser(apiUser: any): User {
+  private normalizeUser(apiUser: ApiUserResponse): User {
     return {
       id: apiUser.id,
       email: apiUser.email || '',
       username: apiUser.username || '',
       firstName: apiUser.firstName || apiUser.first_name || '',
       lastName: apiUser.lastName || apiUser.last_name || '',
-      profileImage: apiUser.profileImage || apiUser.profile_image || null,
-      bannerImage: apiUser.bannerImage || apiUser.banner_image || null,
+      profileImage: apiUser.profileImage || apiUser.profile_image || null,  // ← Cambiar || null
+      bannerImage: apiUser.bannerImage || apiUser.banner_image || null,     // ← Cambiar || null
       isActive: apiUser.isActive !== undefined ? apiUser.isActive : (apiUser.is_active || false),
-      lastLogin: apiUser.lastLogin || apiUser.last_login || null,
+      lastLogin: apiUser.lastLogin || apiUser.last_login || null,           // ← Cambiar || null
       roles: Array.isArray(apiUser.roles) ? apiUser.roles : [],
       areas: Array.isArray(apiUser.areas) ? apiUser.areas : [],
       phone: apiUser.phone || '',
-      birth_date: apiUser.birth_date || null
+      birth_date: apiUser.birth_date || null                                // ← Cambiar || null
     };
   }
   
@@ -152,9 +214,9 @@ class UserService {
   /**
    * Crea un nuevo usuario
    */
-  async createUser(userData: any): Promise<User> {
+  async createUser(userData: UserCreateRequest): Promise<User> {
     try {
-      const apiData: any = {
+      const apiData: ApiUserCreateData = {
         email: userData.email,
         username: userData.username,
         password: userData.password,
@@ -179,7 +241,7 @@ class UserService {
    */
   async updateUser(userId: number, userData: UserUpdateRequest): Promise<User> {
     try {
-      const apiData: any = {};
+      const apiData: Partial<ApiUserUpdateData> = {};
       
       if (userData.email !== undefined) apiData.email = userData.email;
       if (userData.username !== undefined) apiData.username = userData.username;
@@ -204,14 +266,14 @@ class UserService {
    */
   async updateCurrentUser(userData: UserUpdateRequest): Promise<User> {
     try {
-      const apiData: any = {};
-      
+      const apiData: Partial<ApiCurrentUserUpdateData> = {};  // ← Cambiar aquí
+    
       if (userData.email !== undefined) apiData.email = userData.email;
       if (userData.username !== undefined) apiData.username = userData.username;
       if (userData.firstName !== undefined) apiData.first_name = userData.firstName;
       if (userData.lastName !== undefined) apiData.last_name = userData.lastName;
       if (userData.isActive !== undefined) apiData.is_active = userData.isActive;
-      
+    
       const response = await apiClient.patch<User>('/users/me', apiData);
       return this.normalizeUser(response.data);
     } catch (error) {

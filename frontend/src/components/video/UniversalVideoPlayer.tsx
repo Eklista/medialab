@@ -1,6 +1,9 @@
-// src/components/video/UniversalVideoPlayer.tsx
+// src/components/video/UniversalVideoPlayer.tsx - Con reproductor personalizado
 import { useState, useRef } from 'react';
 import { VideoData } from '../../types/video';
+
+// Importar el reproductor personalizado
+import { CustomVideoPlayer } from './CustomVideoPlayer';
 
 interface UniversalVideoPlayerProps {
   video: VideoData;
@@ -10,6 +13,7 @@ interface UniversalVideoPlayerProps {
   onEnded?: () => void;
   onTimeUpdate?: (currentTime: number) => void;
   className?: string;
+  useCustomPlayer?: boolean; // Nueva prop para elegir reproductor
 }
 
 export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
@@ -19,17 +23,33 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
   onPause,
   onEnded,
   onTimeUpdate,
-  className = ''
+  className = '',
+  useCustomPlayer = true // Por defecto usar el personalizado
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const playerRef = useRef<HTMLDivElement>(null);
 
-  // Extraer YouTube ID de diferentes formatos de URL
+  // Si es YouTube y queremos usar el reproductor personalizado
+  if (video.videoType === 'youtube' && useCustomPlayer) {
+    return (
+      <CustomVideoPlayer
+        video={video}
+        autoplay={autoplay}
+        onPlay={onPlay}
+        onPause={onPause}
+        onEnded={onEnded}
+        onTimeUpdate={onTimeUpdate}
+        className={className}
+      />
+    );
+  }
+
+  // Función para extraer IDs de video
   const extractYouTubeId = (url: string): string | null => {
     const patterns = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /^([a-zA-Z0-9_-]{11})$/ // ID directo
+      /^([a-zA-Z0-9_-]{11})$/
     ];
     
     for (const pattern of patterns) {
@@ -39,13 +59,12 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     return null;
   };
 
-  // Extraer Vimeo ID
   const extractVimeoId = (url: string): string | null => {
     const match = url.match(/vimeo\.com\/(?:.*\/)?(\d+)/);
     return match ? match[1] : null;
   };
 
-  // Obtener la URL del iframe según el tipo
+  // Obtener URL embed para reproductor estándar
   const getEmbedUrl = (): string | null => {
     let videoId: string | null = null;
     
@@ -54,6 +73,7 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         videoId = video.videoId || extractYouTubeId(video.videoUrl);
         if (!videoId) return null;
         
+        // Configuración estándar de YouTube
         const youtubeParams = new URLSearchParams({
           autoplay: autoplay ? '1' : '0',
           controls: '1',
@@ -61,7 +81,14 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           rel: '0',
           showinfo: '0',
           iv_load_policy: '3',
-          playsinline: '1'
+          disablekb: '1',
+          fs: '1',
+          cc_load_policy: '0',
+          color: 'white',
+          playsinline: '1',
+          autohide: '1',
+          theme: 'light',
+          origin: window.location.origin
         });
         
         return `https://www.youtube.com/embed/${videoId}?${youtubeParams.toString()}`;
@@ -75,7 +102,15 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           autoplay: autoplay ? '1' : '0',
           title: '0',
           byline: '0',
-          portrait: '0'
+          portrait: '0',
+          color: 'ffffff',
+          background: '1',
+          muted: autoplay ? '1' : '0',
+          transparent: '0',
+          pip: '0',
+          speed: '0',
+          keyboard: '0',
+          dnt: '1'
         });
         
         return `https://player.vimeo.com/video/${videoId}?${vimeoParams.toString()}`;
@@ -83,7 +118,6 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       
       case 's3':
       case 'external':
-        // Para estos casos usaremos un reproductor nativo HTML5
         return null;
       
       default:
@@ -93,7 +127,6 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
 
   const embedUrl = getEmbedUrl();
 
-  // Handlers para iframe (limitados)
   const handleIframeLoad = () => {
     setIsLoading(false);
   };
@@ -103,9 +136,9 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     setIsLoading(false);
   };
 
-  // Render del contenido
+  // Render del contenido para reproductores estándar
   const renderVideoContent = () => {
-    // Para YouTube y Vimeo usamos iframe
+    // Para YouTube y Vimeo usamos iframe estándar
     if ((video.videoType === 'youtube' || video.videoType === 'vimeo') && embedUrl) {
       return (
         <iframe
@@ -113,11 +146,16 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           width="100%"
           height="100%"
           frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           className="absolute inset-0 w-full h-full"
+          title={video.title}
+          style={{
+            border: 'none',
+            outline: 'none'
+          }}
         />
       );
     }
@@ -146,6 +184,8 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           }}
           className="absolute inset-0 w-full h-full object-contain"
           poster={video.thumbnail}
+          controlsList="nodownload noremoteplayback"
+          disablePictureInPicture
         >
           <source src={video.videoUrl} type="video/mp4" />
           <p className="text-white p-4">
@@ -158,7 +198,7 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       );
     }
 
-    // Fallback si no hay URL válida
+    // Fallback
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white">
         <div className="text-center">
@@ -172,27 +212,21 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     );
   };
 
-  // Placeholder para tipos no implementados
-  const renderPlaceholder = (emoji: string, title: string, subtitle: string) => (
-    <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white">
-      <div className="text-center">
-        <div className="text-4xl mb-4">{emoji}</div>
-        <h3 className="text-lg font-medium mb-2">{title}</h3>
-        <p className="text-sm opacity-75">{subtitle}</p>
-        <p className="text-xs opacity-50 mt-2">URL: {video.videoUrl}</p>
-      </div>
-    </div>
-  );
-
   return (
     <div ref={playerRef} className={`relative bg-black rounded-lg overflow-hidden ${className}`}>
       {/* Aspect Ratio Container */}
-      <div className="relative w-full" style={{ paddingBottom: '56.25%' /* 16:9 */ }}>
+      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
         
         {/* Video Content */}
         {video.videoType === 's3' && !video.videoUrl.startsWith('http') ? (
-          // Placeholder para S3 cuando no tengamos presupuesto
-          renderPlaceholder('☁️', 'AWS S3 Player', 'Disponible cuando tengamos presupuesto')
+          <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center">
+            <div className="text-center text-white">
+              <div className="text-4xl mb-4">☁️</div>
+              <h3 className="text-lg font-medium mb-2">AWS S3 Player</h3>
+              <p className="text-sm opacity-75">Disponible cuando tengamos presupuesto</p>
+              <p className="text-xs opacity-50 mt-2">URL: {video.videoUrl}</p>
+            </div>
+          </div>
         ) : (
           renderVideoContent()
         )}
@@ -227,15 +261,19 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           </div>
         )}
 
-        {/* Video Info Overlay */}
-        <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded-lg text-sm">
-          {video.category}
-        </div>
+        {/* Overlays solo para reproductores no-iframe */}
+        {!(video.videoType === 'youtube' || video.videoType === 'vimeo') && (
+          <>
+            <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded-lg text-sm">
+              {video.category}
+            </div>
 
-        {video.duration && (
-          <div className="absolute top-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded-lg text-sm">
-            {video.duration}
-          </div>
+            {video.duration && (
+              <div className="absolute top-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded-lg text-sm">
+                {video.duration}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

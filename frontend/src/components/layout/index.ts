@@ -1,5 +1,6 @@
-// src/components/layout/index.ts - Actualizado
+// src/components/layout/index.ts - Actualizado con VideoLayout
 export { PublicLayout } from './PublicLayout';
+export { VideoLayout } from './VideoLayout';
 export { ContentLayout } from './ContentLayout';
 export { Section } from './Section';
 export { Container } from './Container';

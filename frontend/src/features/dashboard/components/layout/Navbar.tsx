@@ -3,7 +3,7 @@ import React from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 
 interface NavbarProps {
-  // Sin props ya que quitamos el botón
+  className?: string;
 }
 
 const Navbar: React.FC<NavbarProps> = () => {

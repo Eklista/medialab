@@ -45,7 +45,6 @@ const RequestsPage: React.FC = () => {
   
   // Estado para solicitud actual y modal
   const [currentRequest, setCurrentRequest] = useState<ServiceRequest | null>(null);
-  const [_unusedModal] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   
   // Estado para historial de actividad
