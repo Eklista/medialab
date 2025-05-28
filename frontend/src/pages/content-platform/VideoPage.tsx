@@ -1,4 +1,4 @@
-// src/pages/content-platform/VideoPage.tsx
+// src/pages/ContentPlatform.tsx - Versión simplificada
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PublicLayout } from '../../components';
@@ -7,7 +7,7 @@ import { VideoData } from '../../types/video';
 import { CardSlider } from '../../components/ui/CardSlider';
 import { 
   EyeIcon, 
-  CalendarIcon, 
+  CalendarIcon,
   ShareIcon,
   HeartIcon,
   BookmarkIcon,
@@ -46,92 +46,42 @@ Momentos destacados:
   // Video source - esto viene del backend
   videoType: 'youtube',
   videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-  videoId: 'dQw4w9WgXcQ'
+  videoId: 'dQw4w9WgXcQ' // Opcional si ya está en la URL
 };
 
-// Ejemplos de videos de YouTube para testing
+// Ejemplos de diferentes tipos de video para testing
 const videoExamples: VideoData[] = [
   {
     ...sampleVideo,
-    id: '0',
-    title: 'Graduación Medicina 2024 - Universidad Galileo',
+    id: 'youtube-1',
+    title: 'Video de YouTube (con API)',
     videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    videoId: 'dQw4w9WgXcQ'
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
   },
   {
     ...sampleVideo,
-    id: '1',
-    title: 'Conferencia Internacional de Tecnología - FISICC',
-    category: 'Conferencias',
-    faculty: 'FISICC',
-    videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=9bZkp7q19f0',
-    videoId: '9bZkp7q19f0'
+    id: 'vimeo-1',
+    title: 'Video de Vimeo',
+    videoType: 'vimeo',
+    videoUrl: 'https://vimeo.com/123456789'
   },
   {
     ...sampleVideo,
-    id: '2',
-    title: 'Reportaje: Innovación en Universidad Galileo',
-    category: 'Reportajes',
-    faculty: 'Universidad Galileo',
-    videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
-    videoId: 'jNQXAC9IVRw'
+    id: 's3-1',
+    title: 'Video en S3 (futuro)',
+    videoType: 's3',
+    videoUrl: 'https://medialab-bucket.s3.amazonaws.com/videos/graduacion-2024.mp4'
   },
   {
     ...sampleVideo,
-    id: '3',
-    title: 'Galería: Festival Cultural UG 2024',
-    category: 'Fotografías',
-    faculty: 'Universidad Galileo',
-    videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=M7lc1UVf-VE',
-    videoId: 'M7lc1UVf-VE'
-  },
-  {
-    ...sampleVideo,
-    id: '4',
-    title: 'Podcast: El Futuro de la Educación - IDEA',
-    category: 'Podcasts',
-    faculty: 'IDEA',
-    videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
-    videoId: 'aqz-KE-bpKQ'
-  },
-  {
-    ...sampleVideo,
-    id: '5',
-    title: 'Graduación Ingeniería en Sistemas - FISICC',
-    category: 'Graduaciones',
-    faculty: 'FISICC',
-    videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=fJ9rUzIMcZQ',
-    videoId: 'fJ9rUzIMcZQ'
-  },
-  {
-    ...sampleVideo,
-    id: '6',
-    title: 'Simposio de Medicina Moderna - FACIMED',
-    category: 'Conferencias',
-    faculty: 'FACIMED',
-    videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=kJQP7kiw5Fk',
-    videoId: 'kJQP7kiw5Fk'
-  },
-  {
-    ...sampleVideo,
-    id: '7',
-    title: 'Vida Estudiantil en FISICC',
-    category: 'Reportajes',
-    faculty: 'FISICC',
-    videoType: 'youtube',
-    videoUrl: 'https://www.youtube.com/watch?v=ZXsQAXx_ao0',
-    videoId: 'ZXsQAXx_ao0'
+    id: 'external-1',
+    title: 'Video externo/servidor propio',
+    videoType: 'external',
+    videoUrl: 'https://servidor-medialab.ug.edu.gt/videos/conferencia.mp4'
   }
 ];
 
-// Videos relacionados
+// Videos relacionados simplificados
 const relatedVideos = [
   {
     id: '2',
@@ -152,20 +102,10 @@ const relatedVideos = [
     category: 'Conferencias',
     faculty: 'FACIMED',
     publishedAt: '2024-02-20'
-  },
-  {
-    id: '4',
-    title: 'Reportaje: Innovación en Universidad Galileo',
-    thumbnail: '/api/placeholder/400/225',
-    duration: '25:15',
-    views: 8950,
-    category: 'Reportajes',
-    faculty: 'Universidad Galileo',
-    publishedAt: '2024-02-15'
   }
 ];
 
-const VideoPage: React.FC = () => {
+export const VideoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [video, setVideo] = useState<VideoData | null>(null);
@@ -261,13 +201,11 @@ const VideoPage: React.FC = () => {
     <PublicLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Debug Info - Solo en desarrollo */}
-        {import.meta.env.DEV && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-            <strong>YouTube Video:</strong> ID: {video.id} | 
-            Video ID: {video.videoId} | Categoría: {video.category}
-          </div>
-        )}
+        {/* Debug Info - Remover en producción */}
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+          <strong>Debug:</strong> Tipo: {video.videoType} | ID: {video.id} | 
+          URL: {video.videoUrl.substring(0, 50)}...
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
@@ -278,18 +216,10 @@ const VideoPage: React.FC = () => {
               <UniversalVideoPlayer
                 video={video}
                 autoplay={false}
-                onPlay={() => {
-                  console.log('Video iniciado');
-                  // Aquí puedes enviar analytics
-                }}
+                onPlay={() => console.log('Video iniciado')}
                 onPause={() => console.log('Video pausado')}
                 onEnded={() => console.log('Video terminado')}
-                onTimeUpdate={(time) => {
-                  // Analytics de tiempo de visualización
-                  if (time > 0 && time % 30 === 0) {
-                    console.log(`Video visto: ${time}s`);
-                  }
-                }}
+                onTimeUpdate={(time) => console.log('Tiempo:', time)}
                 className="w-full"
               />
             </div>
@@ -316,7 +246,7 @@ const VideoPage: React.FC = () => {
                     <span>{video.faculty}</span>
                   </div>
                   <div className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium">
-                    YOUTUBE
+                    {video.videoType.toUpperCase()}
                   </div>
                 </div>
 
@@ -356,7 +286,7 @@ const VideoPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description y detalles */}
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="font-semibold text-gray-900 mb-3">Descripción</h3>
                 <div className="prose prose-sm max-w-none text-gray-700">
@@ -421,16 +351,6 @@ const VideoPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-
-              {/* Ver más videos */}
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <button 
-                  onClick={() => navigate(`/categoria/${video.category.toLowerCase()}`)}
-                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-4 rounded-lg transition-colors"
-                >
-                  Ver más {video.category}
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -447,5 +367,3 @@ const VideoPage: React.FC = () => {
     </PublicLayout>
   );
 };
-
-export default VideoPage;
