@@ -50,7 +50,7 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     let videoId: string | null = null;
     
     switch (video.videoType) {
-      case 'youtube':
+      case 'youtube': {
         videoId = video.videoId || extractYouTubeId(video.videoUrl);
         if (!videoId) return null;
         
@@ -65,8 +65,9 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         });
         
         return `https://www.youtube.com/embed/${videoId}?${youtubeParams.toString()}`;
+      }
       
-      case 'vimeo':
+      case 'vimeo': {
         videoId = video.videoId || extractVimeoId(video.videoUrl);
         if (!videoId) return null;
         
@@ -78,6 +79,7 @@ export const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         });
         
         return `https://player.vimeo.com/video/${videoId}?${vimeoParams.toString()}`;
+      }
       
       case 's3':
       case 'external':

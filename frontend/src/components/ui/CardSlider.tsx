@@ -15,9 +15,29 @@ interface CardSliderProps {
     faculty?: string;
     publishedAt: string;
   }>;
-  onItemClick?: (item: any) => void;
+  onItemClick?: (item: VideoItem) => void; 
   onViewAll?: () => void;
   className?: string;
+}
+
+interface VideoItem {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnail: string;
+  duration?: string;
+  views?: number;
+  category: string;
+  faculty?: string;
+  publishedAt: string;
+}
+
+interface CompactVideoItem {
+  id: string;
+  title: string;
+  thumbnail: string;
+  category: string;
+  publishedAt: string;
 }
 
 export const CardSlider: React.FC<CardSliderProps> = ({
@@ -298,7 +318,7 @@ interface CompactCardSliderProps {
     category: string;
     publishedAt: string;
   }>;
-  onItemClick?: (item: any) => void;
+  onItemClick?: (item: CompactVideoItem) => void;
   maxItems?: number;
 }
 

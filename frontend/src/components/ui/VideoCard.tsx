@@ -2,6 +2,18 @@
 import React from 'react';
 import { PlayIcon, EyeIcon, ClockIcon } from '@heroicons/react/24/solid';
 
+interface VideoData {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnail: string;
+  duration?: string;
+  views?: number;
+  category: string;
+  faculty?: string;
+  publishedAt: string;
+}
+
 interface VideoCardProps {
   id: string;
   title: string;
@@ -165,7 +177,7 @@ interface VideoGridProps {
   }>;
   columns?: 1 | 2 | 3 | 4 | 5 | 6;
   gap?: 'sm' | 'md' | 'lg' | 'xl';
-  onVideoClick?: (video: any) => void;
+  onVideoClick?: (video: VideoData) => void;
   loading?: boolean;
   emptyMessage?: string;
 }

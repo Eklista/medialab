@@ -140,14 +140,15 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'LOGOUT_START':
       return { ...state, isLoggingOut: true, error: null };
       
-    case 'LOGOUT_COMPLETE':
+    case 'LOGOUT_COMPLETE': {
       return { 
         ...initialState,
         lastLogoutTime: Date.now(),
-        hasInitialized: true // Mantener que ya inicializamos
+        hasInitialized: true
       };
+    }
       
-    case 'RESTORE_SESSION':
+    case 'RESTORE_SESSION': {
       const isLocked = localStorage.getItem('sessionLocked') === 'true';
       return {
         ...state,
@@ -160,6 +161,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         isLoading: false,
         hasInitialized: true
       };
+    }
       
     case 'LOCK_SESSION':
       localStorage.setItem('sessionLocked', 'true');
