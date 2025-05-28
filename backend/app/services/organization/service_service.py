@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.repositories.service_repository import ServiceRepository
+from app.repositories.organization.service_repository import ServiceRepository
 from app.models.organization.services import Service, SubService
 
 

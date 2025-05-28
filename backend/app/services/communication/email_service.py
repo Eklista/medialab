@@ -17,8 +17,8 @@ Las funciones específicas para cada tipo de correo son:
 import emails
 from emails.template import JinjaTemplate
 from pathlib import Path
-from app.services.smtp_service import SmtpService
-from app.services.email_template_service import EmailTemplateService
+from app.services.communication.ssmtp_service import SmtpService
+from app.services.communication.email_template_service import EmailTemplateService
 from app.database import get_db
 from jinja2 import Template
 

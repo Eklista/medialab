@@ -1,21 +1,21 @@
 # app/services/__init__.py
 
 # Servicios de autenticación y usuarios
-from app.services.user_service import UserService
-from app.services.auth_service import AuthService
-from app.services.role_service import RoleService
+from app.services.users.user_service import UserService
+from app.services.auth.auth_service import AuthService
+from app.services.security.role_service import RoleService
 
 # Servicios de organización
-from app.services.area_service import AreaService
-from app.services.department_service import DepartmentService
-from app.services.department_type_service import DepartmentTypeService
-from app.services.service_service import ServiceService
-from app.services.service_template_service import ServiceTemplateService
+from app.services.organization.area_service import AreaService
+from app.services.organization.department_service import DepartmentService
+from app.services.organization.department_type_service import DepartmentTypeService
+from app.services.organization.service_service import ServiceService
+from app.services.templates.service_template_service import ServiceTemplateService
 
 # Servicios comunes
 from app.services.common.validation_service import ValidationService
 from app.services.common.attachment_service import AttachmentService
-from app.services.common.audit_service import AuditService
+from app.services.audits.audit_service import AuditService
 from app.services.common.comment_service import CommentService
 from app.services.common.link_service import LinkService
 from app.services.common.status_service import StatusService

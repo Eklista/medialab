@@ -6,13 +6,13 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
 from app.models.auth.users import User
-from app.schemas.common.email_config import (
+from app.schemas.communication.email_config import (
     SmtpConfigurationCreate, 
     SmtpConfigurationUpdate, 
     SmtpConfigurationInDB,
     SmtpTestRequest
 )
-from app.services.smtp_service import SmtpService
+from app.services.communication.smtp_service import SmtpService
 from app.utils.error_handler import ErrorHandler
 from app.api.deps import has_permission
 
@@ -159,7 +159,7 @@ def test_smtp_connection(
     Prueba una conexión SMTP con los datos proporcionados (sin guardar)
     """
     try:
-        from app.services.email_service import test_smtp_connection
+        from app.services.communication.email_service import test_smtp_connection
         
         success = test_smtp_connection(
             host=config_in.host,
@@ -211,7 +211,7 @@ def send_test_email(
         
         if template_code:
             # Enviar usando plantilla
-            from app.services.email_service import send_email_with_template
+            from app.services.communication.email_service import send_email_with_template
             
             # Determinar datos de ejemplo según la plantilla
             context = {}
@@ -260,7 +260,7 @@ def send_test_email(
             
         else:
             # Enviar correo genérico (sin plantilla)
-            from app.services.email_service import send_notification_email
+            from app.services.communication.email_service import send_notification_email
             
             subject = email_data.get('subject', 'Correo de prueba')
             message = email_data.get('message', 'Este es un correo de prueba enviado desde MediaLab Sistema.')

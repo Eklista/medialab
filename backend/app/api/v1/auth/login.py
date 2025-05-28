@@ -180,7 +180,7 @@ def get_security_status(
         logger.error(f"💥 Error obteniendo estado de seguridad: {e}")
         
         # Fallback al método original
-        from app.services.auth_service import AuthService
+        from app.services.auth.auth_service import AuthService
         from app.utils.token_blacklist import token_blacklist
         from app.config.settings import COOKIE_SECURE
         

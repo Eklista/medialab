@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models.common.email_config import EmailTemplate
-from app.repositories.email_template_repository import EmailTemplateRepository
+from app.repositories.templates.email_template_repository import EmailTemplateRepository
 
 # Configuración de logging
 logging.basicConfig(

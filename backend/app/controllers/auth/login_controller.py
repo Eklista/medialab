@@ -12,7 +12,7 @@ from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.auth.users import User
 from app.services.auth import TokenService, SecurityService
-from app.services.auth_service import AuthService  # Service original para compatibilidad
+from app.services.auth.auth_service import AuthService
 from app.schemas.auth.login import (
     LoginRequest, LoginResponse, RefreshTokenResponse, 
     LogoutResponse, LogoutAllResponse, TokenValidationResponse,

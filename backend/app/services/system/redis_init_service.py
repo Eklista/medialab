@@ -7,8 +7,8 @@ from datetime import datetime
 from app.config.redis_config import redis_manager
 from app.utils.redis_token_blacklist import redis_token_blacklist
 from app.utils.redis_rate_limiter import redis_rate_limiter
-from app.services.redis_cache_service import redis_cache
-from app.services.redis_session_service import redis_sessions
+from app.services.system.redis_cache_service import redis_cache
+from app.services.system.redis_session_service import redis_sessions
 from app.config.settings import ENVIRONMENT, REDIS_ENABLED
 
 logger = logging.getLogger(__name__)

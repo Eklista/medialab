@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.repositories.service_template_repository import ServiceTemplateRepository
+from app.repositories.templates.service_template_repository import ServiceTemplateRepository
 from app.models.organization.service_templates import ServiceTemplate
 from app.models.organization.services import Service, SubService
 

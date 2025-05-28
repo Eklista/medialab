@@ -8,7 +8,7 @@ import logging
 from app.database import get_db
 from app.models.auth.users import User
 from app.models.auth.permissions import Permission
-from app.schemas.auth.permissions import PermissionResponse, PermissionCategory
+from app.schemas.security.permissions import PermissionResponse, PermissionCategory
 from app.api.deps import get_current_active_user, has_permission
 from app.utils.error_handler import ErrorHandler
 

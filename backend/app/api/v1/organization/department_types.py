@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.database import get_db
 from app.models.auth.users import User
 from app.schemas.organization.departments import DepartmentTypeCreate, DepartmentTypeUpdate, DepartmentTypeInDB
-from app.services.department_type_service import DepartmentTypeService
+from app.services.organization.department_type_service import DepartmentTypeService
 from app.utils.error_handler import ErrorHandler
 from app.api.deps import (
     get_current_active_user,

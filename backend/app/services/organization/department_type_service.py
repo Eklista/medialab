@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.repositories.department_type_repository import DepartmentTypeRepository
+from app.repositories.organization.department_type_repository import DepartmentTypeRepository
 from app.models.organization.departments import DepartmentType
 
 class DepartmentTypeService:

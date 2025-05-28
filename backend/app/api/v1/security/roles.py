@@ -1,18 +1,17 @@
+# ===== backend/app/api/v1/security/roles.py =====
+"""
+Solo routing y validación, lógica delegada al RoleController
+"""
+
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Path, Body
+from fastapi import APIRouter, Depends, status, Path, Body
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
 from app.models.auth.users import User
 from app.schemas.auth.roles import RoleCreate, RoleUpdate, RoleInDB, RoleWithPermissions
-from app.services.role_service import RoleService
-from app.utils.error_handler import ErrorHandler
-from app.api.deps import (
-    get_current_active_user,
-    has_permission,
-    has_any_permission
-)
+from app.controllers.security.role_controller import RoleController
+from app.api.deps import has_permission
 
 router = APIRouter()
 
@@ -25,27 +24,21 @@ def read_roles(
 ) -> Any:
     """
     Obtiene lista de roles (requiere permiso role_view)
+    Usa RoleController
     """
-    try:
-        roles = RoleService.get_roles(db=db, skip=skip, limit=limit)
-        return roles
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "roles")
+    return RoleController.get_roles_list(db, skip, limit, current_user)
 
 @router.post("/", response_model=RoleInDB)
 def create_role(
-    role_in: RoleCreate,
+    role_in: RoleCreate = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(has_permission("role_create"))
 ) -> Any:
     """
     Crea un nuevo rol (requiere permiso role_create)
+    Usa RoleController
     """
-    try:
-        role = RoleService.create_role(db=db, role_data=role_in.dict())
-        return role
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "crear", "rol")
+    return RoleController.create_new_role(db, role_in, current_user)
 
 @router.get("/{role_id}", response_model=RoleWithPermissions)
 def read_role(
@@ -55,21 +48,9 @@ def read_role(
 ) -> Any:
     """
     Obtiene un rol específico por ID (requiere permiso role_view)
+    Usa RoleController
     """
-    try:
-        # Obtener el rol con permisos desde el servicio
-        role_db = RoleService.get_role_with_permissions(db=db, role_id=role_id)
-        
-        role_response = {
-            "id": role_db.id,
-            "name": role_db.name,
-            "description": role_db.description,
-            "permissions": [permission.name for permission in role_db.permissions] if role_db.permissions else []
-        }
-        
-        return role_response
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "rol")
+    return RoleController.get_role_by_id(db, role_id, current_user, include_permissions=True)
 
 @router.patch("/{role_id}", response_model=RoleInDB)
 def update_role(
@@ -80,16 +61,9 @@ def update_role(
 ) -> Any:
     """
     Actualiza un rol existente (requiere permiso role_edit)
+    Usa RoleController
     """
-    try:
-        role = RoleService.update_role(
-            db=db,
-            role_id=role_id,
-            role_data=role_in.dict(exclude_unset=True)
-        )
-        return role
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "actualizar", "rol")
+    return RoleController.update_role(db, role_id, role_in, current_user)
 
 @router.delete("/{role_id}", response_model=RoleInDB)
 def delete_role(
@@ -99,12 +73,9 @@ def delete_role(
 ) -> Any:
     """
     Elimina un rol (requiere permiso role_delete)
+    Usa RoleController
     """
-    try:
-        role = RoleService.delete_role(db=db, role_id=role_id)
-        return role
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "eliminar", "rol")
+    return RoleController.delete_role(db, role_id, current_user)
 
 @router.post("/{role_id}/permissions", status_code=status.HTTP_200_OK)
 def assign_permissions_to_role(
@@ -115,20 +86,6 @@ def assign_permissions_to_role(
 ) -> Any:
     """
     Asigna permisos a un rol (requiere permiso role_edit)
+    Usa RoleController
     """
-    try:
-        success = RoleService.assign_permissions(
-            db=db,
-            role_id=role_id,
-            permission_ids=permission_ids
-        )
-        
-        if success:
-            return {"message": "Permisos asignados exitosamente"}
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error al asignar permisos"
-            )
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "asignar permisos a", "rol")
+    return RoleController.assign_permissions_to_role(db, role_id, permission_ids, current_user)

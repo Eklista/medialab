@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.repositories.area_repository import AreaRepository
+from app.repositories.organization.area_repository import AreaRepository
 from app.models.organization.areas import Area
 
 

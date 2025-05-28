@@ -1,27 +1,28 @@
-# app/api/v1/service_templates.py
+# backend/app/api/v1/templates/service_templates.py
+"""
+🔄 ENDPOINTS DE PLANTILLAS REFACTORIZADOS
+Sin SQL directo, toda la lógica delegada al ServiceTemplateController
+"""
+
 from typing import List, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, status, Path, Body
+from fastapi import APIRouter, Depends, status, Path, Body
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import text
 
 from app.database import get_db
 from app.models.auth.users import User
-from app.schemas.organization.service_templates import (
+from app.schemas.templates.service_templates import (
     ServiceTemplateCreate, 
     ServiceTemplateUpdate, 
     ServiceTemplateInDB,
     ServiceTemplateWithServices
 )
-from app.services.service_template_service import ServiceTemplateService
+from app.controllers.templates.service_template_controller import ServiceTemplateController
 from app.utils.error_handler import ErrorHandler
-from app.api.deps import (
-    get_current_active_user,
-    has_permission,
-    has_any_permission
-)
+from app.api.deps import has_permission
 
 router = APIRouter()
+
+# ===== OPERACIONES CRUD BÁSICAS =====
 
 @router.get("/", response_model=List[ServiceTemplateInDB])
 def read_templates(
@@ -32,28 +33,21 @@ def read_templates(
 ) -> Any:
     """
     Obtiene lista de plantillas de servicios (requiere permiso template_view)
+    ✅ REFACTORIZADO: Usa ServiceTemplateController
     """
-    try:
-        templates = ServiceTemplateService.get_templates(db=db, skip=skip, limit=limit)
-        return templates
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "plantillas")
+    return ServiceTemplateController.get_templates_list(db, skip, limit, current_user)
 
 @router.post("/", response_model=ServiceTemplateInDB)
 def create_template(
-    template_in: ServiceTemplateCreate,
+    template_in: ServiceTemplateCreate = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(has_permission("template_create"))
 ) -> Any:
     """
     Crea una nueva plantilla de servicios (requiere permiso template_create)
+    ✅ REFACTORIZADO: Usa ServiceTemplateController
     """
-    try:
-        print(f"Datos recibidos en el endpoint: {template_in.dict()}")
-        template = ServiceTemplateService.create_template(db=db, template_data=template_in.dict())
-        return template
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "crear", "plantilla")
+    return ServiceTemplateController.create_new_template(db, template_in, current_user)
 
 @router.get("/{template_id}", response_model=ServiceTemplateWithServices)
 def read_template(
@@ -63,12 +57,9 @@ def read_template(
 ) -> Any:
     """
     Obtiene una plantilla específica por ID (requiere permiso template_view)
+    ✅ REFACTORIZADO: Usa ServiceTemplateController
     """
-    try:
-        template = ServiceTemplateService.get_template_with_services(db=db, template_id=template_id)
-        return template
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "plantilla")
+    return ServiceTemplateController.get_template_by_id(db, template_id, current_user)
 
 @router.patch("/{template_id}", response_model=ServiceTemplateInDB)
 def update_template(
@@ -79,16 +70,9 @@ def update_template(
 ) -> Any:
     """
     Actualiza una plantilla existente (requiere permiso template_edit)
+    ✅ REFACTORIZADO: Usa ServiceTemplateController
     """
-    try:
-        template = ServiceTemplateService.update_template(
-            db=db,
-            template_id=template_id,
-            template_data=template_in.dict(exclude_unset=True)
-        )
-        return template
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "actualizar", "plantilla")
+    return ServiceTemplateController.update_template(db, template_id, template_in, current_user)
 
 @router.delete("/{template_id}", response_model=ServiceTemplateInDB)
 def delete_template(
@@ -98,12 +82,11 @@ def delete_template(
 ) -> Any:
     """
     Elimina una plantilla (requiere permiso template_delete)
+    ✅ REFACTORIZADO: Usa ServiceTemplateController con verificación de dependencias
     """
-    try:
-        template = ServiceTemplateService.delete_template(db=db, template_id=template_id)
-        return template
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "eliminar", "plantilla")
+    return ServiceTemplateController.delete_template(db, template_id, current_user)
+
+# ===== GESTIÓN DE RELACIONES (SIN SQL DIRECTO) =====
 
 @router.get("/{template_id}/services", response_model=List[Dict[str, Any]])
 def get_template_services(
@@ -113,23 +96,9 @@ def get_template_services(
 ) -> Any:
     """
     Obtiene los servicios asociados a una plantilla (requiere permiso template_view)
+    ✅ REFACTORIZADO: Sin SQL directo, usa ServiceTemplateController
     """
-    try:
-        # Ejecutar consulta directa
-        query = text("""
-            SELECT template_id, service_id 
-            FROM template_services 
-            WHERE template_id = :template_id
-        """)
-        result = db.execute(query, {"template_id": template_id}).fetchall()
-        
-        # Convertir a lista de diccionarios
-        return [{"template_id": row[0], "service_id": row[1]} for row in result]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al obtener servicios de plantilla: {str(e)}"
-        )
+    return ServiceTemplateController.get_template_services(db, template_id, current_user)
 
 @router.get("/{template_id}/subservices", response_model=List[Dict[str, Any]])
 def get_template_subservices(
@@ -139,30 +108,45 @@ def get_template_subservices(
 ) -> Any:
     """
     Obtiene los subservicios asociados a una plantilla (requiere permiso template_view)
+    ✅ REFACTORIZADO: Sin SQL directo, usa ServiceTemplateController
     """
-    try:
-        # Ejecutar consulta directa para obtener subservicios
-        query = text("""
-            SELECT ss.id, ss.name, ss.description, ss.service_id
-            FROM sub_services ss
-            JOIN template_subservices ts ON ss.id = ts.subservice_id
-            WHERE ts.template_id = :template_id
-        """)
-        result = db.execute(query, {"template_id": template_id}).fetchall()
-        
-        # Convertir a lista de diccionarios
-        return [
-            {
-                "id": row[0],
-                "name": row[1],
-                "description": row[2],
-                "service_id": row[3],
-                "template_id": template_id
-            } 
-            for row in result
-        ]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al obtener subservicios de plantilla: {str(e)}"
-        )
+    return ServiceTemplateController.get_template_subservices(db, template_id, current_user)
+
+# ===== NUEVOS ENDPOINTS PARA GESTIÓN DE RELACIONES =====
+
+@router.post("/{template_id}/services", status_code=status.HTTP_200_OK)
+def assign_services_to_template(
+    template_id: int = Path(..., title="ID de la plantilla"),
+    service_ids: List[int] = Body(..., description="Lista de IDs de servicios a asignar"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(has_permission("template_edit"))
+) -> Any:
+    """
+    🆕 NUEVO: Asigna servicios a una plantilla (requiere permiso template_edit)
+    """
+    return ServiceTemplateController.assign_services_to_template(db, template_id, service_ids, current_user)
+
+@router.post("/{template_id}/subservices", status_code=status.HTTP_200_OK)
+def assign_subservices_to_template(
+    template_id: int = Path(..., title="ID de la plantilla"),
+    subservice_ids: List[int] = Body(..., description="Lista de IDs de subservicios a asignar"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(has_permission("template_edit"))
+) -> Any:
+    """
+    🆕 NUEVO: Asigna subservicios a una plantilla (requiere permiso template_edit)
+    """
+    return ServiceTemplateController.assign_subservices_to_template(db, template_id, subservice_ids, current_user)
+
+# ===== ENDPOINTS DE ESTADÍSTICAS Y ANÁLISIS =====
+
+@router.get("/{template_id}/statistics", response_model=Dict[str, Any])
+def get_template_statistics(
+    template_id: int = Path(..., title="ID de la plantilla"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(has_permission("template_view"))
+) -> Any:
+    """
+    🆕 NUEVO: Obtiene estadísticas completas de una plantilla
+    """
+    return ServiceTemplateController.get_template_statistics(db, template_id, current_user)

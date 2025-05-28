@@ -7,8 +7,8 @@ from typing import Dict, Any
 from app.config.redis_config import redis_manager
 from app.utils.redis_token_blacklist import redis_token_blacklist
 from app.utils.redis_rate_limiter import redis_rate_limiter
-from app.services.redis_cache_service import redis_cache
-from app.services.redis_session_service import redis_sessions
+from app.services.system.redis_cache_service import redis_cache
+from app.services.system.redis_session_service import redis_sessions
 from app.models.security.token_blacklist import TokenBlacklist
 from app.database import SessionLocal
 
@@ -481,7 +481,7 @@ class RedisCleanupTasks:
         """
         try:
             # Obtener estadísticas de todos los componentes
-            from app.services.redis_init_service import redis_init
+            from app.services.system.redis_init_service import redis_init
             
             system_status = redis_init.get_system_status()
             

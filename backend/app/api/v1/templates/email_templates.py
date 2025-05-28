@@ -6,11 +6,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
 from app.models.auth.users import User
-from app.schemas.common.email_template import (
+from app.schemas.templates.email_template import (
     EmailTemplateUpdate, 
     EmailTemplateInDB
 )
-from app.services.email_template_service import EmailTemplateService
+from app.services.communication.email_template_service import EmailTemplateService
 from app.utils.error_handler import ErrorHandler
 from app.api.deps import has_permission
 
@@ -142,7 +142,7 @@ def send_test_email_with_template(
     """
     Envía un correo de prueba utilizando una plantilla (requiere permiso email_template_view)
     """
-    from app.services.email_service import send_email_with_template
+    from app.services.communication.email_service import send_email_with_template
     
     try:
         # Verificar datos requeridos

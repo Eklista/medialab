@@ -14,7 +14,7 @@ from app.schemas.organization.services import (
     SubServiceUpdate,
     SubServiceInDB
 )
-from app.services.service_service import ServiceService
+from app.services.organization.service_service import ServiceService
 from app.utils.error_handler import ErrorHandler
 from app.api.deps import (
     get_current_active_user,

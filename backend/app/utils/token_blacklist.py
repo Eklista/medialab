@@ -21,10 +21,8 @@ from app.config.settings import (
 )
 from app.database import get_db
 
-# NUEVO: Importar Redis blacklist como principal
 from app.utils.redis_token_blacklist import redis_token_blacklist
 
-# Importar modelo MySQL como fallback
 from app.models.security.token_blacklist import TokenBlacklist
 
 logger = logging.getLogger(__name__)

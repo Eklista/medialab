@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models.organization.services import Service, SubService
-from app.repositories.service_repository import ServiceRepository
+from app.repositories.organization.service_repository import ServiceRepository
 
 # Configuración de logging
 logging.basicConfig(

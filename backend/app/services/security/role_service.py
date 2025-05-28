@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.repositories.role_repository import RoleRepository
+from app.repositories.security.role_repository import RoleRepository
 from app.models.auth.roles import Role
 
 

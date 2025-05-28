@@ -5,11 +5,11 @@ Exporta todos los schemas necesarios para el módulo AUTH
 """
 
 # Schemas de usuarios
-from .users import *
+from backend.app.schemas.users.users import *
 
 # Schemas de roles y permisos  
-from .roles import *
-from .permissions import *
+from backend.app.schemas.security.roles import *
+from backend.app.schemas.security.permissions import *
 
 # Schemas de tokens
 from .token import *
@@ -46,7 +46,7 @@ from .password import (
 )
 
 # Schemas de seguridad y monitoreo
-from .security import (
+from backend.app.schemas.security.security import (
     SecurityStatusResponse,
     SecurityStatsResponse,
     SecurityEvent,

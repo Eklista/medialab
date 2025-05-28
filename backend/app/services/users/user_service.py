@@ -5,11 +5,11 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.repositories.user_repository import UserRepository
+from app.repositories.users.user_repository import UserRepository
 from app.models.auth.users import User
-from app.schemas.auth.users import UserCreate, UserUpdate
+from app.schemas.users.users import UserCreate, UserUpdate
 from app.config.security import get_password_hash, verify_password
-from app.services.email_service import send_email
+from app.services.communication.email_service import send_email
 
 
 class UserService:
@@ -101,7 +101,7 @@ class UserService:
         """
         Envía un correo de bienvenida después de crear el usuario
         """
-        from app.services.email_service import send_welcome_email as email_service_send_welcome
+        from app.services.communication.email_service import send_welcome_email as email_service_send_welcome
         
         return email_service_send_welcome(email_to=email, username=username)
 

@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.auth.users import User
 from app.models.associations import user_roles
-from app.schemas.auth.users import UserCreate
+from app.schemas.users.users import UserCreate
 
 
 class UserRepository:

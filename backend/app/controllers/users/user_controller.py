@@ -13,9 +13,9 @@ import logging
 from uuid import uuid4
 import os
 
-from app.services.user_service import UserService
-from app.repositories.user_repository import UserRepository
-from app.schemas.auth.users import (
+from app.services.users.user_service import UserService
+from app.repositories.users.user_repository import UserRepository
+from app.schemas.users.users import (
     UserCreate, UserUpdate, UserInDB, UserWithRoles
 )
 from app.utils.user_transforms import transform_user_with_roles

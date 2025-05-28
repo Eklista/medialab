@@ -8,8 +8,8 @@ from app.models.organization.departments import Department
 from app.schemas.organization.departments import DepartmentInDB
 from app.models.organization.services import Service
 from app.schemas.organization.services import ServiceWithSubServices
-from app.schemas.organization.service_templates import ServiceTemplateWithServices
-from app.services.service_template_service import ServiceTemplateService
+from app.schemas.templates.service_templates import ServiceTemplateWithServices
+from app.services.templates.service_template_service import ServiceTemplateService
 
 router = APIRouter()
 

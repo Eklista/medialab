@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.models.common.email_config import EmailTemplate
-from app.repositories.email_template_repository import EmailTemplateRepository
+from app.repositories.templates.email_template_repository import EmailTemplateRepository
 from app.exceptions import ResourceNotFoundException
 
 class EmailTemplateService:

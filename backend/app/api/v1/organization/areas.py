@@ -1,18 +1,17 @@
+# ===== backend/app/api/v1/organization/areas.py =====
+"""
+Solo routing y validación, lógica delegada al AreaController
+"""
+
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Path, Body
+from fastapi import APIRouter, Depends, status, Path, Body
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
 from app.models.auth.users import User
 from app.schemas.organization.areas import AreaCreate, AreaUpdate, AreaInDB
-from app.services.area_service import AreaService
-from app.utils.error_handler import ErrorHandler
-from app.api.deps import (
-    get_current_active_user,
-    has_permission,
-    has_any_permission
-)
+from app.controllers.organization.area_controller import AreaController
+from app.api.deps import has_permission
 
 router = APIRouter()
 
@@ -25,27 +24,21 @@ def read_areas(
 ) -> Any:
     """
     Obtiene lista de áreas (requiere permiso area_view)
+    ✅ REFACTORIZADO: Usa AreaController
     """
-    try:
-        areas = AreaService.get_areas(db=db, skip=skip, limit=limit)
-        return areas
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "áreas")
+    return AreaController.get_areas_list(db, skip, limit, current_user)
 
 @router.post("/", response_model=AreaInDB)
 def create_area(
-    area_in: AreaCreate,
+    area_in: AreaCreate = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(has_permission("area_create"))
 ) -> Any:
     """
     Crea una nueva área (requiere permiso area_create)
+    ✅ REFACTORIZADO: Usa AreaController
     """
-    try:
-        area = AreaService.create_area(db=db, area_data=area_in.dict())
-        return area
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "crear", "área")
+    return AreaController.create_new_area(db, area_in, current_user)
 
 @router.get("/{area_id}", response_model=AreaInDB)
 def read_area(
@@ -55,12 +48,9 @@ def read_area(
 ) -> Any:
     """
     Obtiene un área específica por ID (requiere permiso area_view)
+    ✅ REFACTORIZADO: Usa AreaController
     """
-    try:
-        area = AreaService.get_area_by_id(db=db, area_id=area_id)
-        return area
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "área")
+    return AreaController.get_area_by_id(db, area_id, current_user)
 
 @router.patch("/{area_id}", response_model=AreaInDB)
 def update_area(
@@ -71,16 +61,9 @@ def update_area(
 ) -> Any:
     """
     Actualiza un área existente (requiere permiso area_edit)
+    ✅ REFACTORIZADO: Usa AreaController
     """
-    try:
-        area = AreaService.update_area(
-            db=db,
-            area_id=area_id,
-            area_data=area_in.dict(exclude_unset=True)
-        )
-        return area
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "actualizar", "área")
+    return AreaController.update_area(db, area_id, area_in, current_user)
 
 @router.delete("/{area_id}", response_model=AreaInDB)
 def delete_area(
@@ -90,9 +73,6 @@ def delete_area(
 ) -> Any:
     """
     Elimina un área (requiere permiso area_delete)
+    ✅ REFACTORIZADO: Usa AreaController
     """
-    try:
-        area = AreaService.delete_area(db=db, area_id=area_id)
-        return area
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "eliminar", "área")
+    return AreaController.delete_area(db, area_id, current_user)
