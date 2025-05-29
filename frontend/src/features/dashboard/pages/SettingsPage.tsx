@@ -1,16 +1,34 @@
-// src/features/dashboard/pages/SettingsPage.tsx
-import React, { useState, useEffect } from 'react';
+// src/features/dashboard/pages/SettingsPage.tsx - TYPESCRIPT ERRORS FIXED
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardButton from '../components/ui/DashboardButton';
 import DashboardTextInput from '../components/ui/DashboardTextInput';
 import UserProfilePhoto from '../components/ui/UserProfilePhoto';
 import Badge from '../components/ui/Badge';
 import Switch from '../components/ui/Switch';
-import { useAuth } from '../../auth/hooks/useAuth';
+
+// 🚀 HOOKS OPTIMIZADOS
+import { useAppData } from '../../../context/AppDataContext';
+import { 
+  useCurrentUser, 
+  getFullName, 
+  isAdmin, 
+  normalizeUserId,
+  getFullImageUrl 
+} from '../utils/userUtils';
+
+// 🚀 SERVICIOS OPTIMIZADOS
 import { authService, userService } from '../../../services';
 import { UserUpdateRequest } from '../../../services/users/users.service';
-import { getBaseUrl } from '../../../services/api';
 import fileUploadService from '../../../services/common/fileUpload.service';
+
+// 🚀 UTILIDADES DE FECHA MEJORADAS
+import { 
+  formatFullDate, 
+  formatRelativeTime 
+} from '../utils/dateUtils';
+
+// Iconos
 import { 
   UserIcon, 
   KeyIcon, 
@@ -23,37 +41,16 @@ import {
   ExclamationTriangleIcon,
   PhotoIcon
 } from '@heroicons/react/24/outline';
-import { formatFullDate, formatDateTime } from '../utils/dateUtils';
 
 // Importar imágenes
 import heroBanner from '../../../assets/images/medialab-hero.jpg';
 
-// Interfaz extendida del usuario con campos adicionales
-interface ExtendedUser {
-  id: number | string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  profileImage?: string | null;    
-  bannerImage?: string | null;     
-  phone?: string;
-  birth_date?: string | null;
-  roles?: string[];
-  areas?: Array<{id: number, name: string}>;
-  isActive?: boolean;
-  joinDate?: string | null;         
-  lastLogin?: string | null;       
-  username?: string;
-}
-
 const SettingsPage: React.FC = () => {
-  const { state } = useAuth();
-  const user = state.user;
+  // 🚀 HOOKS OPTIMIZADOS
+  const { refreshUser } = useAppData();
+  const { user: currentUser, isLoading: userLoading } = useCurrentUser();
   
-  // Estado para datos completos del usuario
-  const [extendedUser, setExtendedUser] = useState<ExtendedUser | null>(null);
-  
-  // Estado para formularios
+  // 🚀 ESTADOS OPTIMIZADOS
   const [profileData, setProfileData] = useState({
     phone: '',
     birthday: '',
@@ -67,25 +64,13 @@ const SettingsPage: React.FC = () => {
     confirmPassword: ''
   });
   
-  // Estado para manejo de imágenes
+  // Estados para manejo de imágenes
   const [selectedProfileImage, setSelectedProfileImage] = useState<File | null>(null);
   const [selectedBannerImage, setSelectedBannerImage] = useState<File | null>(null);
   const [previewProfileImage, setPreviewProfileImage] = useState<string | null>(null);
   const [previewBannerImage, setPreviewBannerImage] = useState<string | null>(null);
   
-  // Estado para campos de solo lectura
-  const [readOnlyFields, setReadOnlyFields] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    username: '',
-    joinDate: '',
-    lastLogin: '',
-    isActive: false,
-    role: ''
-  });
-  
-  // Estado para controlar el progreso
+  // Estados de carga y errores
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isLoadingPassword, setIsLoadingPassword] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -100,104 +85,91 @@ const SettingsPage: React.FC = () => {
     loginAlerts: true
   });
   
-  // Calcular completitud del perfil
-  const calculateProfileCompleteness = (): number => {
-    if (!extendedUser) return 0;
+  // 🆕 Estado para controlar inicialización
+  const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // 🚀 DATOS COMPUTADOS OPTIMIZADOS
+  const userIsAdmin = useMemo(() => {
+    return currentUser ? isAdmin(currentUser) : false;
+  }, [currentUser]);
+  
+  const userDisplayData = useMemo(() => {
+    if (!currentUser) return null;
     
-    let totalFields = 4; // Campos básicos (nombre, email, rol, área)
-    let completedFields = 4; // Estos campos son obligatorios
+    return {
+      fullName: getFullName(currentUser),
+      email: currentUser.email,
+      role: currentUser.role || 'Usuario',
+      isActive: currentUser.isActive,
+      joinDate: formatFullDate(new Date()),
+      lastLogin: formatRelativeTime(new Date()),
+      username: currentUser.username || currentUser.email?.split('@')[0] || 'usuario'
+    };
+  }, [currentUser]);
+  
+  
+  // 🚀 CARGAR DATOS DEL USUARIO (VERSIÓN SIMPLIFICADA Y CORREGIDA)
+  useEffect(() => {
+    if (currentUser && currentUser.id && !hasInitialized) {
+      console.log('🔄 Inicializando datos del usuario por primera vez:', {
+        id: currentUser.id,
+        phone: currentUser.phone,
+        birth_date: currentUser.birth_date
+      });
+      
+      const newProfileData = {
+        phone: currentUser.phone || '',
+        birthday: currentUser.birth_date ? 
+          new Date(currentUser.birth_date).toISOString().split('T')[0] : '',
+        profileImage: currentUser.profileImage || '',
+        bannerImage: currentUser.bannerImage || ''
+      };
+      
+      console.log('📝 Estableciendo profileData inicial:', newProfileData);
+      setProfileData(newProfileData);
+      setHasInitialized(true);
+    }
+  }, [currentUser?.id, currentUser?.phone, currentUser?.birth_date, hasInitialized]);
+  
+  // 🔍 DEBUG: Log cuando profileData cambie
+  useEffect(() => {
+    console.log('📊 profileData actualizado:', profileData);
+  }, [profileData]);
+  
+  // 🚀 CALCULAR COMPLETITUD DEL PERFIL
+  const profileCompleteness = useMemo(() => {
+    if (!currentUser) return 0;
     
-    // Verificar campos opcionales
-    if (extendedUser.profileImage || previewProfileImage) completedFields += 1;
+    let totalFields = 4;
+    let completedFields = 4;
+    
+    if (currentUser.profileImage || previewProfileImage) completedFields += 1;
     if (profileData.phone) completedFields += 1;
     if (profileData.birthday) completedFields += 1;
-    if (extendedUser.bannerImage || previewBannerImage) completedFields += 1;
+    if (currentUser.bannerImage || previewBannerImage) completedFields += 1;
     
-    totalFields += 4; // Añadir los campos opcionales al total
+    totalFields += 4;
     
     return Math.round((completedFields / totalFields) * 100);
-  };
+  }, [currentUser, profileData, previewProfileImage, previewBannerImage]);
   
-  // Cargar datos del usuario al montar el componente
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (user && user.id) {
-        try {
-          const userId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
-          const userData = await userService.getUserById(userId);
-          
-          // Crear usuario extendido con todos los campos
-          const extendedUserData: ExtendedUser = {
-            id: userData.id,
-            email: userData.email,
-            firstName: userData.firstName || userData.first_name,
-            lastName: userData.lastName || userData.last_name,
-            profileImage: userData.profileImage || userData.profile_image,
-            bannerImage: userData.bannerImage || userData.banner_image,
-            phone: userData.phone,
-            birth_date: userData.birth_date,
-            roles: userData.roles,
-            areas: userData.areas,
-            isActive: userData.isActive || userData.is_active,
-            joinDate: userData.joinDate || userData.join_date,
-            lastLogin: userData.lastLogin || userData.last_login,
-            username: userData.username
-          };
-          
-          setExtendedUser(extendedUserData);
-          
-          // Actualizar el estado con los datos del usuario
-          setProfileData({
-            phone: userData.phone || '',
-            birthday: userData.birth_date ? new Date(userData.birth_date).toISOString().split('T')[0] : '',
-            profileImage: userData.profileImage || userData.profile_image || '',
-            bannerImage: userData.bannerImage || userData.banner_image || ''
-          });
-          
-          // Determinar el rol del usuario
-          let roleDisplay = 'Usuario';
-          if (userData.roles && Array.isArray(userData.roles) && userData.roles.length > 0) {
-            roleDisplay = userData.roles.join(', ');
-          }
-          
-          // Campos de solo lectura
-          setReadOnlyFields({
-            firstName: userData.firstName || userData.first_name || '',
-            lastName: userData.lastName || userData.last_name || '',
-            email: userData.email || '',
-            username: userData.username || userData.email?.split('@')[0] || '',
-            joinDate: userData.joinDate || userData.join_date ? 
-              formatFullDate(userData.joinDate || userData.join_date) : 
-              formatFullDate(new Date().toISOString()),
-            lastLogin: userData.lastLogin || userData.last_login ? 
-              formatDateTime(userData.lastLogin || userData.last_login) : 
-              formatDateTime(new Date().toISOString()),
-            isActive: !!userData.isActive || !!userData.is_active,
-            role: roleDisplay
-          });
-        } catch (error) {
-          console.error("Error al cargar datos del usuario:", error);
-        }
-      }
-    };
-    
-    loadUserData();
-  }, [user]);
-  
-  // Manejar cambios en el formulario de perfil
-  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 🚀 HANDLERS OPTIMIZADOS
+  const handleProfileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setProfileData((prev) => ({ ...prev, [name]: value }));
-  };
+    console.log('🔄 Campo cambiado:', name, '=', value); // Debug
+    setProfileData(prev => {
+      const newData = { ...prev, [name]: value };
+      console.log('📝 Nuevo profileData:', newData); // Debug
+      return newData;
+    });
+  }, []);
   
-  // Manejar cambios en el formulario de contraseña
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setPasswordData((prev) => ({ ...prev, [name]: value }));
-  };
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+  }, []);
   
-  // Manejar cambio de archivos
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'banner') => {
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'banner') => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
@@ -216,12 +188,15 @@ const SettingsPage: React.FC = () => {
         setPreviewBannerImage(previewUrl);
       }
     }
-  };
+  }, []);
   
-  // Manejar envío del formulario de perfil
-  const handleProfileSubmit = async (e: React.FormEvent) => {
+  // 🚀 SUBMIT OPTIMIZADO DEL PERFIL (CORREGIDO)
+  const handleProfileSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !user.id || !extendedUser) return;
+    if (!currentUser) {
+      setProfileError('No hay usuario autenticado');
+      return;
+    }
     
     setIsLoadingProfile(true);
     setProfileError(null);
@@ -230,46 +205,69 @@ const SettingsPage: React.FC = () => {
     try {
       const updateData: Partial<UserUpdateRequest> = {};
       
-      // Campos básicos
-      if (profileData.phone !== (extendedUser.phone || '')) updateData.phone = profileData.phone;
+      console.log('🔍 Comparando datos para actualización:');
+      console.log('📝 profileData actual:', profileData);
+      console.log('👤 currentUser actual:', {
+        phone: currentUser.phone,
+        birth_date: currentUser.birth_date
+      });
       
-      if (profileData.birthday) {
-        if (profileData.birthday !== extendedUser.birth_date) {
-          updateData.birthDate = profileData.birthday;
-        }
-      } else if (extendedUser.birth_date) {
-        updateData.birthDate = "";
+      // 🔧 COMPARACIÓN MEJORADA - Comparar con valores normalizados
+      const currentPhone = currentUser.phone || '';
+      const currentBirthday = currentUser.birth_date ? 
+        new Date(currentUser.birth_date).toISOString().split('T')[0] : '';
+      
+      console.log('🔍 Valores normalizados para comparación:');
+      console.log('📞 Teléfono - Actual:', `"${profileData.phone}"`, 'vs Original:', `"${currentPhone}"`);
+      console.log('🎂 Cumpleaños - Actual:', `"${profileData.birthday}"`, 'vs Original:', `"${currentBirthday}"`);
+      
+      // Verificar cambios específicos
+      if (profileData.phone !== currentPhone) {
+        console.log('✅ Teléfono ha cambiado, agregando a updateData');
+        updateData.phone = profileData.phone;
       }
-
-      // Subir imagen de perfil si se seleccionó
+      
+      if (profileData.birthday !== currentBirthday) {
+        console.log('✅ Fecha de nacimiento ha cambiado, agregando a updateData');
+        updateData.birthDate = profileData.birthday || undefined;
+      }
+      
+      // Subir imágenes si se seleccionaron
       if (selectedProfileImage) {
+        console.log('🖼️ Subiendo imagen de perfil...');
         try {
           const profileImageUrl = await fileUploadService.uploadImage(selectedProfileImage, 'profile');
           updateData.profileImage = profileImageUrl;
+          console.log('✅ Imagen de perfil subida:', profileImageUrl);
         } catch (imageError) {
-          console.error('Error al subir la imagen de perfil:', imageError);
-          setProfileError('No se pudo subir la imagen de perfil. Por favor, inténtalo de nuevo.');
+          console.error('💥 Error al subir imagen de perfil:', imageError);
+          setProfileError('No se pudo subir la imagen de perfil');
           setIsLoadingProfile(false);
           return;
         }
       }
       
-      // Subir imagen de banner si se seleccionó
       if (selectedBannerImage) {
+        console.log('🖼️ Subiendo imagen de banner...');
         try {
           const bannerImageUrl = await fileUploadService.uploadImage(selectedBannerImage, 'banner');
           updateData.bannerImage = bannerImageUrl;
+          console.log('✅ Imagen de banner subida:', bannerImageUrl);
         } catch (imageError) {
-          console.error('Error al subir la imagen de banner:', imageError);
-          setProfileError('No se pudo subir la imagen de banner. Por favor, inténtalo de nuevo.');
+          console.error('💥 Error al subir imagen de banner:', imageError);
+          setProfileError('No se pudo subir la imagen de banner');
           setIsLoadingProfile(false);
           return;
         }
       }
       
+      console.log('📦 Datos finales para actualizar:', updateData);
+      
+      // Actualizar solo si hay cambios
       if (Object.keys(updateData).length > 0) {
-        const userId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
-        await userService.updateUser(userId, updateData);
+        console.log('🚀 Enviando actualización al servidor...');
+        
+        await userService.updateCurrentUser(updateData);
         
         // Limpiar archivos seleccionados
         setSelectedProfileImage(null);
@@ -281,22 +279,52 @@ const SettingsPage: React.FC = () => {
         
         setProfileSuccess('Perfil actualizado correctamente');
         
-        // Recargar después de 2 segundos
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+        // 🚀 REFRESCAR DATOS CON LA NUEVA ESTRUCTURA
+        console.log('🔄 Refrescando datos del usuario...');
+        
+        // 🔧 TEMPORAL: Usar endpoint completo en lugar del refresh automático
+        try {
+          const userId = typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id;
+          const updatedUserData = await userService.getUserById(userId);
+          console.log('📊 Datos actualizados del usuario:', updatedUserData);
+          
+          // Forzar actualización inmediata del estado local
+          const newProfileData = {
+            phone: updatedUserData.phone || '',
+            birthday: updatedUserData.birth_date ? 
+              new Date(updatedUserData.birth_date).toISOString().split('T')[0] : '',
+            profileImage: updatedUserData.profileImage || '',
+            bannerImage: updatedUserData.bannerImage || ''
+          };
+          
+          console.log('🔄 Actualizando profileData con datos frescos:', newProfileData);
+          setProfileData(newProfileData);
+          
+          // También llamar al refresh normal
+          await refreshUser();
+        } catch (refreshError) {
+          console.error('💥 Error obteniendo datos actualizados:', refreshError);
+          // Fallback al refresh normal  
+          await refreshUser();
+        }
+        
+        // 🆕 RESETEAR FLAG DE INICIALIZACIÓN para permitir nueva carga
+        setHasInitialized(false);
+        
       } else {
-        setProfileError('No se detectaron cambios en la información');
+        console.warn('⚠️ No se detectaron cambios para actualizar');
+        setProfileError('No se detectaron cambios para actualizar');
       }
     } catch (err) {
+      console.error('💥 Error actualizando perfil:', err);
       setProfileError(err instanceof Error ? err.message : 'Error al actualizar perfil');
     } finally {
       setIsLoadingProfile(false);
     }
-  };
+  }, [currentUser, profileData, selectedProfileImage, selectedBannerImage, previewProfileImage, previewBannerImage, refreshUser]);
   
-  // Manejar envío del formulario de cambio de contraseña
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
+  // 🚀 SUBMIT DE CONTRASEÑA
+  const handlePasswordSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     setIsLoadingPassword(true);
@@ -325,44 +353,42 @@ const SettingsPage: React.FC = () => {
       
       setPasswordSuccess('Contraseña actualizada correctamente');
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
+      console.error('💥 Error cambiando contraseña:', err);
+      setPasswordError(err instanceof Error ? err.message : 'Error al cambiar contraseña');
     } finally {
       setIsLoadingPassword(false);
     }
-  };
+  }, [passwordData]);
   
-  // Manejar cambios en opciones de seguridad
-  const handleSecurityOptionChange = (option: keyof typeof securityOptions, value: boolean) => {
-    setSecurityOptions((prev) => ({ ...prev, [option]: value }));
+  // 🚀 MANEJO DE OPCIONES DE SEGURIDAD
+  const handleSecurityOptionChange = useCallback((option: keyof typeof securityOptions, value: boolean) => {
+    setSecurityOptions(prev => ({ ...prev, [option]: value }));
     
+    // Mostrar mensaje temporal
     const message = document.getElementById('security-message');
     if (message) {
-      message.textContent = value 
-        ? `${option === 'twoFactorEnabled' ? 'La autenticación de dos factores' : 'Esta opción'} estará disponible próximamente. Se ha registrado tu preferencia.`
-        : `Has desactivado ${option === 'twoFactorEnabled' ? 'la autenticación de dos factores' : 'esta opción'}.`;
+      message.textContent = `${option === 'twoFactorEnabled' ? 'Autenticación de dos factores' : 'Esta opción'} ${value ? 'activada' : 'desactivada'}. Funcionalidad disponible próximamente.`;
       message.style.display = 'block';
       
       setTimeout(() => {
         message.style.display = 'none';
       }, 3000);
     }
-  };
-
-  // Obtener URL completa para imágenes
-  const getFullImageUrl = (imagePath: string | undefined | null): string => {
-    if (!imagePath) return '';
-    
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    const baseUrl = new URL(getBaseUrl()).origin;
-    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    
-    return `${baseUrl}${path}`;
-  };
+  }, []);
   
-  const completeness = calculateProfileCompleteness();
+  // 🚀 LOADING STATE
+  if (userLoading || !currentUser) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando configuración...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
   
   return (
     <DashboardLayout>
@@ -370,14 +396,16 @@ const SettingsPage: React.FC = () => {
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Configuración de Cuenta</h1>
-          <p className="text-[var(--color-text-secondary)]">Administra tus datos personales y preferencias de seguridad</p>
+          <p className="text-[var(--color-text-secondary)]">
+            Administra tus datos personales y preferencias de seguridad
+          </p>
         </div>
         
         {/* Mensaje de notificación */}
         <div id="security-message" className="hidden p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm"></div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Columna lateral con tarjetas de información */}
+          {/* Columna lateral */}
           <div className="lg:col-span-1 space-y-6">
             {/* Tarjeta de Perfil */}
             <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
@@ -385,51 +413,63 @@ const SettingsPage: React.FC = () => {
                 <div className="relative mb-4">
                   <UserProfilePhoto
                     user={{
-                      id: typeof user?.id === 'string' ? parseInt(user.id) : user?.id || 0,
-                      firstName: readOnlyFields.firstName,
-                      lastName: readOnlyFields.lastName,
-                      profileImage: previewProfileImage || extendedUser?.profileImage || undefined
+                      id: normalizeUserId(currentUser.id),
+                      firstName: currentUser.firstName,
+                      lastName: currentUser.lastName,
+                      email: currentUser.email,
+                      profileImage: previewProfileImage || currentUser.profileImage || undefined
                     }}
                     size="2xl"
+                    enableCache={true}
                   />
                 </div>
                 
                 <h3 className="text-xl font-semibold text-[var(--color-text-main)] mb-1">
-                  {readOnlyFields.firstName} {readOnlyFields.lastName}
+                  {userDisplayData?.fullName}
                 </h3>
-                <p className="text-[var(--color-text-secondary)] text-sm mb-2">{readOnlyFields.email}</p>
+                <p className="text-[var(--color-text-secondary)] text-sm mb-2">
+                  {userDisplayData?.email}
+                </p>
                 
                 <Badge 
-                  variant={readOnlyFields.isActive ? 'success' : 'secondary'}
+                  variant={userDisplayData?.isActive ? 'success' : 'secondary'}
                   className="mt-2"
                 >
-                  {readOnlyFields.isActive ? 'Activo' : 'Inactivo'}
+                  {userDisplayData?.isActive ? 'Activo' : 'Inactivo'}
                 </Badge>
                 
                 <div className="mt-4 w-full text-left">
                   <div className="text-sm text-[var(--color-text-secondary)] border-t border-[var(--color-border)] pt-3 mt-3">
                     <div className="flex justify-between my-2">
                       <span>Usuario:</span>
-                      <span className="font-medium text-[var(--color-text-main)]">{readOnlyFields.username}</span>
+                      <span className="font-medium text-[var(--color-text-main)]">
+                        {userDisplayData?.username}
+                      </span>
                     </div>
                     <div className="flex justify-between my-2">
                       <span>Rol:</span>
-                      <span className="font-medium text-[var(--color-text-main)]">{readOnlyFields.role}</span>
+                      <span className="font-medium text-[var(--color-text-main)]">
+                        {userDisplayData?.role}
+                      </span>
                     </div>
                     <div className="flex justify-between my-2">
-                      <span>Fecha de ingreso:</span>
-                      <span className="font-medium text-[var(--color-text-main)] text-xs">{readOnlyFields.joinDate}</span>
+                      <span>Miembro desde:</span>
+                      <span className="font-medium text-[var(--color-text-main)] text-xs">
+                        {userDisplayData?.joinDate}
+                      </span>
                     </div>
                     <div className="flex justify-between my-2">
                       <span>Último acceso:</span>
-                      <span className="font-medium text-[var(--color-text-main)] text-xs">{readOnlyFields.lastLogin}</span>
+                      <span className="font-medium text-[var(--color-text-main)] text-xs">
+                        {userDisplayData?.lastLogin}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Panel de completitud del perfil */}
+            {/* Panel de completitud */}
             <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <ChartBarIcon className="h-5 w-5 text-[var(--color-accent-1)]" />
@@ -441,13 +481,17 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-[var(--color-text-secondary)]">Progreso general</span>
-                    <span className="text-sm font-bold text-[var(--color-text-main)]">{completeness}%</span>
+                    <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+                      Progreso general
+                    </span>
+                    <span className="text-sm font-bold text-[var(--color-text-main)]">
+                      {profileCompleteness}%
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div 
                       className="bg-gradient-to-r from-[var(--color-accent-1)] to-[var(--color-hover)] h-3 rounded-full transition-all duration-300" 
-                      style={{ width: `${completeness}%` }}
+                      style={{ width: `${profileCompleteness}%` }}
                     ></div>
                   </div>
                 </div>
@@ -458,16 +502,22 @@ const SettingsPage: React.FC = () => {
                     <span className="ml-2 text-[var(--color-text-main)]">Información básica</span>
                   </li>
                   <li className="flex items-center text-sm">
-                    <div className={`h-5 w-5 flex-shrink-0 ${(extendedUser?.profileImage || previewProfileImage) ? 'text-green-500' : 'text-gray-400'}`}>
-                      {(extendedUser?.profileImage || previewProfileImage) ? <CheckCircleIcon className="h-5 w-5" /> : <ExclamationTriangleIcon className="h-5 w-5" />}
+                    <div className={`h-5 w-5 flex-shrink-0 ${(currentUser.profileImage || previewProfileImage) ? 'text-green-500' : 'text-gray-400'}`}>
+                      {(currentUser.profileImage || previewProfileImage) ? 
+                        <CheckCircleIcon className="h-5 w-5" /> : 
+                        <ExclamationTriangleIcon className="h-5 w-5" />
+                      }
                     </div>
-                    <span className={`ml-2 ${(extendedUser?.profileImage || previewProfileImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span className={`ml-2 ${(currentUser.profileImage || previewProfileImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
                       Foto de perfil
                     </span>
                   </li>
                   <li className="flex items-center text-sm">
                     <div className={`h-5 w-5 flex-shrink-0 ${profileData.phone ? 'text-green-500' : 'text-gray-400'}`}>
-                      {profileData.phone ? <CheckCircleIcon className="h-5 w-5" /> : <ExclamationTriangleIcon className="h-5 w-5" />}
+                      {profileData.phone ? 
+                        <CheckCircleIcon className="h-5 w-5" /> : 
+                        <ExclamationTriangleIcon className="h-5 w-5" />
+                      }
                     </div>
                     <span className={`ml-2 ${profileData.phone ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
                       Teléfono
@@ -475,17 +525,23 @@ const SettingsPage: React.FC = () => {
                   </li>
                   <li className="flex items-center text-sm">
                     <div className={`h-5 w-5 flex-shrink-0 ${profileData.birthday ? 'text-green-500' : 'text-gray-400'}`}>
-                      {profileData.birthday ? <CheckCircleIcon className="h-5 w-5" /> : <ExclamationTriangleIcon className="h-5 w-5" />}
+                      {profileData.birthday ? 
+                        <CheckCircleIcon className="h-5 w-5" /> : 
+                        <ExclamationTriangleIcon className="h-5 w-5" />
+                      }
                     </div>
                     <span className={`ml-2 ${profileData.birthday ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
                       Fecha de nacimiento
                     </span>
                   </li>
                   <li className="flex items-center text-sm">
-                    <div className={`h-5 w-5 flex-shrink-0 ${(extendedUser?.bannerImage || previewBannerImage) ? 'text-green-500' : 'text-gray-400'}`}>
-                      {(extendedUser?.bannerImage || previewBannerImage) ? <CheckCircleIcon className="h-5 w-5" /> : <ExclamationTriangleIcon className="h-5 w-5" />}
+                    <div className={`h-5 w-5 flex-shrink-0 ${(currentUser.bannerImage || previewBannerImage) ? 'text-green-500' : 'text-gray-400'}`}>
+                      {(currentUser.bannerImage || previewBannerImage) ? 
+                        <CheckCircleIcon className="h-5 w-5" /> : 
+                        <ExclamationTriangleIcon className="h-5 w-5" />
+                      }
                     </div>
-                    <span className={`ml-2 ${(extendedUser?.bannerImage || previewBannerImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span className={`ml-2 ${(currentUser.bannerImage || previewBannerImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
                       Imagen de banner
                     </span>
                   </li>
@@ -493,16 +549,24 @@ const SettingsPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Tarjeta de Opciones de Seguridad */}
+            {/* Opciones de Seguridad */}
             <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
-              <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-2">Opciones de Seguridad</h3>
-              <p className="text-sm text-[var(--color-text-secondary)] mb-4">Configura tus preferencias de seguridad</p>
+              <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-2">
+                Opciones de Seguridad
+              </h3>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+                Configura tus preferencias de seguridad
+              </p>
               
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-[var(--color-text-main)]">Autenticación de dos factores</p>
-                    <p className="text-xs text-[var(--color-text-secondary)]">Aumenta la seguridad de tu cuenta</p>
+                    <p className="text-sm font-medium text-[var(--color-text-main)]">
+                      Autenticación de dos factores
+                    </p>
+                    <p className="text-xs text-[var(--color-text-secondary)]">
+                      Aumenta la seguridad de tu cuenta
+                    </p>
                   </div>
                   <Switch 
                     checked={securityOptions.twoFactorEnabled}
@@ -512,8 +576,12 @@ const SettingsPage: React.FC = () => {
                 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-[var(--color-text-main)]">Notificaciones por email</p>
-                    <p className="text-xs text-[var(--color-text-secondary)]">Recibe alertas importantes</p>
+                    <p className="text-sm font-medium text-[var(--color-text-main)]">
+                      Notificaciones por email
+                    </p>
+                    <p className="text-xs text-[var(--color-text-secondary)]">
+                      Recibe alertas importantes
+                    </p>
                   </div>
                   <Switch 
                     checked={securityOptions.emailNotifications}
@@ -523,8 +591,12 @@ const SettingsPage: React.FC = () => {
                 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-[var(--color-text-main)]">Alertas de inicio de sesión</p>
-                    <p className="text-xs text-[var(--color-text-secondary)]">Notificaciones de nuevos accesos</p>
+                    <p className="text-sm font-medium text-[var(--color-text-main)]">
+                      Alertas de inicio de sesión
+                    </p>
+                    <p className="text-xs text-[var(--color-text-secondary)]">
+                      Notificaciones de nuevos accesos
+                    </p>
                   </div>
                   <Switch 
                     checked={securityOptions.loginAlerts}
@@ -535,19 +607,23 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
           
-          {/* Columna principal con formularios */}
+          {/* Columna principal */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Información Personal Editable */}
+            {/* Formulario de Información Personal */}
             <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">Información Personal</h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">Actualiza tu información de perfil</p>
+                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                    Información Personal
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Actualiza tu información de perfil
+                  </p>
                 </div>
                 <Badge variant="primary">Editable</Badge>
               </div>
               
-              {/* Imágenes de perfil y banner */}
+              {/* Banner Image */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-[var(--color-text-main)] mb-3">
                   Imagen de banner
@@ -555,7 +631,7 @@ const SettingsPage: React.FC = () => {
                 <div className="border border-[var(--color-border)] rounded-lg p-3 mb-4">
                   <div className="h-32 w-full rounded-lg overflow-hidden bg-gray-200">
                     <img
-                      src={previewBannerImage || (extendedUser?.bannerImage ? getFullImageUrl(extendedUser.bannerImage) : heroBanner)}
+                      src={previewBannerImage || getFullImageUrl(currentUser.bannerImage) || heroBanner}
                       alt="Banner"
                       className="h-full w-full object-cover"
                     />
@@ -577,6 +653,7 @@ const SettingsPage: React.FC = () => {
                 </div>
               </div>
               
+              {/* Profile Photo */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-[var(--color-text-main)] mb-3">
                   Foto de perfil
@@ -584,12 +661,14 @@ const SettingsPage: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <UserProfilePhoto
                     user={{
-                      id: typeof user?.id === 'string' ? parseInt(user.id) : user?.id || 0,
-                      firstName: readOnlyFields.firstName,
-                      lastName: readOnlyFields.lastName,
-                      profileImage: previewProfileImage || extendedUser?.profileImage || undefined
+                      id: normalizeUserId(currentUser.id),
+                      firstName: currentUser.firstName,
+                      lastName: currentUser.lastName,
+                      email: currentUser.email,
+                      profileImage: previewProfileImage || currentUser.profileImage || undefined
                     }}
                     size="xl"
+                    enableCache={true}
                   />
                   <div>
                     <label className="cursor-pointer">
@@ -615,33 +694,25 @@ const SettingsPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                    Nombre
+                    Nombre completo
                   </label>
                   <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)]">
-                    {readOnlyFields.firstName || 'No especificado'}
+                    {userDisplayData?.fullName || 'No especificado'}
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                    Apellido
+                    Correo electrónico
                   </label>
-                  <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)]">
-                    {readOnlyFields.lastName || 'No especificado'}
+                  <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)] flex items-center">
+                    <EnvelopeIcon className="h-5 w-5 text-[var(--color-text-secondary)] mr-2" />
+                    {userDisplayData?.email || 'No especificado'}
                   </div>
                 </div>
               </div>
               
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                  Correo electrónico
-                </label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)] flex items-center">
-                  <EnvelopeIcon className="h-5 w-5 text-[var(--color-text-secondary)] mr-2" />
-                  {readOnlyFields.email || 'No especificado'}
-                </div>
-              </div>
-              
+              {/* Mensajes de estado */}
               {profileError && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
                   <p className="font-medium">Error:</p>
@@ -655,30 +726,85 @@ const SettingsPage: React.FC = () => {
                 </div>
               )}
               
+              {/* Formulario editable */}
               <form onSubmit={handleProfileSubmit} className="space-y-4">
+                {/* 🔍 FORMULARIO DE DEBUG TEMPORAL */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <h4 className="text-sm font-medium text-yellow-800 mb-3">
+                    🔧 Inputs de Debug (Temporales)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Teléfono (Debug):
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={profileData.phone}
+                        onChange={handleProfileChange}
+                        placeholder="Escribe tu teléfono aquí"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Valor: "{profileData.phone}" | Funciona: {profileData.phone ? '✅' : '❌'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha (Debug):
+                      </label>
+                      <input
+                        type="date"
+                        name="birthday"
+                        value={profileData.birthday}
+                        onChange={handleProfileChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Valor: "{profileData.birthday}" | Funciona: {profileData.birthday ? '✅' : '❌'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Formulario original con DashboardTextInput */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <DashboardTextInput
-                    id="phone"
-                    name="phone"
-                    label="Teléfono"
-                    value={profileData.phone}
-                    onChange={handleProfileChange}
-                    placeholder="Tu número de teléfono"
-                    type="tel"
-                    icon={<DevicePhoneMobileIcon className="h-5 w-5" />}
-                    helperText="Este número se utilizará solo para notificaciones importantes"
-                  />
+                  <div>
+                    <DashboardTextInput
+                      id="phone"
+                      name="phone"
+                      label="Teléfono"
+                      value={profileData.phone}
+                      onChange={handleProfileChange}
+                      placeholder="Tu número de teléfono"
+                      type="tel"
+                      icon={<DevicePhoneMobileIcon className="h-5 w-5" />}
+                      helperText="Para notificaciones importantes"
+                    />
+                    {/* 🔍 Debug info */}
+                    <p className="text-xs text-gray-400 mt-1">
+                      Valor DashboardInput: "{profileData.phone}" | Longitud: {profileData.phone.length}
+                    </p>
+                  </div>
                   
-                  <DashboardTextInput
-                    id="birthday"
-                    name="birthday"
-                    label="Fecha de nacimiento"
-                    value={profileData.birthday}
-                    onChange={handleProfileChange}
-                    type="date"
-                    icon={<CakeIcon className="h-5 w-5" />}
-                    helperText="Esta información es privada y opcional"
-                  />
+                  <div>
+                    <DashboardTextInput
+                      id="birthday"
+                      name="birthday"
+                      label="Fecha de nacimiento"
+                      value={profileData.birthday}
+                      onChange={handleProfileChange}
+                      type="date"
+                      icon={<CakeIcon className="h-5 w-5" />}
+                      helperText="Esta información es privada y opcional"
+                    />
+                    {/* 🔍 Debug info */}
+                    <p className="text-xs text-gray-400 mt-1">
+                      Valor DashboardInput: "{profileData.birthday}" | Válido: {profileData.birthday ? 'Sí' : 'No'}
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="mt-6 flex justify-end">
@@ -694,12 +820,16 @@ const SettingsPage: React.FC = () => {
               </form>
             </div>
             
-            {/* Información de solo lectura */}
+            {/* Información de la Cuenta (Solo lectura) */}
             <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">Información de la Cuenta</h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">Datos de la cuenta administrados por el sistema</p>
+                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                    Información de la Cuenta
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Datos administrados por el sistema
+                  </p>
                 </div>
                 <Badge variant="secondary">Solo lectura</Badge>
               </div>
@@ -710,7 +840,7 @@ const SettingsPage: React.FC = () => {
                     Nombre de usuario
                   </label>
                   <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)]">
-                    {readOnlyFields.username}
+                    {userDisplayData?.username}
                   </div>
                 </div>
                 
@@ -718,8 +848,13 @@ const SettingsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                     Rol asignado
                   </label>
-                  <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)]">
-                    {readOnlyFields.role}
+                  <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)] flex items-center">
+                    {userDisplayData?.role}
+                    {userIsAdmin && (
+                      <Badge variant="success" className="ml-2 text-xs">
+                        Administrador
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 
@@ -728,7 +863,7 @@ const SettingsPage: React.FC = () => {
                     Fecha de ingreso
                   </label>
                   <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)]">
-                    {readOnlyFields.joinDate}
+                    {userDisplayData?.joinDate}
                   </div>
                 </div>
                 
@@ -737,7 +872,10 @@ const SettingsPage: React.FC = () => {
                     Estado de la cuenta
                   </label>
                   <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[var(--color-text-main)]">
-                    {readOnlyFields.isActive ? 'Activa' : 'Inactiva'}
+                    <div className="flex items-center">
+                      <div className={`w-2 h-2 rounded-full mr-2 ${userDisplayData?.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      {userDisplayData?.isActive ? 'Activa' : 'Inactiva'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -747,8 +885,12 @@ const SettingsPage: React.FC = () => {
             <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">Cambiar Contraseña</h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">Actualiza tu contraseña regularmente para mantener tu cuenta segura</p>
+                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                    Cambiar Contraseña
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Actualiza tu contraseña regularmente para mantener tu cuenta segura
+                  </p>
                 </div>
                 <Badge variant="warning">Seguridad</Badge>
               </div>
@@ -818,7 +960,7 @@ const SettingsPage: React.FC = () => {
                     <li>Al menos 8 caracteres de longitud</li>
                     <li>Letras mayúsculas y minúsculas</li>
                     <li>Al menos un número</li>
-                    <li>Al menos un caracter especial</li>
+                    <li>Al menos un caracter especial (recomendado)</li>
                   </ul>
                 </div>
                 
@@ -845,28 +987,40 @@ const SettingsPage: React.FC = () => {
             <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">Actividad de la Cuenta</h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">Revisa la actividad reciente en tu cuenta</p>
+                  <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
+                    Actividad de la Cuenta
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Revisa la actividad reciente en tu cuenta
+                  </p>
                 </div>
                 <Badge variant="info">Informativo</Badge>
               </div>
               
               <div className="space-y-4">
                 <div className="border-b border-[var(--color-border)] pb-4">
-                  <h4 className="text-sm font-medium text-[var(--color-text-main)] mb-2">Último inicio de sesión</h4>
+                  <h4 className="text-sm font-medium text-[var(--color-text-main)] mb-2">
+                    Último inicio de sesión
+                  </h4>
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
                       <ClockIcon className="h-5 w-5 text-[var(--color-text-secondary)]" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-[var(--color-text-main)]">{readOnlyFields.lastLogin}</p>
-                      <p className="text-xs text-[var(--color-text-secondary)]">Esta información ayuda a mantener segura tu cuenta</p>
+                      <p className="text-sm font-medium text-[var(--color-text-main)]">
+                        {userDisplayData?.lastLogin}
+                      </p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">
+                        Esta información ayuda a mantener segura tu cuenta
+                      </p>
                     </div>
                   </div>
                 </div>
                 
                 <div>
-                  <h4 className="text-sm font-medium text-[var(--color-text-main)] mb-2">Sesiones activas</h4>
+                  <h4 className="text-sm font-medium text-[var(--color-text-main)] mb-2">
+                    Sesión actual
+                  </h4>
                   <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -874,8 +1028,12 @@ const SettingsPage: React.FC = () => {
                           <DevicePhoneMobileIcon className="h-5 w-5 text-green-600" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[var(--color-text-main)]">Dispositivo actual</p>
-                          <p className="text-xs text-[var(--color-text-secondary)]">Guatemala City, Guatemala • Hace unos minutos</p>
+                          <p className="text-sm font-medium text-[var(--color-text-main)]">
+                            Dispositivo actual
+                          </p>
+                          <p className="text-xs text-[var(--color-text-secondary)]">
+                            Guatemala City, Guatemala • Activo ahora
+                          </p>
                         </div>
                       </div>
                       <Badge variant="success">Activa</Badge>
@@ -886,24 +1044,59 @@ const SettingsPage: React.FC = () => {
                     <DashboardButton
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const message = document.getElementById('security-message');
-                        if (message) {
-                          message.textContent = "Esta función estará disponible próximamente";
-                          message.style.display = 'block';
-                          
-                          setTimeout(() => {
-                            message.style.display = 'none';
-                          }, 3000);
-                        }
-                      }}
+                      onClick={() => handleSecurityOptionChange('twoFactorEnabled', true)}
                     >
-                      Ver todas las sesiones
+                      Ver historial de sesiones
                     </DashboardButton>
                   </div>
                 </div>
               </div>
             </div>
+            
+            {/* 🚀 PANEL DE ADMINISTRADOR */}
+            {userIsAdmin && (
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-purple-900">
+                      Panel de Administrador
+                    </h3>
+                    <p className="text-sm text-purple-700">
+                      Opciones avanzadas disponibles para tu rol
+                    </p>
+                  </div>
+                  <Badge variant="success">Admin</Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <h4 className="font-medium text-purple-900 mb-2">
+                      Gestión de Usuarios
+                    </h4>
+                    <p className="text-sm text-purple-700 mb-3">
+                      Administra usuarios, roles y permisos del sistema
+                    </p>
+                    <DashboardButton size="sm" variant="outline">
+                      <UserIcon className="h-4 w-4 mr-2" />
+                      Ir a Usuarios
+                    </DashboardButton>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <h4 className="font-medium text-purple-900 mb-2">
+                      Configuración del Sistema
+                    </h4>
+                    <p className="text-sm text-purple-700 mb-3">
+                      Ajustes generales y configuración avanzada
+                    </p>
+                    <DashboardButton size="sm" variant="outline">
+                      <KeyIcon className="h-4 w-4 mr-2" />
+                      Configuración
+                    </DashboardButton>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

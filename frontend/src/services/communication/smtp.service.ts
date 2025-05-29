@@ -1,5 +1,5 @@
 // src/services/smtp.service.ts (versión actualizada y completa)
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError } from '../api';
 
 export interface SmtpConfig {
   id: number;

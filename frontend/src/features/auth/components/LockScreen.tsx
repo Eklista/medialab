@@ -1,5 +1,5 @@
-// src/features/auth/components/LockScreen.tsx - FIXED TYPES VERSION
-import React, { useState, useEffect } from 'react';
+// src/features/auth/components/LockScreen.tsx - OPTIMIZED VERSION
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../../../context/AppDataContext';
 import TextInput from '../../service-request/components/TextInput';
@@ -22,17 +22,22 @@ const LockScreen: React.FC = () => {
     };
   }, []);
 
+  // 🚀 OPTIMIZADO: Usar datos del AppDataContext primero
   const currentUser = user || authState.user;
   
-  // 🔧 FIXED: Adaptador para UserProfilePhoto
-  const adaptedUser = currentUser ? {
-    id: currentUser.id ? (typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id) : undefined,
-    firstName: currentUser.firstName,
-    lastName: currentUser.lastName,
-    email: currentUser.email,
-    profileImage: (currentUser as any).profileImage || (currentUser as any).profile_image,
-    profile_image: (currentUser as any).profileImage || (currentUser as any).profile_image
-  } : undefined;
+  // 🚀 OPTIMIZADO: Memoizar adaptación del usuario
+  const adaptedUser = useMemo(() => {
+    if (!currentUser) return undefined;
+    
+    return {
+      id: currentUser.id ? (typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id) : undefined,
+      firstName: currentUser.firstName,
+      lastName: currentUser.lastName,
+      email: currentUser.email,
+      profileImage: (currentUser as any).profileImage || (currentUser as any).profile_image,
+      profile_image: (currentUser as any).profileImage || (currentUser as any).profile_image
+    };
+  }, [currentUser]);
   
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +61,7 @@ const LockScreen: React.FC = () => {
     logout();
   };
   
+  // 🚀 OPTIMIZADO: Early returns mejorados
   if (!currentUser) {
     return (
       <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
@@ -103,7 +109,7 @@ const LockScreen: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/40 flex flex-col justify-center px-8 md:px-12">
           <div className="text-white space-y-4">
             <h1 className="text-3xl md:text-4xl font-bold">
-              Bienvenido a <span className="text-(--color-accent-1)">MediaLab</span>
+              Bienvenido a <span className="text-[var(--color-accent-1)]">MediaLab</span>
             </h1>
             <p className="text-lg opacity-90">
               Departamento de producción audiovisual de Universidad Galileo
@@ -122,10 +128,11 @@ const LockScreen: React.FC = () => {
                   size="2xl"
                   className="border-4 border-white shadow-md"
                   clickable={false}
+                  enableCache={true} // 🚀 NUEVO: Habilitar cache
                 />
               </div>
-              <h2 className="text-2xl font-bold text-(--color-text-main)">Sesión Bloqueada</h2>
-              <p className="mt-2 text-sm text-(--color-text-secondary)">
+              <h2 className="text-2xl font-bold text-[var(--color-text-main)]">Sesión Bloqueada</h2>
+              <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
                 Hola, {currentUser?.firstName} {currentUser?.lastName}
               </p>
               <p className="text-sm text-gray-500 mt-1">

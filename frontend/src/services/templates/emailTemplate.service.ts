@@ -1,5 +1,5 @@
 // src/services/emailTemplate.service.ts - DEBUG VERSION
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError } from '../api';
 
 export interface EmailTemplate {
   id: number;

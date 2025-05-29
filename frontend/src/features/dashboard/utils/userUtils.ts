@@ -1,8 +1,8 @@
-// src/features/dashboard/utils/userUtils.ts
+// src/features/dashboard/utils/userUtils.ts - EXTENDED VERSION
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useAppData } from '../../../context/AppDataContext';
 
-// Interfaz unificada para usuario en Dashboard
+// 🚀 INTERFAZ EXTENDIDA PARA DASHBOARD
 export interface DashboardUser {
   id: number | string;
   email: string;
@@ -10,9 +10,21 @@ export interface DashboardUser {
   lastName: string;
   fullName: string;
   profileImage?: string;
+  bannerImage?: string; // 🆕 AGREGADO
   role?: string;
   isActive?: boolean;
   initials: string;
+  
+  // 🆕 CAMPOS ADICIONALES PARA SETTINGS
+  phone?: string;
+  birth_date?: string | null;
+  username?: string;
+  joinDate?: string;
+  lastLogin?: string;
+  
+  // 🆕 CAMPOS DE COMPATIBILIDAD
+  profile_image?: string;
+  banner_image?: string;
 }
 
 /**
@@ -31,7 +43,7 @@ export const useCurrentUser = (): {
   // Combinar datos de ambos contextos, priorizando AppDataContext
   const rawUser = appDataUser || authState.user;
   
-  // Transformar a formato unificado usando any para evitar conflictos de tipos
+  // 🚀 TRANSFORMACIÓN MEJORADA con todos los campos
   const user: DashboardUser | null = rawUser ? {
     id: typeof rawUser.id === 'string' ? parseInt(rawUser.id) || rawUser.id : rawUser.id,
     email: rawUser.email || '',
@@ -39,9 +51,21 @@ export const useCurrentUser = (): {
     lastName: rawUser.lastName || (rawUser as any).last_name || '',
     fullName: getFullName(rawUser),
     profileImage: rawUser.profileImage || (rawUser as any).profile_image,
+    bannerImage: (rawUser as any).bannerImage || (rawUser as any).banner_image, // 🆕
     role: (rawUser as any).role || 'Usuario',
     isActive: (rawUser as any).isActive !== undefined ? (rawUser as any).isActive : (rawUser as any).is_active,
-    initials: getInitials(rawUser)
+    initials: getInitials(rawUser),
+    
+    // 🆕 CAMPOS ADICIONALES
+    phone: (rawUser as any).phone,
+    birth_date: (rawUser as any).birth_date || (rawUser as any).birthDate,
+    username: (rawUser as any).username || rawUser.email?.split('@')[0],
+    joinDate: (rawUser as any).joinDate || (rawUser as any).join_date,
+    lastLogin: (rawUser as any).lastLogin || (rawUser as any).last_login,
+    
+    // Compatibilidad
+    profile_image: rawUser.profileImage || (rawUser as any).profile_image,
+    banner_image: (rawUser as any).bannerImage || (rawUser as any).banner_image
   } : null;
 
   return {
@@ -134,9 +158,21 @@ export const normalizeToDashboardUser = (rawUser: any): DashboardUser | null => 
     lastName: rawUser.lastName || rawUser.last_name || '',
     fullName: getFullName(rawUser),
     profileImage: rawUser.profileImage || rawUser.profile_image,
+    bannerImage: rawUser.bannerImage || rawUser.banner_image, // 🆕
     role: rawUser.role || rawUser.roles?.[0] || 'Usuario',
     isActive: rawUser.isActive !== undefined ? rawUser.isActive : rawUser.is_active,
-    initials: getInitials(rawUser)
+    initials: getInitials(rawUser),
+    
+    // 🆕 CAMPOS ADICIONALES
+    phone: rawUser.phone,
+    birth_date: rawUser.birth_date || rawUser.birthDate,
+    username: rawUser.username || rawUser.email?.split('@')[0],
+    joinDate: rawUser.joinDate || rawUser.join_date,
+    lastLogin: rawUser.lastLogin || rawUser.last_login,
+    
+    // Compatibilidad
+    profile_image: rawUser.profileImage || rawUser.profile_image,
+    banner_image: rawUser.bannerImage || rawUser.banner_image
   };
 };
 
@@ -193,5 +229,35 @@ export const getProfileImageUrl = (imagePath: string | undefined | null): string
   // Asegurar que la ruta comience con '/'
   const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
   
+  return `${baseUrl}${path}`;
+};
+
+/**
+ * 🆕 NUEVA: Convierte ID de usuario a número de forma segura
+ */
+export const normalizeUserId = (id: string | number | undefined): number | undefined => {
+  if (id === undefined || id === null) return undefined;
+  
+  if (typeof id === 'number') return id;
+  
+  const parsed = parseInt(id.toString(), 10);
+  return isNaN(parsed) ? undefined : parsed;
+};
+
+/**
+ * 🆕 NUEVA: Obtiene la URL completa de una imagen
+ */
+export const getFullImageUrl = (imagePath: string | undefined | null): string => {
+  if (!imagePath || imagePath.trim() === '') return '';
+  
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  const baseUrl = import.meta.env.MODE === 'production' 
+    ? window.location.origin 
+    : 'http://localhost:8000';
+  
+  const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
   return `${baseUrl}${path}`;
 };

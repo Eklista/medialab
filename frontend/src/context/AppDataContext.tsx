@@ -1,10 +1,11 @@
-// frontend/src/context/AppDataContext.tsx - OPTIMIZADO CON SERVICIO UNIFICADO
+// frontend/src/context/AppDataContext.tsx - VERSION COMPLETA CORREGIDA
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { authService } from '../services';
 import { User as UserServiceUser, Role, Area } from '../services/users/users.service';
 import { User as AuthServiceUser } from '../services/auth/auth.service';
 import { PermissionCategory } from '../services/security/permissions.service';
 import systemDataService, { SystemDataType, SystemDataResponse } from '../services/system/systemData.service';
+import webSocketService from '../services/websocket/websocket.service';
 
 // ===== INTERFACES =====
 interface AppData {
@@ -24,10 +25,17 @@ interface AppData {
   isInitialized: boolean;
   error: string | null;
   
-  // 🆕 NUEVO: Control de cache mejorado
+  // Control de cache mejorado
   lastRefresh: number;
   cacheValidUntil: number;
-  systemDataStats: any; // estadísticas del servicio de datos
+  systemDataStats: any;
+  
+  // 🆕 Estados de WebSocket
+  websocket: {
+    isConnected: boolean;
+    connectionState: string;
+    lastUpdate: number | null;
+  };
   
   // Métodos de refresh selectivos y optimizados
   refreshUser: () => Promise<void>;
@@ -35,9 +43,13 @@ interface AppData {
   refreshAll: () => Promise<void>;
   invalidateCache: () => void;
   
-  // 🆕 NUEVOS: Métodos específicos optimizados
+  // Métodos específicos optimizados
   ensureSystemData: (requiredData: SystemDataType[]) => Promise<void>;
   getSystemDataStats: () => any;
+  
+  // Métodos de WebSocket
+  connectWebSocket: () => Promise<void>;
+  disconnectWebSocket: () => void;
 }
 
 const AppDataContext = createContext<AppData | null>(null);
@@ -55,7 +67,7 @@ interface AppDataProviderProps {
 }
 
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
-  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache' | 'ensureSystemData' | 'getSystemDataStats'>>({
+  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache' | 'ensureSystemData' | 'getSystemDataStats' | 'connectWebSocket' | 'disconnectWebSocket'>>({
     user: null,
     isAuthenticated: false,
     permissions: [],
@@ -68,13 +80,18 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     error: null,
     lastRefresh: 0,
     cacheValidUntil: 0,
-    systemDataStats: null
+    systemDataStats: null,
+    websocket: {
+      isConnected: false,
+      connectionState: 'disconnected',
+      lastUpdate: null
+    }
   });
 
   // Refs para control de concurrencia
-  const loadingRef = useRef(false);
   const retryCountRef = useRef(0);
   const userCacheRef = useRef(0);
+  const isLoadingRef = useRef(false); // 🔧 RENOMBRADO para evitar conflicto
 
   // ===== CACHE HELPERS =====
   const isCacheValid = useCallback((type: 'user' | 'system' = 'system') => {
@@ -82,7 +99,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     if (type === 'user') {
       return now < userCacheRef.current;
     }
-    // Para datos del sistema, usar el cache del servicio
     const stats = systemDataService.getStats();
     return stats.hasCached && !stats.isExpired;
   }, []);
@@ -114,13 +130,111 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     console.log('🧹 Cache invalidado completamente');
   }, []);
 
-  // ===== 🆕 OPTIMIZED DATA LOADING =====
+  // ===== WEBSOCKET HANDLERS =====
   
-  /**
-   * Carga SOLO datos de usuario (optimizada con cache)
-   */
+  const handleWebSocketUserUpdate = useCallback((userData: any) => {
+    console.log('📨 WebSocket: Usuario actualizado', userData);
+    
+    setState(prev => {
+      if (prev.user && prev.user.id === userData.id) {
+        return {
+          ...prev,
+          user: { ...prev.user, ...userData },
+          websocket: {
+            ...prev.websocket,
+            lastUpdate: Date.now()
+          }
+        };
+      }
+      
+      const updatedUsers = prev.users.map(user => 
+        user.id === userData.id ? { ...user, ...userData } : user
+      );
+      
+      return {
+        ...prev,
+        users: updatedUsers,
+        websocket: {
+          ...prev.websocket,
+          lastUpdate: Date.now()
+        }
+      };
+    });
+  }, []);
+  
+  const handleWebSocketSystemDataUpdate = useCallback((updateData: { type: string; data: any }) => {
+    console.log('📨 WebSocket: Datos del sistema actualizados', updateData.type);
+    
+    setState(prev => {
+      const newState = { ...prev };
+      
+      switch (updateData.type) {
+        case 'role':
+          if (updateData.data.action === 'created' || updateData.data.action === 'updated') {
+            const existingIndex = newState.roles.findIndex(r => r.id === updateData.data.role.id);
+            if (existingIndex >= 0) {
+              newState.roles[existingIndex] = updateData.data.role;
+            } else {
+              newState.roles.push(updateData.data.role);
+            }
+          } else if (updateData.data.action === 'deleted') {
+            newState.roles = newState.roles.filter(r => r.id !== updateData.data.roleId);
+          }
+          break;
+          
+        case 'area':
+          if (updateData.data.action === 'created' || updateData.data.action === 'updated') {
+            const existingIndex = newState.areas.findIndex(a => a.id === updateData.data.area.id);
+            if (existingIndex >= 0) {
+              newState.areas[existingIndex] = updateData.data.area;
+            } else {
+              newState.areas.push(updateData.data.area);
+            }
+          } else if (updateData.data.action === 'deleted') {
+            newState.areas = newState.areas.filter(a => a.id !== updateData.data.areaId);
+          }
+          break;
+          
+        case 'user':
+          if (updateData.data.action === 'created' || updateData.data.action === 'updated') {
+            const existingIndex = newState.users.findIndex(u => u.id === updateData.data.user.id);
+            if (existingIndex >= 0) {
+              newState.users[existingIndex] = updateData.data.user;
+            } else {
+              newState.users.push(updateData.data.user);
+            }
+          } else if (updateData.data.action === 'deleted') {
+            newState.users = newState.users.filter(u => u.id !== updateData.data.userId);
+          }
+          break;
+      }
+      
+      return {
+        ...newState,
+        websocket: {
+          ...prev.websocket,
+          lastUpdate: Date.now()
+        }
+      };
+    });
+    
+    systemDataService.clearCache();
+  }, []);
+  
+  const handleWebSocketNotification = useCallback((notification: any) => {
+    console.log('🔔 WebSocket: Notificación recibida', notification);
+    
+    if (notification.type === 'system_maintenance') {
+      setState(prev => ({
+        ...prev,
+        error: `Mantenimiento del sistema: ${notification.message}`
+      }));
+    }
+  }, []);
+
+  // ===== DATA LOADING METHODS =====
+  
   const loadUserData = useCallback(async (forceRefresh = false) => {
-    // Verificar cache de usuario
     if (!forceRefresh && isCacheValid('user') && state.user && state.isAuthenticated) {
       console.log('📦 Usando datos de usuario desde cache');
       return;
@@ -130,17 +244,13 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       console.log('🔄 Cargando datos de usuario...');
       const startTime = Date.now();
 
-      // Carga paralela optimizada de datos de usuario
       const [user, userPermissions] = await Promise.all([
         authService.getCurrentUser().catch(() => null),
         authService.getUserPermissions().catch(() => [])
       ]);
 
       const endTime = Date.now();
-      console.log(`✅ Datos de usuario cargados en ${endTime - startTime}ms`, {
-        user: user ? { id: user.id, email: user.email, firstName: user.firstName } : null,
-        permissions: userPermissions.length
-      });
+      console.log(`✅ Datos de usuario cargados en ${endTime - startTime}ms`);
 
       setState(prev => ({
         ...prev,
@@ -164,27 +274,20 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [isCacheValid, state.user, state.isAuthenticated, updateCacheTimestamp]);
 
-  /**
-   * 🚀 NUEVA: Carga OPTIMIZADA de datos del sistema usando el servicio unificado
-   */
   const loadSystemData = useCallback(async (selective?: SystemDataType[], forceRefresh = false) => {
-    // Verificar cache del sistema
     if (!forceRefresh && isCacheValid('system') && state.roles.length > 0) {
       console.log('📦 Usando datos del sistema desde cache');
       return;
     }
 
     try {
-      console.log('🔄 Cargando datos del sistema via servicio unificado...');
+      console.log('🔄 Cargando datos del sistema...');
       const startTime = Date.now();
 
       let systemData: SystemDataResponse | undefined;
       if (selective && selective.length > 0) {
-        // Carga selectiva
-        console.log(`🎯 Carga selectiva de: ${selective.join(', ')}`);
         const selectiveData = await systemDataService.loadSelectiveData(selective, { forceRefresh });
         
-        // Actualizar solo los datos solicitados, mantener los existentes
         setState(prev => ({
           ...prev,
           ...(selectiveData.roles && { roles: selectiveData.roles }),
@@ -195,17 +298,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
           systemDataStats: systemDataService.getStats()
         }));
       } else {
-        // Carga completa usando el servicio batch
         systemData = await systemDataService.loadAllSystemData({ forceRefresh });
 
         const endTime = Date.now();
-        console.log(`✅ Datos del sistema cargados en ${endTime - startTime}ms via servicio unificado:`, {
-          roles: systemData.roles.length,
-          areas: systemData.areas.length,
-          categories: systemData.permissionCategories.length,
-          users: systemData.users.length,
-          loadTime: systemData.loadTime
-        });
+        console.log(`✅ Datos del sistema cargados en ${endTime - startTime}ms`);
 
         setState(prev => ({
           ...prev,
@@ -230,13 +326,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [isCacheValid, state.roles.length, updateCacheTimestamp]);
 
-  /**
-   * 🆕 NUEVO: Asegurar que ciertos datos estén disponibles
-   */
   const ensureSystemData = useCallback(async (requiredData: SystemDataType[]) => {
     console.log(`🔍 Verificando disponibilidad de: ${requiredData.join(', ')}`);
     
-    // Verificar qué datos faltan
     const missingData: SystemDataType[] = [];
     
     if (requiredData.includes('roles') && state.roles.length === 0) missingData.push('roles');
@@ -244,7 +336,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     if (requiredData.includes('users') && state.users.length === 0) missingData.push('users');
     if (requiredData.includes('permissions') && state.permissionCategories.length === 0) missingData.push('permissions');
     
-    // Si faltan datos, cargarlos
     if (missingData.length > 0) {
       console.log(`📥 Cargando datos faltantes: ${missingData.join(', ')}`);
       await loadSystemData(missingData);
@@ -253,41 +344,32 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [state.roles.length, state.areas.length, state.users.length, state.permissionCategories.length, loadSystemData]);
 
-  /**
-   * 🆕 CARGA INICIAL INTELIGENTE - Solo lo necesario según la ruta
-   */
   const loadInitialData = useCallback(async (isRetry = false) => {
-    // Prevenir múltiples cargas simultáneas
-    if (loadingRef.current && !isRetry) {
+    if (isLoadingRef.current && !isRetry) {
       console.log('🔒 Carga ya en progreso, omitiendo...');
       return;
     }
 
-    loadingRef.current = true;
+    isLoadingRef.current = true;
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
       console.log('🚀 Iniciando carga inicial optimizada...');
       const startTime = Date.now();
 
-      // PASO 1: Verificar autenticación (prioritario)
       const isAuth = await authService.checkAuthStatus();
       
       if (isAuth) {
-        // PASO 2: Cargar datos de usuario (crítico)
         await loadUserData(true);
         
-        // PASO 3: Determinar si necesitamos datos del sistema usando smart refresh
         const currentPath = window.location.pathname;
         const needsSystemData = currentPath.includes('/dashboard') && 
                                !currentPath.includes('/dashboard/settings');
         
         if (needsSystemData) {
-          console.log('📊 Ruta requiere datos del sistema, usando smart refresh...');
-          // Usar smart refresh para determinar la mejor estrategia de carga
+          console.log('📊 Ruta requiere datos del sistema...');
           await systemDataService.smartRefresh();
           
-          // Actualizar estado con los datos cargados
           const systemData = await systemDataService.loadAllSystemData();
           setState(prev => ({
             ...prev,
@@ -297,11 +379,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
             users: systemData.users,
             systemDataStats: systemDataService.getStats()
           }));
-        } else {
-          console.log('🚀 Ruta no requiere datos del sistema, omitiendo carga');
         }
       } else {
-        console.log('❌ Usuario no autenticado');
         setState(prev => ({
           ...prev,
           user: null,
@@ -328,7 +407,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       retryCountRef.current++;
       
       if (retryCountRef.current < MAX_RETRY_ATTEMPTS) {
-        console.log(`🔄 Reintentando carga... (${retryCountRef.current}/${MAX_RETRY_ATTEMPTS})`);
+        console.log(`🔄 Reintentando... (${retryCountRef.current}/${MAX_RETRY_ATTEMPTS})`);
         setTimeout(() => loadInitialData(true), RETRY_DELAY);
       } else {
         setState(prev => ({
@@ -340,11 +419,67 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         }));
       }
     } finally {
-      loadingRef.current = false;
+      isLoadingRef.current = false;
     }
   }, [loadUserData]);
 
-  // ===== 🆕 REFRESH METHODS OPTIMIZADOS =====
+  // ===== WEBSOCKET CONNECTION MANAGEMENT =====
+  
+  const connectWebSocket = useCallback(async () => {
+    try {
+      if (!state.isAuthenticated || !state.user) {
+        console.log('🔌 No se puede conectar WebSocket: usuario no autenticado');
+        return;
+      }
+      
+      console.log('🔌 Conectando WebSocket...');
+      
+      webSocketService.onUserUpdate(handleWebSocketUserUpdate);
+      webSocketService.onSystemDataUpdate(handleWebSocketSystemDataUpdate);
+      webSocketService.onNotification(handleWebSocketNotification);
+      
+      await webSocketService.connect(Number(state.user.id));
+      
+      setState(prev => ({
+        ...prev,
+        websocket: {
+          ...prev.websocket,
+          isConnected: true,
+          connectionState: 'connected'
+        }
+      }));
+      
+      console.log('✅ WebSocket conectado');
+      
+    } catch (error) {
+      console.error('💥 Error conectando WebSocket:', error);
+      setState(prev => ({
+        ...prev,
+        websocket: {
+          ...prev.websocket,
+          isConnected: false,
+          connectionState: 'error'
+        }
+      }));
+    }
+  }, [state.isAuthenticated, state.user, handleWebSocketUserUpdate, handleWebSocketSystemDataUpdate, handleWebSocketNotification]);
+  
+  const disconnectWebSocket = useCallback(() => {
+    console.log('🔌 Desconectando WebSocket...');
+    
+    webSocketService.disconnect();
+    
+    setState(prev => ({
+      ...prev,
+      websocket: {
+        isConnected: false,
+        connectionState: 'disconnected',
+        lastUpdate: null
+      }
+    }));
+  }, []);
+
+  // ===== REFRESH METHODS =====
   
   const refreshUser = useCallback(async () => {
     console.log('🔄 Refresh específico de usuario...');
@@ -353,11 +488,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
 
   const refreshSystemData = useCallback(async (selective?: SystemDataType[]) => {
     console.log('🔄 Refresh de datos del sistema...');
-    if (selective) {
-      console.log(`🎯 Refresh selectivo: ${selective.join(', ')}`);
-    } else {
-      console.log('📊 Refresh completo de datos del sistema');
-    }
     await loadSystemData(selective, true);
   }, [loadSystemData]);
 
@@ -382,23 +512,23 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     };
   }, [state.roles.length, state.areas.length, state.users.length, state.permissionCategories.length, state.lastRefresh, state.cacheValidUntil]);
 
-  // ===== 🆕 LISTENERS PARA COORDINAR CON AuthContext =====
+  // ===== EFFECTS =====
+  
   useEffect(() => {
-    const handleAuthLogin = (_event: CustomEvent) => {
-      console.log('🔔 Auth login event received, refreshing user data');
+    const handleAuthLogin = () => {
+      console.log('🔔 Auth login event received');
       loadUserData(true);
     };
 
     const handleAuthLogout = () => {
-      console.log('🔔 Auth logout event received, clearing data');
+      console.log('🔔 Auth logout event received');
       setState(prev => ({
         ...prev,
         user: null,
         isAuthenticated: false,
         permissions: [],
-        // Mantener datos del sistema para evitar recargas innecesarias
       }));
-      userCacheRef.current = 0; // Solo invalidar cache de usuario
+      userCacheRef.current = 0;
     };
 
     const handleRefreshUser = () => {
@@ -406,43 +536,63 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       loadUserData(true);
     };
 
-    window.addEventListener('auth:login', handleAuthLogin as EventListener);
+    window.addEventListener('auth:login', handleAuthLogin);
     window.addEventListener('auth:logout', handleAuthLogout);
     window.addEventListener('auth:refresh-user', handleRefreshUser);
 
     return () => {
-      window.removeEventListener('auth:login', handleAuthLogin as EventListener);
+      window.removeEventListener('auth:login', handleAuthLogin);
       window.removeEventListener('auth:logout', handleAuthLogout);
       window.removeEventListener('auth:refresh-user', handleRefreshUser);
     };
   }, [loadUserData]);
 
-  // ===== CARGA INICIAL AL MONTAR =====
   useEffect(() => {
-    if (!state.isInitialized && !loadingRef.current) {
+    if (!state.isInitialized && !isLoadingRef.current) {
       loadInitialData();
     }
   }, [state.isInitialized, loadInitialData]);
 
-  // ===== 🆕 LAZY LOADING MEJORADO PARA DATOS DEL SISTEMA =====
   useEffect(() => {
-    // Si el usuario navega a una ruta que requiere datos del sistema
-    // y no los tenemos, cargarlos usando el servicio inteligente
-    const currentPath = window.location.pathname;
-    const needsSystemData = currentPath.includes('/dashboard') && 
-                           !currentPath.includes('/dashboard/settings');
-    
-    if (needsSystemData && 
-        state.isAuthenticated && 
-        state.isInitialized && 
-        state.roles.length === 0 && 
-        !isCacheValid('system')) {
-      console.log('🔄 Lazy loading system data con servicio inteligente...');
-      ensureSystemData(['roles', 'areas', 'users', 'permissions']);
+    if (state.isAuthenticated && state.isInitialized && !state.websocket.isConnected) {
+      const timer = setTimeout(() => {
+        connectWebSocket();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    } else if (!state.isAuthenticated && state.websocket.isConnected) {
+      disconnectWebSocket();
     }
-  }, [state.isAuthenticated, state.isInitialized, state.roles.length, isCacheValid, ensureSystemData]);
+  }, [state.isAuthenticated, state.isInitialized, state.websocket.isConnected, connectWebSocket, disconnectWebSocket]);
+  
+  useEffect(() => {
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [disconnectWebSocket]);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const wsInfo = webSocketService.getConnectionInfo();
+      setState(prev => {
+        if (prev.websocket.isConnected !== wsInfo.isConnected || 
+            prev.websocket.connectionState !== wsInfo.state) {
+          return {
+            ...prev,
+            websocket: {
+              ...prev.websocket,
+              isConnected: wsInfo.isConnected,
+              connectionState: wsInfo.state
+            }
+          };
+        }
+        return prev;
+      });
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
-  // Crear valor del contexto
   const contextValue: AppData = {
     ...state,
     refreshUser,
@@ -450,7 +600,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     refreshAll,
     invalidateCache,
     ensureSystemData,
-    getSystemDataStats
+    getSystemDataStats,
+    connectWebSocket,
+    disconnectWebSocket
   };
 
   return (
@@ -460,7 +612,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   );
 };
 
-// ===== HOOKS OPTIMIZADOS =====
+// ===== HOOKS =====
 export const useAppData = () => {
   const context = useContext(AppDataContext);
   
@@ -471,17 +623,11 @@ export const useAppData = () => {
   return context;
 };
 
-// ===== HOOK PRINCIPAL PARA AUTENTICACIÓN =====
 export const useAuth = () => {
   const { user, isAuthenticated, permissions, refreshUser } = useAppData();
   return { user, isAuthenticated, permissions, refreshUser };
 };
 
-// ===== 🆕 HOOKS INTELIGENTES PARA DATOS ESPECÍFICOS =====
-
-/**
- * Hook optimizado que asegura la disponibilidad de datos específicos
- */
 export const useEnsuredSystemData = (requiredData: SystemDataType[]) => {
   const { 
     roles, areas, users, permissionCategories, 
@@ -491,7 +637,6 @@ export const useEnsuredSystemData = (requiredData: SystemDataType[]) => {
   
   const [localLoading, setLocalLoading] = useState(false);
   
-  // Asegurar datos al montar el componente
   useEffect(() => {
     if (isInitialized && !isLoading) {
       setLocalLoading(true);
@@ -500,7 +645,6 @@ export const useEnsuredSystemData = (requiredData: SystemDataType[]) => {
     }
   }, [isInitialized, isLoading, requiredData, ensureSystemData]);
   
-  // Filtrar solo los datos requeridos
   const filteredData = {
     ...(requiredData.includes('roles') && { roles }),
     ...(requiredData.includes('areas') && { areas }),
@@ -516,10 +660,18 @@ export const useEnsuredSystemData = (requiredData: SystemDataType[]) => {
   };
 };
 
-/**
- * Hook para obtener estadísticas completas del sistema de datos
- */
 export const useSystemDataStats = () => {
   const { getSystemDataStats } = useAppData();
   return getSystemDataStats();
+};
+
+export const useWebSocketStatus = () => {
+  const { websocket, connectWebSocket, disconnectWebSocket } = useAppData();
+  
+  return {
+    ...websocket,
+    connect: connectWebSocket,
+    disconnect: disconnectWebSocket,
+    isOnline: websocket.isConnected && websocket.connectionState === 'connected'
+  };
 };
