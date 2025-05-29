@@ -1,4 +1,4 @@
-# backend/app/controllers/auth/password_controller.py
+# backend/app/controllers/auth/login_controller.py
 """
 Versión limpia que usa los services especializados
 """

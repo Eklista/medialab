@@ -1,4 +1,6 @@
-// frontend/src/context/AppDataContext.tsx - VERSION COMPLETA CORREGIDA
+// frontend/src/context/AppDataContext.tsx - CORRECCIÓN WEBSOCKET
+// 🔧 CAMBIOS ESPECÍFICOS PARA SOLUCIONAR PROBLEMAS DE WEBSOCKET
+
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { authService } from '../services';
 import { User as UserServiceUser, Role, Area } from '../services/users/users.service';
@@ -7,14 +9,14 @@ import { PermissionCategory } from '../services/security/permissions.service';
 import systemDataService, { SystemDataType, SystemDataResponse } from '../services/system/systemData.service';
 import webSocketService from '../services/websocket/websocket.service';
 
-// ===== INTERFACES =====
+// ===== INTERFACES (sin cambios) =====
 interface AppData {
   // Usuario y auth
   user: AuthServiceUser | null;
   isAuthenticated: boolean;
   permissions: string[];
   
-  // Datos del sistema (una sola carga con cache inteligente)
+  // Datos del sistema
   roles: Role[];
   areas: Area[];
   permissionCategories: PermissionCategory[];
@@ -30,36 +32,42 @@ interface AppData {
   cacheValidUntil: number;
   systemDataStats: any;
   
-  // 🆕 Estados de WebSocket
+  // 🆕 Estados de WebSocket MEJORADOS
   websocket: {
     isConnected: boolean;
     connectionState: string;
     lastUpdate: number | null;
+    connectionAttempts: number;
+    lastError: string | null;
   };
   
-  // Métodos de refresh selectivos y optimizados
+  // Métodos (sin cambios)
   refreshUser: () => Promise<void>;
   refreshSystemData: (selective?: SystemDataType[]) => Promise<void>;
   refreshAll: () => Promise<void>;
   invalidateCache: () => void;
-  
-  // Métodos específicos optimizados
   ensureSystemData: (requiredData: SystemDataType[]) => Promise<void>;
   getSystemDataStats: () => any;
   
-  // Métodos de WebSocket
+  // Métodos de WebSocket MEJORADOS
   connectWebSocket: () => Promise<void>;
   disconnectWebSocket: () => void;
+  debugWebSocket: () => void; // 🔧 NUEVO
 }
 
 const AppDataContext = createContext<AppData | null>(null);
 export { AppDataContext };
 
-// ===== CONSTANTS =====
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutos para datos del sistema
-const USER_CACHE_DURATION = 5 * 60 * 1000; // 5 minutos para datos de usuario
+// ===== CONSTANTS (sin cambios) =====
+const CACHE_DURATION = 10 * 60 * 1000;
+const USER_CACHE_DURATION = 5 * 60 * 1000;
 const MAX_RETRY_ATTEMPTS = 2;
 const RETRY_DELAY = 2000;
+
+// 🔧 NUEVAS CONSTANTES PARA WEBSOCKET
+const WS_CONNECTION_DELAY = 2000;
+const WS_MAX_CONNECTION_ATTEMPTS = 3;
+const WS_RETRY_DELAY = 5000;
 
 // ===== PROVIDER =====
 interface AppDataProviderProps {
@@ -67,7 +75,7 @@ interface AppDataProviderProps {
 }
 
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
-  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache' | 'ensureSystemData' | 'getSystemDataStats' | 'connectWebSocket' | 'disconnectWebSocket'>>({
+  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache' | 'ensureSystemData' | 'getSystemDataStats' | 'connectWebSocket' | 'disconnectWebSocket' | 'debugWebSocket'>>({
     user: null,
     isAuthenticated: false,
     permissions: [],
@@ -84,16 +92,23 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     websocket: {
       isConnected: false,
       connectionState: 'disconnected',
-      lastUpdate: null
+      lastUpdate: null,
+      connectionAttempts: 0,
+      lastError: null
     }
   });
 
   // Refs para control de concurrencia
   const retryCountRef = useRef(0);
   const userCacheRef = useRef(0);
-  const isLoadingRef = useRef(false); // 🔧 RENOMBRADO para evitar conflicto
+  const isLoadingRef = useRef(false);
+  
+  // 🔧 NUEVOS REFS PARA WEBSOCKET
+  const wsConnectionTimeoutRef = useRef<number | null>(null);
+  const wsReconnectTimeoutRef = useRef<number | null>(null);
+  const wsConnectionAttemptsRef = useRef(0);
 
-  // ===== CACHE HELPERS =====
+  // ===== CACHE HELPERS (sin cambios significativos) =====
   const isCacheValid = useCallback((type: 'user' | 'system' = 'system') => {
     const now = Date.now();
     if (type === 'user') {
@@ -130,7 +145,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     console.log('🧹 Cache invalidado completamente');
   }, []);
 
-  // ===== WEBSOCKET HANDLERS =====
+  // ===== WEBSOCKET HANDLERS MEJORADOS =====
   
   const handleWebSocketUserUpdate = useCallback((userData: any) => {
     console.log('📨 WebSocket: Usuario actualizado', userData);
@@ -232,7 +247,51 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, []);
 
-  // ===== DATA LOADING METHODS =====
+  // 🔧 NUEVOS HANDLERS PARA WEBSOCKET
+  const handleWebSocketConnected = useCallback(() => {
+    console.log('✅ WebSocket conectado - actualizando estado');
+    setState(prev => ({
+      ...prev,
+      websocket: {
+        ...prev.websocket,
+        isConnected: true,
+        connectionState: 'connected',
+        lastError: null,
+        connectionAttempts: wsConnectionAttemptsRef.current
+      }
+    }));
+    
+    // Reset contador de intentos
+    wsConnectionAttemptsRef.current = 0;
+  }, []);
+
+  const handleWebSocketDisconnected = useCallback((data: any) => {
+    console.log('❌ WebSocket desconectado:', data);
+    setState(prev => ({
+      ...prev,
+      websocket: {
+        ...prev.websocket,
+        isConnected: false,
+        connectionState: 'disconnected',
+        lastError: data.reason || 'Desconectado'
+      }
+    }));
+  }, []);
+
+  const handleWebSocketError = useCallback((data: any) => {
+    console.error('💥 WebSocket error:', data);
+    setState(prev => ({
+      ...prev,
+      websocket: {
+        ...prev.websocket,
+        isConnected: false,
+        connectionState: 'error',
+        lastError: data.error?.message || 'Error de conexión'
+      }
+    }));
+  }, []);
+
+  // ===== DATA LOADING METHODS (sin cambios significativos) =====
   
   const loadUserData = useCallback(async (forceRefresh = false) => {
     if (!forceRefresh && isCacheValid('user') && state.user && state.isAuthenticated) {
@@ -423,7 +482,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [loadUserData]);
 
-  // ===== WEBSOCKET CONNECTION MANAGEMENT =====
+  // ===== WEBSOCKET CONNECTION MANAGEMENT MEJORADO =====
   
   const connectWebSocket = useCallback(async () => {
     try {
@@ -432,28 +491,40 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         return;
       }
       
-      console.log('🔌 Conectando WebSocket...');
+      // 🔧 INCREMENTAR CONTADOR DE INTENTOS
+      wsConnectionAttemptsRef.current++;
+      
+      console.log(`🔌 Conectando WebSocket... (intento ${wsConnectionAttemptsRef.current})`);
+      
+      // 🔧 ACTUALIZAR ESTADO ANTES DE CONECTAR
+      setState(prev => ({
+        ...prev,
+        websocket: {
+          ...prev.websocket,
+          connectionState: 'connecting',
+          connectionAttempts: wsConnectionAttemptsRef.current
+        }
+      }));
       
       // 🔧 CONFIGURAR HANDLERS ANTES DE CONECTAR
+      webSocketService.on('connected', handleWebSocketConnected);
+      webSocketService.on('disconnected', handleWebSocketDisconnected);
+      webSocketService.on('error', handleWebSocketError);
       webSocketService.onUserUpdate(handleWebSocketUserUpdate);
       webSocketService.onSystemDataUpdate(handleWebSocketSystemDataUpdate);
       webSocketService.onNotification(handleWebSocketNotification);
       
-      // 🔧 NUEVO: Handler para eventos de conexión
-      webSocketService.onConnectionChange((status) => {
+      const userId = parseInt(String(state.user.id), 10);
+      if (isNaN(userId)) {
+        console.error('❌ User ID no es un número válido:', state.user.id);
         setState(prev => ({
           ...prev,
           websocket: {
             ...prev.websocket,
-            isConnected: status.connected,
-            connectionState: status.state
+            connectionState: 'error',
+            lastError: 'User ID inválido'
           }
         }));
-      });
-      
-      const userId = parseInt(String(state.user.id), 10);
-      if (isNaN(userId)) {
-        console.error('❌ User ID no es un número válido:', state.user.id);
         return;
       }
       
@@ -468,83 +539,148 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         websocket: {
           ...prev.websocket,
           isConnected: false,
-          connectionState: 'error'
+          connectionState: 'error',
+          lastError: error instanceof Error ? error.message : 'Error desconocido'
         }
       }));
+      
+      // 🔧 RETRY AUTOMÁTICO CON LÍMITE
+      if (wsConnectionAttemptsRef.current < WS_MAX_CONNECTION_ATTEMPTS) {
+        console.log(`🔄 Reintentando conexión WebSocket en ${WS_RETRY_DELAY/1000}s...`);
+        wsReconnectTimeoutRef.current = window.setTimeout(() => {
+          connectWebSocket();
+        }, WS_RETRY_DELAY);
+      } else {
+        console.error(`❌ Máximo número de intentos de conexión WebSocket alcanzado (${WS_MAX_CONNECTION_ATTEMPTS})`);
+      }
     }
-  }, [state.isAuthenticated, state.user, handleWebSocketUserUpdate, handleWebSocketSystemDataUpdate, handleWebSocketNotification]);
-
+  }, [state.isAuthenticated, state.user, handleWebSocketConnected, handleWebSocketDisconnected, handleWebSocketError, handleWebSocketUserUpdate, handleWebSocketSystemDataUpdate, handleWebSocketNotification]);
 
   const disconnectWebSocket = useCallback(() => {
     console.log('🔌 Desconectando WebSocket...');
     
+    // 🔧 LIMPIAR TIMEOUTS
+    if (wsConnectionTimeoutRef.current) {
+      clearTimeout(wsConnectionTimeoutRef.current);
+      wsConnectionTimeoutRef.current = null;
+    }
+    
+    if (wsReconnectTimeoutRef.current) {
+      clearTimeout(wsReconnectTimeoutRef.current);
+      wsReconnectTimeoutRef.current = null;
+    }
+    
     // 🔧 LIMPIAR HANDLERS ANTES DE DESCONECTAR
-    webSocketService.off('user_updated');
-    webSocketService.off('system_data_updated');
-    webSocketService.off('notification');
     webSocketService.off('connected');
     webSocketService.off('disconnected');
     webSocketService.off('error');
+    webSocketService.off('user_updated');
+    webSocketService.off('system_data_updated');
+    webSocketService.off('notification');
     
     webSocketService.disconnect();
+    
+    // 🔧 RESET CONTADOR DE INTENTOS
+    wsConnectionAttemptsRef.current = 0;
     
     setState(prev => ({
       ...prev,
       websocket: {
         isConnected: false,
         connectionState: 'disconnected',
-        lastUpdate: null
+        lastUpdate: null,
+        connectionAttempts: 0,
+        lastError: null
       }
     }));
   }, []);
 
-  // ===== EFECTO DE WEBSOCKET MEJORADO =====
+  // 🔧 NUEVO: Método de debug para WebSocket
+  const debugWebSocket = useCallback(() => {
+    console.log('🔍 === WEBSOCKET DEBUG INFO ===');
+    console.log('Estado del contexto:', state.websocket);
+    console.log('Intentos de conexión:', wsConnectionAttemptsRef.current);
+    console.log('Info del servicio:', webSocketService.getDebugInfo());
+    webSocketService.debugCookies();
+    console.log('===============================');
+  }, [state.websocket]);
+
+  // ===== EFECTOS MEJORADOS =====
+  
   useEffect(() => {
-    let connectionTimeout: number;
-    
+    const handleAuthLogin = () => {
+      console.log('🔔 Auth login event received');
+      loadUserData(true);
+    };
+
+    const handleAuthLogout = () => {
+      console.log('🔔 Auth logout event received');
+      setState(prev => ({
+        ...prev,
+        user: null,
+        isAuthenticated: false,
+        permissions: [],
+      }));
+      userCacheRef.current = 0;
+      disconnectWebSocket(); // 🔧 DESCONECTAR WEBSOCKET EN LOGOUT
+    };
+
+    const handleRefreshUser = () => {
+      console.log('🔔 Refresh user event received');
+      loadUserData(true);
+    };
+
+    window.addEventListener('auth:login', handleAuthLogin);
+    window.addEventListener('auth:logout', handleAuthLogout);
+    window.addEventListener('auth:refresh-user', handleRefreshUser);
+
+    return () => {
+      window.removeEventListener('auth:login', handleAuthLogin);
+      window.removeEventListener('auth:logout', handleAuthLogout);
+      window.removeEventListener('auth:refresh-user', handleRefreshUser);
+    };
+  }, [loadUserData, disconnectWebSocket]);
+
+  useEffect(() => {
+    if (!state.isInitialized && !isLoadingRef.current) {
+      loadInitialData();
+    }
+  }, [state.isInitialized, loadInitialData]);
+
+  // 🔧 EFECTO DE WEBSOCKET MEJORADO Y SIMPLIFICADO
+  useEffect(() => {
     if (state.isAuthenticated && state.isInitialized && !state.websocket.isConnected) {
-      // 🔧 RETRASO MÁS CORTO PARA CONEXIÓN RÁPIDA
-      connectionTimeout = setTimeout(() => {
+      // 🔧 DELAY PARA ASEGURAR QUE TODO ESTÉ LISTO
+      wsConnectionTimeoutRef.current = window.setTimeout(() => {
+        console.log('⏰ Iniciando conexión WebSocket después del delay');
         connectWebSocket();
-      }, 1000); // 1 segundo en lugar de 2
+      }, WS_CONNECTION_DELAY);
       
-      return () => clearTimeout(connectionTimeout);
+      return () => {
+        if (wsConnectionTimeoutRef.current) {
+          clearTimeout(wsConnectionTimeoutRef.current);
+          wsConnectionTimeoutRef.current = null;
+        }
+      };
     } else if (!state.isAuthenticated && state.websocket.isConnected) {
       disconnectWebSocket();
     }
   }, [state.isAuthenticated, state.isInitialized, state.websocket.isConnected, connectWebSocket, disconnectWebSocket]);
-
-  // ===== NUEVO: EFECTO PARA MONITOREO DE WEBSOCKET =====
+  
+  // 🔧 CLEANUP AL DESMONTAR
   useEffect(() => {
-    // 🔧 MONITOREO MÁS FRECUENTE DEL ESTADO DE WEBSOCKET
-    const interval = setInterval(() => {
-      const wsInfo = webSocketService.getConnectionInfo();
-      
-      setState(prev => {
-        if (prev.websocket.isConnected !== wsInfo.isConnected || 
-            prev.websocket.connectionState !== wsInfo.state) {
-          console.log('🔄 WebSocket state change:', {
-            from: { connected: prev.websocket.isConnected, state: prev.websocket.connectionState },
-            to: { connected: wsInfo.isConnected, state: wsInfo.state }
-          });
-          
-          return {
-            ...prev,
-            websocket: {
-              ...prev.websocket,
-              isConnected: wsInfo.isConnected,
-              connectionState: wsInfo.state
-            }
-          };
-        }
-        return prev;
-      });
-    }, 2000); // Cada 2 segundos en lugar de 5
-    
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      disconnectWebSocket();
+      if (wsConnectionTimeoutRef.current) {
+        clearTimeout(wsConnectionTimeoutRef.current);
+      }
+      if (wsReconnectTimeoutRef.current) {
+        clearTimeout(wsReconnectTimeoutRef.current);
+      }
+    };
+  }, [disconnectWebSocket]);
 
-  // ===== REFRESH METHODS =====
+  // ===== REFRESH METHODS (sin cambios) =====
   
   const refreshUser = useCallback(async () => {
     console.log('🔄 Refresh específico de usuario...');
@@ -577,87 +713,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     };
   }, [state.roles.length, state.areas.length, state.users.length, state.permissionCategories.length, state.lastRefresh, state.cacheValidUntil]);
 
-  // ===== EFFECTS =====
-  
-  useEffect(() => {
-    const handleAuthLogin = () => {
-      console.log('🔔 Auth login event received');
-      loadUserData(true);
-    };
-
-    const handleAuthLogout = () => {
-      console.log('🔔 Auth logout event received');
-      setState(prev => ({
-        ...prev,
-        user: null,
-        isAuthenticated: false,
-        permissions: [],
-      }));
-      userCacheRef.current = 0;
-    };
-
-    const handleRefreshUser = () => {
-      console.log('🔔 Refresh user event received');
-      loadUserData(true);
-    };
-
-    window.addEventListener('auth:login', handleAuthLogin);
-    window.addEventListener('auth:logout', handleAuthLogout);
-    window.addEventListener('auth:refresh-user', handleRefreshUser);
-
-    return () => {
-      window.removeEventListener('auth:login', handleAuthLogin);
-      window.removeEventListener('auth:logout', handleAuthLogout);
-      window.removeEventListener('auth:refresh-user', handleRefreshUser);
-    };
-  }, [loadUserData]);
-
-  useEffect(() => {
-    if (!state.isInitialized && !isLoadingRef.current) {
-      loadInitialData();
-    }
-  }, [state.isInitialized, loadInitialData]);
-
-  useEffect(() => {
-    if (state.isAuthenticated && state.isInitialized && !state.websocket.isConnected) {
-      const timer = setTimeout(() => {
-        connectWebSocket();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    } else if (!state.isAuthenticated && state.websocket.isConnected) {
-      disconnectWebSocket();
-    }
-  }, [state.isAuthenticated, state.isInitialized, state.websocket.isConnected, connectWebSocket, disconnectWebSocket]);
-  
-  useEffect(() => {
-    return () => {
-      disconnectWebSocket();
-    };
-  }, [disconnectWebSocket]);
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const wsInfo = webSocketService.getConnectionInfo();
-      setState(prev => {
-        if (prev.websocket.isConnected !== wsInfo.isConnected || 
-            prev.websocket.connectionState !== wsInfo.state) {
-          return {
-            ...prev,
-            websocket: {
-              ...prev.websocket,
-              isConnected: wsInfo.isConnected,
-              connectionState: wsInfo.state
-            }
-          };
-        }
-        return prev;
-      });
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
   const contextValue: AppData = {
     ...state,
     refreshUser,
@@ -667,7 +722,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     ensureSystemData,
     getSystemDataStats,
     connectWebSocket,
-    disconnectWebSocket
+    disconnectWebSocket,
+    debugWebSocket // 🔧 NUEVO
   };
 
   return (
@@ -677,7 +733,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   );
 };
 
-// ===== HOOKS =====
+// ===== HOOKS (actualizados) =====
 export const useAppData = () => {
   const context = useContext(AppDataContext);
   
@@ -693,8 +749,9 @@ export const useAuth = () => {
   return { user, isAuthenticated, permissions, refreshUser };
 };
 
+// 🔧 HOOK DE DEBUG WEBSOCKET MEJORADO
 export const useWebSocketDebugHook = () => {
-  const { websocket } = useAppData();
+  const { websocket, debugWebSocket } = useAppData();
   
   const getDebugInfo = useCallback(() => {
     return {
@@ -715,8 +772,11 @@ export const useWebSocketDebugHook = () => {
     debugInfo: getDebugInfo(),
     sendTestMessage,
     forceReconnect,
+    debugWebSocket, // 🔧 NUEVO
     isConnected: websocket.isConnected,
-    connectionState: websocket.connectionState
+    connectionState: websocket.connectionState,
+    lastError: websocket.lastError, // 🔧 NUEVO
+    connectionAttempts: websocket.connectionAttempts // 🔧 NUEVO
   };
 };
 
@@ -757,14 +817,15 @@ export const useSystemDataStats = () => {
   return getSystemDataStats();
 };
 
+// 🔧 HOOK DE WEBSOCKET MEJORADO
 export const useWebSocketStatus = () => {
-  const { websocket, connectWebSocket, disconnectWebSocket } = useAppData();
+  const { websocket, connectWebSocket, disconnectWebSocket, debugWebSocket } = useAppData();
   
   return {
     ...websocket,
     connect: connectWebSocket,
     disconnect: disconnectWebSocket,
+    debug: debugWebSocket, // 🔧 NUEVO
     isOnline: websocket.isConnected && websocket.connectionState === 'connected'
   };
 };
-
