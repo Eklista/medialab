@@ -127,8 +127,9 @@ if REDIS_ENABLED:
         
         app.add_middleware(
             RateLimitMiddleware,
-            calls_limit=20000,
-            period=900,
+            calls_limit=30000,        # 30K requests por usuario en 15 min
+            period=900,               # 15 minutos
+            prefer_user_based=True,   # Priorizar rate limiting por usuario
             exclude_paths=[
                 "/docs", "/redoc", "/openapi.json", 
                 "/health", "/favicon.ico",

@@ -471,6 +471,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         type: 'LOGIN_SUCCESS', 
         payload: { user, permissions } 
       });
+
+      // 🆕 NUEVO: Notificar al AppDataProvider que hubo login
+      window.dispatchEvent(new CustomEvent('auth:login', { 
+        detail: { user, permissions } 
+      }));
+      
     } catch (error: any) {
       dispatch({ 
         type: 'LOGIN_FAIL', 
@@ -480,7 +486,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // 🔥 FUNCIÓN DE LOGOUT MEJORADA
+  // Función para cerrar sesión
   const logout = () => {
     console.log('🚪 Iniciando proceso de logout...');
     
@@ -495,6 +501,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Limpiar cookies del lado del cliente
     document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    
+    // 🆕 NUEVO: Notificar al AppDataProvider que hubo logout
+    window.dispatchEvent(new CustomEvent('auth:logout'));
     
     // Llamar al servicio de logout
     authService.logout().finally(() => {
