@@ -1,6 +1,6 @@
 // frontend/src/utils/userTypeHelpers.ts
-import { User as AuthServiceUser } from '../services/auth.service';
-import { User as UserServiceUser } from '../services/users.service';
+import { User as AuthServiceUser } from '../services/auth/auth.service';
+import { User as UserServiceUser } from '../services/users/users.service';
 
 /**
  * Verifica si un usuario tiene un rol específico

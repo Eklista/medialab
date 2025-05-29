@@ -1,6 +1,6 @@
 // frontend/src/services/users.service.ts (Reestructurado)
-import apiClient, { handleApiError } from './api';
-import permissionsService from './permissions.service';
+import apiClient, { handleApiError } from '../api';
+import permissionsService from '../security/permissions.service';
 
 // ===== INTERFACES DE USUARIO =====
 export interface User {

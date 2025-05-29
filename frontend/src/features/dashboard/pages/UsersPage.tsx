@@ -13,7 +13,7 @@ import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
 import Badge from '../components/ui/Badge';
 import { PlusIcon, MagnifyingGlassIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { userService } from '../../../services';
-import { Role, Area } from '../../../services/users.service';
+import { Role, Area } from '../../../services/users/users.service';
 
 // Definimos una interfaz para nuestro modelo de usuario local
 interface LocalUser {

@@ -1,8 +1,9 @@
-// src/router/AppRouter.tsx
+// src/router/AppRouter.tsx - UPDATED VERSION
 import React, { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ProtectedRoute } from '../features/auth/components'
+import { PublicRoute } from '../features/auth/components/PublicRoute'
 
 // Public pages - lazy loading
 const HomePage = lazy(() => import('../pages/home/HomePage'))
@@ -52,22 +53,26 @@ const LazyErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 export const AppRouter: React.FC = () => {
   return (
     <Routes>
-      {/* Rutas públicas principales */}
+      {/* 🆕 FIXED: Rutas públicas principales con PublicRoute */}
       <Route 
         path="/" 
         element={
-          <LazyErrorBoundary>
-            <HomePage />
-          </LazyErrorBoundary>
+          <PublicRoute>
+            <LazyErrorBoundary>
+              <HomePage />
+            </LazyErrorBoundary>
+          </PublicRoute>
         } 
       />
       
       <Route 
         path="/request" 
         element={
-          <LazyErrorBoundary>
-            <RequestFormPage />
-          </LazyErrorBoundary>
+          <PublicRoute>
+            <LazyErrorBoundary>
+              <RequestFormPage />
+            </LazyErrorBoundary>
+          </PublicRoute>
         } 
       />
 
@@ -75,9 +80,11 @@ export const AppRouter: React.FC = () => {
       <Route 
         path="/video/:id" 
         element={
-          <LazyErrorBoundary>
-            <VideoPage />
-          </LazyErrorBoundary>
+          <PublicRoute>
+            <LazyErrorBoundary>
+              <VideoPage />
+            </LazyErrorBoundary>
+          </PublicRoute>
         } 
       />
 
@@ -85,28 +92,34 @@ export const AppRouter: React.FC = () => {
       <Route 
         path="/documentation/components-test" 
         element={
-          <LazyErrorBoundary>
-            <ComponentsTest />
-          </LazyErrorBoundary>
+          <PublicRoute>
+            <LazyErrorBoundary>
+              <ComponentsTest />
+            </LazyErrorBoundary>
+          </PublicRoute>
         } 
       />
      
-      {/* Rutas de autenticación */}
+      {/* 🆕 FIXED: Rutas de autenticación con PublicRoute */}
       <Route 
         path="/ml-admin/login" 
         element={
-          <LazyErrorBoundary>
-            <LoginPage />
-          </LazyErrorBoundary>
+          <PublicRoute>
+            <LazyErrorBoundary>
+              <LoginPage />
+            </LazyErrorBoundary>
+          </PublicRoute>
         } 
       />
       
       <Route 
         path="/password-recovery" 
         element={
-          <LazyErrorBoundary>
-            <PasswordRecoveryPage />
-          </LazyErrorBoundary>
+          <PublicRoute>
+            <LazyErrorBoundary>
+              <PasswordRecoveryPage />
+            </LazyErrorBoundary>
+          </PublicRoute>
         } 
       />
      

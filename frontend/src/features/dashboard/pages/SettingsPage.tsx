@@ -8,9 +8,9 @@ import Badge from '../components/ui/Badge';
 import Switch from '../components/ui/Switch';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { authService, userService } from '../../../services';
-import { UserUpdateRequest } from '../../../services/users.service';
+import { UserUpdateRequest } from '../../../services/users/users.service';
 import { getBaseUrl } from '../../../services/api';
-import fileUploadService from '../../../services/fileUpload.service';
+import fileUploadService from '../../../services/common/fileUpload.service';
 import { 
   UserIcon, 
   KeyIcon, 
@@ -23,7 +23,7 @@ import {
   ExclamationTriangleIcon,
   PhotoIcon
 } from '@heroicons/react/24/outline';
-import { formatFullDate, formatDateTime } from '../../../utils/dateUtils';
+import { formatFullDate, formatDateTime } from '../utils/dateUtils';
 
 // Importar imágenes
 import heroBanner from '../../../assets/images/medialab-hero.jpg';

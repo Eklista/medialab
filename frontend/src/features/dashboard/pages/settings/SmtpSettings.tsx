@@ -9,7 +9,7 @@ import SmtpConfigForm, { SmtpConfigFormData } from '../../components/config/Smtp
 import Badge from '../../components/ui/Badge';
 import { PlusIcon, CheckCircleIcon, ServerIcon } from '@heroicons/react/24/outline';
 import { smtpService } from '../../../../services';
-import { SmtpConfig } from '../../../../services/smtp.service';
+import { SmtpConfig } from '../../../../services/communication/smtp.service';
 import TestEmailModal from '../../components/config/TestEmailModal';
 import { format } from 'date-fns';
 import { usePermissions } from '../../../../hooks/usePermissions';

@@ -7,7 +7,7 @@ import DashboardButton from '../ui/DashboardButton';
 import DashboardSelect from '../ui/DashboardSelect';
 import Badge from '../ui/Badge';
 import { smtpService } from '../../../../services';
-import { emailTemplateService, EmailTemplate } from '../../../../services/emailTemplate.service';
+import { emailTemplateService, EmailTemplate } from '../../../../services/templates/emailTemplate.service';
 import { 
   EnvelopeIcon,
   DocumentTextIcon,

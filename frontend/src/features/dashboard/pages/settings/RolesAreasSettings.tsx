@@ -8,7 +8,7 @@ import DashboardPlaceholder, { NoPermissionPlaceholder, ErrorPlaceholder } from 
 import RoleForm, { RoleFormData } from '../../components/config/RoleForm';
 import AreaForm, { AreaFormData } from '../../components/config/AreaForm';
 import { userService } from '../../../../services';
-import { RoleCreateRequest, RoleUpdateRequest } from '../../../../services/users.service';
+import { RoleCreateRequest, RoleUpdateRequest } from '../../../../services/users/users.service';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { 
   PlusIcon, 

@@ -1,5 +1,5 @@
 // En un nuevo archivo: fileUpload.service.ts
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError } from '../api';
 
 class FileUploadService {
   async uploadImage(file: File, type: 'profile' | 'banner'): Promise<string> {

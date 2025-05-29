@@ -9,8 +9,8 @@ import ServiceForm, { ServiceFormData } from '../../components/config/ServiceFor
 import TemplateForm, { TemplateFormData } from '../../components/config/TemplateForm';
 import Badge from '../../components/ui/Badge';
 import { servicesService, serviceTemplatesService } from '../../../../services';
-import { Service } from '../../../../services/services.service';
-import { ServiceTemplate } from '../../../../services/serviceTemplates.service';
+import { Service } from '../../../../services/organization/services.service';
+import { ServiceTemplate } from '../../../../services/templates/serviceTemplates.service';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { 
   PlusIcon,

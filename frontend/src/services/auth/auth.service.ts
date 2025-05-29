@@ -1,5 +1,5 @@
 // frontend/src/services/auth.service.ts - Versión corregida
-import apiClient, { handleApiError, setLoggingOut } from './api';
+import apiClient, { handleApiError, setLoggingOut } from '../api';
 
 export interface LoginRequest {
   email: string;

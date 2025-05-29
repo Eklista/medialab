@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import SidebarFooter from './SidebarFooter';
 import UserProfilePhoto from '../ui/UserProfilePhoto';
-import { useAuth } from '../../../auth/hooks/useAuth';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { UserRole } from '../../../auth/types/auth.types';
+import { useCurrentUser } from '../../utils/userUtils';
 import { 
   HomeIcon, 
   FilmIcon, 
@@ -43,7 +43,7 @@ interface SidebarItemConfig {
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleCollapse }) => {
   const location = useLocation();
-  const { state } = useAuth();
+  const { user: currentUser } = useCurrentUser();
   const { 
     hasPermission, 
     hasAnyPermission,
@@ -95,27 +95,27 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
   // 🆕 Funciones de verificación de permisos según tus especificaciones
   const canViewProduction = () => {
     // Placeholder para cuando implementes la lógica de project
-    return hasPermission('project_view') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('project_view') || currentUser?.role === UserRole.ADMIN;
   };
 
   const canViewCourses = () => {
-    return hasPermission('course_view') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('course_view') || currentUser?.role === UserRole.ADMIN;
   };
 
   const canViewPodcast = () => {
-    return hasPermission('podcast_view') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('podcast_view') || currentUser?.role === UserRole.ADMIN;
   };
 
   const canViewRequests = () => {
-    return hasPermission('request_view') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('request_view') || currentUser?.role === UserRole.ADMIN;
   };
 
   const canViewGeneral = () => {
-    return hasPermission('profile_edit') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('profile_edit') || currentUser?.role === UserRole.ADMIN;
   };
 
   const canViewAdministration = () => {
-    if (state.user?.role === UserRole.ADMIN) return true;
+    if (currentUser?.role === UserRole.ADMIN) return true;
     
     // Verificar si tiene permisos administrativos
     const adminPermissions = [
@@ -133,11 +133,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
   };
 
   const canViewUsers = () => {
-    return hasPermission('user_view') || state.user?.role === UserRole.ADMIN;
+    return hasPermission('user_view') || currentUser?.role === UserRole.ADMIN;
   };
 
   const canViewAppSettings = () => {
-    if (state.user?.role === UserRole.ADMIN) return true;
+    if (currentUser?.role === UserRole.ADMIN) return true;
     
     const settingsPermissions = [
       'role_view', 'area_view', 'service_view', 'template_view',
@@ -242,16 +242,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
 
   // Función para obtener el nombre completo
   const getFullName = () => {
-    if (!state.user) return 'Usuario';
-    
-    const firstName = state.user.firstName || '';
-    const lastName = state.user.lastName || '';
-    
-    if (firstName || lastName) {
-      return `${firstName} ${lastName}`.trim();
-    }
-    
-    return state.user.email?.split('@')[0] || 'Usuario';
+    if (!currentUser) return 'Usuario';
+    return currentUser.fullName;
   };
   
   // Determinar si debe mostrar el sidebar expandido
@@ -493,6 +485,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center">
             <UserProfilePhoto 
+              user={currentUser ? {
+                id: typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id,
+                firstName: currentUser.firstName,
+                lastName: currentUser.lastName,
+                email: currentUser.email,
+                profileImage: currentUser.profileImage
+              } : undefined}
               size="lg"
               clickable={false}
               className="mr-3"
@@ -502,7 +501,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
                 {getFullName()}
               </p>
               <p className="text-white/50 text-xs truncate">
-                {state.user?.email}
+                {currentUser?.email}
               </p>
             </div>
           </div>
@@ -510,6 +509,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
       ) : (
         <div className="p-2 border-b border-white/10 flex justify-center">
           <UserProfilePhoto 
+            user={currentUser ? {
+              id: typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id,
+              firstName: currentUser.firstName,
+              lastName: currentUser.lastName,
+              email: currentUser.email,
+              profileImage: currentUser.profileImage
+            } : undefined}
             size="md"
             clickable={false}
           />

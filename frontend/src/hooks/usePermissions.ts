@@ -1,7 +1,7 @@
 // frontend/src/hooks/usePermissions.ts (Mejorado)
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../features/auth/hooks/useAuth';
-import permissionsService, { Permission, PermissionCategory, PermissionStats } from '../services/permissions.service';
+import permissionsService, { Permission, PermissionCategory, PermissionStats } from '../services/security/permissions.service';
 
 export interface UsePermissionsReturn {
   // Estados

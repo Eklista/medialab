@@ -1,9 +1,10 @@
-import React, { createContext, useReducer, useEffect, ReactNode } from 'react';
+// frontend/src/features/auth/context/AuthContext.tsx - OPTIMIZED VERSION
+import React, { createContext, useReducer, useEffect, ReactNode, useCallback } from 'react';
 import { UserRole } from '../types/auth.types';
 import { authService } from '../../../services';
 import { setLoggingOut } from '../../../services/api';
 
-// Mantener todas tus interfaces existentes
+// ===== INTERFACES (sin cambios) =====
 export interface User {
   id: string;
   email: string;
@@ -24,9 +25,11 @@ export interface AuthState {
   lastActivity: number;
   permissions: string[];
   isLoggingOut: boolean;
-  // 🔥 MEJORADO: Más específico que preventAutoCheck
   lastLogoutTime: number | null;
-  hasInitialized: boolean; // Para saber si ya hicimos la verificación inicial
+  hasInitialized: boolean;
+  // 🆕 NUEVO: Control de requests
+  lastAuthCheck: number;
+  isCheckingAuth: boolean;
 }
 
 export interface LoginCredentials {
@@ -50,7 +53,11 @@ interface AuthContextType {
   refreshCurrentUser: () => Promise<void>;
 }
 
-// 🔥 Estado inicial mejorado
+// ===== CONSTANTS =====
+const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos entre verificaciones automáticas
+const LOGOUT_COOLDOWN = 10 * 1000; // 10 segundos después de logout
+
+// Estado inicial actualizado
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
@@ -61,10 +68,12 @@ const initialState: AuthState = {
   permissions: [],
   isLoggingOut: false,
   lastLogoutTime: null,
-  hasInitialized: false
+  hasInitialized: false,
+  lastAuthCheck: 0,
+  isCheckingAuth: false
 };
 
-// 🔥 Acciones actualizadas
+// ===== ACTIONS ACTUALIZADAS =====
 type AuthAction =
   | { type: 'INIT_START' }
   | { type: 'LOGIN_START' }
@@ -77,26 +86,25 @@ type AuthAction =
   | { type: 'UNLOCK_SESSION' }
   | { type: 'UPDATE_ACTIVITY' }
   | { type: 'UPDATE_PERMISSIONS'; payload: string[] }
-  | { type: 'INIT_COMPLETE' };
+  | { type: 'INIT_COMPLETE' }
+  | { type: 'AUTH_CHECK_START' }
+  | { type: 'AUTH_CHECK_COMPLETE' };
 
-// 🔥 Función mejorada para verificar rutas
+// ===== HELPER FUNCTIONS =====
 const getRouteType = (path: string) => {
-  // Rutas completamente públicas
   const publicRoutes = ['/', '/request'];
   if (publicRoutes.includes(path)) return 'public';
   
-  // Rutas de autenticación
   const authRoutes = ['/ml-admin/login', '/password-recovery'];
   if (authRoutes.some(route => path.startsWith(route))) return 'auth';
   
-  // Rutas protegidas
   const protectedRoutes = ['/dashboard', '/ml-admin'];
   if (protectedRoutes.some(route => path.startsWith(route))) return 'protected';
   
   return 'unknown';
 };
 
-// 🔥 Reducer mejorado
+// ===== REDUCER OPTIMIZADO =====
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'INIT_START':
@@ -104,6 +112,12 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       
     case 'INIT_COMPLETE':
       return { ...state, isLoading: false, hasInitialized: true };
+      
+    case 'AUTH_CHECK_START':
+      return { ...state, isCheckingAuth: true, lastAuthCheck: Date.now() };
+      
+    case 'AUTH_CHECK_COMPLETE':
+      return { ...state, isCheckingAuth: false };
       
     case 'LOGIN_START':
       return { 
@@ -185,8 +199,374 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 // Crear el contexto
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Función para procesar y normalizar los datos del usuario
-const processUserData = (userData: any): { user: User, permissions: string[] } => {
+// ===== PROVIDER OPTIMIZADO =====
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [state, dispatch] = useReducer(authReducer, initialState);
+
+  // ===== 🆕 VERIFICACIÓN OPTIMIZADA DE AUTENTICACIÓN =====
+  const shouldPerformAuthCheck = useCallback((): boolean => {
+    const currentPath = window.location.pathname;
+    const routeType = getRouteType(currentPath);
+    
+    // No verificar si estamos en proceso de verificación
+    if (state.isCheckingAuth) {
+      console.log('🔒 Verificación omitida: ya verificando');
+      return false;
+    }
+    
+    // No verificar si acabamos de hacer logout
+    if (state.lastLogoutTime && (Date.now() - state.lastLogoutTime) < LOGOUT_COOLDOWN) {
+      console.log('🔒 Verificación omitida: logout reciente');
+      return false;
+    }
+    
+    // No verificar si acabamos de verificar recientemente
+    if (state.lastAuthCheck && (Date.now() - state.lastAuthCheck) < AUTH_CHECK_INTERVAL) {
+      console.log('🔒 Verificación omitida: verificación reciente');
+      return false;
+    }
+    
+    // Solo verificar en rutas protegidas o si no estamos inicializados
+    if (routeType !== 'protected' && state.hasInitialized && state.isAuthenticated) {
+      console.log(`🔒 Verificación omitida: ruta ${routeType} y ya autenticado`);
+      return false;
+    }
+    
+    console.log(`✅ Verificación necesaria: ruta ${routeType}`);
+    return true;
+  }, [state.isCheckingAuth, state.lastLogoutTime, state.lastAuthCheck, state.hasInitialized, state.isAuthenticated]);
+
+  const checkAuthStatus = useCallback(async () => {
+    if (!shouldPerformAuthCheck()) {
+      return;
+    }
+
+    try {
+      console.log('🔍 Verificando estado de autenticación...');
+      dispatch({ type: 'AUTH_CHECK_START' });
+      
+      const isAuth = await authService.checkAuthStatus();
+      
+      if (isAuth && !state.isAuthenticated) {
+        console.log('✅ Usuario autenticado, pero no sincronizado. Nota: Los datos de usuario se cargarán desde AppDataContext');
+        // 🆕 NO cargar datos aquí, dejar que AppDataContext lo haga
+        // Solo marcar como autenticado para evitar redirects
+        dispatch({ 
+          type: 'RESTORE_SESSION', 
+          payload: { 
+            user: state.user || { 
+              id: '', email: '', firstName: '', lastName: '', role: UserRole.USER 
+            }, 
+            permissions: [] 
+          } 
+        });
+      } else if (!isAuth && state.isAuthenticated) {
+        console.log('❌ Usuario no autenticado, limpiando estado');
+        dispatch({ type: 'LOGOUT_COMPLETE' });
+      }
+      
+    } catch (error) {
+      console.error('💥 Error al verificar autenticación:', error);
+    } finally {
+      dispatch({ type: 'AUTH_CHECK_COMPLETE' });
+      if (!state.hasInitialized) {
+        dispatch({ type: 'INIT_COMPLETE' });
+      }
+    }
+  }, [shouldPerformAuthCheck, state.isAuthenticated, state.user, state.hasInitialized]);
+
+  const refreshCurrentUser = useCallback(async () => {
+    if (!state.isAuthenticated || !state.user) {
+      console.warn('⚠️ No hay usuario autenticado para refrescar');
+      return;
+    }
+
+    try {
+      console.log('🔄 Refrescando datos del usuario actual...');
+      // 🆕 Enviar evento para que AppDataContext maneje la actualización
+      window.dispatchEvent(new CustomEvent('auth:refresh-user'));
+    } catch (error) {
+      console.error('💥 Error al refrescar usuario:', error);
+    }
+  }, [state.isAuthenticated, state.user]);
+
+  // ===== EFECTO PRINCIPAL OPTIMIZADO =====
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    const routeType = getRouteType(currentPath);
+    
+    console.log('🚀 AuthProvider mounted:', {
+      path: currentPath,
+      routeType,
+      isAuthenticated: state.isAuthenticated,
+      hasInitialized: state.hasInitialized,
+      isLoggingOut: state.isLoggingOut,
+      lastLogoutTime: state.lastLogoutTime
+    });
+
+    // Solo verificar si es absolutamente necesario
+    if (shouldPerformAuthCheck()) {
+      console.log('🔄 Iniciando verificación de autenticación...');
+      checkAuthStatus();
+    } else if (!state.hasInitialized) {
+      dispatch({ type: 'INIT_COMPLETE' });
+    }
+  }, []); // Solo ejecutar una vez al montar
+
+  // ===== CLEANUP AUTOMÁTICO =====
+  useEffect(() => {
+    if (state.lastLogoutTime) {
+      const timer = setTimeout(() => {
+        if (!state.isAuthenticated) {
+          console.log('🔄 Limpiando lastLogoutTime');
+          dispatch({ type: 'LOGOUT_COMPLETE' });
+        }
+      }, LOGOUT_COOLDOWN);
+
+      return () => clearTimeout(timer);
+    }
+  }, [state.lastLogoutTime, state.isAuthenticated]);
+
+  // ===== ACTIVITY DETECTION (optimizado) =====
+  useEffect(() => {
+    if (state.isLoggingOut || !state.isAuthenticated) return;
+
+    const handleActivity = () => {
+      dispatch({ type: 'UPDATE_ACTIVITY' });
+    };
+
+    // Throttle activity events
+    let activityTimeout: number;
+    const throttledActivity = () => {
+      if (activityTimeout) return;
+      activityTimeout = window.setTimeout(() => {
+        handleActivity();
+        activityTimeout = 0;
+      }, 1000); // Throttle a 1 segundo
+    };
+
+    window.addEventListener('mousemove', throttledActivity);
+    window.addEventListener('keypress', throttledActivity);
+    window.addEventListener('click', throttledActivity);
+
+    const inactivityCheckInterval = setInterval(() => {
+      const inactivityPeriod = 15 * 60 * 1000; // 15 minutos
+      
+      if (
+        state.isAuthenticated && 
+        !state.isLocked && 
+        !state.isLoggingOut &&
+        Date.now() - state.lastActivity > inactivityPeriod
+      ) {
+        lockSession();
+      }
+    }, 60000); // Check cada minuto
+
+    return () => {
+      window.removeEventListener('mousemove', throttledActivity);
+      window.removeEventListener('keypress', throttledActivity);
+      window.removeEventListener('click', throttledActivity);
+      clearInterval(inactivityCheckInterval);
+      if (activityTimeout) window.clearTimeout(activityTimeout);
+    };
+  }, [state.isAuthenticated, state.isLocked, state.lastActivity, state.isLoggingOut]);
+
+  // ===== LOGIN OPTIMIZADO =====
+  const login = useCallback(async (credentials: LoginCredentials): Promise<void> => {
+    dispatch({ type: 'LOGIN_START' });
+    
+    try {
+      console.log('🔐 Iniciando login...');
+      const userData = await authService.login(credentials);
+      
+      // 🆕 Obtener permisos de forma optimizada
+      let userPermissions: string[] = [];
+      try {
+        userPermissions = await authService.getUserPermissions();
+      } catch (permError) {
+        console.warn('⚠️ Error al obtener permisos:', permError);
+      }
+      
+      const processedUserData = processUserData({
+        ...userData,
+        permissions: userPermissions
+      });
+      
+      localStorage.setItem('sessionLocked', 'false');
+      
+      dispatch({ 
+        type: 'LOGIN_SUCCESS', 
+        payload: processedUserData
+      });
+
+      // 🆕 Notificar a AppDataContext (coordinación mejorada)
+      window.dispatchEvent(new CustomEvent('auth:login', { 
+        detail: processedUserData
+      }));
+      
+      console.log('✅ Login exitoso');
+      
+    } catch (error: any) {
+      console.error('💥 Error en login:', error);
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error.message || 'Credenciales incorrectas' 
+      });
+      throw error;
+    }
+  }, []);
+
+  // ===== LOGOUT OPTIMIZADO =====
+  const logout = useCallback(() => {
+    console.log('🚪 Iniciando proceso de logout...');
+    
+    dispatch({ type: 'LOGOUT_START' });
+    setLoggingOut(true);
+    
+    // Limpiar datos locales inmediatamente
+    localStorage.removeItem('sessionLocked');
+    localStorage.removeItem('lastPath');
+    localStorage.removeItem('userId');
+    
+    // Limpiar cookies del lado del cliente
+    document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    
+    // 🆕 Notificar a AppDataContext (coordinación mejorada)
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+    
+    // Llamar al servicio de logout
+    authService.logout().finally(() => {
+      console.log('🧹 Completando logout...');
+      dispatch({ type: 'LOGOUT_COMPLETE' });
+      setLoggingOut(false);
+      
+      // Forzar redirección después de un pequeño delay
+      setTimeout(() => {
+        window.location.href = '/ml-admin/login';
+      }, 100);
+    });
+  }, []);
+
+  // ===== RESTO DE MÉTODOS (optimizados pero sin cambios funcionales) =====
+  const forgotPassword = useCallback(async (email: string): Promise<void> => {
+    try {
+      dispatch({ type: 'LOGIN_START' });
+      await authService.forgotPassword(email);
+      dispatch({ type: 'LOGIN_FAIL', payload: '' });
+    } catch (error) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error instanceof Error ? error.message : 'Error al enviar email' 
+      });
+      throw error;
+    }
+  }, []);
+
+  const verifyCode = useCallback(async (email: string, code: string): Promise<boolean> => {
+    try {
+      dispatch({ type: 'LOGIN_START' });
+      const result = await authService.verifyCode(email, code);
+      dispatch({ type: 'LOGIN_FAIL', payload: '' });
+      return result.valid;
+    } catch (error) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error instanceof Error ? error.message : 'Código inválido o expirado' 
+      });
+      throw error;
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (password: string, confirmPassword: string, code: string, email: string): Promise<void> => {
+    if (password !== confirmPassword) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: 'Las contraseñas no coinciden' 
+      });
+      throw new Error('Las contraseñas no coinciden');
+    }
+    
+    try {
+      dispatch({ type: 'LOGIN_START' });
+      await authService.resetPassword(password, confirmPassword, code, email);
+      dispatch({ type: 'LOGIN_FAIL', payload: '' });
+    } catch (error) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error instanceof Error ? error.message : 'Error al restablecer la contraseña'
+      });
+      throw error;
+    }
+  }, []);
+
+  const lockSession = useCallback(() => {
+    const currentPath = window.location.pathname;
+    const routeType = getRouteType(currentPath);
+    
+    if (routeType === 'protected') {
+      console.log('🔒 Bloqueando sesión');
+      dispatch({ type: 'LOCK_SESSION' });
+    }
+  }, []);
+
+  const unlockSession = useCallback(async (password: string): Promise<void> => {
+    try {
+      console.log('🔓 Desbloqueando sesión');
+      const isValid = await authService.verifyPassword(password);
+      if (isValid) {
+        dispatch({ type: 'UNLOCK_SESSION' });
+      } else {
+        throw new Error('Contraseña incorrecta');
+      }
+    } catch (error: any) {
+      dispatch({ 
+        type: 'LOGIN_FAIL', 
+        payload: error.message || 'Contraseña incorrecta' 
+      });
+      throw error;
+    }
+  }, []);
+
+  const hasPermission = useCallback((permission: string): boolean => {
+    if (state.user?.role === UserRole.ADMIN) {
+      return true;
+    }
+    return state.permissions.includes(permission);
+  }, [state.user?.role, state.permissions]);
+
+  const hasAnyPermission = useCallback((permissions: string[]): boolean => {
+    if (state.user?.role === UserRole.ADMIN) {
+      return true;
+    }
+    return permissions.some(perm => state.permissions.includes(perm));
+  }, [state.user?.role, state.permissions]);
+
+  // ===== CONTEXT VALUE =====
+  const contextValue: AuthContextType = {
+    state,
+    login,
+    logout,
+    forgotPassword,
+    verifyCode,
+    resetPassword,
+    lockSession,
+    unlockSession,
+    hasPermission,
+    hasAnyPermission,
+    checkAuthStatus,
+    refreshCurrentUser
+  };
+
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// ===== HELPER FUNCTION =====
+function processUserData(userData: any): { user: User, permissions: string[] } {
   let firstName = '';
   let lastName = '';
   
@@ -250,384 +630,4 @@ const processUserData = (userData: any): { user: User, permissions: string[] } =
   }
   
   return { user, permissions };
-};
-
-// Proveedor del contexto
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-
-  const refreshCurrentUser = async () => {
-    if (!state.isAuthenticated || !state.user) {
-      console.warn('⚠️ No hay usuario autenticado para refrescar');
-      return;
-    }
-
-    try {
-      console.log('🔄 Refrescando datos del usuario actual...');
-      const userData = await authService.getCurrentUser();
-      let userPermissions: string[] = [];
-      
-      try {
-        userPermissions = await authService.getUserPermissions();
-      } catch (permError) {
-        console.warn('⚠️ Error al obtener permisos:', permError);
-      }
-      
-      const userDataWithPermissions = {
-        ...userData,
-        permissions: userPermissions
-      };
-      
-      const { user, permissions } = processUserData(userDataWithPermissions);
-      
-      dispatch({ 
-        type: 'RESTORE_SESSION', 
-        payload: { user, permissions } 
-      });
-      
-      console.log('✅ Datos del usuario refrescados exitosamente');
-    } catch (error) {
-      console.error('💥 Error al refrescar usuario:', error);
-    }
-  };
-
-  // 🔥 NUEVA función para verificar si debemos hacer auto-check
-  const shouldPerformAutoCheck = (): boolean => {
-    const currentPath = window.location.pathname;
-    const routeType = getRouteType(currentPath);
-    
-    // No verificar si estamos haciendo logout
-    if (state.isLoggingOut) {
-      console.log('🔒 Verificación omitida: logout en progreso');
-      return false;
-    }
-    
-    // No verificar si acabamos de hacer logout hace menos de 5 segundos
-    if (state.lastLogoutTime && (Date.now() - state.lastLogoutTime) < 5000) {
-      console.log('🔒 Verificación omitida: logout reciente');
-      return false;
-    }
-    
-    // Solo verificar en rutas protegidas
-    if (routeType !== 'protected') {
-      console.log(`🔒 Verificación omitida: ruta ${routeType} (${currentPath})`);
-      return false;
-    }
-    
-    // Ya estamos autenticados? Solo verificar si no hemos inicializado
-    if (state.isAuthenticated && state.hasInitialized) {
-      console.log('✅ Verificación omitida: ya autenticado e inicializado');
-      return false;
-    }
-    
-    console.log(`✅ Verificación necesaria: ruta ${routeType} (${currentPath})`);
-    return true;
-  };
-
-  // 🔥 Método mejorado para verificar autenticación
-  const checkAuthStatus = async () => {
-    if (!shouldPerformAutoCheck()) {
-      return;
-    }
-
-    try {
-      console.log('🔍 Verificando estado de autenticación...');
-      dispatch({ type: 'INIT_START' });
-      
-      const isAuth = await authService.checkAuthStatus();
-      
-      if (isAuth) {
-        console.log('✅ Usuario autenticado, obteniendo datos...');
-        const userData = await authService.getCurrentUser();
-        let userPermissions: string[] = [];
-        
-        try {
-          userPermissions = await authService.getUserPermissions();
-        } catch (permError) {
-          console.warn('⚠️ Error al obtener permisos:', permError);
-        }
-        
-        const userDataWithPermissions = {
-          ...userData,
-          permissions: userPermissions
-        };
-        
-        const { user, permissions } = processUserData(userDataWithPermissions);
-        
-        dispatch({ 
-          type: 'RESTORE_SESSION', 
-          payload: { user, permissions } 
-        });
-      } else {
-        console.log('❌ Usuario no autenticado');
-        dispatch({ type: 'INIT_COMPLETE' });
-      }
-    } catch (error) {
-      console.error('💥 Error al verificar autenticación:', error);
-      dispatch({ type: 'INIT_COMPLETE' });
-    }
-  };
-
-  // 🔥 EFECTO PRINCIPAL MEJORADO
-  useEffect(() => {
-    const currentPath = window.location.pathname;
-    const routeType = getRouteType(currentPath);
-    
-    console.log('🚀 AuthProvider mounted:', {
-      path: currentPath,
-      routeType,
-      isAuthenticated: state.isAuthenticated,
-      hasInitialized: state.hasInitialized,
-      isLoggingOut: state.isLoggingOut,
-      lastLogoutTime: state.lastLogoutTime
-    });
-
-    // Verificar automáticamente solo si es necesario
-    if (shouldPerformAutoCheck()) {
-      console.log('🔄 Iniciando verificación de autenticación...');
-      checkAuthStatus();
-    } else {
-      // Si no necesitamos verificar, marcar como inicializado
-      if (!state.hasInitialized) {
-        dispatch({ type: 'INIT_COMPLETE' });
-      }
-    }
-  }, []); // Solo ejecutar una vez al montar
-
-  // 🔥 NUEVO: Efecto para limpiar lastLogoutTime después de un tiempo
-  useEffect(() => {
-    if (state.lastLogoutTime) {
-      const timer = setTimeout(() => {
-        // Si después de 30 segundos aún no hay autenticación, permitir verificaciones futuras
-        if (!state.isAuthenticated) {
-          console.log('🔄 Limpiando lastLogoutTime para permitir verificaciones futuras');
-          dispatch({ type: 'LOGOUT_COMPLETE' }); // Esto limpiará lastLogoutTime
-        }
-      }, 30000); // 30 segundos
-
-      return () => clearTimeout(timer);
-    }
-  }, [state.lastLogoutTime, state.isAuthenticated]);
-
-  // Detectar actividad del usuario (sin cambios)
-  useEffect(() => {
-    if (state.isLoggingOut) return;
-
-    const handleActivity = () => {
-      dispatch({ type: 'UPDATE_ACTIVITY' });
-    };
-
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keypress', handleActivity);
-    window.addEventListener('click', handleActivity);
-    window.addEventListener('scroll', handleActivity);
-
-    const inactivityCheckInterval = setInterval(() => {
-      const inactivityPeriod = 15 * 60 * 1000; // 15 minutos
-      
-      if (
-        state.isAuthenticated && 
-        !state.isLocked && 
-        !state.isLoggingOut &&
-        Date.now() - state.lastActivity > inactivityPeriod
-      ) {
-        lockSession();
-      }
-    }, 60000);
-
-    return () => {
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keypress', handleActivity);
-      window.removeEventListener('click', handleActivity);
-      window.removeEventListener('scroll', handleActivity);
-      clearInterval(inactivityCheckInterval);
-    };
-  }, [state.isAuthenticated, state.isLocked, state.lastActivity, state.isLoggingOut]);
-
-  // Función para iniciar sesión (sin cambios)
-  const login = async (credentials: LoginCredentials): Promise<void> => {
-    dispatch({ type: 'LOGIN_START' });
-    
-    try {
-      const userData = await authService.login(credentials);
-      let userPermissions: string[] = [];
-      
-      try {
-        userPermissions = await authService.getUserPermissions();
-      } catch (permError) {
-        console.warn('Error al obtener permisos:', permError);
-      }
-      
-      const userDataWithPermissions = {
-        ...userData,
-        permissions: userPermissions
-      };
-      
-      const { user, permissions } = processUserData(userDataWithPermissions);
-      
-      localStorage.setItem('sessionLocked', 'false');
-      
-      dispatch({ 
-        type: 'LOGIN_SUCCESS', 
-        payload: { user, permissions } 
-      });
-
-      // 🆕 NUEVO: Notificar al AppDataProvider que hubo login
-      window.dispatchEvent(new CustomEvent('auth:login', { 
-        detail: { user, permissions } 
-      }));
-      
-    } catch (error: any) {
-      dispatch({ 
-        type: 'LOGIN_FAIL', 
-        payload: error.message || 'Credenciales incorrectas' 
-      });
-      throw error;
-    }
-  };
-
-  // Función para cerrar sesión
-  const logout = () => {
-    console.log('🚪 Iniciando proceso de logout...');
-    
-    dispatch({ type: 'LOGOUT_START' });
-    setLoggingOut(true);
-    
-    // Limpiar datos locales inmediatamente
-    localStorage.removeItem('sessionLocked');
-    localStorage.removeItem('lastPath');
-    localStorage.removeItem('userId');
-    
-    // Limpiar cookies del lado del cliente
-    document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-    
-    // 🆕 NUEVO: Notificar al AppDataProvider que hubo logout
-    window.dispatchEvent(new CustomEvent('auth:logout'));
-    
-    // Llamar al servicio de logout
-    authService.logout().finally(() => {
-      console.log('🧹 Completando logout...');
-      dispatch({ type: 'LOGOUT_COMPLETE' });
-      setLoggingOut(false);
-      
-      // Forzar redirección después de un pequeño delay
-      setTimeout(() => {
-        window.location.href = '/ml-admin/login';
-      }, 100);
-    });
-  };
-
-  // Resto de funciones sin cambios...
-  const forgotPassword = async (email: string): Promise<void> => {
-    try {
-      dispatch({ type: 'LOGIN_START' });
-      await authService.forgotPassword(email);
-      dispatch({ type: 'LOGIN_FAIL', payload: '' });
-    } catch (error) {
-      dispatch({ 
-        type: 'LOGIN_FAIL', 
-        payload: error instanceof Error ? error.message : 'Error al enviar email' 
-      });
-      throw error;
-    }
-  };
-
-  const verifyCode = async (email: string, code: string): Promise<boolean> => {
-    try {
-      dispatch({ type: 'LOGIN_START' });
-      const result = await authService.verifyCode(email, code);
-      dispatch({ type: 'LOGIN_FAIL', payload: '' });
-      return result.valid;
-    } catch (error) {
-      dispatch({ 
-        type: 'LOGIN_FAIL', 
-        payload: error instanceof Error ? error.message : 'Código inválido o expirado' 
-      });
-      throw error;
-    }
-  };
-
-  const resetPassword = async (password: string, confirmPassword: string, code: string, email: string): Promise<void> => {
-    if (password !== confirmPassword) {
-      dispatch({ 
-        type: 'LOGIN_FAIL', 
-        payload: 'Las contraseñas no coinciden' 
-      });
-      throw new Error('Las contraseñas no coinciden');
-    }
-    
-    try {
-      dispatch({ type: 'LOGIN_START' });
-      await authService.resetPassword(password, confirmPassword, code, email);
-      dispatch({ type: 'LOGIN_FAIL', payload: '' });
-    } catch (error) {
-      dispatch({ 
-        type: 'LOGIN_FAIL', 
-        payload: error instanceof Error ? error.message : 'Error al restablecer la contraseña'
-      });
-      throw error;
-    }
-  };
-
-  const lockSession = () => {
-    const currentPath = window.location.pathname;
-    const routeType = getRouteType(currentPath);
-    
-    if (routeType === 'protected') {
-      dispatch({ type: 'LOCK_SESSION' });
-    }
-  };
-
-  const unlockSession = async (password: string): Promise<void> => {
-    try {
-      const isValid = await authService.verifyPassword(password);
-      if (isValid) {
-        dispatch({ type: 'UNLOCK_SESSION' });
-      } else {
-        throw new Error('Contraseña incorrecta');
-      }
-    } catch (error: any) {
-      dispatch({ 
-        type: 'LOGIN_FAIL', 
-        payload: error.message || 'Contraseña incorrecta' 
-      });
-      throw error;
-    }
-  };
-
-  const hasPermission = (permission: string): boolean => {
-    if (state.user?.role === UserRole.ADMIN) {
-      return true;
-    }
-    return state.permissions.includes(permission);
-  };
-
-  const hasAnyPermission = (permissions: string[]): boolean => {
-    if (state.user?.role === UserRole.ADMIN) {
-      return true;
-    }
-    return permissions.some(perm => state.permissions.includes(perm));
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        state,
-        login,
-        logout,
-        forgotPassword,
-        verifyCode,
-        resetPassword,
-        lockSession,
-        unlockSession,
-        hasPermission,
-        hasAnyPermission,
-        checkAuthStatus,
-        refreshCurrentUser
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
+}

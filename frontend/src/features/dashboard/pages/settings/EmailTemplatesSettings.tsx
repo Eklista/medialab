@@ -7,7 +7,7 @@ import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardPlaceholder, { NoPermissionPlaceholder, ErrorPlaceholder } from '../../components/ui/DashboardPlaceholder';
 import EmailTemplateForm, { EmailTemplateFormData } from '../../components/config/EmailTemplateForm';
 import Badge from '../../components/ui/Badge';
-import { emailTemplateService, EmailTemplate } from '../../../../services/emailTemplate.service';
+import { emailTemplateService, EmailTemplate } from '../../../../services/templates/emailTemplate.service';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { 
   PlusIcon, 

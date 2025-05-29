@@ -1,6 +1,7 @@
-// src/features/dashboard/components/layout/SidebarFooter.tsx
+// src/features/dashboard/components/layout/SidebarFooter.tsx - UPDATED VERSION
 import React from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import { useCurrentUser } from '../../utils/userUtils';
 import { LockClosedIcon } from '@heroicons/react/24/solid';
 import { UserIcon } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
@@ -10,11 +11,12 @@ interface SidebarFooterProps {
 }
 
 const SidebarFooter: React.FC<SidebarFooterProps> = ({ collapsed = false }) => {
-  const { lockSession, state } = useAuth();
+  const { lockSession } = useAuth();
+  const { user: currentUser } = useCurrentUser();
   const navigate = useNavigate();
  
   const handleLock = () => {
-    console.log("Botón de bloqueo presionado en SidebarFooter/Navbar");
+    console.log("Botón de bloqueo presionado en SidebarFooter");
     localStorage.setItem('lastPathBeforeLock', window.location.pathname);
     console.log("Ruta guardada:", window.location.pathname);
     lockSession();
@@ -23,8 +25,8 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({ collapsed = false }) => {
   // Navegación a perfil de usuario
   const handleNavigateToProfile = () => {
     // Navegar a la página de perfil del usuario actual
-    if (state.user && state.user.id) {
-      navigate(`/dashboard/users/${state.user.id}`);
+    if (currentUser && currentUser.id) {
+      navigate(`/dashboard/users/${currentUser.id}`);
     }
   };
  

@@ -1,6 +1,6 @@
 // src/services/service-templates.service.ts
 import apiClient, { handleApiError } from './api';
-import { Service, SubService } from './services.service';
+import { Service, SubService } from './organization/services.service';
 
 // Interfaces para los modelos de plantillas
 export interface ServiceTemplate {

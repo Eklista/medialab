@@ -1,8 +1,9 @@
-// src/features/dashboard/components/ui/UserProfilePhoto.tsx
+// src/features/dashboard/components/ui/UserProfilePhoto.tsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import { useAppData } from '../../../../context/AppDataContext'; // 🆕 AGREGADO
 import { userService } from '../../../../services';
-import type { User } from '../../../../services/users.service';
+import type { User } from '../../../../services/users/users.service';
 
 export interface UserProfilePhotoProps {
   /** Tamaño del avatar */
@@ -47,6 +48,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   showLoading = true
 }) => {
   const { state } = useAuth();
+  const { user: appDataUser } = useAppData(); // 🆕 AGREGADO
   const [fetchedUser, setFetchedUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -84,8 +86,8 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
     }
   }, [userId, user]);
   
-  // Determinar el usuario a usar (prioridad: user prop > fetched user > current user)
-  const currentUser = user || fetchedUser || state.user;
+  // 🆕 FIXED: Priorizar AppDataContext sobre AuthContext
+  const currentUser = user || fetchedUser || appDataUser || state.user;
   
   // Función para obtener la URL completa de la imagen - CORREGIDA
   const getFullImageUrl = (imagePath: string | undefined | null): string => {
@@ -153,7 +155,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   };
   
   // Obtener la imagen del usuario
-  const profileImage = currentUser?.profileImage || currentUser?.profile_image || null;
+  const profileImage = currentUser?.profileImage || (currentUser as any)?.profile_image || null;
   const imageUrl = getFullImageUrl(profileImage);
   
   // 🔇 DEBUG: Console.log comentado
@@ -171,6 +173,19 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   //     hasError: hasError
   //   });
   // }, [currentUser, profileImage, imageUrl, userId, isLoading, hasError]);
+  
+  // 🆕 DEBUG TEMPORAL - para ver qué datos llegan
+  React.useEffect(() => {
+    console.log('🖼️ UserProfilePhoto Debug Sources:', {
+      propUser: user,
+      fetchedUser: fetchedUser,
+      appDataUser: appDataUser,
+      authUser: state.user,
+      finalCurrentUser: currentUser,
+      profileImage: profileImage,
+      imageUrl: imageUrl
+    });
+  }, [user, fetchedUser, appDataUser, state.user, currentUser, profileImage, imageUrl]);
   
   // Clases base
   const baseClasses = `
@@ -202,7 +217,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   // 🔧 MEJORADO: Manejo de errores de imagen
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = e.target as HTMLImageElement;
-    // console.warn('🚫 Error cargando imagen:', target.src);
+    console.warn('🚫 Error cargando imagen:', target.src);
     target.style.display = 'none';
     
     const parent = target.parentElement;
@@ -260,7 +275,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
           className="h-full w-full object-cover"
           onError={handleImageError}
           onLoad={() => {
-            // console.log('✅ Imagen cargada exitosamente:', imageUrl);
+            console.log('✅ Imagen cargada exitosamente:', imageUrl);
           }}
         />
       ) : (

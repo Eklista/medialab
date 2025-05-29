@@ -4,7 +4,7 @@ import { CheckboxGroup, CheckboxOption } from './components';
 import { MainService } from './data/services';
 // Importar servicios
 import { publicService } from '../../services';
-import { Service } from '../../services/services.service';
+import { Service } from '../../services/organization/services.service';
 import { ServiceTemplate } from '../../services/serviceTemplates.service';
 
 // Importar iconos necesarios

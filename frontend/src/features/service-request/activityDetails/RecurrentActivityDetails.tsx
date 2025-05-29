@@ -9,7 +9,7 @@ import Textarea from '../components/TextArea';
 import Checkbox from '../components/Checkbox';
 import MultiDayPicker from '../components/MultiDayPicker';
 import { publicService } from '../../../services';
-import { PublicDepartment } from '../../../services/public.service';
+import { PublicDepartment } from '../../../services/system/public.service';
 import { SelectOption } from '../components';
 import { ClockIcon, CalendarDaysIcon, ArrowPathIcon, CalendarIcon, BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 

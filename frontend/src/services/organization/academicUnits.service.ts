@@ -1,6 +1,6 @@
 // src/services/academicUnits.service.ts
 
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError } from '../api';
 
 // Interfaces para las unidades académicas
 export interface AcademicUnit {

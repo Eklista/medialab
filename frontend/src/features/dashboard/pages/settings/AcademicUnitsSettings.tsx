@@ -16,8 +16,8 @@ import {
   AcademicCapIcon 
 } from '@heroicons/react/24/outline';
 import { academicUnitService, departmentTypeService } from '../../../../services';
-import { AcademicUnit } from '../../../../services/academicUnits.service';
-import { DepartmentType } from '../../../../services/departmentTypes.service';
+import { AcademicUnit } from '../../../../services/organization/academicUnits.service';
+import { DepartmentType } from '../../../../services/organization/departmentTypes.service';
 import { usePermissions } from '../../../../hooks/usePermissions';
 
 const AcademicUnitsSettings: React.FC = () => {

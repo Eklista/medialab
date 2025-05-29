@@ -1,46 +1,86 @@
-// src/features/auth/components/ProtectedRoute.tsx
-
+// src/features/auth/components/ProtectedRoute.tsx - UPDATED VERSION
 import React, { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useAppData } from '../../../context/AppDataContext';
 import LockScreen from './LockScreen';
 
 const ProtectedRoute: React.FC = () => {
-  const { state, checkAuthStatus } = useAuth();
+  const { state: authState, checkAuthStatus } = useAuth();
+  const { isLoading, isInitialized } = useAppData();
   const location = useLocation();
   
-  // 🔥 MEJORADO: Verificar sesión solo cuando es necesario
+  // 🆕 Verificar sesión solo cuando es necesario y coordinado
   useEffect(() => {
     // Solo verificar si:
     // 1. No estamos autenticados
-    // 2. No estamos cargando 
-    // 3. Ya hemos inicializado
-    // 4. No estamos haciendo logout
-    if (!state.isAuthenticated && 
-        !state.isLoading && 
-        state.hasInitialized && 
-        !state.isLoggingOut) {
+    // 2. Ambos contextos están inicializados
+    // 3. No estamos en proceso de logout
+    // 4. No estamos ya cargando
+    if (!authState.isAuthenticated && 
+        authState.hasInitialized && 
+        isInitialized &&
+        !authState.isLoggingOut && 
+        !isLoading &&
+        !authState.isCheckingAuth) {
       
       console.log('🔍 ProtectedRoute: Verificando autenticación...');
       checkAuthStatus();
     }
-  }, [location.pathname, state.isAuthenticated, state.isLoading, state.hasInitialized]);
+  }, [
+    location.pathname, 
+    authState.isAuthenticated, 
+    authState.hasInitialized, 
+    authState.isLoggingOut,
+    authState.isCheckingAuth,
+    isLoading,
+    isInitialized,
+    checkAuthStatus
+  ]);
   
   // Guardar la última ruta visitada cuando el usuario está autenticado
   useEffect(() => {
-    if (state.isAuthenticated && !state.isLocked) {
+    if (authState.isAuthenticated && !authState.isLocked) {
       localStorage.setItem('lastPath', location.pathname);
     }
-  }, [location.pathname, state.isAuthenticated, state.isLocked]);
+  }, [location.pathname, authState.isAuthenticated, authState.isLocked]);
   
-  // 🔥 NUEVO: Mostrar loading mientras inicializa o verifica
-  if (state.isLoading || !state.hasInitialized) {
+  // 🆕 IMPROVED: Loading states más específicos y coordinados
+  if (!isInitialized || !authState.hasInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">
-            {state.isLoading ? 'Verificando sesión...' : 'Inicializando...'}
+            Inicializando aplicación...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si estamos verificando autenticación, mostrar loading
+  if (authState.isCheckingAuth || (isLoading && !authState.isAuthenticated)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            Verificando sesión...
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  // 🆕 IMPROVED: Mejor manejo de logout en progreso
+  if (authState.isLoggingOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            Cerrando sesión...
           </p>
         </div>
       </div>
@@ -48,12 +88,12 @@ const ProtectedRoute: React.FC = () => {
   }
   
   // Si la sesión está bloqueada, mostrar la pantalla de bloqueo
-  if (state.isAuthenticated && state.isLocked) {
+  if (authState.isAuthenticated && authState.isLocked) {
     return <LockScreen />;
   }
   
-  // Si no está autenticado después de inicializar, redirigir al login
-  if (!state.isAuthenticated && state.hasInitialized) {
+  // Si no está autenticado después de inicializar ambos contextos, redirigir al login
+  if (!authState.isAuthenticated && authState.hasInitialized && isInitialized) {
     const lastPath = localStorage.getItem('lastPath');
     return (
       <Navigate 

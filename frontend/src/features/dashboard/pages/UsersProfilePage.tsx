@@ -19,12 +19,12 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { userService } from '../../../services';
-import { UserUpdateRequest } from '../../../services/users.service';
+import { UserUpdateRequest } from '../../../services/users/users.service';
 import { getBaseUrl } from '../../../services/api';
-import fileUploadService from '../../../services/fileUpload.service';
+import fileUploadService from '../../../services/common/fileUpload.service';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
-import { formatFullDate, parseDate, getDaysUntilBirthday, formatBirthday } from '../../../utils/dateUtils';
+import { formatFullDate, parseDate, getDaysUntilBirthday, formatBirthday } from '../utils/dateUtils';
 
 // Importar imágenes
 import heroBanner from '../../../assets/images/medialab-hero.jpg';

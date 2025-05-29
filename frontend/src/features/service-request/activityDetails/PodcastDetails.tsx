@@ -12,7 +12,7 @@ import {
 } from '../components';
 import { departments } from '../data/faculties';
 import { publicService } from '../../../services';
-import { PublicDepartment } from '../../../services/public.service';
+import { PublicDepartment } from '../../../services/system/public.service';
 import { MicrophoneIcon, BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import PodcastRecurrenceSettings, { RecurrenceData } from './components/PodcastRecurrenceSettings';
 

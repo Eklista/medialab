@@ -1,4 +1,4 @@
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError } from '../api';
 
 // Interfaces para los modelos de servicios
 export interface SubService {

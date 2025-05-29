@@ -6,7 +6,7 @@ import DashboardTextArea from '../ui/DashboardTextArea';
 import DashboardCheckbox from '../ui/DashboardCheckbox';
 import Switch from '../ui/Switch';
 import Badge from '../ui/Badge';
-import { Service } from '../../../../services/services.service';
+import { Service } from '../../../../services/organization/services.service';
 import { 
   DocumentTextIcon,
   SparklesIcon,

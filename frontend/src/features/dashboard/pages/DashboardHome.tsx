@@ -6,7 +6,7 @@ import Badge from '../components/ui/Badge';
 import UserProfilePhoto from '../components/ui/UserProfilePhoto';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { userService } from '../../../services';
-import { parseDate, formatBirthday, getDaysUntilBirthday } from '../../../utils/dateUtils';
+import { parseDate, formatBirthday, getDaysUntilBirthday } from '../utils/dateUtils';
 
 // Iconos
 import {

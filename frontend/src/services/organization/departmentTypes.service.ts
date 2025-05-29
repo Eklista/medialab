@@ -1,5 +1,5 @@
 // src/services/departmentTypes.service.ts
-import apiClient, { handleApiError } from './api';
+import apiClient, { handleApiError } from '../api';
 
 export interface DepartmentType {
   id: number;

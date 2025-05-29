@@ -1,9 +1,9 @@
 // src/services/public.service.ts
 import axios from 'axios';
-import { getBaseUrl } from './api';
-import { Service } from './services.service';
-import { ServiceTemplate } from './serviceTemplates.service';
-import { TemplateServiceRelation, TemplateSubServiceRelation } from './serviceTemplates.service';
+import { getBaseUrl } from '../api';
+import { Service } from '../organization/services.service';
+import { ServiceTemplate } from '../templates/serviceTemplates.service';
+import { TemplateServiceRelation, TemplateSubServiceRelation } from '../templates/serviceTemplates.service';
 
 export interface PublicDepartment {
   id: number;

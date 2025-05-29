@@ -9,7 +9,7 @@ import Textarea from '../components/TextArea';
 // Import departments data y servicio público
 import { departments } from '../data/faculties';
 import { publicService } from '../../../services';
-import { PublicDepartment } from '../../../services/public.service';
+import { PublicDepartment } from '../../../services/system/public.service';
 import { SelectOption } from '../components';
 import { BuildingOfficeIcon, MapPinIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 
