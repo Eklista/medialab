@@ -1,4 +1,4 @@
-# backend/app/main.py - Fix específico para CORS OPTIONS + Static Files
+# backend/app/main.py - VERSIÓN COMPLETA CON WEBSOCKET INTEGRADO
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 import logging
 import os
 from pathlib import Path
+from datetime import datetime
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -16,13 +17,25 @@ logger = logging.getLogger(__name__)
 # Importaciones de configuración
 from app.config.settings import CORS_ORIGINS, ENVIRONMENT, REDIS_ENABLED
 
+# ===== IMPORTACIONES WEBSOCKET =====
+try:
+    from app.config.websocket_config import is_websocket_enabled, get_websocket_config
+    from app.routes.websocket_routes import router as websocket_router, admin_router as websocket_admin_router
+    from app.services.websocket.websocket_manager import websocket_manager
+    from app.services.websocket.notification_service import initialize_websocket_notifications
+    WEBSOCKET_AVAILABLE = True
+    logger.info("✅ Módulos WebSocket disponibles")
+except ImportError as e:
+    WEBSOCKET_AVAILABLE = False
+    logger.warning(f"⚠️ Módulos WebSocket no disponibles: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gestión del ciclo de vida de la aplicación"""
+    """Gestión del ciclo de vida de la aplicación con WebSocket integrado"""
     # ===== STARTUP =====
     logger.info("🚀 Iniciando MediaLab API...")
     
-    # Inicializar sistema Redis
+    # ===== INICIALIZACIÓN REDIS (CÓDIGO ORIGINAL) =====
     if REDIS_ENABLED:
         try:
             logger.info("🔧 Inicializando sistema Redis...")
@@ -50,11 +63,52 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("⚠️ Redis deshabilitado en configuración")
     
+    # ===== NUEVA SECCIÓN: INICIALIZACIÓN WEBSOCKET =====
+    if WEBSOCKET_AVAILABLE and is_websocket_enabled():
+        try:
+            logger.info("🔌 Inicializando servicios WebSocket...")
+            
+            # Verificar configuración
+            ws_config = get_websocket_config()
+            
+            logger.info(f"🔌 WebSocket configurado:")
+            logger.info(f"   - Host: {ws_config.websocket_host}:{ws_config.websocket_port}")
+            logger.info(f"   - Max conexiones por usuario: {ws_config.max_connections_per_user}")
+            logger.info(f"   - Max conexiones totales: {ws_config.max_total_connections}")
+            logger.info(f"   - Autenticación requerida: {ws_config.require_authentication}")
+            logger.info(f"   - Orígenes permitidos: {ws_config.allowed_origins}")
+            
+            # Inicializar sistema de notificaciones
+            notifications_initialized = await initialize_websocket_notifications()
+            if notifications_initialized:
+                logger.info("✅ Sistema de notificaciones WebSocket inicializado")
+            else:
+                logger.warning("⚠️ Sistema de notificaciones WebSocket no pudo inicializarse")
+            
+            # Almacenar referencia en app state para limpieza posterior
+            app.state.websocket_manager = websocket_manager
+            app.state.websocket_enabled = True
+            
+            logger.info("✅ Servicios WebSocket inicializados")
+            
+        except Exception as e:
+            logger.error(f"❌ Error inicializando WebSocket: {e}")
+            logger.warning("⚠️ La aplicación continuará sin WebSocket")
+            app.state.websocket_enabled = False
+    else:
+        app.state.websocket_enabled = False
+        if not WEBSOCKET_AVAILABLE:
+            logger.info("🔌 WebSocket no disponible (módulos no encontrados)")
+        else:
+            logger.info("🔌 WebSocket deshabilitado en configuración")
+    
     logger.info("✅ MediaLab API iniciada correctamente")
     yield
     
     # ===== SHUTDOWN =====
     logger.info("🛑 Cerrando MediaLab API...")
+    
+    # ===== CLEANUP REDIS (CÓDIGO ORIGINAL) =====
     if hasattr(app.state, 'cleanup_task'):
         app.state.cleanup_task.cancel()
         try:
@@ -62,19 +116,49 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
         logger.info("🧹 Tareas de limpieza Redis detenidas")
+    
+    # ===== NUEVA SECCIÓN: CLEANUP WEBSOCKET =====
+    if hasattr(app.state, 'websocket_manager') and app.state.websocket_enabled:
+        try:
+            logger.info("🔌 Cerrando conexiones WebSocket...")
+            
+            # Enviar notificación de cierre del servidor
+            try:
+                await app.state.websocket_manager.broadcast_to_all({
+                    "type": "server_shutdown",
+                    "data": {
+                        "message": "El servidor se está cerrando",
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                })
+                # Dar tiempo para que llegue el mensaje
+                await asyncio.sleep(1)
+            except:
+                pass  # Ignorar errores al enviar notificación de cierre
+            
+            # Desconectar todas las conexiones activas
+            active_connections = list(app.state.websocket_manager.active_connections.keys())
+            for connection_id in active_connections:
+                app.state.websocket_manager.disconnect(connection_id, 1001, "Server shutdown")
+            
+            logger.info(f"🔌 {len(active_connections)} conexiones WebSocket cerradas")
+            
+        except Exception as e:
+            logger.error(f"❌ Error cerrando WebSocket: {e}")
+    
     logger.info("👋 MediaLab API cerrada correctamente")
 
 # Crear aplicación con lifespan
 app = FastAPI(
     title="MediaLab API",
-    description="API para gestión de MediaLab con sistema de autenticación seguro",
+    description="API para gestión de MediaLab con sistema de autenticación seguro y WebSocket",
     version="2.0.0",
     openapi_url="/api/v1/openapi.json",
     docs_url="/api/v1/docs",
     lifespan=lifespan
 )
 
-# ===== FIX ESPECÍFICO PARA CORS OPTIONS =====
+# ===== FIX ESPECÍFICO PARA CORS OPTIONS (CÓDIGO ORIGINAL) =====
 
 # 1. Handler manual para OPTIONS requests (antes de CORS middleware)
 @app.middleware("http")
@@ -118,7 +202,7 @@ app.add_middleware(
 
 logger.info("🌐 CORS configurado con handler manual para OPTIONS")
 
-# ===== MIDDLEWARE DE SEGURIDAD (después de CORS) =====
+# ===== MIDDLEWARE DE SEGURIDAD (CÓDIGO ORIGINAL) =====
 
 # Rate Limiting Middleware (solo si Redis está habilitado)
 if REDIS_ENABLED:
@@ -133,7 +217,8 @@ if REDIS_ENABLED:
             exclude_paths=[
                 "/docs", "/redoc", "/openapi.json", 
                 "/health", "/favicon.ico",
-                "/api/v1/docs", "/api/v1/openapi.json"
+                "/api/v1/docs", "/api/v1/openapi.json",
+                "/ws", "/ws/", "/ws/secure"  # Excluir endpoints WebSocket
             ]
         )
         logger.info("✅ Rate limiting middleware cargado")
@@ -153,7 +238,7 @@ except ImportError:
 except Exception as e:
     logger.warning(f"⚠️ Error cargando security headers middleware: {e}")
 
-# ===== CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS =====
+# ===== CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS (CÓDIGO ORIGINAL) =====
 
 # Crear directorio de uploads si no existe
 static_dir = Path("static")
@@ -168,7 +253,7 @@ logger.info(f"📁 Directorio de uploads: {uploads_dir.absolute()}")
 
 # ===== ROUTERS =====
 
-# Incluir el router principal de la API
+# Incluir el router principal de la API (CÓDIGO ORIGINAL)
 try:
     from app.api.v1 import api_router
     app.include_router(api_router, prefix="/api/v1")
@@ -176,33 +261,196 @@ try:
 except ImportError as e:
     logger.error(f"❌ Error cargando API routers: {e}")
 
-# ===== ENDPOINTS DE SISTEMA =====
+# ===== NUEVA SECCIÓN: ROUTERS WEBSOCKET =====
+if WEBSOCKET_AVAILABLE and is_websocket_enabled():
+    try:
+        # Router principal de WebSocket
+        app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
+        
+        # Router administrativo de WebSocket
+        app.include_router(websocket_admin_router, prefix="/ws/admin", tags=["websocket-admin"])
+        
+        logger.info("✅ WebSocket routers cargados")
+        logger.info("   - Endpoint principal: ws://localhost:8000/ws/")
+        logger.info("   - Endpoint seguro: ws://localhost:8000/ws/secure")
+        logger.info("   - Admin endpoints: /ws/admin/*")
+        
+    except Exception as e:
+        logger.error(f"❌ Error cargando WebSocket routers: {e}")
+else:
+    logger.info("⚠️ WebSocket routers no cargados (deshabilitado o no disponible)")
+
+# ===== ENDPOINTS DE SISTEMA (CÓDIGO ORIGINAL + WEBSOCKET) =====
 
 @app.get("/")
 def root():
-    """Endpoint raíz de la API"""
+    """Endpoint raíz de la API con información de WebSocket"""
+    features = {
+        "redis_enabled": REDIS_ENABLED,
+        "security": "enhanced",
+        "authentication": "JWT/JWE with httpOnly cookies"
+    }
+    
+    # Agregar información de WebSocket
+    if WEBSOCKET_AVAILABLE:
+        features["websocket"] = {
+            "available": True,
+            "enabled": is_websocket_enabled(),
+            "real_time_notifications": True
+        }
+    else:
+        features["websocket"] = {
+            "available": False,
+            "reason": "modules_not_found"
+        }
+    
+    websocket_info = None
+    if WEBSOCKET_AVAILABLE and is_websocket_enabled():
+        websocket_info = {
+            "main": "ws://localhost:8000/ws/",
+            "secure": "ws://localhost:8000/ws/secure",
+            "status": "/system/websocket/status",
+            "admin": "/ws/admin/stats"
+        }
+    
     return {
         "message": "MediaLab API está funcionando",
         "version": "2.0.0",
         "environment": ENVIRONMENT,
-        "features": {
-            "redis_enabled": REDIS_ENABLED,
-            "security": "enhanced",
-            "authentication": "JWT/JWE with httpOnly cookies"
-        }
+        "features": features,
+        "websocket_endpoints": websocket_info
     }
 
 @app.get("/health")
 def health_check():
-    """Endpoint de salud básico"""
+    """Endpoint de salud básico (ORIGINAL)"""
     return {
         "status": "healthy",
         "environment": ENVIRONMENT,
         "redis_enabled": REDIS_ENABLED,
+        "websocket_enabled": WEBSOCKET_AVAILABLE and is_websocket_enabled() if WEBSOCKET_AVAILABLE else False,
         "cors_debug": "OPTIONS handler active"
     }
 
-# ===== ENDPOINTS REDIS (solo si está habilitado) =====
+# ===== NUEVA SECCIÓN: ENDPOINTS WEBSOCKET =====
+
+@app.get("/system/websocket/status")
+async def get_websocket_system_status():
+    """Estado del sistema WebSocket"""
+    if not WEBSOCKET_AVAILABLE:
+        return {
+            "available": False,
+            "enabled": False,
+            "reason": "Modules not available"
+        }
+    
+    if not is_websocket_enabled():
+        return {
+            "available": True,
+            "enabled": False,
+            "reason": "Disabled in configuration"
+        }
+    
+    try:
+        from app.controllers.websocket.websocket_controller import websocket_controller
+        stats = websocket_controller.get_connection_stats()
+        
+        return {
+            "available": True,
+            "enabled": True,
+            "status": "operational",
+            "stats": stats,
+            "endpoints": {
+                "websocket": "ws://localhost:8000/ws/",
+                "websocket_secure": "ws://localhost:8000/ws/secure",
+                "admin_status": "/ws/status",
+                "admin_health": "/ws/health"
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "available": True,
+            "enabled": True,
+            "status": "error",
+            "error": str(e)
+        }
+
+@app.get("/system/websocket/config")
+async def get_websocket_config_info():
+    """Información de configuración WebSocket (no sensible)"""
+    if not WEBSOCKET_AVAILABLE:
+        return {"error": "WebSocket modules not available"}
+    
+    if not is_websocket_enabled():
+        return {"error": "WebSocket disabled"}
+    
+    try:
+        config = get_websocket_config()
+        
+        # Solo devolver información no sensible
+        return {
+            "enabled": config.websocket_enabled,
+            "host": config.websocket_host,
+            "port": config.websocket_port,
+            "max_connections_per_user": config.max_connections_per_user,
+            "max_total_connections": config.max_total_connections,
+            "heartbeat_interval": config.heartbeat_interval,
+            "require_authentication": config.require_authentication,
+            "development_mode": config.development_mode,
+            "allowed_origins": config.allowed_origins
+        }
+        
+    except Exception as e:
+        return {"error": f"Error getting WebSocket config: {str(e)}"}
+
+@app.get("/health/complete")
+async def complete_health_check():
+    """Health check completo incluyendo WebSocket"""
+    health_data = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment": ENVIRONMENT,
+        "services": {
+            "api": "healthy",
+            "redis": {
+                "enabled": REDIS_ENABLED,
+                "status": "unknown"  # Se puede mejorar con verificación real
+            },
+            "websocket": {
+                "available": WEBSOCKET_AVAILABLE,
+                "enabled": is_websocket_enabled() if WEBSOCKET_AVAILABLE else False,
+                "status": "unknown"
+            }
+        }
+    }
+    
+    # Verificar WebSocket si está disponible
+    if WEBSOCKET_AVAILABLE and is_websocket_enabled():
+        try:
+            from app.controllers.websocket.websocket_controller import websocket_controller
+            ws_stats = websocket_controller.get_connection_stats()
+            
+            health_data["services"]["websocket"] = {
+                "available": True,
+                "enabled": True,
+                "status": "healthy",
+                "active_connections": ws_stats["manager_stats"]["active_connections"],
+                "total_connections": ws_stats["manager_stats"]["total_connections"],
+                "uptime_seconds": ws_stats["manager_stats"]["uptime_seconds"]
+            }
+            
+        except Exception as e:
+            health_data["services"]["websocket"] = {
+                "available": True,
+                "enabled": True,
+                "status": "error",
+                "error": str(e)
+            }
+    
+    return health_data
+
+# ===== ENDPOINTS REDIS (CÓDIGO ORIGINAL) =====
 
 if REDIS_ENABLED:
     @app.get("/system/redis/status")
@@ -241,7 +489,7 @@ if REDIS_ENABLED:
 
 @app.get("/health/redis")
 async def redis_health_check():
-    """Endpoint específico de salud para Redis"""
+    """Endpoint específico de salud para Redis (CÓDIGO ORIGINAL)"""
     if not REDIS_ENABLED:
         return {"redis_enabled": False, "status": "disabled"}
     
@@ -271,14 +519,22 @@ async def redis_health_check():
             "error": str(e)
         }
 
-# ===== CONFIGURACIÓN PARA DESARROLLO =====
+# ===== CONFIGURACIÓN PARA DESARROLLO (CÓDIGO ORIGINAL) =====
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True if ENVIRONMENT == "development" else False,
-        log_level="info"
-    )
+    
+    # Configuración específica para WebSocket
+    uvicorn_config = {
+        "host": "0.0.0.0",
+        "port": 8000,
+        "reload": True if ENVIRONMENT == "development" else False,
+        "log_level": "info"
+    }
+    
+    # Si WebSocket está habilitado, asegurar configuración compatible
+    if WEBSOCKET_AVAILABLE and is_websocket_enabled():
+        logger.info("🔌 Iniciando servidor con soporte WebSocket")
+        uvicorn_config["ws"] = "websockets"  # Asegurar soporte WebSocket
+    
+    uvicorn.run("main:app", **uvicorn_config)

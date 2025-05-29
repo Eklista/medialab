@@ -5,7 +5,7 @@ Limpieza completa, eliminación de código muerto, organización mejorada
 """
 
 from typing import Optional, List, Callable, Dict, Any
-from fastapi import Depends, HTTPException, status, Security, Request
+from fastapi import Depends, HTTPException, status, Security, Request, WebSocket
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 import logging
@@ -485,6 +485,73 @@ def get_dependencies_info() -> Dict[str, Any]:
             "features": ["token_blacklist", "rate_limiting", "security_stats"]
         }
     }
+
+# ===== DEPENDENCIAS WEBSOCKET =====
+
+async def get_current_user_websocket(websocket: WebSocket) -> Optional[Dict[str, Any]]:
+    """
+    Dependencia para obtener el usuario actual en WebSocket
+    Reutiliza la lógica de autenticación existente
+    """
+    try:
+        from app.middleware.websocket_auth import WebSocketAuthMiddleware
+        return await WebSocketAuthMiddleware.get_current_user_websocket(websocket)
+    except ImportError:
+        logger.warning("⚠️ WebSocket auth middleware no disponible")
+        return None
+
+def websocket_require_permission(permission: str):
+    """
+    Dependencia que requiere un permiso específico para WebSocket
+    """
+    async def dependency(websocket: WebSocket) -> Optional[Dict[str, Any]]:
+        try:
+            from app.middleware.websocket_auth import WebSocketAuthMiddleware
+            
+            user = await WebSocketAuthMiddleware.get_current_user_websocket(websocket)
+            if not user:
+                await websocket.close(code=4001, reason="Authentication required")
+                return None
+            
+            has_permission = await WebSocketAuthMiddleware.check_websocket_permission(user, permission)
+            if not has_permission:
+                await websocket.close(code=4003, reason="Insufficient permissions")
+                return None
+            
+            return user
+            
+        except ImportError:
+            logger.warning("⚠️ WebSocket auth middleware no disponible")
+            await websocket.close(code=1011, reason="Service unavailable")
+            return None
+    
+    return dependency
+
+def websocket_admin_required():
+    """
+    Dependencia que requiere permisos de administrador para WebSocket
+    """
+    async def dependency(websocket: WebSocket) -> Optional[Dict[str, Any]]:
+        try:
+            from app.middleware.websocket_auth import WebSocketAuthMiddleware
+            
+            user = await WebSocketAuthMiddleware.get_current_user_websocket(websocket)
+            if not user:
+                await websocket.close(code=4001, reason="Authentication required")
+                return None
+            
+            if not user.get("is_admin"):
+                await websocket.close(code=4003, reason="Admin privileges required")
+                return None
+            
+            return user
+            
+        except ImportError:
+            logger.warning("⚠️ WebSocket auth middleware no disponible")
+            await websocket.close(code=1011, reason="Service unavailable")
+            return None
+    
+    return dependency
 
 # ===== LOGGING DE INICIALIZACIÓN =====
 
