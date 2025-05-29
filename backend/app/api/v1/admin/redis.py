@@ -601,7 +601,7 @@ def get_system_status(
     Obtiene estado completo del sistema Redis
     """
     try:
-        from app.services.redis_init_service import redis_init
+        from app.services.system.redis_init_service import redis_init
         return redis_init.get_system_status()
     except Exception as e:
         raise HTTPException(

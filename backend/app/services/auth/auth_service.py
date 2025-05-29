@@ -14,7 +14,7 @@ from app.config.settings import (
 from app.config.security import (
     SecureTokenManager, verify_password, create_password_hash
 )
-from app.repositories.user_repository import UserRepository
+from app.repositories.users.user_repository import UserRepository
 from app.models.auth.users import User
 from app.schemas.auth.token import TokenPayload
 

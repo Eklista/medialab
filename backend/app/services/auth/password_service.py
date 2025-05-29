@@ -6,8 +6,8 @@ from fastapi import HTTPException, status
 import secrets
 import logging
 
-from app.repositories.auth_repository import AuthRepository
-from app.repositories.user_repository import UserRepository
+from app.repositories.auth.auth_repository import AuthRepository
+from app.repositories.users.user_repository import UserRepository
 from app.config.security import (
     create_password_hash, verify_password, check_password_strength
 )

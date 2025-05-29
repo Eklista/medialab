@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.auth.users import User
-from app.schemas.auth.roles import RoleCreate, RoleUpdate, RoleInDB, RoleWithPermissions
+from app.schemas.security.roles import RoleCreate, RoleUpdate, RoleInDB, RoleWithPermissions
 from app.controllers.security.role_controller import RoleController
 from app.api.deps import has_permission
 

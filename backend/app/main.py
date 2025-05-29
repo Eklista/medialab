@@ -22,11 +22,11 @@ async def lifespan(app: FastAPI):
     # ===== STARTUP =====
     logger.info("🚀 Iniciando MediaLab API...")
     
-    # Inicializar sistema Redis si está habilitado
+    # Inicializar sistema Redis
     if REDIS_ENABLED:
         try:
             logger.info("🔧 Inicializando sistema Redis...")
-            from app.services.redis_init_service import redis_init
+            from app.services.system.redis_init_service import redis_init
             from app.tasks.redis_cleanup_tasks import redis_cleanup_tasks
             
             redis_init_results = await redis_init.initialize_redis_system()
@@ -127,8 +127,8 @@ if REDIS_ENABLED:
         
         app.add_middleware(
             RateLimitMiddleware,
-            calls_limit=1000,
-            period=3600,
+            calls_limit=20000,
+            period=900,
             exclude_paths=[
                 "/docs", "/redoc", "/openapi.json", 
                 "/health", "/favicon.ico",
@@ -207,7 +207,7 @@ if REDIS_ENABLED:
     @app.get("/system/redis/status")
     async def get_redis_system_status():
         try:
-            from app.services.redis_init_service import redis_init
+            from app.services.system.redis_init_service import redis_init
             return redis_init.get_system_status()
         except ImportError:
             return {"error": "Servicios Redis no disponibles"}

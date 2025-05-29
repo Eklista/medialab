@@ -16,8 +16,8 @@ class RateLimitMiddleware:
     def __init__(
         self,
         app,  # ← Primer argumento requerido por FastAPI
-        calls_limit: int = 1000,
-        period: int = 3600,
+        calls_limit: int = 20000,
+        period: int = 900,
         exclude_paths: List[str] = None
     ):
         self.app = app

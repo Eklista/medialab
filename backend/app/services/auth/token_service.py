@@ -5,15 +5,15 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import logging
 
-from app.repositories.auth_repository import AuthRepository
-from app.repositories.user_repository import UserRepository
+from app.repositories.auth.auth_repository import AuthRepository
+from app.repositories.users.user_repository import UserRepository
 from app.config.security import SecureTokenManager
 from app.config.settings import (
     ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 )
 from app.utils.token_blacklist import token_blacklist
 from app.schemas.auth.token import TokenPayload
-from app.schemas.auth.security import TokenBlacklistInfo
+from app.schemas.security.security import TokenBlacklistInfo
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.common.email_config import SmtpConfiguration
-from app.repositories.smtp_repository import SmtpRepository
+from app.repositories.communication.smtp_repository import SmtpRepository
 from app.utils.encryption import decrypt_value
 from app.exceptions import ResourceNotFoundException
 import smtplib

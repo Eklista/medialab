@@ -5,13 +5,13 @@ from sqlalchemy.orm import Session
 from fastapi import Request
 import logging
 
-from app.repositories.auth_repository import AuthRepository
+from app.repositories.auth.auth_repository import AuthRepository
 from app.services.auth.token_service import TokenService
 from app.services.auth.password_service import PasswordService
 from app.utils.token_blacklist import token_blacklist
 from app.utils.redis_rate_limiter import redis_rate_limiter
 from app.config.settings import ENVIRONMENT
-from app.schemas.auth.security import (
+from app.schemas.security.security import (
     SecurityStatusResponse, SecurityStatsResponse, SecurityEvent,
     RateLimitInfo, UserSecurityInfo, SecurityCleanupResponse,
     EmergencyResetResponse

@@ -1,15 +1,17 @@
-# backend/app/services/auth/__init__.py
+# ===== backend/app/services/auth/__init__.py =====
 """
 Servicios especializados de autenticación y seguridad
 Arquitectura modular que separa responsabilidades
 """
 
+from .auth_service import AuthService
 from .password_service import PasswordService
 from .token_service import TokenService
 from .security_service import SecurityService
 
 # Exportar todos los services para fácil importación
 __all__ = [
+    "AuthService",
     "PasswordService",
     "TokenService", 
     "SecurityService"

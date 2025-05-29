@@ -10,7 +10,7 @@ from app.schemas.templates.email_template import (
     EmailTemplateUpdate, 
     EmailTemplateInDB
 )
-from app.services.communication.email_template_service import EmailTemplateService
+from app.services.templates.email_template_service import EmailTemplateService
 from app.utils.error_handler import ErrorHandler
 from app.api.deps import has_permission
 

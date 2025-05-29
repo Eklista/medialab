@@ -1,12 +1,12 @@
 # ============================================================================
-# backend/app/repositories/security/__init__.py
+# backend/app/controllers/security/__init__.py (NUEVO)
 # ============================================================================
 """
-Repositorios de seguridad - roles y permisos
+Controladores de seguridad - roles y permisos
 """
 
-from .role_repository import RoleRepository
+from .role_controller import RoleController
 
 __all__ = [
-    'RoleRepository'
+    "RoleController"
 ]

@@ -1,15 +1,17 @@
+# ============================================================================
 # backend/app/schemas/auth/__init__.py
+# ============================================================================
 """
 Schemas de autenticación y seguridad
 Exporta todos los schemas necesarios para el módulo AUTH
 """
 
 # Schemas de usuarios
-from backend.app.schemas.users.users import *
+from app.schemas.users.users import *
 
 # Schemas de roles y permisos  
-from backend.app.schemas.security.roles import *
-from backend.app.schemas.security.permissions import *
+from app.schemas.security.roles import *
+from app.schemas.security.permissions import *
 
 # Schemas de tokens
 from .token import *
@@ -46,7 +48,7 @@ from .password import (
 )
 
 # Schemas de seguridad y monitoreo
-from backend.app.schemas.security.security import (
+from app.schemas.security.security import (
     SecurityStatusResponse,
     SecurityStatsResponse,
     SecurityEvent,
