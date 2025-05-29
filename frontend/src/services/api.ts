@@ -1,5 +1,16 @@
-// frontend/src/services/api.ts - FIXED FOR DEV & PROD
-import axios, { AxiosError, AxiosInstance } from 'axios';
+// frontend/src/services/api.ts
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+
+// 🆕 EXTENDER TIPOS DE AXIOS PARA METADATA
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    metadata?: {
+      startTime: number;
+      url?: string;
+      method?: string;
+    };
+  }
+}
 
 export const getBaseUrl = () => {
   // 🔥 FIX: Detectar protocolo y entorno correctamente
@@ -25,6 +36,40 @@ export const getBaseUrl = () => {
   // Fallback seguro
   return 'https://medialab.eklista.com/api/v1';
 };
+
+// 🆕 SISTEMA DE DEDUPLICACIÓN DE REQUESTS
+class RequestDeduplicator {
+  private pendingRequests = new Map<string, Promise<any>>();
+  
+  deduplicate<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
+    const existingRequest = this.pendingRequests.get(key);
+    if (existingRequest) {
+      console.log(`🔄 Request deduplicado: ${key}`);
+      return existingRequest as Promise<T>;
+    }
+    
+    const promise = requestFn().finally(() => {
+      this.pendingRequests.delete(key);
+    });
+    
+    this.pendingRequests.set(key, promise);
+    return promise;
+  }
+  
+  clear() {
+    this.pendingRequests.clear();
+    console.log('🧹 Cache de requests limpiado');
+  }
+  
+  getStats() {
+    return {
+      pendingCount: this.pendingRequests.size,
+      pendingKeys: Array.from(this.pendingRequests.keys())
+    };
+  }
+}
+
+export const requestDeduplicator = new RequestDeduplicator();
 
 // Crear instancia de Axios con configuración para cookies
 const apiClient: AxiosInstance = axios.create({
@@ -59,15 +104,48 @@ setInterval(() => {
   }
 }, NETWORK_ERROR_RESET_TIME);
 
-// Interceptor para manejar errores
+// 🆕 INTERCEPTOR PARA MONITOREO DE PERFORMANCE
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // Agregar timestamp para debugging de performance
+  config.metadata = { 
+    startTime: Date.now(),
+    url: config.url,
+    method: config.method?.toUpperCase()
+  };
+  
+  return config;
+});
+
+// Interceptor para manejar respuestas y errores
 apiClient.interceptors.response.use(
   (response) => {
     // Reset contadores en respuestas exitosas
     refreshAttempts = 0;
     networkErrorCount = 0;
+    
+    // 🆕 Log de performance
+    if (response.config.metadata) {
+      const duration = Date.now() - response.config.metadata.startTime;
+      const method = response.config.metadata.method;
+      const url = response.config.metadata.url;
+      
+      // Solo log requests que tomen más de 500ms
+      if (duration > 500) {
+        console.log(`⚡ API ${method} ${url}: ${duration}ms`);
+      }
+    }
+    
     return response;
   },
   async (error: AxiosError) => {
+    // Log de errores con contexto
+    if (error.config?.metadata) {
+      const duration = Date.now() - error.config.metadata.startTime;
+      const method = error.config.metadata.method;
+      const url = error.config.metadata.url;
+      console.error(`💥 API ${method} ${url} FAILED after ${duration}ms:`, error.message);
+    }
+    
     // Si estamos haciendo logout, no intentar renovar tokens
     if (isLoggingOut) {
       return Promise.reject(error);
@@ -210,6 +288,7 @@ export const debugApiConfig = () => {
   console.log('  - Protocol:', window.location.protocol);
   console.log('  - Environment:', import.meta.env.MODE);
   console.log('  - Base URL:', getBaseUrl());
+  console.log('  - Request Deduplicator Stats:', requestDeduplicator.getStats());
   console.log('  - Axios defaults:', {
     baseURL: apiClient.defaults.baseURL,
     timeout: apiClient.defaults.timeout,
@@ -221,7 +300,14 @@ export const debugApiConfig = () => {
 export const resetErrorCounters = () => {
   refreshAttempts = 0;
   networkErrorCount = 0;
-  console.log('🔄 Error counters reset manually');
+  requestDeduplicator.clear();
+  console.log('🔄 Error counters y request cache reset manually');
+};
+
+// 🆕 FUNCIÓN HELPER PARA CREAR CLAVES DE CACHE
+export const createCacheKey = (endpoint: string, params?: Record<string, any>): string => {
+  const paramString = params ? JSON.stringify(params) : '';
+  return `${endpoint}${paramString}`;
 };
 
 export default apiClient;

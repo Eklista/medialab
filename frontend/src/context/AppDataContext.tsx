@@ -1,9 +1,10 @@
-// frontend/src/context/AppDataContext.tsx
+// frontend/src/context/AppDataContext.tsx - OPTIMIZADO CON SERVICIO UNIFICADO
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { authService, userService, permissionsService } from '../services';
+import { authService } from '../services';
 import { User as UserServiceUser, Role, Area } from '../services/users/users.service';
 import { User as AuthServiceUser } from '../services/auth/auth.service';
 import { PermissionCategory } from '../services/security/permissions.service';
+import systemDataService, { SystemDataType, SystemDataResponse } from '../services/system/systemData.service';
 
 // ===== INTERFACES =====
 interface AppData {
@@ -23,15 +24,20 @@ interface AppData {
   isInitialized: boolean;
   error: string | null;
   
-  // 🆕 NUEVO: Control de cache
+  // 🆕 NUEVO: Control de cache mejorado
   lastRefresh: number;
   cacheValidUntil: number;
+  systemDataStats: any; // estadísticas del servicio de datos
   
   // Métodos de refresh selectivos y optimizados
   refreshUser: () => Promise<void>;
-  refreshSystemData: () => Promise<void>;
+  refreshSystemData: (selective?: SystemDataType[]) => Promise<void>;
   refreshAll: () => Promise<void>;
   invalidateCache: () => void;
+  
+  // 🆕 NUEVOS: Métodos específicos optimizados
+  ensureSystemData: (requiredData: SystemDataType[]) => Promise<void>;
+  getSystemDataStats: () => any;
 }
 
 const AppDataContext = createContext<AppData | null>(null);
@@ -49,7 +55,7 @@ interface AppDataProviderProps {
 }
 
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
-  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache'>>({
+  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache' | 'ensureSystemData' | 'getSystemDataStats'>>({
     user: null,
     isAuthenticated: false,
     permissions: [],
@@ -61,14 +67,14 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     isInitialized: false,
     error: null,
     lastRefresh: 0,
-    cacheValidUntil: 0
+    cacheValidUntil: 0,
+    systemDataStats: null
   });
 
   // Refs para control de concurrencia
   const loadingRef = useRef(false);
   const retryCountRef = useRef(0);
   const userCacheRef = useRef(0);
-  const systemCacheRef = useRef(0);
 
   // ===== CACHE HELPERS =====
   const isCacheValid = useCallback((type: 'user' | 'system' = 'system') => {
@@ -76,7 +82,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     if (type === 'user') {
       return now < userCacheRef.current;
     }
-    return now < systemCacheRef.current;
+    // Para datos del sistema, usar el cache del servicio
+    const stats = systemDataService.getStats();
+    return stats.hasCached && !stats.isExpired;
   }, []);
 
   const updateCacheTimestamp = useCallback((type: 'user' | 'system' | 'both' = 'both') => {
@@ -85,24 +93,25 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       userCacheRef.current = now + USER_CACHE_DURATION;
     }
     if (type === 'system' || type === 'both') {
-      systemCacheRef.current = now + CACHE_DURATION;
       setState(prev => ({
         ...prev,
         lastRefresh: now,
-        cacheValidUntil: now + CACHE_DURATION
+        cacheValidUntil: now + CACHE_DURATION,
+        systemDataStats: systemDataService.getStats()
       }));
     }
   }, []);
 
   const invalidateCache = useCallback(() => {
     userCacheRef.current = 0;
-    systemCacheRef.current = 0;
+    systemDataService.clearCache();
     setState(prev => ({
       ...prev,
       cacheValidUntil: 0,
-      lastRefresh: 0
+      lastRefresh: 0,
+      systemDataStats: systemDataService.getStats()
     }));
-    console.log('🧹 Cache invalidado');
+    console.log('🧹 Cache invalidado completamente');
   }, []);
 
   // ===== 🆕 OPTIMIZED DATA LOADING =====
@@ -156,9 +165,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   }, [isCacheValid, state.user, state.isAuthenticated, updateCacheTimestamp]);
 
   /**
-   * Carga SOLO datos del sistema (optimizada con cache)
+   * 🚀 NUEVA: Carga OPTIMIZADA de datos del sistema usando el servicio unificado
    */
-  const loadSystemData = useCallback(async (forceRefresh = false) => {
+  const loadSystemData = useCallback(async (selective?: SystemDataType[], forceRefresh = false) => {
     // Verificar cache del sistema
     if (!forceRefresh && isCacheValid('system') && state.roles.length > 0) {
       console.log('📦 Usando datos del sistema desde cache');
@@ -166,33 +175,48 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
 
     try {
-      console.log('🔄 Cargando datos del sistema...');
+      console.log('🔄 Cargando datos del sistema via servicio unificado...');
       const startTime = Date.now();
 
-      // Carga paralela de datos del sistema
-      const [roles, areas, permissionCategories, allUsers] = await Promise.all([
-        userService.getRoles().catch(() => []),
-        userService.getAreas().catch(() => []),
-        permissionsService.getPermissionsByCategories().catch(() => []),
-        userService.getUsers().catch(() => [])
-      ]);
+      let systemData: SystemDataResponse | undefined;
+      if (selective && selective.length > 0) {
+        // Carga selectiva
+        console.log(`🎯 Carga selectiva de: ${selective.join(', ')}`);
+        const selectiveData = await systemDataService.loadSelectiveData(selective, { forceRefresh });
+        
+        // Actualizar solo los datos solicitados, mantener los existentes
+        setState(prev => ({
+          ...prev,
+          ...(selectiveData.roles && { roles: selectiveData.roles }),
+          ...(selectiveData.areas && { areas: selectiveData.areas }),
+          ...(selectiveData.users && { users: selectiveData.users }),
+          ...(selectiveData.permissionCategories && { permissionCategories: selectiveData.permissionCategories }),
+          error: null,
+          systemDataStats: systemDataService.getStats()
+        }));
+      } else {
+        // Carga completa usando el servicio batch
+        systemData = await systemDataService.loadAllSystemData({ forceRefresh });
 
-      const endTime = Date.now();
-      console.log(`✅ Datos del sistema cargados en ${endTime - startTime}ms:`, {
-        roles: roles.length,
-        areas: areas.length,
-        categories: permissionCategories.length,
-        users: allUsers.length
-      });
+        const endTime = Date.now();
+        console.log(`✅ Datos del sistema cargados en ${endTime - startTime}ms via servicio unificado:`, {
+          roles: systemData.roles.length,
+          areas: systemData.areas.length,
+          categories: systemData.permissionCategories.length,
+          users: systemData.users.length,
+          loadTime: systemData.loadTime
+        });
 
-      setState(prev => ({
-        ...prev,
-        roles,
-        areas,
-        permissionCategories,
-        users: allUsers,
-        error: null
-      }));
+        setState(prev => ({
+          ...prev,
+          roles: systemData!.roles,
+          areas: systemData!.areas,
+          permissionCategories: systemData!.permissionCategories,
+          users: systemData!.users,
+          error: null,
+          systemDataStats: systemDataService.getStats()
+        }));
+      }
 
       updateCacheTimestamp('system');
       
@@ -200,10 +224,34 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       console.error('💥 Error cargando datos del sistema:', error);
       setState(prev => ({
         ...prev,
-        error: `Error cargando datos del sistema: ${error instanceof Error ? error.message : 'Error desconocido'}`
+        error: `Error cargando datos del sistema: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        systemDataStats: systemDataService.getStats()
       }));
     }
   }, [isCacheValid, state.roles.length, updateCacheTimestamp]);
+
+  /**
+   * 🆕 NUEVO: Asegurar que ciertos datos estén disponibles
+   */
+  const ensureSystemData = useCallback(async (requiredData: SystemDataType[]) => {
+    console.log(`🔍 Verificando disponibilidad de: ${requiredData.join(', ')}`);
+    
+    // Verificar qué datos faltan
+    const missingData: SystemDataType[] = [];
+    
+    if (requiredData.includes('roles') && state.roles.length === 0) missingData.push('roles');
+    if (requiredData.includes('areas') && state.areas.length === 0) missingData.push('areas');
+    if (requiredData.includes('users') && state.users.length === 0) missingData.push('users');
+    if (requiredData.includes('permissions') && state.permissionCategories.length === 0) missingData.push('permissions');
+    
+    // Si faltan datos, cargarlos
+    if (missingData.length > 0) {
+      console.log(`📥 Cargando datos faltantes: ${missingData.join(', ')}`);
+      await loadSystemData(missingData);
+    } else {
+      console.log('✅ Todos los datos requeridos están disponibles');
+    }
+  }, [state.roles.length, state.areas.length, state.users.length, state.permissionCategories.length, loadSystemData]);
 
   /**
    * 🆕 CARGA INICIAL INTELIGENTE - Solo lo necesario según la ruta
@@ -229,14 +277,26 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         // PASO 2: Cargar datos de usuario (crítico)
         await loadUserData(true);
         
-        // PASO 3: Determinar si necesitamos datos del sistema
+        // PASO 3: Determinar si necesitamos datos del sistema usando smart refresh
         const currentPath = window.location.pathname;
         const needsSystemData = currentPath.includes('/dashboard') && 
                                !currentPath.includes('/dashboard/settings');
         
         if (needsSystemData) {
-          console.log('📊 Ruta requiere datos del sistema, cargando...');
-          await loadSystemData(true);
+          console.log('📊 Ruta requiere datos del sistema, usando smart refresh...');
+          // Usar smart refresh para determinar la mejor estrategia de carga
+          await systemDataService.smartRefresh();
+          
+          // Actualizar estado con los datos cargados
+          const systemData = await systemDataService.loadAllSystemData();
+          setState(prev => ({
+            ...prev,
+            roles: systemData.roles,
+            areas: systemData.areas,
+            permissionCategories: systemData.permissionCategories,
+            users: systemData.users,
+            systemDataStats: systemDataService.getStats()
+          }));
         } else {
           console.log('🚀 Ruta no requiere datos del sistema, omitiendo carga');
         }
@@ -256,7 +316,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       setState(prev => ({
         ...prev,
         isLoading: false,
-        isInitialized: true
+        isInitialized: true,
+        systemDataStats: systemDataService.getStats()
       }));
 
       retryCountRef.current = 0;
@@ -274,13 +335,14 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
           ...prev,
           isLoading: false,
           isInitialized: true,
-          error: `Error cargando datos: ${error instanceof Error ? error.message : 'Error desconocido'}`
+          error: `Error cargando datos: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+          systemDataStats: systemDataService.getStats()
         }));
       }
     } finally {
       loadingRef.current = false;
     }
-  }, [loadUserData, loadSystemData]);
+  }, [loadUserData]);
 
   // ===== 🆕 REFRESH METHODS OPTIMIZADOS =====
   
@@ -289,9 +351,14 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     await loadUserData(true);
   }, [loadUserData]);
 
-  const refreshSystemData = useCallback(async () => {
-    console.log('🔄 Refresh específico de datos del sistema...');
-    await loadSystemData(true);
+  const refreshSystemData = useCallback(async (selective?: SystemDataType[]) => {
+    console.log('🔄 Refresh de datos del sistema...');
+    if (selective) {
+      console.log(`🎯 Refresh selectivo: ${selective.join(', ')}`);
+    } else {
+      console.log('📊 Refresh completo de datos del sistema');
+    }
+    await loadSystemData(selective, true);
   }, [loadSystemData]);
 
   const refreshAll = useCallback(async () => {
@@ -300,6 +367,20 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     retryCountRef.current = 0;
     await loadInitialData();
   }, [invalidateCache, loadInitialData]);
+
+  const getSystemDataStats = useCallback(() => {
+    return {
+      context: {
+        rolesCount: state.roles.length,
+        areasCount: state.areas.length,
+        usersCount: state.users.length,
+        categoriesCount: state.permissionCategories.length,
+        lastRefresh: state.lastRefresh,
+        cacheValidUntil: state.cacheValidUntil
+      },
+      service: systemDataService.getStats()
+    };
+  }, [state.roles.length, state.areas.length, state.users.length, state.permissionCategories.length, state.lastRefresh, state.cacheValidUntil]);
 
   // ===== 🆕 LISTENERS PARA COORDINAR CON AuthContext =====
   useEffect(() => {
@@ -343,10 +424,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [state.isInitialized, loadInitialData]);
 
-  // ===== 🆕 LAZY LOADING PARA DATOS DEL SISTEMA =====
+  // ===== 🆕 LAZY LOADING MEJORADO PARA DATOS DEL SISTEMA =====
   useEffect(() => {
     // Si el usuario navega a una ruta que requiere datos del sistema
-    // y no los tenemos, cargarlos
+    // y no los tenemos, cargarlos usando el servicio inteligente
     const currentPath = window.location.pathname;
     const needsSystemData = currentPath.includes('/dashboard') && 
                            !currentPath.includes('/dashboard/settings');
@@ -356,10 +437,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         state.isInitialized && 
         state.roles.length === 0 && 
         !isCacheValid('system')) {
-      console.log('🔄 Lazy loading system data...');
-      loadSystemData();
+      console.log('🔄 Lazy loading system data con servicio inteligente...');
+      ensureSystemData(['roles', 'areas', 'users', 'permissions']);
     }
-  }, [window.location.pathname, state.isAuthenticated, state.isInitialized, state.roles.length, isCacheValid, loadSystemData]);
+  }, [state.isAuthenticated, state.isInitialized, state.roles.length, isCacheValid, ensureSystemData]);
 
   // Crear valor del contexto
   const contextValue: AppData = {
@@ -367,7 +448,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     refreshUser,
     refreshSystemData,
     refreshAll,
-    invalidateCache
+    invalidateCache,
+    ensureSystemData,
+    getSystemDataStats
   };
 
   return (
@@ -388,55 +471,55 @@ export const useAppData = () => {
   return context;
 };
 
-// ===== HOOKS ESPECÍFICOS CON LAZY LOADING =====
+// ===== HOOK PRINCIPAL PARA AUTENTICACIÓN =====
 export const useAuth = () => {
   const { user, isAuthenticated, permissions, refreshUser } = useAppData();
   return { user, isAuthenticated, permissions, refreshUser };
 };
 
-export const useRoles = () => {
-  const { roles, refreshSystemData, isLoading } = useAppData();
+// ===== 🆕 HOOKS INTELIGENTES PARA DATOS ESPECÍFICOS =====
+
+/**
+ * Hook optimizado que asegura la disponibilidad de datos específicos
+ */
+export const useEnsuredSystemData = (requiredData: SystemDataType[]) => {
+  const { 
+    roles, areas, users, permissionCategories, 
+    ensureSystemData, isLoading, isInitialized,
+    refreshSystemData, getSystemDataStats
+  } = useAppData();
   
-  // 🆕 Trigger lazy loading si no hay datos
+  const [localLoading, setLocalLoading] = useState(false);
+  
+  // Asegurar datos al montar el componente
   useEffect(() => {
-    if (roles.length === 0 && !isLoading) {
-      console.log('🔄 useRoles: Triggering lazy load');
-      refreshSystemData();
+    if (isInitialized && !isLoading) {
+      setLocalLoading(true);
+      ensureSystemData(requiredData)
+        .finally(() => setLocalLoading(false));
     }
-  }, [roles.length, isLoading, refreshSystemData]);
+  }, [isInitialized, isLoading, requiredData, ensureSystemData]);
   
-  return { roles, refresh: refreshSystemData };
+  // Filtrar solo los datos requeridos
+  const filteredData = {
+    ...(requiredData.includes('roles') && { roles }),
+    ...(requiredData.includes('areas') && { areas }),
+    ...(requiredData.includes('users') && { users }),
+    ...(requiredData.includes('permissions') && { permissionCategories })
+  };
+  
+  return {
+    ...filteredData,
+    isLoading: isLoading || localLoading,
+    refresh: () => refreshSystemData(requiredData),
+    stats: getSystemDataStats()
+  };
 };
 
-export const useAreas = () => {
-  const { areas, refreshSystemData, isLoading } = useAppData();
-  
-  // 🆕 Trigger lazy loading si no hay datos
-  useEffect(() => {
-    if (areas.length === 0 && !isLoading) {
-      console.log('🔄 useAreas: Triggering lazy load');
-      refreshSystemData();
-    }
-  }, [areas.length, isLoading, refreshSystemData]);
-  
-  return { areas };
-};
-
-export const useUsers = () => {
-  const { users, refreshSystemData, isLoading } = useAppData();
-  
-  // 🆕 Trigger lazy loading si no hay datos
-  useEffect(() => {
-    if (users.length === 0 && !isLoading) {
-      console.log('🔄 useUsers: Triggering lazy load');
-      refreshSystemData();
-    }
-  }, [users.length, isLoading, refreshSystemData]);
-  
-  return { users, refresh: refreshSystemData };
-};
-
-export const usePermissionCategories = () => {
-  const { permissionCategories } = useAppData();
-  return { categories: permissionCategories };
+/**
+ * Hook para obtener estadísticas completas del sistema de datos
+ */
+export const useSystemDataStats = () => {
+  const { getSystemDataStats } = useAppData();
+  return getSystemDataStats();
 };
