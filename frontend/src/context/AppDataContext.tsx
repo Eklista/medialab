@@ -434,20 +434,30 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       
       console.log('🔌 Conectando WebSocket...');
       
+      // 🔧 CONFIGURAR HANDLERS ANTES DE CONECTAR
       webSocketService.onUserUpdate(handleWebSocketUserUpdate);
       webSocketService.onSystemDataUpdate(handleWebSocketSystemDataUpdate);
       webSocketService.onNotification(handleWebSocketNotification);
       
-      await webSocketService.connect(Number(state.user.id));
+      // 🔧 NUEVO: Handler para eventos de conexión
+      webSocketService.onConnectionChange((status) => {
+        setState(prev => ({
+          ...prev,
+          websocket: {
+            ...prev.websocket,
+            isConnected: status.connected,
+            connectionState: status.state
+          }
+        }));
+      });
       
-      setState(prev => ({
-        ...prev,
-        websocket: {
-          ...prev.websocket,
-          isConnected: true,
-          connectionState: 'connected'
-        }
-      }));
+      const userId = parseInt(String(state.user.id), 10);
+      if (isNaN(userId)) {
+        console.error('❌ User ID no es un número válido:', state.user.id);
+        return;
+      }
+      
+      await webSocketService.connect(userId);
       
       console.log('✅ WebSocket conectado');
       
@@ -463,9 +473,18 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       }));
     }
   }, [state.isAuthenticated, state.user, handleWebSocketUserUpdate, handleWebSocketSystemDataUpdate, handleWebSocketNotification]);
-  
+
+
   const disconnectWebSocket = useCallback(() => {
     console.log('🔌 Desconectando WebSocket...');
+    
+    // 🔧 LIMPIAR HANDLERS ANTES DE DESCONECTAR
+    webSocketService.off('user_updated');
+    webSocketService.off('system_data_updated');
+    webSocketService.off('notification');
+    webSocketService.off('connected');
+    webSocketService.off('disconnected');
+    webSocketService.off('error');
     
     webSocketService.disconnect();
     
@@ -477,6 +496,52 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         lastUpdate: null
       }
     }));
+  }, []);
+
+  // ===== EFECTO DE WEBSOCKET MEJORADO =====
+  useEffect(() => {
+    let connectionTimeout: number;
+    
+    if (state.isAuthenticated && state.isInitialized && !state.websocket.isConnected) {
+      // 🔧 RETRASO MÁS CORTO PARA CONEXIÓN RÁPIDA
+      connectionTimeout = setTimeout(() => {
+        connectWebSocket();
+      }, 1000); // 1 segundo en lugar de 2
+      
+      return () => clearTimeout(connectionTimeout);
+    } else if (!state.isAuthenticated && state.websocket.isConnected) {
+      disconnectWebSocket();
+    }
+  }, [state.isAuthenticated, state.isInitialized, state.websocket.isConnected, connectWebSocket, disconnectWebSocket]);
+
+  // ===== NUEVO: EFECTO PARA MONITOREO DE WEBSOCKET =====
+  useEffect(() => {
+    // 🔧 MONITOREO MÁS FRECUENTE DEL ESTADO DE WEBSOCKET
+    const interval = setInterval(() => {
+      const wsInfo = webSocketService.getConnectionInfo();
+      
+      setState(prev => {
+        if (prev.websocket.isConnected !== wsInfo.isConnected || 
+            prev.websocket.connectionState !== wsInfo.state) {
+          console.log('🔄 WebSocket state change:', {
+            from: { connected: prev.websocket.isConnected, state: prev.websocket.connectionState },
+            to: { connected: wsInfo.isConnected, state: wsInfo.state }
+          });
+          
+          return {
+            ...prev,
+            websocket: {
+              ...prev.websocket,
+              isConnected: wsInfo.isConnected,
+              connectionState: wsInfo.state
+            }
+          };
+        }
+        return prev;
+      });
+    }, 2000); // Cada 2 segundos en lugar de 5
+    
+    return () => clearInterval(interval);
   }, []);
 
   // ===== REFRESH METHODS =====
@@ -628,6 +693,33 @@ export const useAuth = () => {
   return { user, isAuthenticated, permissions, refreshUser };
 };
 
+export const useWebSocketDebugHook = () => {
+  const { websocket } = useAppData();
+  
+  const getDebugInfo = useCallback(() => {
+    return {
+      context: websocket,
+      service: webSocketService.getDebugInfo()
+    };
+  }, [websocket]);
+  
+  const sendTestMessage = useCallback(() => {
+    webSocketService.sendTestMessage();
+  }, []);
+  
+  const forceReconnect = useCallback(() => {
+    webSocketService.forceReconnect();
+  }, []);
+  
+  return {
+    debugInfo: getDebugInfo(),
+    sendTestMessage,
+    forceReconnect,
+    isConnected: websocket.isConnected,
+    connectionState: websocket.connectionState
+  };
+};
+
 export const useEnsuredSystemData = (requiredData: SystemDataType[]) => {
   const { 
     roles, areas, users, permissionCategories, 
@@ -675,3 +767,4 @@ export const useWebSocketStatus = () => {
     isOnline: websocket.isConnected && websocket.connectionState === 'connected'
   };
 };
+

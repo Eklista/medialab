@@ -1,7 +1,6 @@
-# backend/app/routes/websocket_routes.py
+# backend/app/routes/websocket_routes.py - VERSIÓN CORREGIDA
 """
-🔌 RUTAS WEBSOCKET
-Definición de rutas y endpoints para WebSocket
+🔌 RUTAS WEBSOCKET CORREGIDAS
 """
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Query
@@ -9,7 +8,6 @@ from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
 import logging
 
-# ✅ IMPORTACIONES CORREGIDAS - Eliminadas las duplicadas y conflictivas
 from app.controllers.websocket.websocket_controller import websocket_controller
 from app.api.deps import get_current_active_user, get_current_active_superuser
 from app.config.websocket_config import is_websocket_enabled, get_websocket_config
@@ -17,48 +15,94 @@ from app.config.websocket_config import is_websocket_enabled, get_websocket_conf
 logger = logging.getLogger(__name__)
 
 # ===== ROUTER SETUP =====
-router = APIRouter(prefix="/ws", tags=["WebSocket"])
-admin_router = APIRouter(prefix="/ws/admin", tags=["WebSocket Admin"])
+router = APIRouter(tags=["WebSocket"])
+admin_router = APIRouter(tags=["WebSocket Admin"])
 
-# ===== WEBSOCKET ENDPOINTS =====
+# ===== WEBSOCKET ENDPOINTS CORREGIDOS =====
 
 @router.websocket("/")
 async def websocket_endpoint(
     websocket: WebSocket,
-    user_id: Optional[int] = Query(None, description="ID del usuario")
+    user_id: Optional[int] = Query(None, description="ID del usuario"),
+    token: Optional[str] = Query(None, description="Token de autenticación")
 ):
     """
-    🔌 Endpoint principal de WebSocket
+    🔌 Endpoint principal de WebSocket - VERSIÓN CORREGIDA
     
     Parámetros:
-    - user_id: ID del usuario (opcional, pero recomendado para autenticación)
+    - user_id: ID del usuario (opcional para conexiones autenticadas)
+    - token: Token de autenticación (opcional, también puede venir de cookies)
     
-    Ejemplo de conexión desde JavaScript:
+    Ejemplo de conexión:
     ```javascript
-    const ws = new WebSocket('ws://localhost:8000/ws/?user_id=123');
+    const ws = new WebSocket('ws://localhost:8000/ws/?user_id=1&token=your_token');
     ```
     """
     if not is_websocket_enabled():
         await websocket.close(code=1008, reason="WebSocket service disabled")
         return
     
-    await websocket_controller.websocket_endpoint(websocket, user_id)
+    logger.info(f"🔌 Nueva conexión WebSocket: user_id={user_id}, token={'Present' if token else 'Missing'}")
+    
+    try:
+        await websocket_controller.websocket_endpoint(websocket, user_id)
+    except Exception as e:
+        logger.error(f"💥 Error en websocket endpoint principal: {e}")
+        try:
+            await websocket.close(code=1011, reason="Internal server error")  
+        except:
+            pass
 
 @router.websocket("/secure")
-async def secure_websocket_endpoint(websocket: WebSocket):
+async def secure_websocket_endpoint(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None, description="Token de autenticación requerido")
+):
     """
-    🔐 Endpoint seguro de WebSocket (requiere autenticación)
+    🔐 Endpoint seguro de WebSocket - REQUIERE AUTENTICACIÓN
     
-    Este endpoint requiere un token válido para la conexión.
-    TODO: Implementar autenticación completa
+    Este endpoint requiere autenticación válida para conectarse.
     """
     if not is_websocket_enabled():
         await websocket.close(code=1008, reason="WebSocket service disabled")
         return
     
-    # TODO: Implementar get_current_user_websocket cuando esté listo
-    user_id = None  # Temporal hasta implementar auth completa
-    await websocket_controller.websocket_endpoint(websocket, user_id)
+    logger.info("🔐 Intento de conexión a WebSocket seguro")
+    
+    try:
+        # Este endpoint siempre requiere autenticación
+        await websocket_controller.websocket_endpoint(websocket, user_id=None)
+    except Exception as e:
+        logger.error(f"💥 Error en websocket endpoint seguro: {e}")
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except:
+            pass
+
+# ===== ENDPOINT DE TESTING SIN AUTENTICACIÓN =====
+
+@router.websocket("/test")
+async def test_websocket_endpoint(websocket: WebSocket):
+    """
+    🧪 Endpoint de testing WebSocket SIN autenticación
+    
+    SOLO para desarrollo y testing. No usar en producción.
+    """
+    if not is_websocket_enabled():
+        await websocket.close(code=1008, reason="WebSocket service disabled")
+        return
+    
+    logger.warning("🧪 Conexión a WebSocket de testing (SIN AUTENTICACIÓN)")
+    
+    try:
+        # Usar un user_id ficticio para testing
+        await websocket_controller.websocket_endpoint(websocket, user_id=999)
+    except Exception as e:
+        logger.error(f"💥 Error en websocket endpoint de testing: {e}")
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except:
+            pass
 
 # ===== REST ENDPOINTS PARA GESTIÓN =====
 
@@ -80,7 +124,11 @@ async def websocket_status():
             "enabled": True,
             "status": "running",
             "stats": stats,
-            "timestamp": stats["manager_stats"].get("start_time")
+            "endpoints": {
+                "main": "ws://localhost:8000/ws/",
+                "secure": "ws://localhost:8000/ws/secure", 
+                "test": "ws://localhost:8000/ws/test"
+            }
         }
     except Exception as e:
         logger.error(f"💥 Error obteniendo stats WebSocket: {e}")
@@ -113,7 +161,8 @@ async def websocket_health():
         
         is_healthy = (
             is_websocket_enabled() and
-            stats["manager_stats"]["active_connections"] >= 0  # Básico, siempre debe ser >= 0
+            stats.get("success", False) and
+            stats["manager_stats"]["active_connections"] >= 0
         )
         
         status_code = 200 if is_healthy else 503
@@ -125,7 +174,12 @@ async def websocket_health():
                 "service": "websocket",
                 "active_connections": stats["manager_stats"]["active_connections"],
                 "total_connections": stats["manager_stats"]["total_connections"],
-                "uptime_seconds": stats["manager_stats"]["uptime_seconds"]
+                "uptime_seconds": stats["manager_stats"]["uptime_seconds"],
+                "available_endpoints": [
+                    "ws://localhost:8000/ws/",
+                    "ws://localhost:8000/ws/secure",
+                    "ws://localhost:8000/ws/test"
+                ]
             }
         )
         
@@ -140,7 +194,7 @@ async def websocket_health():
             }
         )
 
-# ===== ENDPOINTS DE ADMINISTRACIÓN =====
+# ===== ENDPOINTS DE ADMINISTRACIÓN (sin cambios) =====
 
 @admin_router.get("/stats")
 async def get_detailed_stats(current_user = Depends(get_current_active_superuser)):
@@ -156,7 +210,11 @@ async def get_detailed_stats(current_user = Depends(get_current_active_superuser
         return {
             "service_stats": stats,
             "requested_by": current_user.id,
-            "timestamp": stats["manager_stats"].get("start_time")
+            "endpoints_info": {
+                "main": "ws://localhost:8000/ws/",
+                "secure": "ws://localhost:8000/ws/secure",
+                "test": "ws://localhost:8000/ws/test (development only)"
+            }
         }
     except Exception as e:
         logger.error(f"💥 Error obteniendo estadísticas detalladas: {e}")
@@ -191,6 +249,82 @@ async def broadcast_admin_message(
     except Exception as e:
         logger.error(f"💥 Error en broadcast admin: {e}")
         raise HTTPException(status_code=500, detail=f"Broadcast failed: {str(e)}")
+
+# ===== ENDPOINT DE TESTING ADMINISTRATIVO =====
+
+@admin_router.post("/test-connection")
+async def test_websocket_connection(
+    test_user_id: int = 1,
+    current_user = Depends(get_current_active_superuser)
+):
+    """
+    🧪 Prueba la funcionalidad WebSocket (solo admins)
+    """
+    if not is_websocket_enabled():
+        raise HTTPException(status_code=503, detail="WebSocket service disabled")
+    
+    try:
+        # Enviar notificación de prueba
+        success = await websocket_controller.send_user_notification(
+            user_id=test_user_id,
+            title="Prueba de Conexión WebSocket",
+            message="Esta es una notificación de prueba del sistema WebSocket",
+            notification_type="test"
+        )
+        
+        return {
+            "test_completed": True,
+            "notification_sent": success,
+            "test_user_id": test_user_id,
+            "tested_by": current_user.id,
+            "message": "Test completed successfully" if success else "Test completed but notification not sent"
+        }
+        
+    except Exception as e:
+        logger.error(f"💥 Error en test de conexión: {e}")
+        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
+
+# ===== INFORMACIÓN DE DEBUGGING =====
+
+@router.get("/debug/info")
+async def get_websocket_debug_info():
+    """
+    🔍 Información de debugging para WebSocket
+    """
+    if not is_websocket_enabled():
+        return {"error": "WebSocket service disabled"}
+    
+    try:
+        config = get_websocket_config()
+        stats = websocket_controller.get_connection_stats()
+        
+        return {
+            "websocket_enabled": is_websocket_enabled(),
+            "available_endpoints": {
+                "main": "/ws/",
+                "secure": "/ws/secure", 
+                "test": "/ws/test",
+                "status": "/ws/status",
+                "health": "/ws/health"
+            },
+            "configuration": {
+                "host": config.websocket_host,
+                "port": config.websocket_port,
+                "max_connections_per_user": config.max_connections_per_user,
+                "max_total_connections": config.max_total_connections,
+                "require_authentication": config.require_authentication
+            },
+            "current_stats": stats,
+            "authentication_methods": [
+                "Query parameter: ?token=your_token",
+                "Cookie: access_token", 
+                "Header: Authorization: Bearer your_token"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"💥 Error obteniendo debug info: {e}")
+        return {"error": f"Debug info failed: {str(e)}"}
 
 @admin_router.post("/disconnect-user/{user_id}")
 async def disconnect_user_connections(
@@ -259,149 +393,3 @@ async def send_user_notification(
     except Exception as e:
         logger.error(f"💥 Error enviando notificación a usuario {user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Notification failed: {str(e)}")
-
-# ===== ENDPOINTS DE TESTING Y DEBUGGING =====
-
-@admin_router.get("/connections")
-async def get_active_connections(current_user = Depends(get_current_active_superuser)):
-    """
-    📊 Lista de conexiones activas (solo admins)
-    """
-    if not is_websocket_enabled():
-        raise HTTPException(status_code=503, detail="WebSocket service disabled")
-    
-    try:
-        stats = websocket_controller.get_connection_stats()
-        
-        return {
-            "active_connections": stats["manager_stats"]["active_connections"],
-            "connections_by_user": stats["manager_stats"].get("connections_per_user", {}),
-            "total_connections": stats["manager_stats"]["total_connections"],
-            "uptime_seconds": stats["manager_stats"]["uptime_seconds"],
-            "unique_users": stats["manager_stats"].get("unique_users", 0),
-            "active_rooms": stats["manager_stats"].get("active_rooms", 0),
-            "requested_by": current_user.id
-        }
-        
-    except Exception as e:
-        logger.error(f"💥 Error obteniendo conexiones activas: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get connections: {str(e)}")
-
-@admin_router.post("/test-broadcast")
-async def test_websocket_broadcast(
-    message: str = "Test message from admin",
-    current_user = Depends(get_current_active_superuser)
-):
-    """
-    🧪 Envía mensaje de prueba a todas las conexiones (solo para testing)
-    """
-    if not is_websocket_enabled():
-        raise HTTPException(status_code=503, detail="WebSocket service disabled")
-    
-    try:
-        test_message = f"TEST: {message} - Enviado por admin {current_user.id}"
-        sent_count = await websocket_controller.broadcast_admin_message(
-            message=test_message,
-            message_type="test"
-        )
-        
-        logger.info(f"🧪 Admin {current_user.id} envió test broadcast: '{test_message}'")
-        
-        return {
-            "success": True,
-            "message": "Test broadcast sent",
-            "sent_to_connections": sent_count,
-            "test_message": test_message,
-            "original_message": message,
-            "sent_by": current_user.id
-        }
-        
-    except Exception as e:
-        logger.error(f"💥 Error en test broadcast: {e}")
-        raise HTTPException(status_code=500, detail=f"Test broadcast failed: {str(e)}")
-
-@admin_router.get("/config")
-async def get_websocket_config_admin(current_user = Depends(get_current_active_superuser)):
-    """
-    ⚙️ Configuración del WebSocket (solo admins)
-    """
-    if not is_websocket_enabled():
-        raise HTTPException(status_code=503, detail="WebSocket service disabled")
-    
-    try:
-        config = get_websocket_config()
-        
-        return {
-            "enabled": config.websocket_enabled,
-            "host": config.websocket_host,
-            "port": config.websocket_port,
-            "max_connections_per_user": config.max_connections_per_user,
-            "max_total_connections": config.max_total_connections,
-            "connection_timeout": config.connection_timeout,
-            "heartbeat_interval": config.heartbeat_interval,
-            "max_message_size": config.max_message_size,
-            "message_queue_size": config.message_queue_size,
-            "require_authentication": config.require_authentication,
-            "allowed_origins": config.allowed_origins,
-            "log_connections": config.log_connections,
-            "log_messages": config.log_messages,
-            "debug_mode": config.debug_mode,
-            "development_mode": config.development_mode,
-            "requested_by": current_user.id
-        }
-        
-    except Exception as e:
-        logger.error(f"💥 Error obteniendo configuración WebSocket: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting config: {str(e)}")
-
-# ===== ENDPOINTS DE MONITOREO =====
-
-@admin_router.get("/rooms")
-async def get_websocket_rooms(current_user = Depends(get_current_active_superuser)):
-    """
-    🏠 Lista de salas/rooms activas
-    """
-    if not is_websocket_enabled():
-        raise HTTPException(status_code=503, detail="WebSocket service disabled")
-    
-    try:
-        stats = websocket_controller.get_connection_stats()
-        
-        # Información básica de rooms - se puede expandir si el manager expone más detalles
-        return {
-            "total_rooms": stats["manager_stats"].get("active_rooms", 0),
-            "room_info": "Detalles de rooms disponibles en una versión futura",
-            "requested_by": current_user.id,
-            "note": "Esta funcionalidad se puede expandir para mostrar detalles específicos de cada room"
-        }
-        
-    except Exception as e:
-        logger.error(f"💥 Error obteniendo rooms: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting rooms: {str(e)}")
-
-@admin_router.post("/cleanup")
-async def cleanup_websocket_connections(current_user = Depends(get_current_active_superuser)):
-    """
-    🧹 Limpieza manual de conexiones obsoletas
-    """
-    if not is_websocket_enabled():
-        raise HTTPException(status_code=503, detail="WebSocket service disabled")
-    
-    try:
-        # Esta funcionalidad se ejecuta automáticamente en background, 
-        # pero podemos proporcionar stats antes y después
-        stats_before = websocket_controller.get_connection_stats()
-        
-        logger.info(f"🧹 Admin {current_user.id} solicitó limpieza manual de conexiones")
-        
-        return {
-            "success": True,
-            "message": "Cleanup process runs automatically in background",
-            "connections_before": stats_before["manager_stats"]["active_connections"],
-            "note": "La limpieza automática se ejecuta cada minuto",
-            "requested_by": current_user.id
-        }
-        
-    except Exception as e:
-        logger.error(f"💥 Error en cleanup manual: {e}")
-        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")

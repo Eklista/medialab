@@ -218,6 +218,28 @@ async def cors_preflight_handler(request: Request, call_next):
     response = await call_next(request)
     return response
 
+@app.middleware("http")
+async def websocket_debug_middleware(request: Request, call_next):
+    """
+    Middleware específico para debugging de WebSocket
+    """
+    if request.url.path.startswith("/ws"):
+        logger.info(f"🔍 WebSocket request: {request.method} {request.url.path}")
+        logger.info(f"🔍 Headers: {dict(request.headers)}")
+        logger.info(f"🔍 Query params: {dict(request.query_params)}")
+        
+        # Log de cookies para debugging
+        if "cookie" in request.headers:
+            cookies = request.headers["cookie"]
+            logger.info(f"🍪 Cookies: {cookies[:100]}...")  # Solo primeros 100 chars
+    
+    response = await call_next(request)
+    
+    if request.url.path.startswith("/ws"):
+        logger.info(f"🔍 WebSocket response: {response.status_code}")
+    
+    return response
+    
 # 2. Configuración CORS standard (después del middleware manual)
 app.add_middleware(
     CORSMiddleware,
@@ -253,15 +275,18 @@ if REDIS_ENABLED:
                 "/docs", "/redoc", "/openapi.json", 
                 "/health", "/favicon.ico",
                 "/api/v1/docs", "/api/v1/openapi.json",
-                "/ws", "/ws/", "/ws/secure"  # Excluir endpoints WebSocket
+                "/ws", "/ws/", "/ws/secure", "/ws/test",
+                "/ws/status", "/ws/health", "/ws/debug/info",
+                "/ws/admin", "/ws/admin/", "/ws/admin/stats"
             ]
         )
-        logger.info("✅ Rate limiting middleware cargado")
+        logger.info("✅ Rate limiting middleware cargado con exclusiones WebSocket")
         
     except ImportError as e:
         logger.warning(f"⚠️ Rate limiting middleware no disponible: {e}")
     except Exception as e:
         logger.error(f"❌ Error cargando rate limiting middleware: {e}")
+
 
 # Security Headers Middleware (opcional)
 try:
