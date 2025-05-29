@@ -193,51 +193,79 @@ websocket_notification_service = WebSocketNotificationService()
 def notify_websocket_on_crud(entity_type: str, operation: str):
     """
     Decorador para notificar automáticamente cambios CRUD via WebSocket
-    
-    Args:
-        entity_type: Tipo de entidad (user, role, area, etc.)
-        operation: Operación (create, update, delete)
+    🔧 VERSIÓN CORREGIDA - Maneja tanto funciones síncronas como asíncronas
     """
     def decorator(func):
-        async def wrapper(*args, **kwargs):
-            # Ejecutar la función original
-            result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
-            
-            # Intentar notificar via WebSocket
-            try:
-                if websocket_notification_service.is_available():
-                    # Extraer datos relevantes del resultado
-                    entity_data = result if isinstance(result, dict) else getattr(result, '__dict__', {})
-                    
-                    # Extraer ID del usuario que realizó la operación
-                    current_user_id = None
-                    for arg in args:
-                        if hasattr(arg, 'id') and hasattr(arg, 'email'):  # Es un User
-                            current_user_id = arg.id
-                            break
-                    
-                    # Llamar al método de notificación apropiado
-                    notification_method = f"notify_{entity_type}_{operation}d"
-                    if hasattr(websocket_notification_service, notification_method):
-                        method = getattr(websocket_notification_service, notification_method)
-                        
-                        if operation == 'delete':
-                            # Para eliminaciones, pasar información especial
-                            entity_id = entity_data.get('id')
-                            entity_name = entity_data.get('name') or entity_data.get('email') or str(entity_id)
-                            await method(entity_id, entity_name, current_user_id)
-                        else:
-                            # Para creaciones y actualizaciones
-                            await method(entity_data, current_user_id)
+        # Verificar si la función es asíncrona
+        if asyncio.iscoroutinefunction(func):
+            # Para funciones async
+            async def async_wrapper(*args, **kwargs):
+                # Ejecutar la función original
+                result = await func(*args, **kwargs)
                 
-            except Exception as e:
-                logger.warning(f"⚠️ Error en notificación WebSocket para {entity_type}_{operation}: {e}")
-                # No fallar la operación principal por error de notificación
-            
-            return result
-        
-        return wrapper
+                # Intentar notificar via WebSocket (en background)
+                asyncio.create_task(
+                    _send_websocket_notification(entity_type, operation, result, args, kwargs)
+                )
+                
+                return result
+            return async_wrapper
+        else:
+            # Para funciones síncronas
+            def sync_wrapper(*args, **kwargs):
+                # Ejecutar la función original
+                result = func(*args, **kwargs)
+                
+                # Intentar notificar via WebSocket (en background)
+                try:
+                    loop = asyncio.get_event_loop()
+                    loop.create_task(
+                        _send_websocket_notification(entity_type, operation, result, args, kwargs)
+                    )
+                except RuntimeError:
+                    # Si no hay loop activo, ignorar la notificación
+                    logger.debug(f"No se pudo enviar notificación WebSocket para {entity_type}_{operation} (no hay event loop)")
+                
+                return result
+            return sync_wrapper
+    
     return decorator
+
+async def _send_websocket_notification(entity_type: str, operation: str, result, args, kwargs):
+    """
+    Función auxiliar para enviar notificaciones WebSocket
+    """
+    try:
+        if not websocket_notification_service.is_available():
+            return
+            
+        # Extraer datos relevantes del resultado
+        entity_data = result if isinstance(result, dict) else getattr(result, '__dict__', {})
+        
+        # Extraer ID del usuario que realizó la operación
+        current_user_id = None
+        for arg in args:
+            if hasattr(arg, 'id') and hasattr(arg, 'email'):  # Es un User
+                current_user_id = arg.id
+                break
+        
+        # Llamar al método de notificación apropiado
+        notification_method = f"notify_{entity_type}_{operation}d"
+        if hasattr(websocket_notification_service, notification_method):
+            method = getattr(websocket_notification_service, notification_method)
+            
+            if operation == 'delete':
+                # Para eliminaciones, pasar información especial
+                entity_id = entity_data.get('id')
+                entity_name = entity_data.get('name') or entity_data.get('email') or str(entity_id)
+                await method(entity_id, entity_name, current_user_id)
+            else:
+                # Para creaciones y actualizaciones
+                await method(entity_data, current_user_id)
+                
+    except Exception as e:
+        logger.warning(f"⚠️ Error en notificación WebSocket para {entity_type}_{operation}: {e}")
+        # No fallar la operación principal por error de notificación
 
 # ===== INTEGRACIÓN CON CONTROLADORES EXISTENTES =====
 

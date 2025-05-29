@@ -1,7 +1,6 @@
-# backend/services/websocket/websocket_service.py
+# backend/app/services/websocket/websocket_service.py
 """
 🔌 SERVICIO WEBSOCKET
-Lógica de negocio para WebSocket - Manejo de eventos y notificaciones
 """
 
 from typing import Dict, List, Optional, Any
@@ -9,8 +8,9 @@ import json
 import logging
 from datetime import datetime
 
-from config.websocket_config import get_websocket_config
-from services.websocket.websocket_manager import websocket_manager
+# ✅ IMPORTACIONES CORREGIDAS
+from app.config.websocket_config import get_websocket_config
+from app.services.websocket.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 

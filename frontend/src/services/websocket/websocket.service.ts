@@ -1,5 +1,5 @@
 // frontend/src/services/websocket/websocket.service.ts
-// 🚀 SERVICIO WEBSOCKET PARA ACTUALIZACIONES EN TIEMPO REAL
+// 🚀 SERVICIO WEBSOCKET PARA ACTUALIZACIONES EN TIEMPO REAL - VERSIÓN CORREGIDA
 
 interface WebSocketConfig {
   url: string;
@@ -54,8 +54,26 @@ class WebSocketService {
     return 'ws://localhost:8000/ws';
   }
   
+  // 🔧 NUEVA FUNCIÓN: Obtener token desde cookies
+  private getAccessToken(): string | null {
+    try {
+      // Buscar la cookie access_token
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'access_token') {
+          return value;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('💥 Error obteniendo token desde cookies:', error);
+      return null;
+    }
+  }
+  
   /**
-   * 🚀 CONECTAR AL WEBSOCKET
+   * 🚀 CONECTAR AL WEBSOCKET - VERSIÓN CORREGIDA CON AUTENTICACIÓN
    */
   async connect(userId?: number): Promise<void> {
     if (this.isConnected || this.connectionState === 'connecting') {
@@ -67,7 +85,31 @@ class WebSocketService {
       this.connectionState = 'connecting';
       console.log('🔌 Conectando WebSocket...', this.config.url);
       
-      const wsUrl = userId ? `${this.config.url}?user_id=${userId}` : this.config.url;
+      // 🔧 NUEVA LÓGICA: Construir URL con token y userId
+      let wsUrl = this.config.url;
+      const urlParams = new URLSearchParams();
+      
+      // Agregar userId si se proporciona
+      if (userId) {
+        urlParams.append('user_id', userId.toString());
+      }
+      
+      // 🔧 AGREGAR TOKEN DESDE COOKIES
+      const accessToken = this.getAccessToken();
+      if (accessToken) {
+        urlParams.append('token', accessToken);
+        console.log('🔑 Token agregado a la conexión WebSocket');
+      } else {
+        console.warn('⚠️ No se encontró token - conectando sin autenticación');
+      }
+      
+      // Construir URL final
+      if (urlParams.toString()) {
+        wsUrl += '?' + urlParams.toString();
+      }
+      
+      console.log('🔗 URL WebSocket final:', wsUrl.replace(/token=[^&]+/, 'token=***'));
+      
       this.ws = new WebSocket(wsUrl);
       
       this.setupEventListeners();
@@ -117,7 +159,7 @@ class WebSocketService {
     this.ws.onmessage = (event) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
-        console.log('📨 WebSocket mensaje recibido:', message.type);
+        console.log('📨 WebSocket mensaje recibido:', message.type, message);
         this.handleMessage(message);
       } catch (error) {
         console.error('💥 Error parseando mensaje WebSocket:', error);
@@ -130,9 +172,15 @@ class WebSocketService {
       this.connectionState = 'disconnected';
       this.stopHeartbeat();
       
-      // Reconexión automática si no fue cierre intencional
+      // 🔧 MEJORADA LÓGICA DE RECONEXIÓN
       if (event.code !== 1000 && this.reconnectAttempts < this.config.maxReconnectAttempts) {
-        this.scheduleReconnect();
+        // No reconectar inmediatamente si es por autenticación (403)
+        if (event.code === 1008) {
+          console.log('🔐 Desconexión por autenticación - esperando más tiempo para reconectar');
+          setTimeout(() => this.scheduleReconnect(), 5000);
+        } else {
+          this.scheduleReconnect();
+        }
       }
     };
     
@@ -187,6 +235,15 @@ class WebSocketService {
     } else {
       console.warn(`⚠️ No hay handler para mensaje tipo: ${message.type}`);
     }
+    
+    // 🔧 MANEJAR MENSAJES DEL SISTEMA
+    if (message.type === 'connected') {
+      console.log('🎉 Conexión WebSocket confirmada por el servidor:', message.data);
+    } else if (message.type === 'heartbeat') {
+      console.log('💓 Heartbeat recibido del servidor');
+    } else if (message.type === 'pong') {
+      console.log('🏓 Pong recibido del servidor');
+    }
   }
   
   /**
@@ -201,6 +258,7 @@ class WebSocketService {
     
     if (this.isConnected && this.ws) {
       this.ws.send(JSON.stringify(message));
+      console.log('📤 Mensaje enviado:', type, data);
     } else {
       // Encolar mensaje para enviar cuando se conecte
       this.messageQueue.push(message);
@@ -215,6 +273,7 @@ class WebSocketService {
     while (this.messageQueue.length > 0 && this.isConnected) {
       const message = this.messageQueue.shift()!;
       this.ws!.send(JSON.stringify(message));
+      console.log('📤 Mensaje de cola enviado:', message.type);
     }
   }
   
@@ -266,6 +325,37 @@ class WebSocketService {
     this.on('notification', handler);
   }
   
+  // ===== NUEVOS MÉTODOS PARA SUSCRIPCIONES =====
+  
+  /**
+   * 🏠 SUSCRIBIRSE A UNA SALA ESPECÍFICA
+   */
+  subscribeToRoom(roomType: string, roomId?: number): void {
+    this.send('subscribe', {
+      room_type: roomType,
+      room_id: roomId
+    });
+  }
+  
+  /**
+   * 🚪 DESUSCRIBIRSE DE UNA SALA
+   */
+  unsubscribeFromRoom(roomType: string, roomId?: number): void {
+    this.send('unsubscribe', {
+      room_type: roomType,
+      room_id: roomId
+    });
+  }
+  
+  /**
+   * 👤 ACTUALIZAR ESTADO DEL USUARIO
+   */
+  updateUserStatus(status: string): void {
+    this.send('user_status', {
+      status: status
+    });
+  }
+  
   // ===== CONTROL DE CONEXIÓN =====
   
   /**
@@ -300,7 +390,8 @@ class WebSocketService {
       state: this.connectionState,
       reconnectAttempts: this.reconnectAttempts,
       queuedMessages: this.messageQueue.length,
-      url: this.config.url
+      url: this.config.url,
+      hasToken: this.getAccessToken() !== null
     };
   }
   
@@ -311,6 +402,31 @@ class WebSocketService {
     console.log('🔄 Forzando reconexión...');
     this.disconnect();
     setTimeout(() => this.connect(), 1000);
+  }
+  
+  // ===== NUEVOS MÉTODOS DE DEBUGGING =====
+  
+  /**
+   * 🔍 INFORMACIÓN DE DEBUG
+   */
+  getDebugInfo() {
+    return {
+      ...this.getConnectionInfo(),
+      config: this.config,
+      handlers: Object.keys(this.eventHandlers),
+      messageQueue: this.messageQueue.length,
+      token: this.getAccessToken() ? 'Present' : 'Missing'
+    };
+  }
+  
+  /**
+   * 🧪 ENVIAR MENSAJE DE PRUEBA
+   */
+  sendTestMessage(): void {
+    this.send('test', {
+      message: 'Mensaje de prueba desde el frontend',
+      timestamp: new Date().toISOString()
+    });
   }
 }
 
@@ -344,6 +460,11 @@ export const useWebSocket = () => {
     send: webSocketService.send.bind(webSocketService),
     on: webSocketService.on.bind(webSocketService),
     off: webSocketService.off.bind(webSocketService),
-    forceReconnect: webSocketService.forceReconnect.bind(webSocketService)
+    forceReconnect: webSocketService.forceReconnect.bind(webSocketService),
+    subscribeToRoom: webSocketService.subscribeToRoom.bind(webSocketService),
+    unsubscribeFromRoom: webSocketService.unsubscribeFromRoom.bind(webSocketService),
+    updateUserStatus: webSocketService.updateUserStatus.bind(webSocketService),
+    getDebugInfo: webSocketService.getDebugInfo.bind(webSocketService),
+    sendTestMessage: webSocketService.sendTestMessage.bind(webSocketService)
   };
 };

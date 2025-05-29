@@ -17,17 +17,68 @@ logger = logging.getLogger(__name__)
 # Importaciones de configuración
 from app.config.settings import CORS_ORIGINS, ENVIRONMENT, REDIS_ENABLED
 
-# ===== IMPORTACIONES WEBSOCKET =====
+# ===== IMPORTACIONES WEBSOCKET CORREGIDAS =====
 try:
+    logger.info("🔍 Iniciando importación de módulos WebSocket...")
+    
+    logger.debug("🔍 Importando websocket_config...")
     from app.config.websocket_config import is_websocket_enabled, get_websocket_config
+    logger.debug("✅ websocket_config importado correctamente")
+    
+    logger.debug("🔍 Importando websocket_routes...")
     from app.routes.websocket_routes import router as websocket_router, admin_router as websocket_admin_router
+    logger.debug("✅ websocket_routes importado correctamente")
+    
+    logger.debug("🔍 Importando websocket_manager...")
     from app.services.websocket.websocket_manager import websocket_manager
+    logger.debug("✅ websocket_manager importado correctamente")
+    
+    logger.debug("🔍 Importando notification_service...")
     from app.services.websocket.notification_service import initialize_websocket_notifications
+    logger.debug("✅ notification_service importado correctamente")
+    
     WEBSOCKET_AVAILABLE = True
-    logger.info("✅ Módulos WebSocket disponibles")
+    logger.info("✅ Todos los módulos WebSocket disponibles")
+    
 except ImportError as e:
     WEBSOCKET_AVAILABLE = False
-    logger.warning(f"⚠️ Módulos WebSocket no disponibles: {e}")
+    logger.error(f"❌ Error importando módulos WebSocket: {e}")
+    
+    # Logging detallado para debugging
+    import traceback
+    logger.error(f"Traceback completo del error de importación:")
+    logger.error(traceback.format_exc())
+    
+    # Intentar identificar qué módulo específico está fallando
+    try:
+        from app.config.websocket_config import is_websocket_enabled
+        logger.info("✅ app.config.websocket_config - OK")
+    except ImportError as config_error:
+        logger.error(f"❌ app.config.websocket_config - FALLO: {config_error}")
+    
+    try:
+        from app.routes.websocket_routes import router
+        logger.info("✅ app.routes.websocket_routes - OK")
+    except ImportError as routes_error:
+        logger.error(f"❌ app.routes.websocket_routes - FALLO: {routes_error}")
+    
+    try:
+        from app.services.websocket.websocket_manager import websocket_manager
+        logger.info("✅ app.services.websocket.websocket_manager - OK")
+    except ImportError as manager_error:
+        logger.error(f"❌ app.services.websocket.websocket_manager - FALLO: {manager_error}")
+    
+    try:
+        from app.services.websocket.notification_service import initialize_websocket_notifications
+        logger.info("✅ app.services.websocket.notification_service - OK")
+    except ImportError as notification_error:
+        logger.error(f"❌ app.services.websocket.notification_service - FALLO: {notification_error}")
+
+except Exception as e:
+    WEBSOCKET_AVAILABLE = False
+    logger.error(f"❌ Error inesperado cargando módulos WebSocket: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -116,32 +167,16 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
         logger.info("🧹 Tareas de limpieza Redis detenidas")
-    
-    # ===== NUEVA SECCIÓN: CLEANUP WEBSOCKET =====
-    if hasattr(app.state, 'websocket_manager') and app.state.websocket_enabled:
+
+    # ===== CLEANUP WEBSOCKET CORREGIDO =====
+    if hasattr(app.state, 'websocket_manager') and app.state.websocket_enabled and app.state.websocket_manager:
         try:
-            logger.info("🔌 Cerrando conexiones WebSocket...")
+            logger.info("🔌 Cerrando servicios WebSocket...")
             
-            # Enviar notificación de cierre del servidor
-            try:
-                await app.state.websocket_manager.broadcast_to_all({
-                    "type": "server_shutdown",
-                    "data": {
-                        "message": "El servidor se está cerrando",
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                })
-                # Dar tiempo para que llegue el mensaje
-                await asyncio.sleep(1)
-            except:
-                pass  # Ignorar errores al enviar notificación de cierre
+            # Usar el método shutdown del manager
+            await app.state.websocket_manager.shutdown()
             
-            # Desconectar todas las conexiones activas
-            active_connections = list(app.state.websocket_manager.active_connections.keys())
-            for connection_id in active_connections:
-                app.state.websocket_manager.disconnect(connection_id, 1001, "Server shutdown")
-            
-            logger.info(f"🔌 {len(active_connections)} conexiones WebSocket cerradas")
+            logger.info("✅ Servicios WebSocket cerrados correctamente")
             
         except Exception as e:
             logger.error(f"❌ Error cerrando WebSocket: {e}")
@@ -270,15 +305,19 @@ if WEBSOCKET_AVAILABLE and is_websocket_enabled():
         # Router administrativo de WebSocket
         app.include_router(websocket_admin_router, prefix="/ws/admin", tags=["websocket-admin"])
         
-        logger.info("✅ WebSocket routers cargados")
+        logger.info("✅ WebSocket routers cargados correctamente")
         logger.info("   - Endpoint principal: ws://localhost:8000/ws/")
         logger.info("   - Endpoint seguro: ws://localhost:8000/ws/secure")
         logger.info("   - Admin endpoints: /ws/admin/*")
         
     except Exception as e:
         logger.error(f"❌ Error cargando WebSocket routers: {e}")
+        logger.error(f"Detalles: {traceback.format_exc()}")
 else:
-    logger.info("⚠️ WebSocket routers no cargados (deshabilitado o no disponible)")
+    if not WEBSOCKET_AVAILABLE:
+        logger.info("⚠️ WebSocket routers no cargados (módulos no disponibles)")
+    else:
+        logger.info("⚠️ WebSocket routers no cargados (deshabilitado en configuración)")
 
 # ===== ENDPOINTS DE SISTEMA (CÓDIGO ORIGINAL + WEBSOCKET) =====
 
@@ -336,39 +375,76 @@ def health_check():
 
 @app.get("/system/websocket/status")
 async def get_websocket_system_status():
-    """Estado del sistema WebSocket"""
+    """Estado del sistema WebSocket - VERSIÓN CORREGIDA"""
     if not WEBSOCKET_AVAILABLE:
         return {
             "available": False,
             "enabled": False,
-            "reason": "Modules not available"
-        }
-    
-    if not is_websocket_enabled():
-        return {
-            "available": True,
-            "enabled": False,
-            "reason": "Disabled in configuration"
+            "reason": "Modules not available",
+            "details": "Los módulos WebSocket no pudieron ser importados. Revisa los logs para más detalles."
         }
     
     try:
-        from app.controllers.websocket.websocket_controller import websocket_controller
-        stats = websocket_controller.get_connection_stats()
+        websocket_enabled = is_websocket_enabled()
         
-        return {
-            "available": True,
-            "enabled": True,
-            "status": "operational",
-            "stats": stats,
-            "endpoints": {
-                "websocket": "ws://localhost:8000/ws/",
-                "websocket_secure": "ws://localhost:8000/ws/secure",
-                "admin_status": "/ws/status",
-                "admin_health": "/ws/health"
+        if not websocket_enabled:
+            return {
+                "available": True,
+                "enabled": False,
+                "reason": "Disabled in configuration",
+                "config_check": "WebSocket está deshabilitado en websocket_config.py"
             }
-        }
+        
+        # Verificar estado del manager
+        if not hasattr(app.state, 'websocket_manager') or not app.state.websocket_manager:
+            return {
+                "available": True,
+                "enabled": True,
+                "status": "error",
+                "reason": "Manager not initialized",
+                "details": "El WebSocket Manager no se inicializó correctamente"
+            }
+        
+        # Obtener estadísticas del controller
+        try:
+            from app.controllers.websocket.websocket_controller import websocket_controller
+            stats = websocket_controller.get_connection_stats()
+            
+            return {
+                "available": True,
+                "enabled": True,
+                "status": "operational",
+                "stats": stats,
+                "manager_state": {
+                    "initialized": True,
+                    "active_connections": len(app.state.websocket_manager.active_connections),
+                    "active_rooms": len(app.state.websocket_manager.rooms),
+                    "background_tasks_running": {
+                        "cleanup": app.state.websocket_manager._cleanup_task is not None,
+                        "heartbeat": app.state.websocket_manager._heartbeat_task is not None
+                    }
+                },
+                "endpoints": {
+                    "websocket": "ws://localhost:8000/ws/",
+                    "websocket_secure": "ws://localhost:8000/ws/secure",
+                    "admin_status": "/ws/admin/stats",
+                    "health": "/ws/health"
+                }
+            }
+            
+        except Exception as controller_error:
+            logger.error(f"Error obteniendo stats del controller: {controller_error}")
+            return {
+                "available": True,
+                "enabled": True,
+                "status": "partial_error",
+                "reason": "Controller error",
+                "error": str(controller_error),
+                "manager_available": app.state.websocket_manager is not None
+            }
         
     except Exception as e:
+        logger.error(f"Error en websocket status endpoint: {e}")
         return {
             "available": True,
             "enabled": True,
@@ -378,14 +454,16 @@ async def get_websocket_system_status():
 
 @app.get("/system/websocket/config")
 async def get_websocket_config_info():
-    """Información de configuración WebSocket (no sensible)"""
+    """Información de configuración WebSocket (no sensible) - VERSIÓN CORREGIDA"""
     if not WEBSOCKET_AVAILABLE:
         return {"error": "WebSocket modules not available"}
     
-    if not is_websocket_enabled():
-        return {"error": "WebSocket disabled"}
-    
     try:
+        websocket_enabled = is_websocket_enabled()
+        
+        if not websocket_enabled:
+            return {"error": "WebSocket disabled in configuration"}
+        
         config = get_websocket_config()
         
         # Solo devolver información no sensible
@@ -396,17 +474,24 @@ async def get_websocket_config_info():
             "max_connections_per_user": config.max_connections_per_user,
             "max_total_connections": config.max_total_connections,
             "heartbeat_interval": config.heartbeat_interval,
+            "connection_timeout": config.connection_timeout,
+            "max_message_size": config.max_message_size,
             "require_authentication": config.require_authentication,
             "development_mode": config.development_mode,
-            "allowed_origins": config.allowed_origins
+            "allowed_origins": config.allowed_origins,
+            "logging": {
+                "log_connections": config.log_connections,
+                "log_messages": config.log_messages
+            }
         }
         
     except Exception as e:
+        logger.error(f"Error obteniendo configuración WebSocket: {e}")
         return {"error": f"Error getting WebSocket config: {str(e)}"}
 
 @app.get("/health/complete")
 async def complete_health_check():
-    """Health check completo incluyendo WebSocket"""
+    """Health check completo incluyendo WebSocket - VERSIÓN CORREGIDA"""
     health_data = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
@@ -419,28 +504,45 @@ async def complete_health_check():
             },
             "websocket": {
                 "available": WEBSOCKET_AVAILABLE,
-                "enabled": is_websocket_enabled() if WEBSOCKET_AVAILABLE else False,
-                "status": "unknown"
+                "enabled": False,
+                "status": "unavailable"
             }
         }
     }
     
     # Verificar WebSocket si está disponible
-    if WEBSOCKET_AVAILABLE and is_websocket_enabled():
+    if WEBSOCKET_AVAILABLE:
         try:
-            from app.controllers.websocket.websocket_controller import websocket_controller
-            ws_stats = websocket_controller.get_connection_stats()
+            websocket_enabled = is_websocket_enabled()
+            health_data["services"]["websocket"]["enabled"] = websocket_enabled
             
-            health_data["services"]["websocket"] = {
-                "available": True,
-                "enabled": True,
-                "status": "healthy",
-                "active_connections": ws_stats["manager_stats"]["active_connections"],
-                "total_connections": ws_stats["manager_stats"]["total_connections"],
-                "uptime_seconds": ws_stats["manager_stats"]["uptime_seconds"]
-            }
+            if websocket_enabled and hasattr(app.state, 'websocket_manager') and app.state.websocket_manager:
+                from app.controllers.websocket.websocket_controller import websocket_controller
+                ws_stats = websocket_controller.get_connection_stats()
+                
+                health_data["services"]["websocket"] = {
+                    "available": True,
+                    "enabled": True,
+                    "status": "healthy",
+                    "active_connections": ws_stats["manager_stats"]["active_connections"],
+                    "total_connections": ws_stats["manager_stats"]["total_connections"],
+                    "uptime_seconds": ws_stats["manager_stats"]["uptime_seconds"],
+                    "unique_users": ws_stats["manager_stats"].get("unique_users", 0),
+                    "active_rooms": ws_stats["manager_stats"].get("active_rooms", 0)
+                }
+            elif websocket_enabled:
+                health_data["services"]["websocket"] = {
+                    "available": True,
+                    "enabled": True,
+                    "status": "error",
+                    "reason": "Manager not initialized"
+                }
+            else:
+                health_data["services"]["websocket"]["status"] = "disabled"
+                health_data["services"]["websocket"]["reason"] = "disabled_in_config"
             
         except Exception as e:
+            logger.error(f"Error en health check de WebSocket: {e}")
             health_data["services"]["websocket"] = {
                 "available": True,
                 "enabled": True,
@@ -449,6 +551,62 @@ async def complete_health_check():
             }
     
     return health_data
+
+@app.get("/debug/websocket")
+async def debug_websocket_status():
+    """Endpoint de debugging para WebSocket - SOLO DESARROLLO"""
+    if ENVIRONMENT == "production":
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    debug_info = {
+        "websocket_available": WEBSOCKET_AVAILABLE,
+        "import_attempts": {},
+        "app_state": {},
+        "config_check": {}
+    }
+    
+    # Verificar importaciones individuales
+    modules_to_check = [
+        ("websocket_config", "app.config.websocket_config"),
+        ("websocket_routes", "app.routes.websocket_routes"),
+        ("websocket_manager", "app.services.websocket.websocket_manager"),
+        ("websocket_controller", "app.controllers.websocket.websocket_controller"),
+        ("notification_service", "app.services.websocket.notification_service")
+    ]
+    
+    for module_name, module_path in modules_to_check:
+        try:
+            __import__(module_path)
+            debug_info["import_attempts"][module_name] = "SUCCESS"
+        except ImportError as e:
+            debug_info["import_attempts"][module_name] = f"FAILED: {str(e)}"
+        except Exception as e:
+            debug_info["import_attempts"][module_name] = f"ERROR: {str(e)}"
+    
+    # Verificar estado de la app
+    debug_info["app_state"] = {
+        "websocket_enabled": getattr(app.state, 'websocket_enabled', False),
+        "websocket_manager_exists": hasattr(app.state, 'websocket_manager'),
+        "websocket_manager_initialized": getattr(app.state, 'websocket_manager', None) is not None
+    }
+    
+    # Verificar configuración si es posible
+    if WEBSOCKET_AVAILABLE:
+        try:
+            config = get_websocket_config()
+            debug_info["config_check"] = {
+                "config_loaded": True,
+                "enabled": config.websocket_enabled,
+                "host": config.websocket_host,
+                "port": config.websocket_port
+            }
+        except Exception as e:
+            debug_info["config_check"] = {
+                "config_loaded": False,
+                "error": str(e)
+            }
+    
+    return debug_info
 
 # ===== ENDPOINTS REDIS (CÓDIGO ORIGINAL) =====
 
