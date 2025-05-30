@@ -57,6 +57,9 @@ export interface UserFormatted extends UserWithRoles {
     accountAgeDays: number;
     totalLogins: number;
   };
+  lastSeen?: string;
+  onlineStatus?: 'available' | 'busy' | 'away';
+  
   display?: {
     fullName: string;
     initials: string;
@@ -64,11 +67,10 @@ export interface UserFormatted extends UserWithRoles {
     roleBadge: string;
     areaBadge: string;
   };
-  
+ 
   // 🔧 CAMPOS ALTERNATIVOS
   full_name?: string;
 }
-
 export interface UserStatusUpdate {
   isOnline?: boolean;
   lastSeen?: string;

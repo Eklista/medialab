@@ -112,6 +112,41 @@ class UserStatusService {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }
+
+  /**
+   * 👥 Obtiene usuarios online formateados para RightSidebar
+   */
+  async getOnlineUsersFormatted(): Promise<Array<{
+    id: number;
+    fullName: string;
+    email: string;
+    profileImage?: string;
+    isOnline: boolean;
+    lastSeen: string;
+    onlineStatus: 'available' | 'busy' | 'away';
+  }>> {
+    try {
+      console.log('👥 Obteniendo usuarios online formateados...');
+      
+      // Usar tu endpoint existente
+      const onlineUsers = await this.getOnlineUsers();
+      
+      // Formatear para el componente
+      return onlineUsers.map(user => ({
+        id: user.id,
+        fullName: user.name,
+        email: '',
+        profileImage: undefined,
+        isOnline: true,
+        lastSeen: user.lastSeen,
+        onlineStatus: 'available' as const
+      }));
+      
+    } catch (error) {
+      console.warn('⚠️ Error obteniendo usuarios online formateados:', error);
+      return [];
+    }
+  }
 }
 
 export default new UserStatusService();

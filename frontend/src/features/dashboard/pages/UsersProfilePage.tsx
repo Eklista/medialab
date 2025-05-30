@@ -58,7 +58,7 @@ const UserProfilePage: React.FC = () => {
     if (!userData) return [];
     if (Array.isArray(userData.roles)) {
       // Convertir todo a strings
-      return userData.roles.map(role => 
+      return userData.roles.map((role: string | { name: string }) =>
         typeof role === 'string' ? role : role?.name || ''
       ).filter(Boolean);
     }

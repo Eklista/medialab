@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient, { createCacheKey } from '../../api';
 import { UserProfile, UserFormatted, UserListOptions } from '../types/user.types';
+import userStatusService from '../status/userStatus.service';
 
 // ===== CACHE INTELIGENTE =====
 const userCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
@@ -440,4 +441,59 @@ export const useUserCache = () => {
   }, []);
 
   return { clearCache, getCacheStats };
+};
+
+/**
+ * 👥 Hook para usuarios online con auto-refresh
+ */
+export const useOnlineUsers = (refreshInterval = 30000) => {
+  const [users, setUsers] = useState<Array<{
+    id: number;
+    fullName: string;
+    email: string;
+    profileImage?: string;
+    isOnline: boolean;
+    lastSeen?: string;
+    onlineStatus?: 'available' | 'busy' | 'away';
+  }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadOnlineUsers = useCallback(async () => {
+    try {
+      setError(null);
+      console.log('🔄 Cargando usuarios online...');
+      
+      const onlineUsers = await userStatusService.getOnlineUsersFormatted();
+      setUsers(onlineUsers);
+      console.log(`✅ ${onlineUsers.length} usuarios online cargados`);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error cargando usuarios online';
+      console.error('❌ Error:', errorMessage);
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    loadOnlineUsers();
+  }, [loadOnlineUsers]);
+
+  // Auto-refresh cada X segundos
+  useEffect(() => {
+    if (refreshInterval > 0) {
+      const interval = setInterval(loadOnlineUsers, refreshInterval);
+      return () => clearInterval(interval); // Limpiar al desmontar
+    }
+  }, [loadOnlineUsers, refreshInterval]);
+
+  return { 
+    users, 
+    isLoading, 
+    error, 
+    refresh: loadOnlineUsers 
+  };
 };

@@ -1,343 +1,287 @@
-// frontend/src/features/dashboard/pages/DashboardHome.tsx - 🚀 REESTRUCTURADO Y CORREGIDO
-// Solo mantiene tarjetas de Colaborador del Mes y Cumpleaños
+// src/features/dashboard/pages/DashboardHome.tsx - 🎨 DISEÑO ORIGINAL CON CONTENIDO SIMPLIFICADO
 
-import React, { useMemo } from 'react';
-import { 
+import React, { useState, useEffect } from 'react';
+import DashboardLayout from '../components/layout/DashboardLayout';
+import Badge from '../components/ui/Badge';
+import UserProfilePhoto from '../components/ui/UserProfilePhoto';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { userService } from '../../../services';
+import { parseDate, formatBirthday, getDaysUntilBirthday } from '../utils/dateUtils';
+
+// Iconos
+import {
+  TrophyIcon,
+  CakeIcon,
   CalendarDaysIcon,
-  GiftIcon, 
-  TrophyIcon, 
-  ChevronRightIcon 
+  PlayIcon,
+  MicrophoneIcon,
+  VideoCameraIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
-// 🔧 IMPORTS CORREGIDOS - usando nueva arquitectura
-import { useAuth } from '../../auth/hooks/useAuth';
-import { useAppData } from '../../../context/AppDataContext';
-import { UserProfile } from '../../../services/users/types/user.types';
-import UserProfilePhoto from '../components/ui/UserProfilePhoto';
-
-// ===== INTERFACES =====
+// Interfaces
 interface BirthdayUser {
   id: number;
   name: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  username: string;
-  fullName: string;        // ✅ Required string
-  roles: string[];         // ✅ Required array
-  isActive: boolean;       // ✅ Required boolean
-  profileImage: string | null;
+  profileImage?: string;
   birthDate: Date;
   daysUntilBirthday: number;
   initials: string;
 }
 
-interface EmployeeOfMonth {
-  id: number;
-  name: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  username: string;
-  fullName: string;        // ✅ Required string
-  roles: string[];         // ✅ Required array
-  isActive: boolean;       // ✅ Required boolean
-  profileImage: string | null;
-  initials: string;
-  achievements?: string[];
-}
-
-// ===== UTILIDADES =====
-const parseDate = (dateString: string): Date | null => {
-  try {
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? null : date;
-  } catch {
-    return null;
-  }
-};
-
-const getDaysUntilBirthday = (birthDate: Date): number => {
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  
-  let nextBirthday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
-  
-  if (nextBirthday < today) {
-    nextBirthday = new Date(currentYear + 1, birthDate.getMonth(), birthDate.getDate());
-  }
-  
-  const diffTime = nextBirthday.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
-
-const getInitials = (name: string): string => {
-  return name
-    .split(' ')
-    .map(n => n.charAt(0))
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
-
-// Función para determinar empleado del mes (ejemplo de lógica)
-const getEmployeeOfMonth = (users: UserProfile[]): EmployeeOfMonth | null => {
-  if (users.length === 0) return null;
-  
-  // 🎯 LÓGICA SIMPLE: Por ahora seleccionar el primer usuario activo
-  // TODO: Implementar lógica real basada en métricas de rendimiento
-  const employee = users.find(user => user.isActive) || users[0];
-  
-  if (!employee) return null;
-  
-  const firstName = employee.firstName || '';
-  const lastName = employee.lastName || '';
-  const email = employee.email || '';
-  const name = `${firstName} ${lastName}`.trim() || email;
-  
-  return {
-    id: employee.id,
-    name,
-    firstName,
-    lastName,
-    email,
-    username: employee.username || email,
-    fullName: name,
-    roles: [],
-    isActive: employee.isActive ?? true, // ✅ Fallback a true si es undefined
-    profileImage: employee.profileImage || null,
-    initials: getInitials(name),
-    achievements: [
-      'Excelente trabajo en equipo',
-      'Entrega de proyectos a tiempo',
-      'Liderazgo destacado'
-    ]
-  };
-};
-
-// ===== COMPONENTE PRINCIPAL =====
 const DashboardHome: React.FC = () => {
-  const { user } = useAuth();
-  const { users, isLoading } = useAppData();
-
-  // ===== 🔧 CUMPLEAÑOS CORREGIDOS =====
-  const upcomingBirthdays = useMemo((): BirthdayUser[] => {
-    if (!users || users.length === 0) return [];
-
-    const validBirthdayUsers: BirthdayUser[] = [];
-    
-    for (const user of users) {
-      if (!user.birth_date) continue;
-      
-      const birthDate = parseDate(user.birth_date);
-      if (!birthDate) continue;
-     
-      const daysUntilBirthday = getDaysUntilBirthday(birthDate);
-      
-      // 🔧 CORRECCIÓN: Asegurar que todos los campos requeridos estén presentes
-      const firstName = user.firstName || '';
-      const lastName = user.lastName || '';
-      const email = user.email || '';
-      const name = `${firstName} ${lastName}`.trim() || email;
-     
-      const birthdayUser: BirthdayUser = {
-        id: user.id,
-        name,
-        firstName,
-        lastName,
-        email,
-        username: user.username || email,
-        fullName: name,
-        roles: [],
-        isActive: user.isActive ?? true, // ✅ Fallback a true si es undefined
-        profileImage: user.profileImage || null,
-        birthDate,
-        daysUntilBirthday,
-        initials: getInitials(name)
-      };
-      
-      validBirthdayUsers.push(birthdayUser);
+  useAuth();
+  const [upcomingBirthdays, setUpcomingBirthdays] = useState<BirthdayUser[]>([]);
+  const [isLoadingBirthdays, setIsLoadingBirthdays] = useState(true);
+  
+  // Función para generar iniciales
+  const getInitials = (name: string): string => {
+    if (!name) return 'U';
+    const nameParts = name.split(' ');
+    if (nameParts.length >= 2) {
+      return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
     }
+    return name.charAt(0).toUpperCase();
+  };
 
-    // Ordenar y retornar los primeros 3
-    return validBirthdayUsers
-      .sort((a, b) => a.daysUntilBirthday - b.daysUntilBirthday)
-      .slice(0, 3);
-  }, [users]);
-
-  // ===== 🔧 EMPLEADO DEL MES =====
-  const employeeOfMonth = useMemo((): EmployeeOfMonth | null => {
-    if (!users || users.length === 0) return null;
-    return getEmployeeOfMonth(users);
-  }, [users]);
-
-  // ===== ESTADOS DE CARGA =====
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[var(--color-background)] p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-6 w-64"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="h-64 bg-gray-200 rounded-lg"></div>
-              <div className="h-64 bg-gray-200 rounded-lg"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Cargar cumpleaños usando el nuevo service stack
+  useEffect(() => {
+    const fetchBirthdays = async () => {
+      try {
+        setIsLoadingBirthdays(true);
+        
+        // 🆕 USANDO NUEVO STACK DE SERVICES
+        const users = await userService.list.getUsersFormatted({ 
+          limit: 100,
+          formatType: 'with_roles'
+        });
+        
+        const validBirthdayUsers = users
+          .filter(user => user.birth_date)
+          .map(user => {
+            const birthDate = parseDate(user.birth_date!);
+            if (!birthDate) return null;
+          
+            const daysUntilBirthday = getDaysUntilBirthday(birthDate);
+            
+            // 🔧 SOLUCIÓN ROBUSTA: Usar el fullName del nuevo stack
+            const name = user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+            const profileImage = user.profileImage || null;
+          
+            return {
+              id: user.id,
+              name: name,
+              profileImage: profileImage,
+              birthDate: birthDate,
+              daysUntilBirthday,
+              initials: user.initials || getInitials(name)
+            };
+          })
+          .filter(user => user !== null)
+          .sort((a, b) => a!.daysUntilBirthday - b!.daysUntilBirthday)
+          .slice(0, 3) as BirthdayUser[];
+        
+        setUpcomingBirthdays(validBirthdayUsers);
+      } catch (error) {
+        console.error('Error al cargar cumpleaños:', error);
+      } finally {
+        setIsLoadingBirthdays(false);
+      }
+    };
+    
+    fetchBirthdays();
+  }, []);
+  
+  // 🎯 Estadísticas principales con diseño moderno ORIGINAL
+  const mainStats = [
+    {
+      title: "Proyectos Activos",
+      value: "24",
+      icon: <PlayIcon className="h-6 w-6" />,
+      change: { value: 12, isPositive: true },
+      bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
+      iconColor: "text-blue-600"
+    },
+    {
+      title: "Producciones Completadas",
+      value: "156",
+      icon: <VideoCameraIcon className="h-6 w-6" />,
+      change: { value: 8, isPositive: true },
+      bgColor: "bg-gradient-to-br from-green-50 to-green-100",
+      iconColor: "text-green-600"
+    },
+    {
+      title: "Podcasts Publicados",
+      value: "42",
+      icon: <MicrophoneIcon className="h-6 w-6" />,
+      change: { value: 3, isPositive: true },
+      bgColor: "bg-gradient-to-br from-purple-50 to-purple-100",
+      iconColor: "text-purple-600"
+    },
+    {
+      title: "Horas de Contenido",
+      value: "1,284",
+      icon: <ChartBarIcon className="h-6 w-6" />,
+      change: { value: 156, isPositive: true },
+      bgColor: "bg-gradient-to-br from-amber-50 to-amber-100",
+      iconColor: "text-amber-600"
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[var(--color-text-main)] mb-2">
-            ¡Bienvenido de vuelta, {user?.firstName || user?.email || 'Usuario'}! 👋
-          </h1>
-          <p className="text-[var(--color-text-secondary)]">
-            Aquí tienes un resumen de lo que está pasando en el equipo
-          </p>
+    <DashboardLayout>
+      <div className="space-y-8">
+        {/* 📊 Estadísticas principales - DISEÑO ORIGINAL */}
+        <div>
+          <h2 className="text-xl font-semibold text-[var(--color-text-main)] mb-6">
+            Resumen General
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {mainStats.map((stat, index) => (
+              <div key={index} className={`${stat.bgColor} rounded-xl p-6 border border-white shadow-sm hover:shadow-md transition-shadow duration-200`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                    <p className="text-3xl font-bold text-[var(--color-text-main)] mt-1">{stat.value}</p>
+                    <div className="flex items-center mt-2">
+                      <span className={`text-sm font-medium ${stat.change.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                        {stat.change.isPositive ? '+' : '-'}{stat.change.value}
+                      </span>
+                      <span className="text-sm text-gray-500 ml-1">este mes</span>
+                    </div>
+                  </div>
+                  <div className={`${stat.iconColor} p-3 rounded-xl bg-white shadow-sm`}>
+                    {stat.icon}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Grid principal - Solo 2 tarjetas */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 🎯 Solo las dos tarjetas principales - DISEÑO ORIGINAL MANTENIDO */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* 🏆 TARJETA COLABORADOR DEL MES */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <TrophyIcon className="h-5 w-5 text-yellow-600" />
-                </div>
+          {/* 🏆 Colaborador del mes - DISEÑO ORIGINAL COMPLETO */}
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 relative">
+            {/* PIN ICON - TROPHY */}
+            <div className="absolute top-4 right-4 z-10">
+              <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full p-2 shadow-md">
+                <TrophyIcon className="h-4 w-4 text-white" />
+              </div>
+            </div>
+            
+            <div className="p-6 border-b border-[var(--color-border)]">
+              <div className="pr-12">
                 <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
                   Colaborador del Mes
                 </h3>
-              </div>
-              <ChevronRightIcon className="h-5 w-5 text-gray-400" />
-            </div>
-
-            {employeeOfMonth ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <UserProfilePhoto
-                    user={employeeOfMonth}
-                    size="lg"
-                    className="ring-2 ring-yellow-200"
-                  />
-                  <div>
-                    <h4 className="font-semibold text-[var(--color-text-main)]">
-                      {employeeOfMonth.name}
-                    </h4>
-                    <p className="text-sm text-[var(--color-text-secondary)]">
-                      🎉 ¡Felicitaciones por tu excelente trabajo!
-                    </p>
-                  </div>
-                </div>
-                
-                {employeeOfMonth.achievements && (
-                  <div className="bg-yellow-50 rounded-lg p-3">
-                    <p className="text-sm font-medium text-yellow-800 mb-2">Logros destacados:</p>
-                    <ul className="text-xs text-yellow-700 space-y-1">
-                      {employeeOfMonth.achievements.slice(0, 3).map((achievement, index) => (
-                        <li key={index} className="flex items-center gap-2">
-                          <span className="w-1 h-1 bg-yellow-600 rounded-full"></span>
-                          {achievement}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <TrophyIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-[var(--color-text-secondary)]">
-                  No hay datos de colaborador del mes disponibles
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Mejor desempeño en mayo 2025
                 </p>
               </div>
-            )}
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center">
+                <div className="relative">
+                  <UserProfilePhoto size="xl" />
+                  <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full p-2">
+                    <TrophyIcon className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <div className="ml-4 flex-1">
+                  <h4 className="text-xl font-bold text-[var(--color-text-main)]">
+                    Pablito Lindo
+                  </h4>
+                  <p className="text-[var(--color-text-secondary)]">Área de Transmisión</p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Badge variant="primary">1 Producción</Badge>
+                    <Badge variant="success">5000 Transmisiones</Badge>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                <p className="text-sm text-gray-700">
+                  Es el mejor del mundo mundial.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* 🎂 TARJETA PRÓXIMOS CUMPLEAÑOS */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-pink-100 rounded-lg">
-                  <GiftIcon className="h-5 w-5 text-pink-600" />
-                </div>
+          {/* 🎂 Próximos cumpleaños - DISEÑO ORIGINAL COMPLETO */}
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 relative">
+            {/* PIN ICON - CAKE */}
+            <div className="absolute top-4 right-4 z-10">
+              <div className="bg-gradient-to-r from-pink-400 to-pink-500 rounded-full p-2 shadow-md">
+                <CakeIcon className="h-4 w-4 text-white" />
+              </div>
+            </div>
+            
+            <div className="p-6 border-b border-[var(--color-border)]">
+              <div className="pr-12">
                 <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
                   Próximos Cumpleaños
                 </h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Celebremos juntos estos momentos especiales
+                </p>
               </div>
-              <ChevronRightIcon className="h-5 w-5 text-gray-400" />
             </div>
 
-            {upcomingBirthdays.length > 0 ? (
-              <div className="space-y-3">
-                {upcomingBirthdays.map((birthday) => (
-                  <div key={birthday.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <UserProfilePhoto
-                        user={birthday}
-                        size="sm"
-                        className="ring-2 ring-pink-200"
+            <div className="p-6">
+              {isLoadingBirthdays ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--color-accent-1)]"></div>
+                </div>
+              ) : upcomingBirthdays.length === 0 ? (
+                <div className="text-center py-8 text-[var(--color-text-secondary)]">
+                  <CakeIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>No hay cumpleaños próximos</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingBirthdays.map((user) => (
+                    <div key={user.id} className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                      <UserProfilePhoto 
+                        user={{
+                          firstName: user.name.split(' ')[0],
+                          lastName: user.name.split(' ')[1] || '',
+                          profileImage: user.profileImage,
+                          initials: user.initials
+                        }}
+                        size="lg"
                       />
-                      <div>
-                        <p className="font-medium text-[var(--color-text-main)]">
-                          {birthday.name}
+                      <div className="ml-4 flex-1 min-w-0">
+                        <p className="font-medium text-[var(--color-text-main)] truncate">
+                          {user.name}
                         </p>
-                        <p className="text-xs text-[var(--color-text-secondary)]">
-                          {birthday.birthDate.toLocaleDateString('es-GT', { 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </p>
+                        <div className="flex items-center text-sm text-[var(--color-text-secondary)] mt-1">
+                          <CalendarDaysIcon className="h-4 w-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">{formatBirthday(user.birthDate)}</span>
+                        </div>
+                      </div>
+                      <div className="ml-2 flex-shrink-0">
+                        <Badge 
+                          variant={
+                            user.daysUntilBirthday === 0 ? "success" :
+                            user.daysUntilBirthday <= 7 ? "warning" : "info"
+                          }
+                        >
+                          {user.daysUntilBirthday === 0 ? "¡Hoy!" : 
+                           user.daysUntilBirthday === 1 ? "¡Mañana!" : 
+                           `En ${user.daysUntilBirthday} días`}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                        {birthday.daysUntilBirthday === 0 
-                          ? '¡Hoy!' 
-                          : birthday.daysUntilBirthday === 1 
-                          ? '¡Mañana!' 
-                          : `${birthday.daysUntilBirthday} días`
-                        }
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                
-                <div className="mt-4 pt-3 border-t border-gray-100">
-                  <button className="text-sm text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] font-medium">
-                    Ver todos los cumpleaños →
-                  </button>
+                  ))}
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <CalendarDaysIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-[var(--color-text-secondary)]">
-                  No hay cumpleaños próximos
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Los cumpleaños aparecerán aquí cuando se acerquen
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-
-        </div>
-
-        {/* Footer informativo */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Dashboard simplificado - Mostrando solo información esencial del equipo
-          </p>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

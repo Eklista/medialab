@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/DashboardLayout.tsx
+// src/features/dashboard/components/layout/DashboardLayout.tsx - ACTUALIZADO
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
@@ -6,8 +6,15 @@ import Navbar from './Navbar';
 import RightSidebar from './RightSidebar';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import LockScreen from '../../../auth/components/LockScreen';
-import { Bars3Icon, XMarkIcon, ClipboardDocumentListIcon, BellIcon } from '@heroicons/react/24/outline';
+import { 
+  Bars3Icon, 
+  XMarkIcon, 
+  ClipboardDocumentListIcon, 
+  BellIcon,
+  UserGroupIcon
+} from '@heroicons/react/24/outline';
 import { useLocation } from 'react-router-dom';
+import { RightSidebarSection } from '../rightSidebar';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,13 +24,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { state } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
-    return saved ? JSON.parse(saved) : true; // CAMBIO: Por defecto colapsado
+    return saved ? JSON.parse(saved) : true; // Por defecto colapsado
   });
-  const [rightSidebarSection, setRightSidebarSection] = useState<'tasks' | 'notifications' | null>(null);
+  const [rightSidebarSection, setRightSidebarSection] = useState<RightSidebarSection>(null);
   // Estados para móvil
   const [mobileLeftSidebarOpen, setMobileLeftSidebarOpen] = useState(false);
   const [mobileRightSidebarOpen, setMobileRightSidebarOpen] = useState(false);
-  const [mobilePanelSection, setMobilePanelSection] = useState<'tasks' | 'notifications'>('tasks');
+  const [mobilePanelSection, setMobilePanelSection] = useState<RightSidebarSection>('tasks');
   const location = useLocation();
   
   useEffect(() => {
@@ -42,7 +49,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     localStorage.setItem('sidebarCollapsed', JSON.stringify(newCollapsedState));
   };
 
-  const handleRightSidebarItemClick = (section: 'tasks' | 'notifications') => {
+  const handleRightSidebarItemClick = (section: RightSidebarSection) => {
     if (rightSidebarSection === section) {
       setRightSidebarSection(null);
     } else {
@@ -76,7 +83,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
   };
 
-  const handleMobilePanelSectionChange = (section: 'tasks' | 'notifications') => {
+  const handleMobilePanelSectionChange = (section: RightSidebarSection) => {
     setMobilePanelSection(section);
     setRightSidebarSection(section);
   };
@@ -124,8 +131,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         />
       </div>
 
-
-      
       {/* Contenido principal FLOTANTE - MENOS padding en móvil */}
       <div className="flex flex-col flex-1 overflow-hidden lg:p-3 md:p-2 p-1 lg:pb-3 md:pb-2 pb-1">
         <div className="flex flex-col flex-1 bg-[var(--color-bg-main)] lg:rounded-xl md:rounded-lg rounded-md shadow-lg overflow-hidden lg:mb-0 md:mb-12 mb-10">
@@ -169,6 +174,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <BellIcon className="h-6 w-6" />
               <span className="w-2 h-2 bg-[var(--color-accent-1)] rounded-full mt-1"></span>
             </button>
+
+            {/* 🆕 Nuevo botón para usuarios online */}
+            <button 
+              onClick={() => handleRightSidebarItemClick('online-users')}
+              className={`w-full flex flex-col items-center p-3 rounded-lg transition-all duration-200 group ${
+                rightSidebarSection === 'online-users' 
+                  ? 'bg-white/10 text-[var(--color-accent-1)]' 
+                  : 'hover:bg-white/10 text-white/70 hover:text-white'
+              }`}
+              title="Usuarios Online"
+            >
+              <UserGroupIcon className="h-6 w-6" />
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-1"></span>
+            </button>
           </div>
         </div>
         
@@ -202,11 +221,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </button>
           </div>
           
-          {/* Tabs para cambiar sección */}
-          <div className="flex bg-white/10 rounded-lg p-1">
+          {/* Tabs para cambiar sección - 🆕 Agregado usuarios online */}
+          <div className="flex bg-white/10 rounded-lg p-1 text-xs">
             <button 
               onClick={() => handleMobilePanelSectionChange('tasks')}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-2 rounded-md font-medium transition-all duration-200 ${
                 mobilePanelSection === 'tasks' 
                   ? 'bg-[var(--color-accent-1)] text-[var(--color-text-main)]' 
                   : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -216,13 +235,23 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </button>
             <button 
               onClick={() => handleMobilePanelSectionChange('notifications')}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-2 rounded-md font-medium transition-all duration-200 ${
                 mobilePanelSection === 'notifications' 
                   ? 'bg-[var(--color-accent-1)] text-[var(--color-text-main)]' 
                   : 'text-white/70 hover:text-white hover:bg-white/5'
               }`}
             >
               Actividad
+            </button>
+            <button 
+              onClick={() => handleMobilePanelSectionChange('online-users')}
+              className={`flex-1 py-2 px-2 rounded-md font-medium transition-all duration-200 ${
+                mobilePanelSection === 'online-users' 
+                  ? 'bg-[var(--color-accent-1)] text-[var(--color-text-main)]' 
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Usuarios
             </button>
           </div>
         </div>
