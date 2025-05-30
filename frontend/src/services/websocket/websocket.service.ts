@@ -1,5 +1,5 @@
-// frontend/src/services/websocket/websocket.service.ts - CORRECCIÓN FINAL
-// 🔧 VERSIÓN CORREGIDA QUE SOLUCIONA EL PROBLEMA DE DETECCIÓN DE COOKIES
+// frontend/src/services/websocket/websocket.service.ts - SOLUCIÓN PARA COOKIES HTTPONLY
+// 🔧 VERSIÓN CORREGIDA QUE MANEJA COOKIES HTTPONLY CORRECTAMENTE
 
 interface WebSocketConfig {
   url: string;
@@ -52,135 +52,70 @@ class WebSocketService {
     return 'ws://localhost:8000/ws';
   }
   
-  // 🔧 MÉTODO CORREGIDO: Detección confiable de cookies
-  private getAccessToken(): string | null {
+  // 🔧 NUEVA ESTRATEGIA: No intentar leer cookies HttpOnly desde JavaScript
+  private async getAccessToken(): Promise<string | null> {
+    console.log('🔍 === ESTRATEGIA COOKIES HTTPONLY ===');
+    
     try {
-      console.log('🔍 Iniciando detección de access_token...');
-      console.log('Raw cookies:', document.cookie);
+      // Las cookies HttpOnly no son accesibles desde JavaScript (por seguridad)
+      // Pero podemos verificar si hay una sesión activa haciendo una request rápida
+      console.log('🔐 Verificando sesión activa con el backend...');
       
-      // Verificar si hay cookies
-      if (!document.cookie || document.cookie.trim().length === 0) {
-        console.log('❌ No hay cookies disponibles');
-        return null;
-      }
-      
-      // 🔧 MÉTODO PRINCIPAL: Usar indexOf (más confiable que regex)
-      const accessTokenIndex = document.cookie.indexOf('access_token=');
-      
-      if (accessTokenIndex === -1) {
-        console.log('❌ No se encontró access_token en cookies');
-        this.debugAllCookies();
-        return null;
-      }
-      
-      // Extraer el valor del token
-      const tokenStartIndex = accessTokenIndex + 'access_token='.length;
-      let tokenEndIndex = document.cookie.indexOf(';', tokenStartIndex);
-      
-      // Si no hay ';' después del token, va hasta el final
-      if (tokenEndIndex === -1) {
-        tokenEndIndex = document.cookie.length;
-      }
-      
-      const token = document.cookie.substring(tokenStartIndex, tokenEndIndex).trim();
-      
-      console.log('🔑 Token extraído:', {
-        found: true,
-        length: token.length,
-        preview: token.substring(0, 50) + '...',
-        method: 'indexOf',
-        startIndex: tokenStartIndex,
-        endIndex: tokenEndIndex
+      const response = await fetch('/api/v1/auth/validate-token', {
+        method: 'POST',
+        credentials: 'include', // Incluir cookies automáticamente
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
-      // Validación del token
-      if (token.length < 50) {
-        console.log('⚠️ Token muy corto, posiblemente inválido');
+      if (response.ok) {
+        console.log('✅ Sesión activa confirmada por el backend');
+        return 'session_active'; // Token dummy que indica sesión activa
+      } else {
+        console.log('❌ No hay sesión activa');
         return null;
       }
-      
-      if (token === 'undefined' || token === 'null' || token === '') {
-        console.log('⚠️ Token tiene valor inválido:', token);
-        return null;
-      }
-      
-      console.log('✅ Token válido encontrado');
-      return token;
       
     } catch (error) {
-      console.error('💥 Error en detección de token:', error);
+      console.error('💥 Error verificando sesión:', error);
       return null;
     }
   }
   
-  // 🔧 MÉTODO DE DEBUG MEJORADO
-  private debugAllCookies(): void {
-    console.log('🍪 === DEBUG DE TODAS LAS COOKIES ===');
-    console.log('Raw cookie string:', `"${document.cookie}"`);
-    console.log('Length:', document.cookie.length);
-    console.log('Type:', typeof document.cookie);
-    
-    if (document.cookie.length > 0) {
-      const cookies = document.cookie.split(';');
-      console.log('Cookies split por ";":', cookies.length);
-      
-      cookies.forEach((cookie, index) => {
-        const trimmed = cookie.trim();
-        const equalIndex = trimmed.indexOf('=');
-        
-        if (equalIndex > 0) {
-          const name = trimmed.substring(0, equalIndex);
-          const value = trimmed.substring(equalIndex + 1);
-          
-          console.log(`Cookie ${index + 1}:`);
-          console.log(`  Nombre: "${name}"`);
-          console.log(`  Valor length: ${value.length}`);
-          console.log(`  Preview: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}`);
-          
-          if (name === 'access_token') {
-            console.log('  ⭐ Esta es la cookie access_token!');
-          }
-        }
-      });
-    } else {
-      console.log('❌ String de cookies está vacío');
-    }
-    console.log('=================================');
-  }
-  
-  // 🔧 MÉTODO DE TEST PARA COOKIES
+  // 🔧 MÉTODO DE DEBUG ACTUALIZADO
   debugCookies(): void {
-    console.log('🧪 === TEST DE DETECCIÓN DE COOKIES ===');
+    console.log('🧪 === DEBUG COOKIES HTTPONLY ===');
     
-    // Test básico
-    console.log('1. Info básica:');
-    console.log('   Cookies enabled:', navigator.cookieEnabled);
-    console.log('   Document.cookie:', document.cookie);
-    console.log('   Length:', document.cookie.length);
+    console.log('📋 Información importante:');
+    console.log('  - Las cookies HttpOnly NO son accesibles desde JavaScript');
+    console.log('  - Esto es CORRECTO por seguridad');
+    console.log('  - document.cookie no mostrará access_token ni refresh_token');
+    console.log('  - El navegador las envía automáticamente en requests HTTP');
     
-    // Test de detección
-    console.log('\n2. Test de detección:');
-    const token = this.getAccessToken();
-    console.log('   Token detectado:', !!token);
-    if (token) {
-      console.log('   Token length:', token.length);
-      console.log('   Token preview:', token.substring(0, 50) + '...');
+    // Verificar si tenemos cookies visibles
+    console.log('\n🍪 Cookies visibles desde JavaScript:');
+    console.log('  - String:', `"${document.cookie}"`);
+    console.log('  - Longitud:', document.cookie.length);
+    
+    if (document.cookie.length === 0) {
+      console.log('  ✅ Esto es NORMAL si todas las cookies son HttpOnly');
     }
     
-    // Test manual
-    console.log('\n3. Test manual con indexOf:');
-    const manualIndex = document.cookie.indexOf('access_token=');
-    console.log('   indexOf result:', manualIndex);
+    // Verificar DevTools
+    console.log('\n🔍 Para ver las cookies HttpOnly:');
+    console.log('  1. Abre DevTools (F12)');
+    console.log('  2. Ve a Application/Storage > Cookies');
+    console.log('  3. Busca access_token y refresh_token');
+    console.log('  4. Deberían tener HttpOnly: true');
     
-    if (manualIndex !== -1) {
-      const startPos = manualIndex + 'access_token='.length;
-      const endPos = document.cookie.indexOf(';', startPos);
-      const manualToken = document.cookie.substring(startPos, endPos === -1 ? undefined : endPos);
-      console.log('   Manual token:', manualToken.substring(0, 50) + '...');
-      console.log('   Manual token length:', manualToken.length);
-    }
+    // Test de sesión
+    console.log('\n🧪 Probando verificación de sesión...');
+    this.getAccessToken().then(result => {
+      console.log('  - Resultado:', result ? 'Sesión activa' : 'Sin sesión');
+    });
     
-    console.log('=====================================');
+    console.log('========================================');
   }
   
   // 🔧 MÉTODO DE CONEXIÓN CORREGIDO
@@ -196,25 +131,22 @@ class WebSocketService {
     
     try {
       this.connectionState = 'connecting';
-      console.log('🔌 Conectando WebSocket...', this.config.url);
+      console.log('🔌 Iniciando conexión WebSocket...', this.config.url);
       
-      // 🔧 DETECCIÓN MEJORADA DE TOKEN
-      const accessToken = this.getAccessToken();
-      const hasValidToken = !!accessToken;
+      // 🔧 NUEVA ESTRATEGIA: Verificar sesión en lugar de intentar leer cookies
+      const hasActiveSession = await this.getAccessToken();
       const effectiveUserId = userId || this.lastUserId;
       
-      console.log('🔍 Estado de autenticación:', {
-        hasToken: hasValidToken,
-        tokenLength: accessToken ? accessToken.length : 0,
+      console.log('🔍 Estado de autenticación para WebSocket:', {
+        hasActiveSession: !!hasActiveSession,
+        sessionToken: hasActiveSession || 'N/A',
         userId: effectiveUserId,
-        cookiesEnabled: navigator.cookieEnabled,
-        cookiesPresent: document.cookie.length > 0
+        strategy: 'httpOnly_cookies'
       });
       
-      // 🔧 CONSTRUCCIÓN DE URL SIMPLIFICADA
-      const wsUrl = this.buildWebSocketUrl(accessToken, effectiveUserId);
-      
-      console.log('🔗 URL WebSocket final:', wsUrl.replace(/token=[^&]+/g, 'token=***'));
+      // 🔧 CONSTRUCCIÓN DE URL SIN TOKEN (las cookies se envían automáticamente)
+      const wsUrl = this.buildWebSocketUrl(effectiveUserId);
+      console.log('🔗 URL WebSocket:', wsUrl);
       
       // Crear WebSocket
       this.ws = new WebSocket(wsUrl);
@@ -223,16 +155,18 @@ class WebSocketService {
       // Promesa para esperar la conexión
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('Timeout conectando WebSocket'));
+          reject(new Error('Timeout conectando WebSocket (15s)'));
         }, 15000);
         
         const onOpen = () => {
           clearTimeout(timeout);
+          console.log('✅ WebSocket conectado exitosamente');
           resolve();
         };
         
         const onError = (error: Event) => {
           clearTimeout(timeout);
+          console.error('❌ Error en conexión WebSocket:', error);
           reject(error);
         };
         
@@ -247,33 +181,31 @@ class WebSocketService {
     }
   }
   
-  // 🔧 CONSTRUCCIÓN DE URL SIMPLIFICADA
-  private buildWebSocketUrl(accessToken: string | null, userId?: number | null): string {
+  // 🔧 CONSTRUCCIÓN DE URL SIMPLIFICADA (sin token, se usan cookies automáticamente)
+  private buildWebSocketUrl(userId?: number | null): string {
     const baseUrl = new URL(this.config.url);
-    baseUrl.pathname = '/ws/';
+    baseUrl.pathname = '/ws/secure'; // 🔧 USAR ENDPOINT SEGURO que lee cookies automáticamente
     
-    // Siempre incluir userId si está disponible
+    // Solo incluir userId si está disponible
     if (userId) {
       baseUrl.searchParams.append('user_id', userId.toString());
       console.log(`👤 Conectando como user_id: ${userId}`);
     } else {
-      // Fallback: usar userId desde localStorage
-      const storedUserId = localStorage.getItem('userId');
-      if (storedUserId) {
-        baseUrl.searchParams.append('user_id', storedUserId);
-        console.log(`👤 Usando userId desde localStorage: ${storedUserId}`);
-      } else {
-        console.warn('⚠️ No se encontró userId');
+      // Fallback: usar userId desde localStorage si está disponible
+      try {
+        const storedUserId = localStorage.getItem('userId');
+        if (storedUserId && !isNaN(parseInt(storedUserId))) {
+          baseUrl.searchParams.append('user_id', storedUserId);
+          console.log(`👤 Usando userId desde localStorage: ${storedUserId}`);
+        } else {
+          console.warn('⚠️ No se encontró userId válido');
+        }
+      } catch (e) {
+        console.warn('⚠️ Error accediendo localStorage para userId:', e);
       }
     }
     
-    // 🔧 INCLUIR TOKEN SI ESTÁ DISPONIBLE
-    if (accessToken) {
-      baseUrl.searchParams.append('token', accessToken);
-      console.log('🔐 Token incluido en la conexión');
-    } else {
-      console.log('🔓 Conectando sin token (el backend debería aceptar esto)');
-    }
+    console.log('🔐 Las cookies HttpOnly se enviarán automáticamente con la request');
     
     return baseUrl.toString();
   }
@@ -298,7 +230,9 @@ class WebSocketService {
     this.ws.onmessage = (event) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
-        console.log('📨 WebSocket mensaje recibido:', message.type, message);
+        if (message.type !== 'pong' && message.type !== 'heartbeat') {
+          console.log('📨 WebSocket mensaje recibido:', message.type, message);
+        }
         this.handleMessage(message);
       } catch (error) {
         console.error('💥 Error parseando mensaje WebSocket:', error);
@@ -306,7 +240,12 @@ class WebSocketService {
     };
     
     this.ws.onclose = (event) => {
-      console.log('🔌 WebSocket desconectado:', event.code, event.reason);
+      console.log('🔌 WebSocket desconectado:', {
+        code: event.code,
+        reason: event.reason || 'Sin razón específica',
+        wasClean: event.wasClean
+      });
+      
       this.isConnected = false;
       this.connectionState = 'disconnected';
       this.stopHeartbeat();
@@ -314,27 +253,13 @@ class WebSocketService {
       if (this.eventHandlers['disconnected']) {
         this.eventHandlers['disconnected']({ 
           code: event.code, 
-          reason: event.reason 
+          reason: event.reason,
+          wasClean: event.wasClean
         });
       }
       
       // Lógica de reconexión
-      if (event.code !== 1000 && this.reconnectAttempts < this.config.maxReconnectAttempts) {
-        if (event.code === 1006 || event.code === 1011 || event.code === 1012) {
-          console.log('🔄 Desconexión temporal - intentando reconexión...');
-          this.scheduleReconnect();
-        } else if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
-          console.log('🔐 Desconexión por autenticación - no reconectar automáticamente');
-        } else {
-          console.log('🔄 Desconexión inesperada - programando reconexión...');
-          this.scheduleReconnect();
-        }
-      } else if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
-        console.error('❌ Máximo número de intentos de reconexión alcanzado');
-        if (this.eventHandlers['max_reconnect_reached']) {
-          this.eventHandlers['max_reconnect_reached']({ attempts: this.reconnectAttempts });
-        }
-      }
+      this.handleReconnection(event.code);
     };
     
     this.ws.onerror = (error) => {
@@ -347,7 +272,35 @@ class WebSocketService {
     };
   }
   
-  // ===== RESTO DE MÉTODOS (sin cambios significativos) =====
+  // 🔧 MANEJO INTELIGENTE DE RECONEXIÓN
+  private handleReconnection(closeCode: number): void {
+    console.log('🔄 Evaluando necesidad de reconexión para código:', closeCode);
+    
+    // No reconectar en estos casos
+    const noReconnectCodes = [
+      1000, // Normal closure
+      1001, // Going away
+      1008, // Policy violation (auth error)
+      4001, // Custom: Authentication required
+      4003  // Custom: Insufficient permissions
+    ];
+    
+    if (noReconnectCodes.includes(closeCode)) {
+      console.log('🛑 No se reintentará la conexión debido al código de cierre:', closeCode);
+      return;
+    }
+    
+    // Reconectar para otros códigos si no hemos excedido el límite
+    if (this.reconnectAttempts < this.config.maxReconnectAttempts) {
+      console.log('🔄 Programando reconexión automática...');
+      this.scheduleReconnect();
+    } else {
+      console.error('❌ Máximo número de intentos de reconexión alcanzado');
+      if (this.eventHandlers['max_reconnect_reached']) {
+        this.eventHandlers['max_reconnect_reached']({ attempts: this.reconnectAttempts });
+      }
+    }
+  }
   
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
@@ -360,7 +313,7 @@ class WebSocketService {
       30000
     );
     
-    console.log(`🔄 Programando reconexión en ${delay/1000}s... (intento ${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`);
+    console.log(`🔄 Reconexión programada en ${delay/1000}s... (intento ${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`);
     
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
@@ -392,43 +345,30 @@ class WebSocketService {
     const handler = this.eventHandlers[message.type];
     if (handler) {
       handler(message.data);
-    } else {
-      // 🔧 REDUCIR WARNINGS PARA MENSAJES COMUNES DEL SISTEMA
-      if (!['heartbeat', 'pong', 'room_joined'].includes(message.type)) {
-        console.warn(`⚠️ No hay handler para mensaje tipo: ${message.type}`);
-      }
     }
     
     // Manejar mensajes del sistema
     switch (message.type) {
       case 'connected':
-        console.log('🎉 Conexión WebSocket confirmada por el servidor:', message.data);
+        console.log('🎉 Conexión WebSocket confirmada por el servidor');
         break;
-        
-      case 'room_joined':
-        console.log('🏠 Unido a sala:', message.data);
-        break;
-        
       case 'error':
         console.error('❌ Error del servidor:', message.data);
         break;
-        
       case 'notification':
-        console.log('🔔 Notificación recibida:', message.data);
+        console.log('🔔 Notificación:', message.data);
         break;
-        
       case 'test_response':
         console.log('🧪 Respuesta de test:', message.data);
         break;
-        
-      // Mensajes silenciosos (no logear)
       case 'heartbeat':
       case 'pong':
+      case 'room_joined':
+        // Mensajes silenciosos
         break;
-        
       default:
         if (!['heartbeat', 'pong', 'room_joined'].includes(message.type)) {
-          console.log('📨 Mensaje recibido:', message.type, message.data);
+          console.log('📨 Mensaje:', message.type, message.data);
         }
     }
   }
@@ -444,7 +384,7 @@ class WebSocketService {
       try {
         this.ws.send(JSON.stringify(message));
         if (type !== 'ping' && type !== 'heartbeat') {
-          console.log('📤 Mensaje enviado:', type, data);
+          console.log('📤 Mensaje enviado:', type);
         }
       } catch (error) {
         console.error('💥 Error enviando mensaje:', error);
@@ -453,7 +393,7 @@ class WebSocketService {
     } else {
       this.messageQueue.push(message);
       if (type !== 'ping' && type !== 'heartbeat') {
-        console.log('📥 Mensaje encolado (no conectado):', type);
+        console.log('📥 Mensaje encolado:', type);
       }
     }
   }
@@ -464,7 +404,6 @@ class WebSocketService {
       const message = this.messageQueue.shift()!;
       try {
         this.ws!.send(JSON.stringify(message));
-        console.log('📤 Mensaje de cola enviado:', message.type);
         processed++;
       } catch (error) {
         console.error('💥 Error enviando mensaje de cola:', error);
@@ -478,16 +417,13 @@ class WebSocketService {
     }
   }
   
-  // ===== API PÚBLICA =====
-  
+  // API PÚBLICA (sin cambios)
   on(eventType: string, handler: (data: any) => void): void {
     this.eventHandlers[eventType] = handler;
-    console.log(`👂 Suscrito a evento: ${eventType}`);
   }
   
   off(eventType: string): void {
     delete this.eventHandlers[eventType];
-    console.log(`🚫 Desuscrito de evento: ${eventType}`);
   }
   
   onUserUpdate(handler: (userData: any) => void): void {
@@ -500,32 +436,6 @@ class WebSocketService {
   
   onNotification(handler: (notification: any) => void): void {
     this.on('notification', handler);
-  }
-  
-  onConnectionChange(handler: (status: { connected: boolean; state: string }) => void): void {
-    this.on('connected', () => handler({ connected: true, state: 'connected' }));
-    this.on('disconnected', () => handler({ connected: false, state: 'disconnected' }));
-    this.on('error', () => handler({ connected: false, state: 'error' }));
-  }
-  
-  subscribeToRoom(roomType: string, roomId?: number): void {
-    this.send('subscribe', {
-      room_type: roomType,
-      room_id: roomId
-    });
-  }
-  
-  unsubscribeFromRoom(roomType: string, roomId?: number): void {
-    this.send('unsubscribe', {
-      room_type: roomType,
-      room_id: roomId
-    });
-  }
-  
-  updateUserStatus(status: string): void {
-    this.send('user_status', {
-      status: status
-    });
   }
   
   disconnect(): void {
@@ -557,21 +467,10 @@ class WebSocketService {
       maxReconnectAttempts: this.config.maxReconnectAttempts,
       queuedMessages: this.messageQueue.length,
       url: this.config.url,
-      hasToken: this.getAccessToken() !== null,
       userId: this.lastUserId,
       readyState: this.ws ? this.ws.readyState : -1,
-      readyStateText: this.ws ? this.getReadyStateText(this.ws.readyState) : 'No WebSocket'
+      strategy: 'httpOnly_cookies'
     };
-  }
-  
-  private getReadyStateText(readyState: number): string {
-    switch (readyState) {
-      case WebSocket.CONNECTING: return 'CONNECTING';
-      case WebSocket.OPEN: return 'OPEN';
-      case WebSocket.CLOSING: return 'CLOSING';
-      case WebSocket.CLOSED: return 'CLOSED';
-      default: return 'UNKNOWN';
-    }
   }
   
   forceReconnect(): void {
@@ -581,24 +480,17 @@ class WebSocketService {
   }
   
   getDebugInfo() {
-    const token = this.getAccessToken();
     return {
       connection: this.getConnectionInfo(),
       config: this.config,
       handlers: Object.keys(this.eventHandlers),
       messageQueue: this.messageQueue.map(msg => ({ type: msg.type, timestamp: msg.timestamp })),
-      token: {
-        present: !!token,
-        length: token ? token.length : 0,
-        preview: token ? `${token.substring(0, 20)}...` : 'No token'
-      },
       cookies: {
-        present: !!document.cookie,
-        length: document.cookie.length,
-        count: document.cookie.split(';').length,
-        names: document.cookie.split(';').map(c => c.trim().split('=')[0])
+        strategy: 'httpOnly_cookies',
+        accessible_from_js: false,
+        sent_automatically: true,
+        security_note: 'HttpOnly cookies are not accessible from JavaScript (correct behavior)'
       },
-      userAgent: navigator.userAgent,
       timestamp: new Date().toISOString()
     };
   }
@@ -607,80 +499,18 @@ class WebSocketService {
     this.send('test', {
       message: 'Mensaje de prueba desde el frontend',
       timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-      userId: this.lastUserId,
-      hasToken: !!this.getAccessToken()
-    });
-  }
-  
-  async checkConnectivity(): Promise<boolean> {
-    if (!this.isConnected) {
-      return false;
-    }
-    
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => resolve(false), 5000);
-      
-      const originalHandler = this.eventHandlers['pong'];
-      this.eventHandlers['pong'] = (_data) => {
-        clearTimeout(timeout);
-        resolve(true);
-        if (originalHandler) {
-          this.eventHandlers['pong'] = originalHandler;
-        } else {
-          delete this.eventHandlers['pong'];
-        }
-      };
-      
-      this.send('ping', { connectivity_test: true });
+      strategy: 'httpOnly_cookies',
+      userId: this.lastUserId
     });
   }
 }
 
-// ===== SINGLETON EXPORT =====
+// Singleton export
 const webSocketService = new WebSocketService();
 
-// 🔧 EXPONER EL SERVICIO EN WINDOW PARA DEBUGGING
+// Exponer en window para debugging
 if (typeof window !== 'undefined') {
   (window as any).webSocketService = webSocketService;
 }
 
 export default webSocketService;
-
-// ===== HOOK PARA USAR EN COMPONENTES (ACTUALIZADO) =====
-import { useState, useEffect } from 'react';
-
-export const useWebSocket = () => {
-  const [connectionInfo, setConnectionInfo] = useState(
-    webSocketService.getConnectionInfo()
-  );
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const info = webSocketService.getConnectionInfo();
-      setConnectionInfo(prev => 
-        JSON.stringify(prev) !== JSON.stringify(info) ? info : prev
-      );
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, []);
-  
-  return {
-    ...connectionInfo,
-    connect: webSocketService.connect.bind(webSocketService),
-    disconnect: webSocketService.disconnect.bind(webSocketService),
-    send: webSocketService.send.bind(webSocketService),
-    on: webSocketService.on.bind(webSocketService),
-    off: webSocketService.off.bind(webSocketService),
-    forceReconnect: webSocketService.forceReconnect.bind(webSocketService),
-    subscribeToRoom: webSocketService.subscribeToRoom.bind(webSocketService),
-    unsubscribeFromRoom: webSocketService.unsubscribeFromRoom.bind(webSocketService),
-    updateUserStatus: webSocketService.updateUserStatus.bind(webSocketService),
-    getDebugInfo: webSocketService.getDebugInfo.bind(webSocketService),
-    sendTestMessage: webSocketService.sendTestMessage.bind(webSocketService),
-    checkConnectivity: webSocketService.checkConnectivity.bind(webSocketService),
-    debugCookies: webSocketService.debugCookies.bind(webSocketService)
-  };
-};

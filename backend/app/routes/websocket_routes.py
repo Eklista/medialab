@@ -11,6 +11,7 @@ import logging
 from app.controllers.websocket.websocket_controller import websocket_controller
 from app.api.deps import get_current_active_user, get_current_active_superuser
 from app.config.websocket_config import is_websocket_enabled, get_websocket_config
+from app.middleware.websocket_auth import authenticate_websocket
 
 logger = logging.getLogger(__name__)
 
@@ -54,24 +55,49 @@ async def websocket_endpoint(
             pass
 
 @router.websocket("/secure")
-async def secure_websocket_endpoint(
-    websocket: WebSocket,
-    token: Optional[str] = Query(None, description="Token de autenticación requerido")
-):
+async def secure_websocket_endpoint(websocket: WebSocket):
     """
-    🔐 Endpoint seguro de WebSocket - REQUIERE AUTENTICACIÓN
+    🔐 Endpoint seguro de WebSocket - VERSIÓN FINAL CORREGIDA
     
-    Este endpoint requiere autenticación válida para conectarse.
+    Este endpoint:
+    1. Acepta la conexión WebSocket primero
+    2. Lee las cookies HttpOnly automáticamente desde los headers
+    3. Autentica al usuario usando las cookies
+    4. Establece la conexión WebSocket autenticada SIN doble accept
     """
     if not is_websocket_enabled():
         await websocket.close(code=1008, reason="WebSocket service disabled")
         return
     
-    logger.info("🔐 Intento de conexión a WebSocket seguro")
+    logger.info("🔐 Intento de conexión a WebSocket seguro con cookies HttpOnly")
     
     try:
-        # Este endpoint siempre requiere autenticación
-        await websocket_controller.websocket_endpoint(websocket, user_id=None)
+        # 1. ACEPTAR LA CONEXIÓN PRIMERO (necesario para leer cookies)
+        await websocket.accept()
+        logger.info("✅ Conexión WebSocket aceptada, procediendo con autenticación...")
+        
+        # 2. AUTENTICAR USANDO COOKIES HTTPONLY
+        user_data = await authenticate_websocket(websocket)
+        
+        if not user_data:
+            logger.warning("🚨 Autenticación WebSocket fallida - cerrando conexión")
+            await websocket.close(code=4001, reason="Authentication required")
+            return
+        
+        user_id = user_data.get('id')
+        user_email = user_data.get('email', 'unknown')
+        
+        logger.info(f"✅ Usuario autenticado en WebSocket seguro: {user_email} (ID: {user_id})")
+        
+        # 3. 🔧 CONTINUAR CON LA LÓGICA WEBSOCKET SIN DOBLE ACCEPT
+        await websocket_controller.websocket_endpoint(
+            websocket, 
+            user_id=user_id, 
+            already_accepted=True  # ← IMPORTANTE: Evita el doble accept
+        )
+        
+    except WebSocketDisconnect:
+        logger.info("👋 Cliente desconectado del WebSocket seguro")
     except Exception as e:
         logger.error(f"💥 Error en websocket endpoint seguro: {e}")
         try:

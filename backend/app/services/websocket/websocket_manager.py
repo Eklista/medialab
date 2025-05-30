@@ -10,6 +10,7 @@ import json
 import asyncio
 import logging
 from datetime import datetime, timedelta
+import time
 import uuid
 from collections import defaultdict
 
@@ -60,547 +61,393 @@ class ConnectionInfo:
         self.rooms.discard(room_name)
 
 class WebSocketManager:
-    """
-    Gestor de conexiones WebSocket
-    """
-    
     def __init__(self):
-        self.config = get_websocket_config()
+        # Conexiones activas: {connection_id: connection_info}
+        self.active_connections: Dict[str, Dict] = {}
         
-        # Conexiones activas: {connection_id: ConnectionInfo}
-        self.active_connections: Dict[str, ConnectionInfo] = {}
+        # Mapeo de usuarios a conexiones: {user_id: {connection_ids}}
+        self.user_connections: Dict[int, Set[str]] = {}
         
-        # Conexiones por usuario: {user_id: {connection_id, ...}}
-        self.user_connections: Dict[int, Set[str]] = defaultdict(set)
-        
-        # Salas/grupos: {room_name: {connection_id, ...}}
-        self.rooms: Dict[str, Set[str]] = defaultdict(set)
-        
-        # Task de limpieza y heartbeat
-        self._cleanup_task: Optional[asyncio.Task] = None
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        # Salas: {room_name: {connection_ids}}
+        self.rooms: Dict[str, Set[str]] = {}
         
         # Estadísticas
         self.stats = {
             "total_connections": 0,
-            "total_messages_sent": 0,
-            "total_disconnections": 0,
-            "total_errors": 0,
+            "active_connections": 0,
+            "total_messages": 0,
             "start_time": datetime.utcnow()
         }
         
-        # Cola de mensajes para envío diferido
-        self._message_queue: List[Dict[str, Any]] = []
+        # Configuración
+        self.max_connections_per_user = 5
+        self.max_total_connections = 1000
+        self.heartbeat_interval = 30  # segundos
+        self.connection_timeout = 300  # 5 minutos
         
-        # Control de shutdown
-        self._is_shutting_down = False
+        # Tareas en background
+        self._cleanup_task = None
+        self._heartbeat_task = None
         
-        # Iniciar tasks de mantenimiento
-        self.start_background_tasks()
-        
-        logger.info("🔌 WebSocket Manager inicializado")
+        # Iniciar tareas de mantenimiento
+        self._start_background_tasks()
     
-    # ===== GESTIÓN DE CONEXIONES =====
-    
-    async def connect(self, websocket: WebSocket, user_id: int) -> Optional[str]:
+    async def connect(self, websocket: WebSocket, user_id: int, already_accepted: bool = False) -> Optional[str]:
         """
-        Conectar un nuevo WebSocket
+        Conecta un nuevo WebSocket - CORREGIDO PARA MANEJAR DICT
         """
         try:
-            # Verificar si estamos en shutdown
-            if self._is_shutting_down:
-                await websocket.close(code=1012, reason="Server restarting")
-                return None
+            # Solo aceptar si no ha sido aceptado previamente
+            if not already_accepted:
+                await websocket.accept()
+                logger.info(f"✅ Conexión WebSocket aceptada para usuario {user_id}")
+            else:
+                logger.info(f"✅ Usando conexión WebSocket ya aceptada para usuario {user_id}")
             
             # Generar ID único para la conexión
-            connection_id = str(uuid.uuid4())
+            connection_id = f"{user_id}_{int(time.time())}_{len(self.active_connections)}"
             
-            # Verificar límites
+            # Verificar límites de conexión
             if not self._can_accept_connection(user_id):
-                logger.warning(f"🚫 Conexión rechazada - límites excedidos para usuario {user_id}")
-                await websocket.close(code=1008, reason="Connection limit exceeded")
+                logger.warning(f"🚫 Límite de conexiones alcanzado para usuario {user_id}")
+                await websocket.close(code=1008, reason="Connection limit reached")
                 return None
             
-            # Aceptar conexión WebSocket
-            await websocket.accept()
+            # 🔧 ALMACENAR LA CONEXIÓN (SIN ASUMIR QUE user_data ES UN OBJETO)
+            self.active_connections[connection_id] = {
+                "websocket": websocket,
+                "user_id": user_id,
+                "connected_at": datetime.utcnow(),
+                "last_ping": datetime.utcnow(),
+                "is_active": True  # ← Valor por defecto, no acceder al objeto usuario
+            }
             
-            # Crear info de conexión
-            connection_info = ConnectionInfo(websocket, user_id, connection_id)
-            
-            # Registrar conexión
-            self.active_connections[connection_id] = connection_info
+            # Mapear usuario a conexión
+            if user_id not in self.user_connections:
+                self.user_connections[user_id] = set()
             self.user_connections[user_id].add(connection_id)
             
             # Actualizar estadísticas
             self.stats["total_connections"] += 1
+            self.stats["active_connections"] = len(self.active_connections)
             
-            if self.config.log_connections:
-                logger.info(f"✅ WebSocket conectado: user_id={user_id}, connection_id={connection_id}")
+            logger.info(f"✅ Nueva conexión WebSocket: {connection_id} para usuario {user_id}")
             
-            # Enviar mensaje de bienvenida
+            # Enviar mensaje de confirmación
             await self.send_to_connection(connection_id, {
                 "type": "connected",
                 "data": {
                     "connection_id": connection_id,
                     "user_id": user_id,
-                    "server_time": datetime.utcnow().isoformat(),
-                    "config": {
-                        "heartbeat_interval": self.config.heartbeat_interval,
-                        "max_message_size": self.config.max_message_size
-                    }
+                    "timestamp": datetime.utcnow().isoformat()
                 }
             })
-            
-            # Agregar a sala de usuario por defecto
-            await self.join_room(connection_id, f"user_{user_id}")
             
             return connection_id
             
         except Exception as e:
             logger.error(f"💥 Error conectando WebSocket: {e}")
-            try:
-                await websocket.close(code=1011, reason="Internal server error")
-            except:
-                pass
             return None
     
-    def disconnect(self, connection_id: str, code: int = 1000, reason: str = "Normal closure"):
+    def disconnect(self, connection_id: str, code: int = 1000, reason: str = "Normal closure") -> bool:
         """
-        Desconectar WebSocket
-        """
-        if connection_id not in self.active_connections:
-            return
-        
-        connection_info = self.active_connections[connection_id]
-        user_id = connection_info.user_id
-        
-        try:
-            # Cerrar la conexión WebSocket si está abierta
-            if connection_info.websocket and connection_info.is_active:
-                asyncio.create_task(self._close_websocket_safely(connection_info.websocket, code, reason))
-                
-        except Exception as e:
-            logger.error(f"💥 Error cerrando WebSocket {connection_id}: {e}")
-        
-        # Remover de todas las estructuras
-        del self.active_connections[connection_id]
-        self.user_connections[user_id].discard(connection_id)
-        
-        # Limpiar usuario si no tiene más conexiones
-        if not self.user_connections[user_id]:
-            del self.user_connections[user_id]
-        
-        # Remover de todas las salas
-        for room_name, room_connections in self.rooms.items():
-            room_connections.discard(connection_id)
-        
-        # Limpiar salas vacías
-        empty_rooms = [room for room, connections in self.rooms.items() if not connections]
-        for room in empty_rooms:
-            del self.rooms[room]
-        
-        # Actualizar estadísticas
-        self.stats["total_disconnections"] += 1
-        
-        if self.config.log_connections:
-            logger.info(f"❌ WebSocket desconectado: user_id={user_id}, connection_id={connection_id}, code={code}")
-    
-    async def _close_websocket_safely(self, websocket: WebSocket, code: int, reason: str):
-        """
-        Cierra una conexión WebSocket de forma segura
+        Desconecta una conexión WebSocket específica
         """
         try:
-            await websocket.close(code=code, reason=reason)
-        except Exception as e:
-            logger.debug(f"Info: Error cerrando WebSocket (normal si ya estaba cerrado): {e}")
-    
-    # ===== ENVÍO DE MENSAJES =====
-    
-    async def send_to_connection(self, connection_id: str, message: dict) -> bool:
-        """
-        Enviar mensaje a una conexión específica
-        """
-        if connection_id not in self.active_connections:
-            return False
-        
-        connection_info = self.active_connections[connection_id]
-        
-        try:
-            # Verificar que la conexión esté activa
-            if not connection_info.is_active:
+            if connection_id not in self.active_connections:
+                logger.warning(f"⚠️ Intento de desconectar conexión inexistente: {connection_id}")
                 return False
             
-            # Agregar timestamp y metadata
-            message_with_timestamp = {
-                **message,
-                "timestamp": datetime.utcnow().isoformat(),
-                "connection_id": connection_id
-            }
+            connection_info = self.active_connections[connection_id]
+            websocket = connection_info["websocket"]
+            user_id = connection_info["user_id"]
             
-            # Verificar tamaño del mensaje
-            message_str = json.dumps(message_with_timestamp)
-            if len(message_str) > self.config.max_message_size:
-                logger.warning(f"⚠️ Mensaje demasiado grande para {connection_id}: {len(message_str)} bytes")
-                return False
+            # Cerrar la conexión WebSocket
+            try:
+                asyncio.create_task(websocket.close(code=code, reason=reason))
+            except Exception as close_error:
+                logger.warning(f"⚠️ Error cerrando WebSocket {connection_id}: {close_error}")
             
-            await connection_info.websocket.send_text(message_str)
+            # Remover de conexiones activas
+            del self.active_connections[connection_id]
+            
+            # Remover del mapeo de usuario
+            if user_id in self.user_connections:
+                self.user_connections[user_id].discard(connection_id)
+                if not self.user_connections[user_id]:
+                    del self.user_connections[user_id]
+            
+            # Remover de todas las salas
+            for room_name, room_connections in self.rooms.items():
+                room_connections.discard(connection_id)
             
             # Actualizar estadísticas
-            self.stats["total_messages_sent"] += 1
+            self.stats["active_connections"] = len(self.active_connections)
             
-            if self.config.log_messages:
-                logger.debug(f"📤 Mensaje enviado a {connection_id}: {message['type']}")
+            logger.info(f"✅ Conexión {connection_id} desconectada (usuario {user_id})")
+            return True
             
+        except Exception as e:
+            logger.error(f"💥 Error desconectando {connection_id}: {e}")
+            return False
+    
+    async def send_to_connection(self, connection_id: str, message: Dict[str, Any]) -> bool:
+        """
+        Envía un mensaje a una conexión específica - CORREGIDO
+        """
+        try:
+            if connection_id not in self.active_connections:
+                logger.warning(f"⚠️ Intento de enviar a conexión inexistente: {connection_id}")
+                return False
+            
+            connection_info = self.active_connections[connection_id]
+            websocket = connection_info["websocket"]
+            
+            # 🔧 VERIFICAR ESTADO DE LA CONEXIÓN SIN ACCEDER A ATRIBUTOS DE USUARIO
+            if websocket.client_state.name != "CONNECTED":
+                logger.warning(f"⚠️ Conexión {connection_id} no está en estado CONNECTED")
+                return False
+            
+            # Enviar mensaje
+            await websocket.send_text(json.dumps(message))
+            
+            # Actualizar estadísticas
+            self.stats["total_messages"] += 1
+            
+            logger.debug(f"📤 Mensaje enviado a {connection_id}: {message.get('type', 'unknown')}")
             return True
             
         except Exception as e:
             logger.error(f"💥 Error enviando mensaje a {connection_id}: {e}")
-            self.stats["total_errors"] += 1
-            
-            # Marcar conexión como inactiva y desconectar
-            connection_info.is_active = False
+            # Marcar conexión como problemática y desconectar
             self.disconnect(connection_id, 1011, "Send error")
             return False
     
-    async def send_to_user(self, user_id: int, message: dict) -> int:
+    async def send_to_user(self, user_id: int, message: Dict[str, Any]) -> int:
         """
-        Enviar mensaje a todas las conexiones de un usuario
+        Envía un mensaje a todas las conexiones de un usuario
         """
+        sent_count = 0
+        
         if user_id not in self.user_connections:
+            logger.debug(f"👤 Usuario {user_id} no tiene conexiones activas")
             return 0
         
-        sent_count = 0
-        failed_connections = []
+        # Crear copia de la lista para evitar modificaciones durante iteración
+        connection_ids = list(self.user_connections[user_id])
         
-        for connection_id in self.user_connections[user_id].copy():
-            if await self.send_to_connection(connection_id, message):
+        for connection_id in connection_ids:
+            success = await self.send_to_connection(connection_id, message)
+            if success:
                 sent_count += 1
-            else:
-                failed_connections.append(connection_id)
         
-        # Limpiar conexiones fallidas
-        for connection_id in failed_connections:
-            self.disconnect(connection_id)
-        
+        logger.debug(f"📨 Mensaje enviado a {sent_count}/{len(connection_ids)} conexiones del usuario {user_id}")
         return sent_count
     
-    async def broadcast_to_all(self, message: dict, exclude_user_id: Optional[int] = None) -> int:
+    async def broadcast_to_all(self, message: Dict[str, Any]) -> int:
         """
-        Broadcast a todas las conexiones
+        Envía un mensaje a todas las conexiones activas
         """
         sent_count = 0
-        failed_connections = []
+        connection_ids = list(self.active_connections.keys())
         
-        for connection_id, connection_info in self.active_connections.copy().items():
-            if exclude_user_id and connection_info.user_id == exclude_user_id:
-                continue
-            
-            if await self.send_to_connection(connection_id, message):
+        for connection_id in connection_ids:
+            success = await self.send_to_connection(connection_id, message)
+            if success:
                 sent_count += 1
-            else:
-                failed_connections.append(connection_id)
         
-        # Limpiar conexiones fallidas
-        for connection_id in failed_connections:
-            self.disconnect(connection_id)
-        
+        logger.info(f"📢 Broadcast enviado a {sent_count}/{len(connection_ids)} conexiones")
         return sent_count
-    
-    async def send_to_room(self, room_name: str, message: dict) -> int:
-        """
-        Enviar mensaje a todos en una sala
-        """
-        if room_name not in self.rooms:
-            return 0
-        
-        sent_count = 0
-        failed_connections = []
-        
-        for connection_id in self.rooms[room_name].copy():
-            if await self.send_to_connection(connection_id, message):
-                sent_count += 1
-            else:
-                failed_connections.append(connection_id)
-        
-        # Limpiar conexiones fallidas
-        for connection_id in failed_connections:
-            self.disconnect(connection_id)
-        
-        return sent_count
-    
-    # ===== GESTIÓN DE SALAS =====
     
     async def join_room(self, connection_id: str, room_name: str) -> bool:
         """
-        Unir conexión a una sala
+        Une una conexión a una sala
         """
-        if connection_id not in self.active_connections:
+        try:
+            if connection_id not in self.active_connections:
+                logger.warning(f"⚠️ Conexión {connection_id} no existe para unir a sala {room_name}")
+                return False
+            
+            if room_name not in self.rooms:
+                self.rooms[room_name] = set()
+            
+            self.rooms[room_name].add(connection_id)
+            
+            # Enviar confirmación
+            await self.send_to_connection(connection_id, {
+                "type": "room_joined",
+                "data": {
+                    "room": room_name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            })
+            
+            logger.debug(f"🏠 Conexión {connection_id} unida a sala {room_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"💥 Error uniendo {connection_id} a sala {room_name}: {e}")
             return False
-        
-        # Agregar a la sala
-        self.rooms[room_name].add(connection_id)
-        
-        # Actualizar info de la conexión
-        connection_info = self.active_connections[connection_id]
-        connection_info.add_to_room(room_name)
-        
-        await self.send_to_connection(connection_id, {
-            "type": "room_joined",
-            "data": {
-                "room": room_name,
-                "members_count": len(self.rooms[room_name])
-            }
-        })
-        
-        logger.debug(f"🏠 Conexión {connection_id} unida a sala '{room_name}' ({len(self.rooms[room_name])} miembros)")
-        return True
     
     async def leave_room(self, connection_id: str, room_name: str) -> bool:
         """
-        Salir de una sala
+        Saca una conexión de una sala
         """
-        if room_name in self.rooms:
-            self.rooms[room_name].discard(connection_id)
+        try:
+            if room_name in self.rooms:
+                self.rooms[room_name].discard(connection_id)
+                
+                # Limpiar sala vacía
+                if not self.rooms[room_name]:
+                    del self.rooms[room_name]
+                
+                logger.debug(f"🚪 Conexión {connection_id} salió de sala {room_name}")
+                return True
             
-            # Limpiar sala si está vacía
-            if not self.rooms[room_name]:
-                del self.rooms[room_name]
-        
-        # Actualizar info de la conexión
-        if connection_id in self.active_connections:
-            connection_info = self.active_connections[connection_id]
-            connection_info.remove_from_room(room_name)
+            return False
             
-            await self.send_to_connection(connection_id, {
-                "type": "room_left",
-                "data": {
-                    "room": room_name
-                }
-            })
-        
-        logger.debug(f"🏠 Conexión {connection_id} salió de sala '{room_name}'")
-        return True
+        except Exception as e:
+            logger.error(f"💥 Error sacando {connection_id} de sala {room_name}: {e}")
+            return False
     
-    def get_room_members(self, room_name: str) -> List[Dict[str, Any]]:
+    async def broadcast_to_room(self, room_name: str, message: Dict[str, Any]) -> int:
         """
-        Obtiene los miembros de una sala
+        Envía un mensaje a todas las conexiones de una sala
         """
         if room_name not in self.rooms:
-            return []
+            logger.debug(f"🏠 Sala {room_name} no existe")
+            return 0
         
-        members = []
-        for connection_id in self.rooms[room_name]:
-            if connection_id in self.active_connections:
-                connection_info = self.active_connections[connection_id]
-                members.append({
-                    "connection_id": connection_id,
-                    "user_id": connection_info.user_id,
-                    "connected_at": connection_info.connected_at.isoformat()
-                })
+        sent_count = 0
+        connection_ids = list(self.rooms[room_name])
         
-        return members
-    
-    # ===== UTILIDADES =====
+        for connection_id in connection_ids:
+            success = await self.send_to_connection(connection_id, message)
+            if success:
+                sent_count += 1
+        
+        logger.debug(f"📨 Mensaje enviado a {sent_count}/{len(connection_ids)} conexiones en sala {room_name}")
+        return sent_count
     
     def _can_accept_connection(self, user_id: int) -> bool:
         """
-        Verificar si se puede aceptar una nueva conexión
+        Verifica si se puede aceptar una nueva conexión
         """
         # Verificar límite total
-        if len(self.active_connections) >= self.config.max_total_connections:
-            logger.warning(f"🚫 Límite total de conexiones alcanzado: {len(self.active_connections)}/{self.config.max_total_connections}")
+        if len(self.active_connections) >= self.max_total_connections:
+            logger.warning(f"🚫 Límite total de conexiones alcanzado: {len(self.active_connections)}")
             return False
         
         # Verificar límite por usuario
-        user_connection_count = len(self.user_connections.get(user_id, set()))
-        if user_connection_count >= self.config.max_connections_per_user:
-            logger.warning(f"🚫 Límite de conexiones por usuario alcanzado para {user_id}: {user_connection_count}/{self.config.max_connections_per_user}")
+        user_connections_count = len(self.user_connections.get(user_id, set()))
+        if user_connections_count >= self.max_connections_per_user:
+            logger.warning(f"🚫 Usuario {user_id} alcanzó límite de conexiones: {user_connections_count}")
             return False
         
         return True
     
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         """
-        Obtener estadísticas completas
+        Obtiene estadísticas del WebSocket Manager
         """
         uptime = datetime.utcnow() - self.stats["start_time"]
         
-        # Estadísticas de salas
-        room_stats = {}
-        for room_name, connections in self.rooms.items():
-            room_stats[room_name] = len(connections)
-        
         return {
-            **self.stats,
             "active_connections": len(self.active_connections),
+            "total_connections": self.stats["total_connections"],
+            "total_messages": self.stats["total_messages"],
             "unique_users": len(self.user_connections),
             "active_rooms": len(self.rooms),
             "uptime_seconds": int(uptime.total_seconds()),
-            "connections_per_user": {
-                user_id: len(connections) 
-                for user_id, connections in self.user_connections.items()
-            },
-            "room_stats": room_stats,
-            "background_tasks": {
-                "cleanup_task_running": self._cleanup_task is not None and not self._cleanup_task.done(),
-                "heartbeat_task_running": self._heartbeat_task is not None and not self._heartbeat_task.done()
-            }
+            "max_connections_per_user": self.max_connections_per_user,
+            "max_total_connections": self.max_total_connections
         }
     
-    def get_user_connections(self, user_id: int) -> List[dict]:
+    def _start_background_tasks(self):
         """
-        Obtener conexiones de un usuario
+        Inicia tareas de mantenimiento en background
         """
-        if user_id not in self.user_connections:
-            return []
-        
-        return [
-            self.active_connections[conn_id].to_dict()
-            for conn_id in self.user_connections[user_id]
-            if conn_id in self.active_connections
-        ]
+        try:
+            # Tarea de limpieza de conexiones
+            self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
+            
+            # Tarea de heartbeat
+            self._heartbeat_task = asyncio.create_task(self._periodic_heartbeat())
+            
+            logger.info("✅ Tareas de mantenimiento WebSocket iniciadas")
+            
+        except Exception as e:
+            logger.error(f"💥 Error iniciando tareas de mantenimiento: {e}")
     
-    def get_connection_info(self, connection_id: str) -> Optional[dict]:
+    async def _periodic_cleanup(self):
         """
-        Obtener información de una conexión específica
+        Limpieza periódica de conexiones muertas
         """
-        if connection_id in self.active_connections:
-            return self.active_connections[connection_id].to_dict()
-        return None
-    
-    # ===== TASKS DE BACKGROUND =====
-    
-    def start_background_tasks(self):
-        """
-        Iniciar tasks de mantenimiento
-        """
-        if not self._cleanup_task or self._cleanup_task.done():
-            self._cleanup_task = asyncio.create_task(self._cleanup_task_runner())
-            logger.info("🧹 Task de limpieza iniciado")
-        
-        if not self._heartbeat_task or self._heartbeat_task.done():
-            self._heartbeat_task = asyncio.create_task(self._heartbeat_task_runner())
-            logger.info("💓 Task de heartbeat iniciado")
-    
-    def stop_background_tasks(self):
-        """
-        Detener tasks de background
-        """
-        if self._cleanup_task and not self._cleanup_task.done():
-            self._cleanup_task.cancel()
-            logger.info("🧹 Task de limpieza detenido")
-        
-        if self._heartbeat_task and not self._heartbeat_task.done():
-            self._heartbeat_task.cancel()
-            logger.info("💓 Task de heartbeat detenido")
-    
-    async def _cleanup_task_runner(self):
-        """
-        Task de limpieza periódica
-        """
-        while not self._is_shutting_down:
+        while True:
             try:
-                await asyncio.sleep(60)  # Cada minuto
-                await self._cleanup_stale_connections()
-                await self._cleanup_empty_rooms()
-            except asyncio.CancelledError:
-                logger.info("🧹 Task de limpieza cancelado")
-                break
+                await asyncio.sleep(60)  # Ejecutar cada minuto
+                
+                cleanup_count = 0
+                current_time = datetime.utcnow()
+                connection_ids_to_remove = []
+                
+                for connection_id, connection_info in self.active_connections.items():
+                    # Verificar timeout de conexión
+                    last_activity = connection_info.get("last_ping", connection_info["connected_at"])
+                    if current_time - last_activity > timedelta(seconds=self.connection_timeout):
+                        connection_ids_to_remove.append(connection_id)
+                        cleanup_count += 1
+                
+                # Remover conexiones expiradas
+                for connection_id in connection_ids_to_remove:
+                    self.disconnect(connection_id, 1000, "Connection timeout")
+                
+                if cleanup_count > 0:
+                    logger.info(f"🧹 Limpieza completada: {cleanup_count} conexiones removidas")
+                
             except Exception as e:
-                logger.error(f"💥 Error en cleanup task: {e}")
+                logger.error(f"💥 Error en limpieza periódica: {e}")
     
-    async def _heartbeat_task_runner(self):
+    async def _periodic_heartbeat(self):
         """
-        Task de heartbeat
+        Heartbeat periódico para mantener conexiones vivas
         """
-        while not self._is_shutting_down:
+        while True:
             try:
-                await asyncio.sleep(self.config.heartbeat_interval)
-                await self._send_heartbeat()
-            except asyncio.CancelledError:
-                logger.info("💓 Task de heartbeat cancelado")
-                break
+                await asyncio.sleep(self.heartbeat_interval)
+                
+                heartbeat_message = {
+                    "type": "heartbeat",
+                    "data": {"timestamp": datetime.utcnow().isoformat()}
+                }
+                
+                sent_count = await self.broadcast_to_all(heartbeat_message)
+                logger.debug(f"💓 Heartbeat enviado a {sent_count} conexiones")
+                
             except Exception as e:
-                logger.error(f"💥 Error en heartbeat task: {e}")
-    
-    async def _cleanup_stale_connections(self):
-        """
-        Limpiar conexiones obsoletas
-        """
-        timeout_threshold = datetime.utcnow() - timedelta(seconds=self.config.connection_timeout)
-        stale_connections = []
-        
-        for connection_id, connection_info in self.active_connections.items():
-            if connection_info.last_ping < timeout_threshold:
-                stale_connections.append(connection_id)
-        
-        for connection_id in stale_connections:
-            logger.warning(f"🧹 Limpiando conexión obsoleta: {connection_id}")
-            self.disconnect(connection_id, 1001, "Connection timeout")
-    
-    async def _cleanup_empty_rooms(self):
-        """
-        Limpiar salas vacías
-        """
-        empty_rooms = [room for room, connections in self.rooms.items() if not connections]
-        for room in empty_rooms:
-            del self.rooms[room]
-            logger.debug(f"🧹 Sala vacía eliminada: {room}")
-    
-    async def _send_heartbeat(self):
-        """
-        Enviar heartbeat a todas las conexiones
-        """
-        if not self.active_connections:
-            return
-        
-        heartbeat_message = {
-            "type": "heartbeat",
-            "data": {
-                "server_time": datetime.utcnow().isoformat(),
-                "active_connections": len(self.active_connections)
-            }
-        }
-        
-        sent_count = await self.broadcast_to_all(heartbeat_message)
-        logger.debug(f"💓 Heartbeat enviado a {sent_count} conexiones")
-    
-    # ===== SHUTDOWN Y CLEANUP =====
+                logger.error(f"💥 Error en heartbeat periódico: {e}")
     
     async def shutdown(self):
         """
-        Cierra todas las conexiones y limpia recursos
+        Cierra el WebSocket Manager y todas las conexiones
         """
         logger.info("🛑 Iniciando shutdown del WebSocket Manager...")
         
-        self._is_shutting_down = True
+        # Cancelar tareas de background
+        if self._cleanup_task:
+            self._cleanup_task.cancel()
         
-        # Detener tasks de background
-        self.stop_background_tasks()
+        if self._heartbeat_task:
+            self._heartbeat_task.cancel()
         
-        # Enviar mensaje de cierre a todas las conexiones
-        if self.active_connections:
-            shutdown_message = {
-                "type": "server_shutdown",
-                "data": {
-                    "message": "El servidor se está cerrando",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-            }
-            
-            await self.broadcast_to_all(shutdown_message)
-            
-            # Dar tiempo para que llegue el mensaje
-            await asyncio.sleep(1)
-        
-        # Desconectar todas las conexiones activas
-        active_connections = list(self.active_connections.keys())
-        for connection_id in active_connections:
+        # Cerrar todas las conexiones
+        connection_ids = list(self.active_connections.keys())
+        for connection_id in connection_ids:
             self.disconnect(connection_id, 1001, "Server shutdown")
         
-        logger.info(f"🛑 WebSocket Manager cerrado - {len(active_connections)} conexiones desconectadas")
+        logger.info("✅ WebSocket Manager cerrado correctamente")
 
-# ===== INSTANCIA GLOBAL =====
+# Instancia global del manager
 websocket_manager = WebSocketManager()
 
 # ===== FUNCIONES DE UTILIDAD =====

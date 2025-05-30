@@ -1,13 +1,5 @@
-# backend/app/controllers/websocket/__init__.py
-"""
-WebSocket Controllers Package
-"""
-
-# backend/app/controllers/websocket/websocket_controller.py
-"""
-🎮 CONTROLADOR WEBSOCKET COMPLETO
-Maneja toda la lógica de negocio para WebSocket
-"""
+# backend/app/controllers/websocket/websocket_controller.py - CORRECCIÓN
+# 🔧 VERSIÓN CORREGIDA QUE EVITA EL DOBLE ACCEPT
 
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Optional, Dict, Any
@@ -21,29 +13,35 @@ logger = logging.getLogger(__name__)
 
 class WebSocketController:
     """
-    Controlador principal para WebSocket
+    Controlador principal para WebSocket - VERSIÓN CORREGIDA
     """
     
-    async def websocket_endpoint(self, websocket: WebSocket, user_id: Optional[int] = None):
+    async def websocket_endpoint(self, websocket: WebSocket, user_id: Optional[int] = None, already_accepted: bool = False):
         """
-        Endpoint principal de WebSocket
+        Endpoint principal de WebSocket - CORREGIDO PARA EVITAR DOBLE ACCEPT
+        
+        Args:
+            websocket: La conexión WebSocket
+            user_id: ID del usuario (opcional)
+            already_accepted: Si True, la conexión ya fue aceptada (evita doble accept)
         """
         connection_id = None
         
         try:
-            logger.info(f"🔌 Nueva conexión WebSocket - user_id: {user_id}")
+            logger.info(f"🔌 Procesando conexión WebSocket - user_id: {user_id}, already_accepted: {already_accepted}")
             
             # Si no hay user_id, usar uno por defecto para testing
             if user_id is None:
                 user_id = 1  # Usuario por defecto para testing
                 logger.warning(f"⚠️ Usando user_id por defecto: {user_id}")
             
-            # Establecer conexión con el manager
-            connection_id = await websocket_manager.connect(websocket, user_id)
+            # 🔧 ESTABLECER CONEXIÓN CON EL MANAGER (SIN ACCEPT SI YA FUE ACEPTADA)
+            connection_id = await websocket_manager.connect(websocket, user_id, already_accepted=already_accepted)
             
             if not connection_id:
                 logger.error("❌ No se pudo establecer conexión con WebSocket Manager")
-                await websocket.close(code=1011, reason="Connection failed")
+                if not already_accepted:
+                    await websocket.close(code=1011, reason="Connection failed")
                 return
             
             logger.info(f"✅ Conexión establecida: {connection_id} para user_id: {user_id}")
@@ -60,7 +58,8 @@ class WebSocketController:
         except Exception as e:
             logger.error(f"💥 Error en websocket_endpoint: {e}")
             try:
-                await websocket.close(code=1011, reason="Internal server error")
+                if not already_accepted:
+                    await websocket.close(code=1011, reason="Internal server error")
             except:
                 pass
                 
@@ -187,7 +186,7 @@ class WebSocketController:
                 "data": {"message": "Error processing message"}
             })
     
-    # ===== MÉTODOS PARA ADMINISTRACIÓN =====
+    # ===== MÉTODOS PARA ADMINISTRACIÓN (sin cambios) =====
     
     def get_connection_stats(self) -> Dict[str, Any]:
         """

@@ -3,90 +3,140 @@
 🔐 MIDDLEWARE DE AUTENTICACIÓN WEBSOCKET - CORREGIDO
 """
 
-from fastapi import WebSocket, HTTPException, status
+from fastapi import WebSocket
 from typing import Optional, Dict, Any
 import logging
-from urllib.parse import parse_qs
-import json
+import re
 
 logger = logging.getLogger(__name__)
 
 class WebSocketAuthMiddleware:
     """
-    Middleware de autenticación para WebSocket - VERSIÓN CORREGIDA
+    Middleware de autenticación para WebSocket - VERSIÓN FINAL
     """
     
     @staticmethod
     async def get_current_user_websocket(websocket: WebSocket) -> Optional[Dict[str, Any]]:
         """
-        Obtiene el usuario actual desde WebSocket - VERSIÓN CORREGIDA
+        Obtiene el usuario actual desde WebSocket leyendo cookies HttpOnly
         """
         try:
-            token = None
+            logger.info("🔐 === INICIANDO AUTENTICACIÓN WEBSOCKET ===")
             
-            # Método 1: Token en query parameters (CORREGIDO)
-            query_params = dict(websocket.query_params)
-            token = query_params.get("token")
+            # 1. EXTRAER COOKIES DE LOS HEADERS
+            cookies_str = WebSocketAuthMiddleware._extract_cookies_from_headers(websocket)
             
-            # Método 2: Cookie access_token (MEJORADO - extraer de cookies raw)
-            if not token:
-                cookies_str = websocket.headers.get("cookie", "")
-                if cookies_str:
-                    cookies = {}
-                    for cookie in cookies_str.split(';'):
-                        if '=' in cookie:
-                            key, value = cookie.strip().split('=', 1)
-                            cookies[key] = value
-                    token = cookies.get("access_token")
-                    
-            # Método 3: Headers Authorization  
-            if not token:
-                auth_header = websocket.headers.get("authorization")
-                if auth_header and auth_header.startswith("Bearer "):
-                    token = auth_header.split(" ")[1]
-            
-            if not token:
-                logger.warning("🔐 No se encontró token en WebSocket")
+            if not cookies_str:
+                logger.warning("❌ No se encontraron cookies en WebSocket")
                 return None
             
-            logger.debug(f"🔑 Token encontrado: {token[:20]}...")
+            # 2. EXTRAER access_token DE LAS COOKIES
+            access_token = WebSocketAuthMiddleware._extract_access_token(cookies_str)
             
-            # Validar token usando el sistema existente
-            return await WebSocketAuthMiddleware._validate_token(token)
+            if not access_token:
+                logger.warning("❌ No se encontró access_token en las cookies")
+                return None
+            
+            # 3. VALIDAR TOKEN
+            user_data = await WebSocketAuthMiddleware._validate_token(access_token)
+            
+            if user_data:
+                logger.info(f"✅ Usuario autenticado en WebSocket: {user_data['email']}")
+            
+            return user_data
             
         except Exception as e:
             logger.error(f"💥 Error en autenticación WebSocket: {e}")
             return None
     
     @staticmethod
-    async def _validate_token(token: str) -> Optional[Dict[str, Any]]:
-        """
-        Valida un token específico para WebSocket - VERSIÓN CORREGIDA
-        """
+    def _extract_cookies_from_headers(websocket: WebSocket) -> Optional[str]:
+        """Extrae las cookies de los headers de WebSocket"""
         try:
-            # Usar el servicio de autenticación existente
+            # Método 1: Acceso directo
+            for header_name, header_value in websocket.headers.items():
+                if header_name.lower() == 'cookie':
+                    logger.debug(f"🍪 Cookies encontradas: {len(header_value)} caracteres")
+                    return header_value
+            
+            # Método 2: Búsqueda en headers como dict
+            headers_dict = dict(websocket.headers)
+            cookie_variations = ['cookie', 'cookies', 'Cookie', 'Cookies']
+            
+            for variation in cookie_variations:
+                if variation in headers_dict:
+                    return headers_dict[variation]
+            
+            logger.warning("🚨 No se encontró header de cookies en WebSocket")
+            return None
+            
+        except Exception as e:
+            logger.error(f"💥 Error extrayendo cookies: {e}")
+            return None
+    
+    @staticmethod
+    def _extract_access_token(cookies_str: str) -> Optional[str]:
+        """Extrae access_token de la cadena de cookies"""
+        try:
+            # Método 1: Split manual
+            for cookie in cookies_str.split(';'):
+                cookie = cookie.strip()
+                if cookie.startswith('access_token='):
+                    token = cookie.split('=', 1)[1]
+                    logger.debug(f"🔑 access_token encontrado (método 1): {token[:20]}...")
+                    return token
+            
+            # Método 2: Regex
+            match = re.search(r'access_token=([^;]+)', cookies_str)
+            if match:
+                token = match.group(1)
+                logger.debug(f"🔑 access_token encontrado (método 2): {token[:20]}...")
+                return token
+            
+            # Método 3: Parsing completo
+            cookies_dict = {}
+            for cookie in cookies_str.split(';'):
+                if '=' in cookie:
+                    name, value = cookie.strip().split('=', 1)
+                    cookies_dict[name] = value
+            
+            if 'access_token' in cookies_dict:
+                token = cookies_dict['access_token']
+                logger.debug(f"🔑 access_token encontrado (método 3): {token[:20]}...")
+                return token
+            
+            logger.warning("❌ access_token no encontrado en cookies")
+            logger.debug(f"🍪 Cookies disponibles: {list(cookies_dict.keys()) if 'cookies_dict' in locals() else 'N/A'}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"💥 Error extrayendo access_token: {e}")
+            return None
+    
+    @staticmethod
+    async def _validate_token(access_token: str) -> Optional[Dict[str, Any]]:
+        """Valida el token y obtiene datos del usuario"""
+        try:
             from app.services.auth.auth_service import AuthService
             from app.database import get_db
             from app.repositories.users.user_repository import UserRepository
             
             # Verificar token
-            token_data = AuthService.verify_token(token)
+            token_data = AuthService.verify_token(access_token)
             logger.debug(f"🔐 Token verificado para user_id: {token_data.sub}")
             
-            # Obtener usuario con roles
+            # Obtener usuario
             db = next(get_db())
             try:
                 user = UserRepository.get_with_roles(db, int(token_data.sub))
                 
                 if not user:
-                    logger.warning(f"🚨 Token válido pero usuario no encontrado: {token_data.sub}")
+                    logger.warning(f"🚨 Usuario no encontrado: {token_data.sub}")
                     return None
                 
                 if not user.is_active:
-                    logger.warning(f"🚨 Token válido pero usuario inactivo: {user.email}")
+                    logger.warning(f"🚨 Usuario inactivo: {user.email}")
                     return None
-                
-                logger.info(f"🔐 Usuario autenticado en WebSocket: {user.email}")
                 
                 return {
                     "id": user.id,
@@ -101,20 +151,12 @@ class WebSocketAuthMiddleware:
                 db.close()
                 
         except Exception as e:
-            logger.error(f"💥 Error validando token WebSocket: {e}")
+            logger.error(f"💥 Error validando token: {e}")
             return None
 
-# Función de ayuda para verificar autenticación WebSocket
+# Función helper para el endpoint
 async def authenticate_websocket(websocket: WebSocket) -> Optional[Dict[str, Any]]:
     """
     Función helper para autenticar WebSocket connections
     """
-    user = await WebSocketAuthMiddleware.get_current_user_websocket(websocket)
-    
-    if not user:
-        logger.warning("🚨 WebSocket: Autenticación fallida")
-        await websocket.close(code=4001, reason="Authentication required")
-        return None
-    
-    logger.info(f"✅ WebSocket autenticado: {user['email']}")
-    return user
+    return await WebSocketAuthMiddleware.get_current_user_websocket(websocket)

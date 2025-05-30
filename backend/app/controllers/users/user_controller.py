@@ -390,3 +390,67 @@ class UserController:
             return required_permission in user_permissions
         
         return False
+
+    # ===== NUEVAS FUNCIONES PARA FORMATEAR USUARIOS =====
+    @staticmethod
+    def get_current_user_info_enhanced(current_user) -> Dict[str, Any]:
+        """
+        🆕 VERSIÓN MEJORADA del get_current_user_info
+        Para frontend que necesite datos completos
+        """
+        try:
+            from app.utils.user_formatters import UserFormatter
+            return UserFormatter.format_for_frontend_complete(current_user)
+        except Exception as e:
+            logger.error(f"💥 Error obteniendo info enhanced del usuario: {e}")
+            # Fallback al método original
+            return UserController.get_current_user_info(current_user)
+
+    @staticmethod
+    def get_users_list_formatted(db: Session, skip: int = 0, limit: int = 100, format_type: str = "with_roles") -> List[Dict[str, Any]]:
+        """
+        🆕 LISTA DE USUARIOS CON FORMATO ESPECÍFICO
+        """
+        try:
+            from app.utils.user_formatters import UserFormatter
+            users = UserService.get_users(db, skip, limit)
+            return UserFormatter.format_list_for_frontend(users, format_type)
+        except Exception as e:
+            logger.error(f"💥 Error obteniendo lista formateada: {e}")
+            # Fallback al método original
+            users = UserService.get_users(db, skip, limit)
+            from app.utils.user_transforms import transform_user_with_roles
+            return [transform_user_with_roles(user) for user in users]
+
+    @staticmethod
+    def get_active_users_for_menu(db: Session, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        🆕 USUARIOS ACTIVOS PARA MENÚ/SIDEBAR
+        """
+        try:
+            from app.utils.user_formatters import UserFormatter
+            from sqlalchemy import and_, or_
+            from datetime import datetime, timedelta
+            
+            # Obtener usuarios activos (online + recientemente activos)
+            recent_threshold = datetime.utcnow() - timedelta(minutes=30)
+            
+            users = db.query(User).filter(
+                User.is_active == True,
+                or_(
+                    User.is_online == True,
+                    and_(
+                        User.is_online == False,
+                        User.last_login >= recent_threshold
+                    )
+                )
+            ).order_by(
+                User.is_online.desc(),
+                User.last_login.desc()
+            ).limit(limit).all()
+            
+            return UserFormatter.format_list_for_frontend(users, "active_menu")
+            
+        except Exception as e:
+            logger.error(f"💥 Error obteniendo usuarios activos para menú: {e}")
+            return []

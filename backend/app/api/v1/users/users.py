@@ -120,6 +120,44 @@ def delete_user(
     """
     return UserController.delete_user(db, user_id, current_user)
 
+# ===== PERFIL COMPLETO MEJORADO =====
+
+@router.get("/me/enhanced", response_model=Dict[str, Any])
+def read_current_user_enhanced(
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    🆕 PERFIL COMPLETO MEJORADO PARA FRONTEND
+    Incluye todo lo que el frontend necesita
+    """
+    return UserController.get_current_user_info_enhanced(current_user)
+
+@router.get("/formatted")
+def read_users_formatted(
+    skip: int = 0,
+    limit: int = 100,
+    format_type: str = Query("with_roles", description="Tipo de formato: basic, detailed, with_roles, complete"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(has_permission("user_view"))
+) -> Any:
+    """
+    🆕 LISTA DE USUARIOS CON FORMATO ESPECÍFICO
+    Permite elegir el nivel de detalle necesario
+    """
+    return UserController.get_users_list_formatted(db, skip, limit, format_type)
+
+@router.get("/active-menu")
+def get_active_users_menu(
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    🆕 USUARIOS ACTIVOS PARA MENÚ/SIDEBAR
+    Optimizado para mostrar en interfaces de usuario
+    """
+    return UserController.get_active_users_for_menu(db, limit)
+
 # ===== GESTIÓN DE ROLES =====
 
 @router.post("/{user_id}/roles", status_code=status.HTTP_200_OK)
@@ -150,3 +188,4 @@ def upload_user_image(
     ✅ REFACTORIZADO: Usa UserController con mejor validación
     """
     return UserController.upload_user_image(db, file, type, current_user)
+
