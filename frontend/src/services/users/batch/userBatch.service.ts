@@ -1,6 +1,6 @@
 // ===================================================================
 // frontend/src/services/users/batch/userBatch.service.ts
-// Maneja cargas en paralelo y operaciones batch optimizadas
+// Maneja cargas en paralelo y operaciones batch optimizadas - CORREGIDO
 // ===================================================================
 
 import userProfileService from '../profile/userProfile.service';
@@ -129,7 +129,7 @@ class UserBatchService {
   }
 
   /**
-   * 🔍 Búsqueda avanzada con múltiples criterios
+   * 🔍 Búsqueda avanzada con múltiples criterios - CORREGIDO
    */
   async advancedSearch(options: {
     query?: string;
@@ -156,19 +156,28 @@ class UserBatchService {
         formatType: 'with_roles'
       });
 
-      // Aplicar filtros
+      // 🔧 APLICAR FILTROS CON ROLES COMO STRING[]
       if (options.role) {
-        users = users.filter(user => 
-          user.roles?.includes(options.role!) || 
-          user.roleDisplay?.includes(options.role!)
-        );
+        users = users.filter(user => {
+          if (!user.roles || !Array.isArray(user.roles)) return false;
+          // Como roles son string[], usamos includes directamente
+          return user.roles.some((role: string) => role.includes(options.role!));
+        });
       }
 
+      // 🔧 APLICAR FILTROS CON AREAS COMO STRING[]
       if (options.area) {
-        users = users.filter(user => 
-          user.areas?.some(area => area.name === options.area) ||
-          user.areaDisplay?.includes(options.area!)
-        );
+        users = users.filter(user => {
+          // Verificar en areas (que ahora son string[])
+          if (user.areas && Array.isArray(user.areas)) {
+            return user.areas.some((area: string) => area === options.area);
+          }
+          // También verificar en areaDisplay como fallback
+          if (user.areaDisplay) {
+            return user.areaDisplay.includes(options.area!);
+          }
+          return false;
+        });
       }
 
       if (options.isActive !== undefined) {

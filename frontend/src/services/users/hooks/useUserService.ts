@@ -1,4 +1,4 @@
-// frontend/src/services/users/hooks/useUserService.ts - 🎯 VERSIÓN CORREGIDA SIN ERRORES TS
+// frontend/src/services/users/hooks/useUserService.ts - 🔧 HOOK PARA PROFILE AÑADIDO
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient, { createCacheKey } from '../../api';
 import { UserProfile, UserFormatted, UserListOptions } from '../types/user.types';
@@ -51,7 +51,7 @@ const userApi = {
       // Normalizar datos
       const normalizedUsers = response.data.map(user => ({
         ...user,
-        fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        fullName: user.fullName || userApi.getFullName(user),
         initials: user.initials || userApi.getInitials(user),
         roles: user.roles || [],
         areas: user.areas || [],
@@ -134,6 +134,35 @@ const userApi = {
       console.warn('⚠️ Enhanced user endpoint failed, using basic...');
       const basicResponse = await apiClient.get<UserProfile>('/users/me');
       return userApi.transformToFormatted(basicResponse.data);
+    }
+  },
+
+  /**
+   * 🆕 Usuario por ID - NUEVO PARA PROFILE PAGE
+   */
+  async getUserById(userId: number): Promise<UserFormatted> {
+    const cacheKey = `user_profile_${userId}`;
+    
+    const cached = getCachedData<UserFormatted>(cacheKey);
+    if (cached) {
+      console.log(`📦 Cache hit: user_profile_${userId}`);
+      return cached;
+    }
+    
+    try {
+      console.log(`🔄 Fetching user ${userId} from API...`);
+      const response = await apiClient.get<UserProfile>(`/users/${userId}`);
+      
+      const formattedUser = userApi.transformToFormatted(response.data);
+      
+      setCachedData(cacheKey, formattedUser, 3 * 60 * 1000);
+      console.log(`✅ Loaded user profile for ID ${userId}`);
+      
+      return formattedUser;
+      
+    } catch (error) {
+      console.error(`❌ Error fetching user ${userId}:`, error);
+      throw error;
     }
   },
 
@@ -275,6 +304,47 @@ export const useCurrentUserProfile = (enhanced = true) => {
 };
 
 /**
+ * 🆕 Hook para perfil de usuario por ID - NUEVO PARA PROFILE PAGE
+ */
+export const useUserProfile = (userId: number | null) => {
+  const [user, setUser] = useState<UserFormatted | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const loadUserProfile = useCallback(async () => {
+    if (!userId) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log(`🔍 Loading profile for user ID: ${userId}`);
+      const userData = await userApi.getUserById(userId);
+      setUser(userData);
+      console.log(`✅ Profile loaded for user: ${userData.fullName}`);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error cargando perfil';
+      console.error(`❌ Error loading profile for user ${userId}:`, errorMessage);
+      setError(errorMessage);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadUserProfile();
+  }, [loadUserProfile]);
+
+  return { user, isLoading, error, refresh: loadUserProfile };
+};
+
+/**
  * 👥 Hook para usuarios activos
  */
 export const useActiveUsers = (limit = 50, autoRefresh = 30000) => {
@@ -340,61 +410,6 @@ export const useUserSearch = () => {
   }, []);
   
   return { results, isSearching, searchError, search, clearSearch };
-};
-
-/**
- * 👤 Hook para perfil de usuario específico por ID
- */
-export const useUserProfile = (userId: number | null) => {
-  const [user, setUser] = useState<UserFormatted | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const loadUserProfile = useCallback(async () => {
-    if (!userId) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log(`👤 Loading profile for user ${userId}...`);
-      
-      // Intentar cargar el usuario específico
-      const response = await apiClient.get<UserProfile>(`/users/${userId}`);
-      const userProfile = response.data;
-      
-      // Transformar a UserFormatted
-      const formattedUser: UserFormatted = {
-        ...userProfile,
-        fullName: userApi.getFullName(userProfile),
-        initials: userApi.getInitials(userProfile),
-        roles: [],
-        areas: [],
-        status: (userProfile.isActive ? 'offline' : 'inactive') as 'online' | 'away' | 'offline' | 'inactive'
-      };
-      
-      setUser(formattedUser);
-      console.log(`✅ Profile loaded for user ${userId}`);
-      
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error cargando perfil de usuario';
-      console.error(`❌ Error loading profile for user ${userId}:`, errorMessage);
-      setError(errorMessage);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    loadUserProfile();
-  }, [loadUserProfile]);
-
-  return { user, isLoading, error, refresh: loadUserProfile };
 };
 
 /**

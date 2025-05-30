@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/UserProfilePage.tsx
+// src/features/dashboard/pages/UserProfilePage.tsx - 🎯 VERSIÓN CORREGIDA PARA DATOS DEL BACKEND
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -15,9 +15,7 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 
-// Importar hooks y utilidades
 import { useUserProfile } from '../../../services/users/hooks/useUserService';
-import { getRoleDisplayText } from '../../../utils/userTypeHelpers';
 import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
 import { formatFullDate, parseDate, formatBirthday } from '../utils/dateUtils';
 
@@ -28,8 +26,77 @@ const UserProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   
-  // 🎯 HOOK OPTIMIZADO - Una sola línea reemplaza toda la lógica de carga
+  // 🎯 HOOK OPTIMIZADO
   const { user, isLoading, error } = useUserProfile(userId ? parseInt(userId) : null);
+  
+  // 🔧 FUNCIÓN HELPERS PARA MANEJAR DATOS DEL BACKEND
+  const getUserFullName = (userData: any): string => {
+    if (!userData) return 'Usuario';
+    
+    if (userData.fullName) return userData.fullName;
+    if (userData.full_name) return userData.full_name;
+    
+    const firstName = userData.firstName || userData.first_name || '';
+    const lastName = userData.lastName || userData.last_name || '';
+    
+    if (firstName && lastName) return `${firstName} ${lastName}`;
+    if (firstName) return firstName;
+    if (lastName) return lastName;
+    
+    return userData.email?.split('@')[0] || 'Usuario';
+  };
+
+  const getUserActiveStatus = (userData: any): boolean => {
+    if (!userData) return false;
+    if (userData.isActive !== undefined) return userData.isActive;
+    if (userData.is_active !== undefined) return userData.is_active;
+    if (userData.active !== undefined) return userData.active;
+    return true; // Por defecto activo
+  };
+
+  const getUserRoles = (userData: any): string[] => {
+    if (!userData) return [];
+    if (Array.isArray(userData.roles)) {
+      // Convertir todo a strings
+      return userData.roles.map(role => 
+        typeof role === 'string' ? role : role?.name || ''
+      ).filter(Boolean);
+    }
+    if (userData.role) return [userData.role];
+    return [];
+  };
+
+  const getUserAreas = (userData: any): string[] => {
+    if (!userData) return [];
+    if (Array.isArray(userData.areas)) {
+      // Convertir todo a strings
+      return userData.areas.map((area: any) => 
+        typeof area === 'string' ? area : area?.name || ''
+      ).filter(Boolean);
+    }
+    if (userData.area) return [userData.area];
+    return [];
+  };
+
+  const getUserPhone = (userData: any): string => {
+    if (!userData) return '';
+    return userData.phone || userData.phoneNumber || '';
+  };
+
+  const getUserBirthDate = (userData: any): string | null => {
+    if (!userData) return null;
+    return userData.birth_date || userData.birthDate || userData.birthdate || null;
+  };
+
+  const getUserJoinDate = (userData: any): string | null => {
+    if (!userData) return null;
+    return userData.joinDate || userData.join_date || userData.created_at || null;
+  };
+
+  const getUserLastLogin = (userData: any): string | null => {
+    if (!userData) return null;
+    return userData.lastLogin || userData.last_login || userData.last_seen || null;
+  };
   
   // 🎯 FUNCIÓN SIMPLIFICADA PARA IR ATRÁS
   const handleGoBack = () => navigate(-1);
@@ -49,6 +116,18 @@ const UserProfilePage: React.FC = () => {
     const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     return `${baseUrl}${path}`;
   };
+  
+  // 🔧 DEBUG: Log de datos para entender la estructura
+  useEffect(() => {
+    if (user) {
+      console.log('🔍 DEBUG - Usuario recibido en ProfilePage:', user);
+      console.log('🔍 DEBUG - Campos disponibles:', Object.keys(user));
+      console.log('🔍 DEBUG - isActive:', getUserActiveStatus(user));
+      console.log('🔍 DEBUG - fullName:', getUserFullName(user));
+      console.log('🔍 DEBUG - roles:', getUserRoles(user));
+      console.log('🔍 DEBUG - areas:', getUserAreas(user));
+    }
+  }, [user]);
   
   // 🎯 REDIRECCIÓN AUTOMÁTICA SI NO HAY userId
   useEffect(() => {
@@ -103,6 +182,16 @@ const UserProfilePage: React.FC = () => {
       </DashboardLayout>
     );
   }
+
+  // 🔧 VARIABLES COMPUTADAS CON HELPERS
+  const fullName = getUserFullName(user);
+  const isActive = getUserActiveStatus(user);
+  const userRoles = getUserRoles(user);
+  const userAreas = getUserAreas(user);
+  const phone = getUserPhone(user);
+  const birthDate = getUserBirthDate(user);
+  const joinDate = getUserJoinDate(user);
+  const lastLogin = getUserLastLogin(user);
   
   return (
     <DashboardLayout>
@@ -128,7 +217,7 @@ const UserProfilePage: React.FC = () => {
         <div className="relative">
           <div className="h-48 w-full overflow-hidden rounded-xl shadow-sm">
             <img
-              src={getFullImageUrl(user.bannerImage) || heroBanner}
+              src={getFullImageUrl(user.bannerImage || user.banner_image) || heroBanner}
               alt="Banner del perfil"
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -154,21 +243,30 @@ const UserProfilePage: React.FC = () => {
           <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[var(--color-text-main)]">
-                {user.fullName || `${user.firstName} ${user.lastName}`.trim() || user.email}
+                {fullName}
               </h2>
               <p className="text-[var(--color-text-secondary)] mt-1">{user.email}</p>
               
               <div className="flex flex-wrap justify-center gap-2 mt-4">
-                <Badge variant={user.isActive ? "success" : "danger"}>
-                  {user.isActive ? 'Activo' : 'Inactivo'}
+                <Badge variant={isActive ? "success" : "danger"}>
+                  {isActive ? 'Activo' : 'Inactivo'}
                 </Badge>
-                <Badge variant="primary">
-                  {getRoleDisplayText(user) || 'Sin rol'}
-                </Badge>
-                {/* Mostrar áreas si existen */}
-                {user.areas && user.areas.length > 0 && user.areas.map((area: { name: string }, index: number) => (
+                
+                {/* Mostrar roles */}
+                {userRoles.length > 0 ? (
+                  userRoles.map((role, index) => (
+                    <Badge key={index} variant="primary">
+                      {role}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge variant="secondary">Sin rol</Badge>
+                )}
+                
+                {/* Mostrar áreas */}
+                {userAreas.length > 0 && userAreas.map((area, index) => (
                   <Badge key={index} variant="info">
-                    {area.name}
+                    {area}
                   </Badge>
                 ))}
               </div>
@@ -197,9 +295,9 @@ const UserProfilePage: React.FC = () => {
                   </div>
                 </a>
                 
-                {user.phone && (
+                {phone && (
                   <a 
-                    href={`tel:${user.phone}`}
+                    href={`tel:${phone}`}
                     className="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors duration-200 group"
                   >
                     <div className="p-3 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
@@ -207,12 +305,12 @@ const UserProfilePage: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-green-900">Llamar</p>
-                      <p className="text-xs text-green-600">{user.phone}</p>
+                      <p className="text-xs text-green-600">{phone}</p>
                     </div>
                   </a>
                 )}
                 
-                {user.birth_date && (
+                {birthDate && (
                   <div className="p-4 bg-gradient-to-r from-pink-50 to-pink-100 rounded-lg border border-pink-100">
                     <div className="flex items-center gap-3">
                       <div className="p-3 bg-pink-500 rounded-lg">
@@ -222,11 +320,11 @@ const UserProfilePage: React.FC = () => {
                         <p className="text-sm font-medium text-pink-900">Próximo cumpleaños</p>
                         <p className="text-xs text-pink-600 mt-1">
                           {(() => {
-                            const birthDate = parseDate(user.birth_date);
-                            if (birthDate) {
+                            const parsedBirthDate = parseDate(birthDate);
+                            if (parsedBirthDate) {
                               const today = new Date();
                               const thisYear = today.getFullYear();
-                              const birthday = new Date(thisYear, birthDate.getMonth(), birthDate.getDate());
+                              const birthday = new Date(thisYear, parsedBirthDate.getMonth(), parsedBirthDate.getDate());
                               
                               if (birthday < today) {
                                 birthday.setFullYear(thisYear + 1);
@@ -246,8 +344,8 @@ const UserProfilePage: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Relleno para mantener altura consistente si no hay teléfono o cumpleaños */}
-                {!user.phone && !user.birth_date && (
+                {/* Relleno para mantener altura consistente */}
+                {!phone && !birthDate && (
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 opacity-60">
                     <div className="flex items-center gap-3">
                       <div className="p-3 bg-gray-300 rounded-lg">
@@ -287,7 +385,7 @@ const UserProfilePage: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-[var(--color-text-secondary)]">Teléfono</p>
                     <p className="text-base text-[var(--color-text-main)]">
-                      {user.phone || 'No registrado'}
+                      {phone || 'No registrado'}
                     </p>
                   </div>
                 </div>
@@ -299,7 +397,10 @@ const UserProfilePage: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-[var(--color-text-secondary)]">Rol</p>
                     <p className="text-base text-[var(--color-text-main)]">
-                      {getRoleDisplayText(user) || 'Sin rol asignado'}
+                      {userRoles.length > 0 
+                        ? userRoles.join(', ')
+                        : 'Sin rol asignado'
+                      }
                     </p>
                   </div>
                 </div>
@@ -311,12 +412,12 @@ const UserProfilePage: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-[var(--color-text-secondary)]">Fecha de ingreso</p>
                     <p className="text-base text-[var(--color-text-main)]">
-                      {user.joinDate ? formatFullDate(user.joinDate) : 'No disponible'}
+                      {joinDate ? formatFullDate(joinDate) : 'No disponible'}
                     </p>
                   </div>
                 </div>
 
-                {user.birth_date && (
+                {birthDate && (
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 p-3 bg-pink-50 rounded-lg">
                       <CakeIcon className="h-5 w-5 text-pink-600" />
@@ -324,20 +425,35 @@ const UserProfilePage: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-[var(--color-text-secondary)]">Fecha de nacimiento</p>
                       <p className="text-base text-[var(--color-text-main)]">
-                        {formatBirthday(parseDate(user.birth_date)!)}
+                        {formatBirthday(parseDate(birthDate)!)}
                       </p>
                     </div>
                   </div>
                 )}
                 
-                {/* Relleno para mantener altura si no hay fecha de nacimiento */}
-                {!user.birth_date && (
+                {/* Último acceso */}
+                {lastLogin && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 p-3 bg-indigo-50 rounded-lg">
+                      <CalendarDaysIcon className="h-5 w-5 text-indigo-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[var(--color-text-secondary)]">Último acceso</p>
+                      <p className="text-base text-[var(--color-text-main)]">
+                        {formatFullDate(lastLogin)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Relleno para mantener altura */}
+                {!birthDate && !lastLogin && (
                   <div className="flex items-start gap-3 opacity-60">
                     <div className="flex-shrink-0 p-3 bg-gray-50 rounded-lg">
                       <CakeIcon className="h-5 w-5 text-gray-400" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-400">Fecha de nacimiento</p>
+                      <p className="text-sm font-medium text-gray-400">Información adicional</p>
                       <p className="text-base text-gray-400">No disponible</p>
                     </div>
                   </div>

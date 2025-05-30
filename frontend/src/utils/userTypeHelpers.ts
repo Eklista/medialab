@@ -67,9 +67,11 @@ export const getUserRoleNames = (user: AnyUser): string[] => {
     return user.roles.map(role => role.name);
   }
 
-  // UserService  
+  // UserService - puede ser string[] o array mixto
   if (isUserWithStringRoles(user)) {
-    return [...user.roles];
+    return user.roles.map(role => 
+      typeof role === 'string' ? role : (role as any)?.name || ''
+    ).filter(Boolean);
   }
 
   return [];

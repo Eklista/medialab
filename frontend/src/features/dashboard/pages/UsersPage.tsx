@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/UsersPage.tsx - 🎯 VERSIÓN FINAL SIN ERRORES
+// src/features/dashboard/pages/UsersPage.tsx - 🎯 VERSIÓN COMPLETAMENTE LIMPIA
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -12,7 +12,6 @@ import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
 import Badge from '../components/ui/Badge';
 import { PlusIcon, MagnifyingGlassIcon, UsersIcon } from '@heroicons/react/24/outline';
 
-// 🎯 NUEVA ARQUITECTURA - Solo hooks optimizados
 import { useUserList } from '../../../services/users/hooks/useUserService';
 import { useEnsuredSystemData } from '../../../context/AppDataContext';
 import { userEditService } from '../../../services/users';
@@ -21,7 +20,7 @@ import { UserCreateRequest } from '../../../services/users/types/requests.types'
 const UsersPage: React.FC = () => {
   const navigate = useNavigate();
   
-  // 🎯 HOOKS OPTIMIZADOS - Reemplazan toda la lógica de carga manual
+  // 🎯 HOOKS OPTIMIZADOS
   const { users, isLoading, error, refresh } = useUserList({ 
     formatType: 'with_roles',
     limit: 1000 
@@ -29,7 +28,7 @@ const UsersPage: React.FC = () => {
   
   const { roles, areas } = useEnsuredSystemData(['roles', 'areas']);
   
-  // 🎯 ESTADOS SIMPLIFICADOS - Solo lo esencial
+  // Estados locales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -42,7 +41,16 @@ const UsersPage: React.FC = () => {
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   
-  // 🎯 TRANSFORMAR DATOS PARA UserForm - Convertir number IDs a string
+  // 🔧 DEBUG: Log de datos para entender la estructura
+  React.useEffect(() => {
+    if (users.length > 0) {
+      console.log('🔍 DEBUG - Primer usuario recibido:', users[0]);
+      console.log('🔍 DEBUG - Campos disponibles:', Object.keys(users[0]));
+      console.log('🔍 DEBUG - isActive valor:', users[0].isActive);
+    }
+  }, [users]);
+
+  // 🎯 TRANSFORMAR DATOS PARA UserForm
   const transformedRoles = useMemo(() => {
     if (!roles) return [];
     return roles.map(role => ({
@@ -59,45 +67,80 @@ const UsersPage: React.FC = () => {
     }));
   }, [areas]);
   
-  // 🎯 FILTRADO OPTIMIZADO - Solo cálculo, sin side effects
+  // 🔧 FUNCIONES HELPER SIMPLIFICADAS Y TIPADAS
+  const getUserActiveStatus = (user: any): boolean => {
+    if (user.isActive !== undefined) return user.isActive;
+    if ((user as any).is_active !== undefined) return (user as any).is_active;
+    return true; // Por defecto activo
+  };
+
+  const getUserFullName = (user: any): string => {
+    if (user.fullName) return user.fullName;
+    const firstName = user.firstName || user.first_name || '';
+    const lastName = user.lastName || user.last_name || '';
+    if (firstName && lastName) return `${firstName} ${lastName}`;
+    return firstName || lastName || user.email?.split('@')[0] || 'Usuario';
+  };
+
+  // ⭐ FUNCIÓN QUE SIEMPRE DEVUELVE string[]
+  const getUserRoles = (user: any): string[] => {
+    if (!user.roles || !Array.isArray(user.roles)) return [];
+    return user.roles.map((role: any) => 
+      typeof role === 'string' ? role : (role?.name || '')
+    ).filter((role: string) => role.length > 0);
+  };
+
+  // ⭐ FUNCIÓN QUE SIEMPRE DEVUELVE string[]
+  const getUserAreas = (user: any): string[] => {
+    if (!user.areas || !Array.isArray(user.areas)) return [];
+    return user.areas.map((area: any) => 
+      typeof area === 'string' ? area : (area?.name || '')
+    ).filter((area: string) => area.length > 0);
+  };
+  
+  // 🎯 FILTRADO OPTIMIZADO con tipos explícitos
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
+      const fullName = getUserFullName(user);
+      const userRoles: string[] = getUserRoles(user);
+      const isActive = getUserActiveStatus(user);
+      
       const matchesSearch = 
-        user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
         user.email.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesRole = filterRole === 'all' || 
-        user.roles?.includes(filterRole) ||
-        user.roleDisplay?.includes(filterRole);
+        userRoles.some((role: string) => role.includes(filterRole));
         
       const matchesStatus = filterStatus === 'all' || 
-        (filterStatus === 'active' && user.isActive) ||
-        (filterStatus === 'inactive' && !user.isActive);
+        (filterStatus === 'active' && isActive) ||
+        (filterStatus === 'inactive' && !isActive);
       
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [users, searchTerm, filterRole, filterStatus]);
   
-  // 🎯 ESTADÍSTICAS COMPUTADAS - Sin estado innecesario
+  // 🎯 ESTADÍSTICAS COMPUTADAS
   const stats = useMemo(() => ({
     total: users.length,
-    active: users.filter(u => u.isActive).length,
-    inactive: users.filter(u => !u.isActive).length,
-    withRoles: users.filter(u => u.roles && u.roles.length > 0).length
+    active: users.filter(u => getUserActiveStatus(u)).length,
+    inactive: users.filter(u => !getUserActiveStatus(u)).length,
+    withRoles: users.filter(u => getUserRoles(u).length > 0).length
   }), [users]);
   
-  // 🎯 OPCIONES DE FILTRO DINÁMICAS
+  // 🎯 OPCIONES DE FILTRO DINÁMICAS con tipos explícitos
   const roleFilterOptions = useMemo(() => {
     const allRoles = new Set<string>();
     users.forEach(user => {
-      if (user.roles) {
-        user.roles.forEach(role => allRoles.add(role));
-      }
+      const userRoles: string[] = getUserRoles(user);
+      userRoles.forEach((role: string) => {
+        if (role) allRoles.add(role);
+      });
     });
     return ['all', ...Array.from(allRoles)];
   }, [users]);
   
-  // 🎯 HANDLERS SIMPLIFICADOS
+  // 🎯 HANDLERS
   const handleAddUser = () => {
     setModalError(null);
     setIsAddModalOpen(true);
@@ -110,6 +153,7 @@ const UsersPage: React.FC = () => {
   };
   
   const handleViewUser = (user: any) => {
+    console.log('🔍 Navegando a perfil del usuario:', user.id);
     navigate(`/ml-admin/dashboard/users/${user.id}`);
   };
   
@@ -119,34 +163,43 @@ const UsersPage: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
   
-  // 🎯 CRUD OPERATIONS - Usando servicios modulares
+  // 🎯 CRUD OPERATIONS
   const handleAddSubmit = async (data: UserFormData) => {
     setIsSubmitting(true);
     setModalError(null);
     
     try {
+      if (!data.email?.trim() || !data.firstName?.trim() || !data.lastName?.trim()) {
+        throw new Error('Email, nombre y apellido son requeridos');
+      }
+      
       const userData: UserCreateRequest = {
-        email: data.email,
-        username: data.username || data.email.split('@')[0],
-        firstName: data.firstName,
-        lastName: data.lastName,
-        password: data.password || 'TemporalPassword123',
-        roleId: data.roleId,
-        areaId: data.areaId
+        email: data.email.trim(),
+        username: data.username?.trim() || data.email.split('@')[0],
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        password: data.password?.trim() || `Temp${Math.random().toString(36).slice(-8)}!`,
+        ...(data.roleId && data.areaId && {
+          roleId: data.roleId,
+          areaId: data.areaId
+        })
       };
       
       const newUser = await userEditService.createUser(userData);
       
-      // Asignar rol si se especificó
       if (data.roleId && data.areaId) {
-        await userEditService.assignRole(newUser.id, data.roleId, data.areaId);
+        try {
+          await userEditService.assignRole(newUser.id, data.roleId, data.areaId);
+        } catch (roleError) {
+          console.warn('⚠️ Error asignando rol:', roleError);
+        }
       }
       
       setIsAddModalOpen(false);
-      await refresh(); // Refrescar la lista
+      await refresh();
       
     } catch (err) {
-      console.error('Error al crear usuario:', err);
+      console.error('💥 Error al crear usuario:', err);
       setModalError(err instanceof Error ? err.message : 'Error al crear usuario');
     } finally {
       setIsSubmitting(false);
@@ -160,35 +213,35 @@ const UsersPage: React.FC = () => {
     setModalError(null);
 
     try {
-      // Preparar datos de actualización
       const updateData: any = {};
       
-      if (data.firstName !== currentUser.firstName) updateData.firstName = data.firstName;
-      if (data.lastName !== currentUser.lastName) updateData.lastName = data.lastName;
-      if (data.email !== currentUser.email) updateData.email = data.email;
-      if (data.isActive !== currentUser.isActive) updateData.isActive = data.isActive;
+      const currentFullName = getUserFullName(currentUser);
+      const [currentFirstName, currentLastName] = currentFullName.split(' ');
       
-      // Actualizar datos básicos si hay cambios
+      if (data.firstName !== currentFirstName) updateData.firstName = data.firstName;
+      if (data.lastName !== currentLastName) updateData.lastName = data.lastName;
+      if (data.email !== currentUser.email) updateData.email = data.email;
+      if (data.isActive !== getUserActiveStatus(currentUser)) updateData.isActive = data.isActive;
+      
       if (Object.keys(updateData).length > 0) {
         await userEditService.updateUser(currentUser.id, updateData);
       }
       
-      // Actualizar rol si cambió
-      if (data.roleId && data.areaId && roles && areas) {
-        const currentRoleId = roles.find(r => currentUser.roles?.includes(r.name))?.id;
-        const currentAreaId = areas.find((area: any) => currentUser.areas?.some((userArea: any) => userArea.name === area.name))?.id;
+      if (data.roleId && data.areaId && roles) {
+        const currentRoles = getUserRoles(currentUser);
+        const currentRoleId = roles.find(r => currentRoles.includes(r.name))?.id;
         
-        if (parseInt(data.roleId) !== currentRoleId || parseInt(data.areaId) !== currentAreaId) {
+        if (parseInt(data.roleId) !== currentRoleId) {
           await userEditService.assignRole(currentUser.id, data.roleId, data.areaId);
         }
       }
       
       setIsEditModalOpen(false);
       setCurrentUser(null);
-      await refresh(); // Refrescar la lista
+      await refresh();
       
     } catch (err) {
-      console.error('Error al actualizar usuario:', err);
+      console.error('💥 Error al actualizar usuario:', err);
       setModalError(err instanceof Error ? err.message : 'Error al actualizar usuario');
     } finally {
       setIsSubmitting(false);
@@ -205,20 +258,19 @@ const UsersPage: React.FC = () => {
       await userEditService.deleteUser(currentUser.id);
       setIsDeleteModalOpen(false);
       setCurrentUser(null);
-      await refresh(); // Refrescar la lista
+      await refresh();
       
     } catch (error) {
-      console.error('Error al eliminar usuario:', error);
+      console.error('💥 Error al eliminar usuario:', error);
       setModalError(error instanceof Error ? error.message : 'Error al eliminar usuario');
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  // 🎯 FORMATEO DE FECHA SIMPLIFICADO
+  // 🎯 FORMATEO DE FECHA
   const formatDate = (dateString?: string) => {
     if (!dateString || dateString === '-') return '-';
-    
     try {
       return new Date(dateString).toLocaleDateString('es-GT', {
         year: 'numeric',
@@ -232,7 +284,7 @@ const UsersPage: React.FC = () => {
     }
   };
   
-  // 🎯 COLUMNAS DE TABLA OPTIMIZADAS
+  // 🎯 COLUMNAS DE TABLA con tipos explícitos
   const columns = [
     {
       header: 'Usuario',
@@ -246,7 +298,7 @@ const UsersPage: React.FC = () => {
           />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium text-[var(--color-text-main)] truncate">
-              {user.fullName || `${user.firstName} ${user.lastName}`.trim() || user.email}
+              {getUserFullName(user)}
             </div>
             <div className="text-sm text-[var(--color-text-secondary)] truncate">
               {user.email}
@@ -257,43 +309,49 @@ const UsersPage: React.FC = () => {
     },
     {
       header: 'Rol',
-      accessor: (user: any) => (
-        <div className="flex flex-wrap gap-1">
-          {user.roles && user.roles.length > 0 ? (
-            user.roles.slice(0, 2).map((role: string, index: number) => (
-              <Badge key={index} variant="primary" className="text-xs">
-                {role}
+      accessor: (user: any) => {
+        const userRoles: string[] = getUserRoles(user);
+        return (
+          <div className="flex flex-wrap gap-1">
+            {userRoles.length > 0 ? (
+              userRoles.slice(0, 2).map((role: string, index: number) => (
+                <Badge key={index} variant="primary" className="text-xs">
+                  {role}
+                </Badge>
+              ))
+            ) : (
+              <Badge variant="secondary" className="text-xs">Sin rol</Badge>
+            )}
+            {userRoles.length > 2 && (
+              <Badge variant="secondary" className="text-xs">
+                +{userRoles.length - 2}
               </Badge>
-            ))
-          ) : (
-            <Badge variant="secondary" className="text-xs">Sin rol</Badge>
-          )}
-          {user.roles && user.roles.length > 2 && (
-            <Badge variant="secondary" className="text-xs">
-              +{user.roles.length - 2}
-            </Badge>
-          )}
-        </div>
-      )
+            )}
+          </div>
+        );
+      }
     },
     {
       header: 'Área',
-      accessor: (user: any) => (
-        <div className="text-sm text-[var(--color-text-main)]">
-          {user.areas && user.areas.length > 0 
-            ? user.areas.map((area: any) => area.name).join(', ')
-            : 'Sin área'
-          }
-        </div>
-      )
+      accessor: (user: any) => {
+        const userAreas: string[] = getUserAreas(user);
+        return (
+          <div className="text-sm text-[var(--color-text-main)]">
+            {userAreas.length > 0 ? userAreas.join(', ') : 'Sin área'}
+          </div>
+        );
+      }
     },
     {
       header: 'Estado',
-      accessor: (user: any) => (
-        <Badge variant={user.isActive ? "success" : "danger"}>
-          {user.isActive ? 'Activo' : 'Inactivo'}
-        </Badge>
-      )
+      accessor: (user: any) => {
+        const isActive = getUserActiveStatus(user);
+        return (
+          <Badge variant={isActive ? "success" : "danger"}>
+            {isActive ? 'Activo' : 'Inactivo'}
+          </Badge>
+        );
+      }
     },
     {
       header: 'Último acceso',
@@ -341,7 +399,6 @@ const UsersPage: React.FC = () => {
         {/* Panel de filtros */}
         <DashboardCard>
           <div className="space-y-4">
-            {/* Búsqueda y botón agregar */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="w-full sm:w-auto flex-1 max-w-md">
                 <div className="relative">
@@ -366,7 +423,6 @@ const UsersPage: React.FC = () => {
               </DashboardButton>
             </div>
             
-            {/* Filtros */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex flex-col sm:flex-row gap-3 flex-1">
                 <select
@@ -391,7 +447,6 @@ const UsersPage: React.FC = () => {
                 </select>
               </div>
               
-              {/* Contador */}
               <div className="flex items-center text-sm text-[var(--color-text-secondary)]">
                 Mostrando {filteredUsers.length} de {users.length} usuarios
               </div>
@@ -429,7 +484,7 @@ const UsersPage: React.FC = () => {
         </DashboardCard>
       </div>
       
-      {/* Modal agregar */}
+      {/* Modales */}
       <DashboardModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -446,7 +501,6 @@ const UsersPage: React.FC = () => {
         />
       </DashboardModal>
 
-      {/* Modal editar */}
       <DashboardModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -460,12 +514,12 @@ const UsersPage: React.FC = () => {
         {currentUser && (
           <UserForm
             initialData={{
-              firstName: currentUser.firstName,
-              lastName: currentUser.lastName,
+              firstName: getUserFullName(currentUser).split(' ')[0] || '',
+              lastName: getUserFullName(currentUser).split(' ')[1] || '',
               email: currentUser.email,
-              roleId: roles?.find(r => currentUser.roles?.includes(r.name))?.id?.toString() || '',
-              areaId: areas?.find((area: any) => currentUser.areas?.some((userArea: any) => userArea.name === area.name))?.id?.toString() || '',
-              isActive: currentUser.isActive
+              roleId: roles?.find(r => getUserRoles(currentUser).includes(r.name))?.id?.toString() || '',
+              areaId: areas?.find((area: any) => getUserAreas(currentUser).includes(area.name))?.id?.toString() || '',
+              isActive: getUserActiveStatus(currentUser)
             }}
             onSubmit={handleEditSubmit}
             onCancel={() => {
@@ -480,7 +534,6 @@ const UsersPage: React.FC = () => {
         )}
       </DashboardModal>
 
-      {/* Modal eliminar */}
       <DashboardModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
@@ -500,7 +553,7 @@ const UsersPage: React.FC = () => {
             )}
             <div>
               <p className="text-[var(--color-text-main)] font-medium">
-                {currentUser?.fullName || `${currentUser?.firstName} ${currentUser?.lastName}`.trim()}
+                {currentUser && getUserFullName(currentUser)}
               </p>
               <p className="text-[var(--color-text-secondary)] text-sm">
                 {currentUser?.email}
