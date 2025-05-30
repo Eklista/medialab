@@ -2,35 +2,16 @@
 // Elimina múltiples llamadas API y centraliza la carga de datos
 
 import apiClient, { handleApiError, requestDeduplicator } from '../api';
-import { User as UserServiceUser, Role, Area } from '../users/users.service';
+import { UserFormatted } from '../users/types/user.types';
 import { PermissionCategory } from '../security/permissions.service';
-
-// ===== INTERFACES =====
-export interface SystemDataResponse {
-  roles: Role[];
-  areas: Area[];
-  users: UserServiceUser[];
-  permissionCategories: PermissionCategory[];
-  timestamp: number;
-  loadTime: number; // tiempo que tardó en cargar en ms
-}
-
-export interface SelectiveDataResponse {
-  roles?: Role[];
-  areas?: Area[];
-  users?: UserServiceUser[];
-  permissionCategories?: PermissionCategory[];
-  timestamp: number;
-  loadTime: number;
-}
-
-export interface SystemDataOptions {
-  forceRefresh?: boolean;
-  timeout?: number;
-  retries?: number;
-}
-
-export type SystemDataType = 'roles' | 'areas' | 'users' | 'permissions';
+import { 
+  Role, 
+  Area, 
+  SystemDataResponse, 
+  SelectiveDataResponse,
+  SystemDataOptions,
+  SystemDataType 
+} from '../../types/system.types';
 
 // ===== CONFIGURACIÓN =====
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutos
@@ -182,7 +163,7 @@ class SystemDataService {
       const [rolesResult, areasResult, usersResult, categoriesResult] = await Promise.allSettled([
         apiClient.get<Role[]>('/roles/', config),
         apiClient.get<Area[]>('/areas/', config),
-        apiClient.get<UserServiceUser[]>('/users/', config),
+        apiClient.get<UserFormatted[]>('/users/', config),
         apiClient.get<PermissionCategory[]>('/permissions/categories', config)
       ]);
       
@@ -248,7 +229,7 @@ class SystemDataService {
         requestMap.push('areas');
       }
       if (dataTypes.includes('users')) {
-        requests.push(apiClient.get<UserServiceUser[]>('/users/', config));
+        requests.push(apiClient.get<UserFormatted[]>('/users/', config));
         requestMap.push('users');
       }
       if (dataTypes.includes('permissions')) {

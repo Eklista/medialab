@@ -1,12 +1,15 @@
 // ===================================================================
-// frontend/src/services/users/users.service.ts - 🔄 SERVICIO PRINCIPAL REFACTORIZADO
+// frontend/src/services/users/users.service.ts - 🎯 SERVICIO PRINCIPAL CORREGIDO
 // ===================================================================
+
 import { UserCreateRequest } from './types/requests.types';
 import userProfileService from './profile/userProfile.service';
 import userEditService from './edit/userEdit.service';
 import userListService from './list/userList.service';
 import userStatusService from './status/userStatus.service';
 import userImageService from './images/userImage.service';
+import userBatchService from './batch/userBatch.service';
+import userCacheService from './cache/userCache.service';
 
 /**
  * 🎯 SERVICIO PRINCIPAL DE USUARIOS
@@ -29,6 +32,12 @@ class UserService {
   
   // 🖼️ Imágenes
   get images() { return userImageService; }
+
+  // 🚀 Operaciones en lote
+  get batch() { return userBatchService; }
+  
+  // 💾 Cache
+  get cache() { return userCacheService; }
 
   // ===== MÉTODOS DE COMPATIBILIDAD (mantienen API existente) =====
 
@@ -91,10 +100,31 @@ class UserService {
   // ===== NUEVOS MÉTODOS OPTIMIZADOS =====
 
   /**
-   * 🎯 Obtiene perfil completo optimizado
+   * 🚀 Inicialización rápida con datos esenciales
    */
-  async getCurrentUserEnhanced() {
-    return this.profile.getCurrentProfileEnhanced();
+  async quickStart(_userId?: number) {
+    console.log('🚀 UserService Quick Start...');
+    
+    const data = await this.batch.loadEssentialData();
+    
+    // Auto-configurar cache y presencia
+    this.cache.warmup(data);
+    this.status.startPresenceMonitoring();
+    
+    return data;
+  }
+
+  /**
+   * 🎯 Obtener perfil con cache inteligente
+   */
+  async getCurrentUserEnhanced(enhanced = true) {
+    const cacheKey = `current_user_${enhanced ? 'enhanced' : 'basic'}`;
+    
+    return this.cache.getOrLoad(cacheKey, async () => {
+      return enhanced 
+        ? this.profile.getCurrentProfileEnhanced()
+        : this.profile.getCurrentProfile();
+    });
   }
 
   /**
@@ -140,7 +170,7 @@ class UserService {
   async getAllStats() {
     const [userStats, profileStats] = await Promise.all([
       this.list.getUserStats(),
-      this.profile.getProfileStats()
+      this.profile.getProfileStats().catch(() => null)
     ]);
     
     return {
@@ -174,6 +204,30 @@ class UserService {
     const initials = user.initials || this.getInitials(user);
     return this.images.generateAvatarUrl(initials, size);
   }
+
+  /**
+   * 🔧 Utilidades de desarrollo
+   */
+  get dev() {
+    return {
+      clearCache: () => this.cache.clear(),
+      debugInfo: () => ({
+        cache: this.cache.getStats(),
+        modules: {
+          profile: !!userProfileService,
+          edit: !!userEditService,
+          list: !!userListService,
+          status: !!userStatusService,
+          images: !!userImageService,
+          batch: !!userBatchService,
+          cache: !!userCacheService
+        }
+      }),
+      healthCheck: () => this.batch.healthCheck()
+    };
+  }
+
+  // ===== MÉTODOS PRIVADOS =====
 
   private getInitials(user: any): string {
     const firstName = user.firstName || user.first_name || '';

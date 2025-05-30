@@ -1,5 +1,5 @@
 // ===================================================================
-// frontend/src/services/users/hooks/useUserService.ts - 🆕 HOOKS PERSONALIZADOS
+// frontend/src/services/users/hooks/useUserService.ts - 🆕 HOOKS CORREGIDOS
 // ===================================================================
 import { useState, useEffect, useCallback } from 'react';
 import userService from '../users.service';
@@ -124,6 +124,8 @@ export const usePresenceTracking = (enabled = true) => {
     if (!enabled) return;
 
     setIsTracking(true);
+    
+    // Usar el método corregido del servicio principal
     const stopTracking = userService.startPresenceTracking();
 
     return () => {
@@ -145,5 +147,62 @@ export const usePresenceTracking = (enabled = true) => {
     isOnline,
     isTracking,
     setOnlineStatus
+  };
+};
+
+/**
+ * 🚀 Hook para carga inicial rápida de datos esenciales
+ */
+export const useQuickStart = () => {
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const essentialData = await userService.quickStart();
+        setData(essentialData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error en carga inicial');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  return {
+    data,
+    isLoading,
+    error,
+    refresh: () => window.location.reload() // Para refresh completo
+  };
+};
+
+/**
+ * 💾 Hook para gestión de cache
+ */
+export const useUserCache = () => {
+  const clearCache = useCallback(() => {
+    userService.cache.clear();
+  }, []);
+
+  const getStats = useCallback(() => {
+    return userService.cache.getStats();
+  }, []);
+
+  const invalidate = useCallback((pattern?: string) => {
+    userService.cache.invalidate(pattern);
+  }, []);
+
+  return {
+    clearCache,
+    getStats,
+    invalidate
   };
 };
