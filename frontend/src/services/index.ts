@@ -117,8 +117,6 @@ export {
   useCurrentUserProfile,
   useUserList,
   useActiveUsers,
-  usePresenceTracking,
-  useQuickStart,
   useUserCache
 } from './users/hooks/useUserService';
 

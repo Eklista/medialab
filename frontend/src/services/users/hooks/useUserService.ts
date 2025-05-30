@@ -1,6 +1,6 @@
-// frontend/src/services/users/hooks/useUserService.ts - 🎯 VERSIÓN DEFINITIVA Y ROBUSTA
+// frontend/src/services/users/hooks/useUserService.ts - 🎯 VERSIÓN CORREGIDA SIN ERRORES TS
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import apiClient, { handleApiError, createCacheKey } from '../../api';
+import apiClient, { createCacheKey } from '../../api';
 import { UserProfile, UserFormatted, UserListOptions } from '../types/user.types';
 
 // ===== CACHE INTELIGENTE =====
@@ -55,7 +55,7 @@ const userApi = {
         initials: user.initials || userApi.getInitials(user),
         roles: user.roles || [],
         areas: user.areas || [],
-        status: user.status || (user.isActive ? 'offline' : 'inactive') as const
+        status: (user.status || (user.isActive ? 'offline' : 'inactive')) as 'online' | 'away' | 'offline' | 'inactive'
       }));
       
       setCachedData(cacheKey, normalizedUsers);
@@ -162,7 +162,7 @@ const userApi = {
       initials: userApi.getInitials(user),
       roles: [],
       areas: [],
-      status: user.isActive ? 'offline' : 'inactive' as const
+      status: (user.isActive ? 'offline' : 'inactive') as 'online' | 'away' | 'offline' | 'inactive'
     };
   },
 
