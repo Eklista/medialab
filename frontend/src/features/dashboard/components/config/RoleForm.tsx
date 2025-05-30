@@ -5,7 +5,7 @@ import DashboardTextarea from '../ui/DashboardTextArea';
 import DashboardButton from '../ui/DashboardButton';
 import DashboardCheckbox from '../ui/DashboardCheckbox';
 import Badge from '../ui/Badge';
-import permissionsService, { Permission } from '../../../../services/security/permissions.service'; // ✅ Usar servicio dedicado
+import permissionsService, { Permission } from '../../../../services/security/permissions.service';
 import { 
   ShieldCheckIcon, 
   DocumentTextIcon,

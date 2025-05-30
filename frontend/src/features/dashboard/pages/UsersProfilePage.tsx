@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/UserProfilePage.tsx - 🎯 VERSIÓN LIMPIA SOLO LECTURA
+// src/features/dashboard/pages/UserProfilePage.tsx
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -15,7 +15,7 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 
-// 🎯 NUEVA ARQUITECTURA - Solo hook optimizado
+// Importar hooks y utilidades
 import { useUserProfile } from '../../../services/users/hooks/useUserService';
 import { getRoleDisplayText } from '../../../utils/userTypeHelpers';
 import ApiErrorHandler from '../../../components/common/ApiErrorHandler';
@@ -166,7 +166,7 @@ const UserProfilePage: React.FC = () => {
                   {getRoleDisplayText(user) || 'Sin rol'}
                 </Badge>
                 {/* Mostrar áreas si existen */}
-                {user.areas && user.areas.length > 0 && user.areas.map((area, index) => (
+                {user.areas && user.areas.length > 0 && user.areas.map((area: { name: string }, index: number) => (
                   <Badge key={index} variant="info">
                     {area.name}
                   </Badge>
