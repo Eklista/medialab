@@ -1,26 +1,41 @@
-// frontend/src/context/AppDataContext.tsx - CORRECCIÓN WEBSOCKET
-// 🔧 CAMBIOS ESPECÍFICOS PARA SOLUCIONAR PROBLEMAS DE WEBSOCKET
+// frontend/src/context/AppDataContext.tsx - 🔧 CORREGIDO CON NUEVA ARQUITECTURA
+// ✅ Imports actualizados para la nueva estructura modular de usuarios
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { authService } from '../services';
-import { User as UserServiceUser, Role, Area } from '../services/users/users.service';
 import { User as AuthServiceUser } from '../services/auth/auth.service';
 import { PermissionCategory } from '../services/security/permissions.service';
-import systemDataService, { SystemDataType, SystemDataResponse } from '../services/system/systemData.service';
+import systemDataService from '../services/system/systemData.service';
+
+// 🔧 TIPOS IMPORTADOS DIRECTAMENTE (mientras verificamos system.types.ts)
+type SystemDataType = 'roles' | 'areas' | 'users' | 'permissions';
+
+interface SystemDataResponse {
+  roles: Role[];
+  areas: Area[];
+  users: UserFormatted[];
+  permissionCategories: PermissionCategory[];
+  timestamp: number;
+  loadTime: number;
+}
 import webSocketService from '../services/websocket/websocket.service';
 
-// ===== INTERFACES (sin cambios) =====
+// 🔧 IMPORTS CORREGIDOS - usando la nueva estructura modular
+import { UserFormatted } from '../services/users/types/user.types';
+import { Role, Area } from '../types/system.types';
+
+// ===== INTERFACES ACTUALIZADAS =====
 interface AppData {
   // Usuario y auth
   user: AuthServiceUser | null;
   isAuthenticated: boolean;
   permissions: string[];
   
-  // Datos del sistema
+  // 🔧 CORREGIDO: Usar UserFormatted en lugar de UserServiceUser
   roles: Role[];
   areas: Area[];
   permissionCategories: PermissionCategory[];
-  users: UserServiceUser[];
+  users: UserFormatted[]; // ✅ Cambiado de UserServiceUser
   
   // Estados de carga optimizados
   isLoading: boolean;
@@ -32,7 +47,7 @@ interface AppData {
   cacheValidUntil: number;
   systemDataStats: any;
   
-  // 🆕 Estados de WebSocket MEJORADOS
+  // Estados de WebSocket MEJORADOS
   websocket: {
     isConnected: boolean;
     connectionState: string;
@@ -41,7 +56,7 @@ interface AppData {
     lastError: string | null;
   };
   
-  // Métodos (sin cambios)
+  // Métodos
   refreshUser: () => Promise<void>;
   refreshSystemData: (selective?: SystemDataType[]) => Promise<void>;
   refreshAll: () => Promise<void>;
@@ -49,22 +64,20 @@ interface AppData {
   ensureSystemData: (requiredData: SystemDataType[]) => Promise<void>;
   getSystemDataStats: () => any;
   
-  // Métodos de WebSocket MEJORADOS
+  // Métodos de WebSocket
   connectWebSocket: () => Promise<void>;
   disconnectWebSocket: () => void;
-  debugWebSocket: () => void; // 🔧 NUEVO
+  debugWebSocket: () => void;
 }
 
 const AppDataContext = createContext<AppData | null>(null);
 export { AppDataContext };
 
-// ===== CONSTANTS (sin cambios) =====
+// ===== CONSTANTES =====
 const CACHE_DURATION = 10 * 60 * 1000;
 const USER_CACHE_DURATION = 5 * 60 * 1000;
 const MAX_RETRY_ATTEMPTS = 2;
 const RETRY_DELAY = 2000;
-
-// 🔧 NUEVAS CONSTANTES PARA WEBSOCKET
 const WS_CONNECTION_DELAY = 2000;
 const WS_MAX_CONNECTION_ATTEMPTS = 3;
 const WS_RETRY_DELAY = 5000;
@@ -82,7 +95,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     roles: [],
     areas: [],
     permissionCategories: [],
-    users: [],
+    users: [], // ✅ Ahora es UserFormatted[]
     isLoading: true,
     isInitialized: false,
     error: null,
@@ -102,13 +115,11 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   const retryCountRef = useRef(0);
   const userCacheRef = useRef(0);
   const isLoadingRef = useRef(false);
-  
-  // 🔧 NUEVOS REFS PARA WEBSOCKET
   const wsConnectionTimeoutRef = useRef<number | null>(null);
   const wsReconnectTimeoutRef = useRef<number | null>(null);
   const wsConnectionAttemptsRef = useRef(0);
 
-  // ===== CACHE HELPERS (sin cambios significativos) =====
+  // ===== CACHE HELPERS =====
   const isCacheValid = useCallback((type: 'user' | 'system' = 'system') => {
     const now = Date.now();
     if (type === 'user') {
@@ -145,7 +156,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     console.log('🧹 Cache invalidado completamente');
   }, []);
 
-  // ===== WEBSOCKET HANDLERS MEJORADOS =====
+  // ===== WEBSOCKET HANDLERS =====
   
   const handleWebSocketUserUpdate = useCallback((userData: any) => {
     console.log('📨 WebSocket: Usuario actualizado', userData);
@@ -162,6 +173,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         };
       }
       
+      // 🔧 CORREGIDO: Manejar UserFormatted correctamente
       const updatedUsers = prev.users.map(user => 
         user.id === userData.id ? { ...user, ...userData } : user
       );
@@ -247,7 +259,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, []);
 
-  // 🔧 NUEVOS HANDLERS PARA WEBSOCKET
   const handleWebSocketConnected = useCallback(() => {
     console.log('✅ WebSocket conectado - actualizando estado');
     setState(prev => ({
@@ -261,7 +272,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       }
     }));
     
-    // Reset contador de intentos
     wsConnectionAttemptsRef.current = 0;
   }, []);
 
@@ -291,7 +301,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }));
   }, []);
 
-  // ===== DATA LOADING METHODS (sin cambios significativos) =====
+  // ===== DATA LOADING METHODS =====
   
   const loadUserData = useCallback(async (forceRefresh = false) => {
     if (!forceRefresh && isCacheValid('user') && state.user && state.isAuthenticated) {
@@ -482,7 +492,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [loadUserData]);
 
-  // ===== WEBSOCKET CONNECTION MANAGEMENT MEJORADO =====
+  // ===== WEBSOCKET CONNECTION MANAGEMENT =====
   
   const connectWebSocket = useCallback(async () => {
     try {
@@ -491,12 +501,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         return;
       }
       
-      // 🔧 INCREMENTAR CONTADOR DE INTENTOS
       wsConnectionAttemptsRef.current++;
       
       console.log(`🔌 Conectando WebSocket... (intento ${wsConnectionAttemptsRef.current})`);
       
-      // 🔧 ACTUALIZAR ESTADO ANTES DE CONECTAR
       setState(prev => ({
         ...prev,
         websocket: {
@@ -506,7 +514,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         }
       }));
       
-      // 🔧 CONFIGURAR HANDLERS ANTES DE CONECTAR
       webSocketService.on('connected', handleWebSocketConnected);
       webSocketService.on('disconnected', handleWebSocketDisconnected);
       webSocketService.on('error', handleWebSocketError);
@@ -529,7 +536,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       }
       
       await webSocketService.connect(userId);
-      
       console.log('✅ WebSocket conectado');
       
     } catch (error) {
@@ -544,7 +550,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         }
       }));
       
-      // 🔧 RETRY AUTOMÁTICO CON LÍMITE
       if (wsConnectionAttemptsRef.current < WS_MAX_CONNECTION_ATTEMPTS) {
         console.log(`🔄 Reintentando conexión WebSocket en ${WS_RETRY_DELAY/1000}s...`);
         wsReconnectTimeoutRef.current = window.setTimeout(() => {
@@ -559,7 +564,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   const disconnectWebSocket = useCallback(() => {
     console.log('🔌 Desconectando WebSocket...');
     
-    // 🔧 LIMPIAR TIMEOUTS
     if (wsConnectionTimeoutRef.current) {
       clearTimeout(wsConnectionTimeoutRef.current);
       wsConnectionTimeoutRef.current = null;
@@ -570,7 +574,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       wsReconnectTimeoutRef.current = null;
     }
     
-    // 🔧 LIMPIAR HANDLERS ANTES DE DESCONECTAR
     webSocketService.off('connected');
     webSocketService.off('disconnected');
     webSocketService.off('error');
@@ -580,7 +583,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     
     webSocketService.disconnect();
     
-    // 🔧 RESET CONTADOR DE INTENTOS
     wsConnectionAttemptsRef.current = 0;
     
     setState(prev => ({
@@ -595,7 +597,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }));
   }, []);
 
-  // 🔧 NUEVO: Método de debug para WebSocket
   const debugWebSocket = useCallback(() => {
     console.log('🔍 === WEBSOCKET DEBUG INFO ===');
     console.log('Estado del contexto:', state.websocket);
@@ -605,7 +606,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     console.log('===============================');
   }, [state.websocket]);
 
-  // ===== EFECTOS MEJORADOS =====
+  // ===== EFECTOS =====
   
   useEffect(() => {
     const handleAuthLogin = () => {
@@ -622,7 +623,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         permissions: [],
       }));
       userCacheRef.current = 0;
-      disconnectWebSocket(); // 🔧 DESCONECTAR WEBSOCKET EN LOGOUT
+      disconnectWebSocket();
     };
 
     const handleRefreshUser = () => {
@@ -647,10 +648,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [state.isInitialized, loadInitialData]);
 
-  // 🔧 EFECTO DE WEBSOCKET MEJORADO Y SIMPLIFICADO
   useEffect(() => {
     if (state.isAuthenticated && state.isInitialized && !state.websocket.isConnected) {
-      // 🔧 DELAY PARA ASEGURAR QUE TODO ESTÉ LISTO
       wsConnectionTimeoutRef.current = window.setTimeout(() => {
         console.log('⏰ Iniciando conexión WebSocket después del delay');
         connectWebSocket();
@@ -667,7 +666,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   }, [state.isAuthenticated, state.isInitialized, state.websocket.isConnected, connectWebSocket, disconnectWebSocket]);
   
-  // 🔧 CLEANUP AL DESMONTAR
   useEffect(() => {
     return () => {
       disconnectWebSocket();
@@ -680,7 +678,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     };
   }, [disconnectWebSocket]);
 
-  // ===== REFRESH METHODS (sin cambios) =====
+  // ===== REFRESH METHODS =====
   
   const refreshUser = useCallback(async () => {
     console.log('🔄 Refresh específico de usuario...');
@@ -723,7 +721,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     getSystemDataStats,
     connectWebSocket,
     disconnectWebSocket,
-    debugWebSocket // 🔧 NUEVO
+    debugWebSocket
   };
 
   return (
@@ -733,7 +731,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   );
 };
 
-// ===== HOOKS (actualizados) =====
+// ===== HOOKS =====
 export const useAppData = () => {
   const context = useContext(AppDataContext);
   
@@ -749,7 +747,6 @@ export const useAuth = () => {
   return { user, isAuthenticated, permissions, refreshUser };
 };
 
-// 🔧 HOOK DE DEBUG WEBSOCKET MEJORADO
 export const useWebSocketDebugHook = () => {
   const { websocket, debugWebSocket } = useAppData();
   
@@ -772,11 +769,11 @@ export const useWebSocketDebugHook = () => {
     debugInfo: getDebugInfo(),
     sendTestMessage,
     forceReconnect,
-    debugWebSocket, // 🔧 NUEVO
+    debugWebSocket,
     isConnected: websocket.isConnected,
     connectionState: websocket.connectionState,
-    lastError: websocket.lastError, // 🔧 NUEVO
-    connectionAttempts: websocket.connectionAttempts // 🔧 NUEVO
+    lastError: websocket.lastError,
+    connectionAttempts: websocket.connectionAttempts
   };
 };
 
@@ -817,7 +814,6 @@ export const useSystemDataStats = () => {
   return getSystemDataStats();
 };
 
-// 🔧 HOOK DE WEBSOCKET MEJORADO
 export const useWebSocketStatus = () => {
   const { websocket, connectWebSocket, disconnectWebSocket, debugWebSocket } = useAppData();
   
@@ -825,7 +821,7 @@ export const useWebSocketStatus = () => {
     ...websocket,
     connect: connectWebSocket,
     disconnect: disconnectWebSocket,
-    debug: debugWebSocket, // 🔧 NUEVO
+    debug: debugWebSocket,
     isOnline: websocket.isConnected && websocket.connectionState === 'connected'
   };
 };

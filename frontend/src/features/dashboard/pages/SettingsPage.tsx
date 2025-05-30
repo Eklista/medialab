@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/SettingsPage.tsx - TYPESCRIPT ERRORS FIXED
+// src/features/dashboard/pages/SettingsPage.tsx - 🔧 CORREGIDO CON NUEVA ARQUITECTURA
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardButton from '../components/ui/DashboardButton';
@@ -7,26 +7,42 @@ import UserProfilePhoto from '../components/ui/UserProfilePhoto';
 import Badge from '../components/ui/Badge';
 import Switch from '../components/ui/Switch';
 
-// 🚀 HOOKS OPTIMIZADOS
+// 🔧 HOOKS Y CONTEXTO CORREGIDOS - Solo usar userService
 import { useAppData } from '../../../context/AppDataContext';
-import { 
-  useCurrentUser, 
-  getFullName, 
-  isAdmin, 
-  normalizeUserId,
-  getFullImageUrl 
-} from '../utils/userUtils';
 
-// 🚀 SERVICIOS OPTIMIZADOS
+// 🔧 SERVICIOS CORREGIDOS - authService solo para autenticación
 import { authService, userService } from '../../../services';
-import { UserUpdateRequest } from '../../../services/users/users.service';
-import fileUploadService from '../../../services/common/fileUpload.service';
+import { UserUpdateRequest } from '../../../services/users/types/requests.types';
 
-// 🚀 UTILIDADES DE FECHA MEJORADAS
+// 🔧 HOOKS DE USUARIOS - usar el nuevo hook optimizado
+import { useCurrentUserProfile } from '../../../services/users/hooks/useUserService';
+
+// 🔧 HELPERS DE USUARIOS CORREGIDOS
 import { 
-  formatFullDate, 
-  formatRelativeTime 
-} from '../utils/dateUtils';
+  ensureUserFormatted,
+  isAdmin,
+  getRoleDisplayText 
+} from '../../../utils/userTypeHelpers';
+
+// 🔧 UTILIDADES DE FECHA (simplificadas)
+const formatFullDate = (date: Date): string => {
+  return date.toLocaleDateString('es-GT', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+};
+
+const formatRelativeTime = (date: Date): string => {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Hoy';
+  if (diffDays === 1) return 'Ayer';
+  if (diffDays < 7) return `Hace ${diffDays} días`;
+  return formatFullDate(date);
+};
 
 // Iconos
 import { 
@@ -46,9 +62,56 @@ import {
 import heroBanner from '../../../assets/images/medialab-hero.jpg';
 
 const SettingsPage: React.FC = () => {
-  // 🚀 HOOKS OPTIMIZADOS
+  // 🔧 HOOKS CORREGIDOS - Solo userService para datos completos
   const { refreshUser } = useAppData();
-  const { user: currentUser, isLoading: userLoading } = useCurrentUser();
+  const { user: currentUser, isLoading, error, refresh } = useCurrentUserProfile(true); // enhanced = true
+  
+  // 🔧 NORMALIZAR USUARIO CON MANEJO SEGURO DE TIPOS
+  const currentUser = useMemo(() => {
+    if (!authUser) return null;
+    
+    // Verificar si ya tiene las propiedades necesarias para ensureUserFormatted
+    if ('roles' in authUser && 'username' in authUser && 'isActive' in authUser) {
+      return ensureUserFormatted(authUser);
+    }
+    
+    // Si es un User básico de authService, convertir manualmente
+    return {
+      id: authUser.id,
+      email: authUser.email,
+      username: authUser.username || authUser.email?.split('@')[0] || 'usuario',
+      firstName: authUser.firstName || authUser.first_name || '',
+      lastName: authUser.lastName || authUser.last_name || '',
+      fullName: `${authUser.firstName || authUser.first_name || ''} ${authUser.lastName || authUser.last_name || ''}`.trim() || authUser.email,
+      initials: getInitials(authUser),
+      isActive: authUser.isActive ?? true,
+      roles: authUser.roles?.map((role: any) => role.name || role) || [],
+      areas: [],
+      permissions: authUser.permissions || [],
+      profileImage: authUser.profileImage || authUser.profile_image || null,
+      bannerImage: authUser.bannerImage || authUser.banner_image || null,
+      phone: authUser.phone || '',
+      birth_date: authUser.birthDate || authUser.birth_date || null,
+      joinDate: authUser.joinDate || '',
+      lastLogin: authUser.lastLogin || null,
+      status: 'offline' as const
+    };
+  }, [authUser]);
+  
+  // Función helper para generar iniciales
+  const getInitials = (user: any): string => {
+    const firstName = user.firstName || user.first_name || '';
+    const lastName = user.lastName || user.last_name || '';
+    
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    } else if (firstName) {
+      return firstName.charAt(0).toUpperCase();
+    } else if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
   
   // 🚀 ESTADOS OPTIMIZADOS
   const [profileData, setProfileData] = useState({
@@ -88,6 +151,34 @@ const SettingsPage: React.FC = () => {
   // 🆕 Estado para controlar inicialización
   const [hasInitialized, setHasInitialized] = useState(false);
   
+  // 🚀 DATOS COMPUTADOS OPTIMIZADOS - currentUser ya viene con formato correcto
+  const userIsAdmin = useMemo(() => {
+    return currentUser ? isAdmin(currentUser) : false;
+  }, [currentUser]);
+  
+  const userDisplayData = useMemo(() => {
+    if (!currentUser) return null;
+    
+    // Manejar fullName que puede no existir en UserProfile
+    const fullName = (currentUser as any).fullName || 
+                    `${currentUser.firstName} ${currentUser.lastName}`.trim() ||
+                    currentUser.email;
+    
+    return {
+      fullName,
+      email: currentUser.email,
+      role: getRoleDisplayText(currentUser) || 'Usuario',
+      isActive: (currentUser as any).isActive ?? true,
+      joinDate: (currentUser as any).joinDate ? 
+                formatFullDate(new Date((currentUser as any).joinDate)) : 
+                formatFullDate(new Date()),
+      lastLogin: (currentUser as any).lastLogin ? 
+                 formatRelativeTime(new Date((currentUser as any).lastLogin)) : 
+                 'Primera vez',
+      username: (currentUser as any).username || currentUser.email?.split('@')[0] || 'usuario'
+    };
+  }, [currentUser]);
+  
   // 🚀 DATOS COMPUTADOS OPTIMIZADOS
   const userIsAdmin = useMemo(() => {
     return currentUser ? isAdmin(currentUser) : false;
@@ -97,39 +188,46 @@ const SettingsPage: React.FC = () => {
     if (!currentUser) return null;
     
     return {
-      fullName: getFullName(currentUser),
+      fullName: currentUser.fullName || `${currentUser.firstName} ${currentUser.lastName}`.trim(),
       email: currentUser.email,
-      role: currentUser.role || 'Usuario',
+      role: getRoleDisplayText(currentUser) || 'Usuario',
       isActive: currentUser.isActive,
-      joinDate: formatFullDate(new Date()),
-      lastLogin: formatRelativeTime(new Date()),
+      joinDate: currentUser.joinDate ? formatFullDate(new Date(currentUser.joinDate)) : formatFullDate(new Date()),
+      lastLogin: currentUser.lastLogin ? formatRelativeTime(new Date(currentUser.lastLogin)) : 'Primera vez',
       username: currentUser.username || currentUser.email?.split('@')[0] || 'usuario'
     };
   }, [currentUser]);
   
+  // 🔧 FUNCIÓN PARA OBTENER URL COMPLETA DE IMAGEN
+  const getFullImageUrl = useCallback((imagePath: string | undefined | null): string => {
+    if (!imagePath || imagePath.trim() === '') return '';
+    
+    // Usar el servicio de imágenes del nuevo módulo
+    return userService.images.getImageUrl(imagePath);
+  }, []);
   
   // 🚀 CARGAR DATOS DEL USUARIO (VERSIÓN SIMPLIFICADA Y CORREGIDA)
   useEffect(() => {
     if (currentUser && currentUser.id && !hasInitialized) {
       console.log('🔄 Inicializando datos del usuario por primera vez:', {
         id: currentUser.id,
-        phone: currentUser.phone,
-        birth_date: currentUser.birth_date
+        phone: (currentUser as any).phone,
+        birth_date: (currentUser as any).birth_date
       });
       
       const newProfileData = {
-        phone: currentUser.phone || '',
-        birthday: currentUser.birth_date ? 
-          new Date(currentUser.birth_date).toISOString().split('T')[0] : '',
+        phone: (currentUser as any).phone || '',
+        birthday: (currentUser as any).birth_date ? 
+          new Date((currentUser as any).birth_date).toISOString().split('T')[0] : '',
         profileImage: currentUser.profileImage || '',
-        bannerImage: currentUser.bannerImage || ''
+        bannerImage: (currentUser as any).bannerImage || ''
       };
       
       console.log('📝 Estableciendo profileData inicial:', newProfileData);
       setProfileData(newProfileData);
       setHasInitialized(true);
     }
-  }, [currentUser?.id, currentUser?.phone, currentUser?.birth_date, hasInitialized]);
+  }, [currentUser?.id, (currentUser as any)?.phone, (currentUser as any)?.birth_date, hasInitialized]);
   
   // 🔍 DEBUG: Log cuando profileData cambie
   useEffect(() => {
@@ -213,9 +311,9 @@ const SettingsPage: React.FC = () => {
       });
       
       // 🔧 COMPARACIÓN MEJORADA - Comparar con valores normalizados
-      const currentPhone = currentUser.phone || '';
-      const currentBirthday = currentUser.birth_date ? 
-        new Date(currentUser.birth_date).toISOString().split('T')[0] : '';
+      const currentPhone = (currentUser as any).phone || '';
+      const currentBirthday = (currentUser as any).birth_date ? 
+        new Date((currentUser as any).birth_date).toISOString().split('T')[0] : '';
       
       console.log('🔍 Valores normalizados para comparación:');
       console.log('📞 Teléfono - Actual:', `"${profileData.phone}"`, 'vs Original:', `"${currentPhone}"`);
@@ -232,11 +330,11 @@ const SettingsPage: React.FC = () => {
         updateData.birthDate = profileData.birthday || undefined;
       }
       
-      // Subir imágenes si se seleccionaron
+      // 🔧 SUBIR IMÁGENES CON NUEVO SERVICIO
       if (selectedProfileImage) {
         console.log('🖼️ Subiendo imagen de perfil...');
         try {
-          const profileImageUrl = await fileUploadService.uploadImage(selectedProfileImage, 'profile');
+          const profileImageUrl = await userService.images.uploadImage(selectedProfileImage, 'profile');
           updateData.profileImage = profileImageUrl;
           console.log('✅ Imagen de perfil subida:', profileImageUrl);
         } catch (imageError) {
@@ -250,7 +348,7 @@ const SettingsPage: React.FC = () => {
       if (selectedBannerImage) {
         console.log('🖼️ Subiendo imagen de banner...');
         try {
-          const bannerImageUrl = await fileUploadService.uploadImage(selectedBannerImage, 'banner');
+          const bannerImageUrl = await userService.images.uploadImage(selectedBannerImage, 'banner');
           updateData.bannerImage = bannerImageUrl;
           console.log('✅ Imagen de banner subida:', bannerImageUrl);
         } catch (imageError) {
@@ -263,11 +361,11 @@ const SettingsPage: React.FC = () => {
       
       console.log('📦 Datos finales para actualizar:', updateData);
       
-      // Actualizar solo si hay cambios
+      // 🔧 ACTUALIZAR CON NUEVO SERVICIO MODULAR
       if (Object.keys(updateData).length > 0) {
         console.log('🚀 Enviando actualización al servidor...');
         
-        await userService.updateCurrentUser(updateData);
+        await userService.edit.updateCurrentProfile(updateData);
         
         // Limpiar archivos seleccionados
         setSelectedProfileImage(null);
@@ -282,19 +380,17 @@ const SettingsPage: React.FC = () => {
         // 🚀 REFRESCAR DATOS CON LA NUEVA ESTRUCTURA
         console.log('🔄 Refrescando datos del usuario...');
         
-        // 🔧 TEMPORAL: Usar endpoint completo en lugar del refresh automático
         try {
-          const userId = typeof currentUser.id === 'string' ? parseInt(currentUser.id) : currentUser.id;
-          const updatedUserData = await userService.getUserById(userId);
+          const updatedUserData = await userService.profile.getCurrentProfile();
           console.log('📊 Datos actualizados del usuario:', updatedUserData);
           
           // Forzar actualización inmediata del estado local
           const newProfileData = {
             phone: updatedUserData.phone || '',
-            birthday: updatedUserData.birth_date ? 
-              new Date(updatedUserData.birth_date).toISOString().split('T')[0] : '',
+            birthday: (updatedUserData as any).birth_date ? 
+              new Date((updatedUserData as any).birth_date).toISOString().split('T')[0] : '',
             profileImage: updatedUserData.profileImage || '',
-            bannerImage: updatedUserData.bannerImage || ''
+            bannerImage: (updatedUserData as any).bannerImage || ''
           };
           
           console.log('🔄 Actualizando profileData con datos frescos:', newProfileData);
@@ -377,13 +473,16 @@ const SettingsPage: React.FC = () => {
   }, []);
   
   // 🚀 LOADING STATE
-  if (userLoading || !currentUser) {
+  if (isLoading || !currentUser) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Cargando configuración...</p>
+            {error && (
+              <p className="text-red-600 text-sm mt-2">Error: {error}</p>
+            )}
           </div>
         </div>
       </DashboardLayout>
@@ -412,13 +511,7 @@ const SettingsPage: React.FC = () => {
               <div className="flex flex-col items-center text-center">
                 <div className="relative mb-4">
                   <UserProfilePhoto
-                    user={{
-                      id: normalizeUserId(currentUser.id),
-                      firstName: currentUser.firstName,
-                      lastName: currentUser.lastName,
-                      email: currentUser.email,
-                      profileImage: previewProfileImage || currentUser.profileImage || undefined
-                    }}
+                    user={currentUser}
                     size="2xl"
                     enableCache={true}
                   />
@@ -535,13 +628,13 @@ const SettingsPage: React.FC = () => {
                     </span>
                   </li>
                   <li className="flex items-center text-sm">
-                    <div className={`h-5 w-5 flex-shrink-0 ${(currentUser.bannerImage || previewBannerImage) ? 'text-green-500' : 'text-gray-400'}`}>
-                      {(currentUser.bannerImage || previewBannerImage) ? 
+                    <div className={`h-5 w-5 flex-shrink-0 ${((currentUser as any).bannerImage || previewBannerImage) ? 'text-green-500' : 'text-gray-400'}`}>
+                      {((currentUser as any).bannerImage || previewBannerImage) ? 
                         <CheckCircleIcon className="h-5 w-5" /> : 
                         <ExclamationTriangleIcon className="h-5 w-5" />
                       }
                     </div>
-                    <span className={`ml-2 ${(currentUser.bannerImage || previewBannerImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span className={`ml-2 ${((currentUser as any).bannerImage || previewBannerImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
                       Imagen de banner
                     </span>
                   </li>
@@ -631,7 +724,7 @@ const SettingsPage: React.FC = () => {
                 <div className="border border-[var(--color-border)] rounded-lg p-3 mb-4">
                   <div className="h-32 w-full rounded-lg overflow-hidden bg-gray-200">
                     <img
-                      src={previewBannerImage || getFullImageUrl(currentUser.bannerImage) || heroBanner}
+                      src={previewBannerImage || getFullImageUrl((currentUser as any).bannerImage) || heroBanner}
                       alt="Banner"
                       className="h-full w-full object-cover"
                     />
@@ -660,13 +753,7 @@ const SettingsPage: React.FC = () => {
                 </label>
                 <div className="flex items-center gap-4">
                   <UserProfilePhoto
-                    user={{
-                      id: normalizeUserId(currentUser.id),
-                      firstName: currentUser.firstName,
-                      lastName: currentUser.lastName,
-                      email: currentUser.email,
-                      profileImage: previewProfileImage || currentUser.profileImage || undefined
-                    }}
+                    user={currentUser}
                     size="xl"
                     enableCache={true}
                   />

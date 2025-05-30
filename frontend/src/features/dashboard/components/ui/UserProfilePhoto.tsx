@@ -1,24 +1,31 @@
-// frontend/src/features/dashboard/components/ui/UserProfilePhoto.tsx - ENHANCED VERSION
+// frontend/src/features/dashboard/components/ui/UserProfilePhoto.tsx - 🔧 CORREGIDO
 // 🚀 COMPONENTE OPTIMIZADO CON CACHE INTELIGENTE Y WEBSOCKET
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { useAppData, useWebSocketStatus } from '../../../../context/AppDataContext';
+
+// 🔧 IMPORTS CORREGIDOS - usando la nueva estructura modular
 import { userService } from '../../../../services';
-import type { User } from '../../../../services/users/users.service';
+import { UserProfile, UserFormatted } from '../../../../services/users/types/user.types';
+
+// 🔧 TIPO UNIFICADO PARA EL COMPONENTE
+type ComponentUser = UserProfile | UserFormatted | {
+  id?: number;
+  firstName?: string;
+  lastName?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  profileImage?: string;
+  profile_image?: string;
+};
 
 export interface UserProfilePhotoProps {
   /** Tamaño del avatar */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   /** Usuario específico con datos completos */
-  user?: {
-    id?: number;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    profileImage?: string;
-    profile_image?: string;
-  };
+  user?: ComponentUser;
   /** ID del usuario - si se proporciona, buscará los datos */
   userId?: number;
   /** Clase CSS adicional */
@@ -39,7 +46,7 @@ export interface UserProfilePhotoProps {
 
 // ===== 🚀 CACHE INTELIGENTE MEJORADO =====
 interface CacheEntry {
-  data: User;
+  data: UserProfile;
   timestamp: number;
   expiresAt: number;
 }
@@ -47,9 +54,9 @@ interface CacheEntry {
 class UserPhotoCache {
   private cache = new Map<number, CacheEntry>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
-  private loadingPromises = new Map<number, Promise<User>>();
+  private loadingPromises = new Map<number, Promise<UserProfile>>();
   
-  get(userId: number): User | null {
+  get(userId: number): UserProfile | null {
     const entry = this.cache.get(userId);
     if (!entry) return null;
     
@@ -61,7 +68,7 @@ class UserPhotoCache {
     return entry.data;
   }
   
-  set(userId: number, data: User): void {
+  set(userId: number, data: UserProfile): void {
     const now = Date.now();
     this.cache.set(userId, {
       data,
@@ -70,8 +77,8 @@ class UserPhotoCache {
     });
   }
   
-  // 🆕 Deduplicación de requests
-  async getWithFetch(userId: number): Promise<User> {
+  // 🆕 Deduplicación de requests usando el nuevo servicio modular
+  async getWithFetch(userId: number): Promise<UserProfile> {
     // Si ya hay un request en progreso para este usuario, usarlo
     if (this.loadingPromises.has(userId)) {
       return this.loadingPromises.get(userId)!;
@@ -81,8 +88,8 @@ class UserPhotoCache {
     const cached = this.get(userId);
     if (cached) return cached;
     
-    // Crear nueva promesa de carga
-    const loadPromise = userService.getUserById(userId)
+    // 🔧 USAR EL NUEVO SERVICIO MODULAR
+    const loadPromise = userService.profile.getProfileById(userId)
       .then(user => {
         this.set(userId, user);
         this.loadingPromises.delete(userId);
@@ -98,7 +105,7 @@ class UserPhotoCache {
   }
   
   // 🆕 Actualizar usuario específico (para WebSocket)
-  update(userId: number, updates: Partial<User>): void {
+  update(userId: number, updates: Partial<UserProfile>): void {
     const existing = this.get(userId);
     if (existing) {
       this.set(userId, { ...existing, ...updates });
@@ -150,7 +157,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   const { user: appDataUser, users: systemUsers } = useAppData();
   const { isOnline: wsOnline, lastUpdate } = useWebSocketStatus();
   
-  const [fetchedUser, setFetchedUser] = useState<User | null>(null);
+  const [fetchedUser, setFetchedUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   
@@ -173,11 +180,11 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   // ===== 🆕 FETCH CON CACHE INTELIGENTE =====
   const fetchUserWithCache = useCallback(async (targetUserId: number) => {
     if (!enableCache) {
-      // Sin cache, fetch directo
+      // Sin cache, fetch directo usando el nuevo servicio
       try {
         setIsLoading(true);
         setHasError(false);
-        const userData = await userService.getUserById(targetUserId);
+        const userData = await userService.profile.getProfileById(targetUserId);
         setFetchedUser(userData);
       } catch (error) {
         console.error(`Error al cargar usuario con ID ${targetUserId}:`, error);
@@ -241,37 +248,27 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   
   // ===== 🆕 UTILITY FUNCTIONS =====
   
+  // 🔧 USAR EL SERVICIO DE IMÁGENES DEL NUEVO MÓDULO
   const getFullImageUrl = useCallback((imagePath: string | undefined | null): string => {
     if (!imagePath || imagePath.trim() === '') return '';
     
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    let baseUrl: string;
-    if (import.meta.env.MODE === 'production') {
-      baseUrl = window.location.origin;
-    } else {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      baseUrl = apiUrl.replace('/api/v1', '');
-    }
-    
-    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    return `${baseUrl}${path}`;
+    // Usar el servicio de imágenes del nuevo módulo
+    return userService.images.getImageUrl(imagePath);
   }, []);
   
   const getInitials = useCallback((): string => {
     if (!resolvedUser) return 'U';
     
-    const firstName = resolvedUser.firstName || '';
-    const lastName = resolvedUser.lastName || '';
+    // 🔧 MANEJAR DIFERENTES FORMATOS DE NOMBRES
+    const firstName = (resolvedUser as any).firstName || (resolvedUser as any).first_name || '';
+    const lastName = (resolvedUser as any).lastName || (resolvedUser as any).last_name || '';
     
     if (firstName && lastName) {
       return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
     } else if (firstName) {
       return firstName.charAt(0).toUpperCase();
-    } else if (resolvedUser.email) {
-      return resolvedUser.email.charAt(0).toUpperCase();
+    } else if ((resolvedUser as any).email) {
+      return (resolvedUser as any).email.charAt(0).toUpperCase();
     }
     
     return 'U';
@@ -297,7 +294,8 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
     '2xl': 'h-4 w-4'
   }), []);
   
-  const profileImage = resolvedUser?.profileImage || (resolvedUser as any)?.profile_image || null;
+  // 🔧 MANEJAR DIFERENTES FORMATOS DE IMAGEN
+  const profileImage = (resolvedUser as any)?.profileImage || (resolvedUser as any)?.profile_image || null;
   const imageUrl = useMemo(() => getFullImageUrl(profileImage), [profileImage, getFullImageUrl]);
   
   const baseClasses = useMemo(() => `
@@ -387,7 +385,13 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
   // ===== 🆕 USER DISPLAY NAME =====
   const displayName = useMemo(() => {
     if (!resolvedUser) return undefined;
-    return `${resolvedUser.firstName || ''} ${resolvedUser.lastName || ''}`.trim() || resolvedUser.email;
+    
+    // 🔧 MANEJAR DIFERENTES FORMATOS DE NOMBRES
+    const firstName = (resolvedUser as any).firstName || (resolvedUser as any).first_name || '';
+    const lastName = (resolvedUser as any).lastName || (resolvedUser as any).last_name || '';
+    const email = (resolvedUser as any).email || '';
+    
+    return `${firstName} ${lastName}`.trim() || email;
   }, [resolvedUser]);
 
   // ===== RENDER PRINCIPAL =====
@@ -402,7 +406,7 @@ const UserProfilePhoto: React.FC<UserProfilePhotoProps> = ({
       {imageUrl ? (
         <img
           src={imageUrl}
-          alt={`${resolvedUser?.firstName || 'Usuario'} ${resolvedUser?.lastName || ''}`}
+          alt={`${displayName || 'Usuario'}`}
           className="h-full w-full object-cover"
           onError={handleImageError}
           onLoad={handleImageLoad}

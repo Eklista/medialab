@@ -1,12 +1,17 @@
-// frontend/src/hooks/useOptimizedData.ts
+// frontend/src/hooks/useOptimizedData.ts - 🔧 CORREGIDO CON NUEVA ARQUITECTURA
 // 🚀 HOOK INTELIGENTE QUE REEMPLAZA useRoles, useAreas, useUsers, usePermissionCategories
 // Carga solo los datos que realmente necesitas
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppData } from '../context/AppDataContext';
-import { SystemDataType } from '../services/system/systemData.service';
-import { User as UserServiceUser, Role, Area } from '../services/users/users.service';
 import { PermissionCategory } from '../services/security/permissions.service';
+
+// 🔧 IMPORTS CORREGIDOS - usando la nueva estructura modular
+import { UserFormatted } from '../services/users/types/user.types';
+import { Role, Area } from '../types/system.types';
+
+// 🔧 TIPOS DEFINIDOS LOCALMENTE (mientras verificamos la centralización)
+type SystemDataType = 'roles' | 'areas' | 'users' | 'permissions';
 
 // ===== INTERFACES =====
 export interface OptimizedDataOptions {
@@ -33,10 +38,10 @@ export interface OptimizedDataOptions {
 }
 
 export interface OptimizedDataResult {
-  // Datos específicos (solo estarán presentes si fueron solicitados)
+  // 🔧 CORREGIDO: Usar UserFormatted en lugar de UserServiceUser
   roles?: Role[];
   areas?: Area[];
-  users?: UserServiceUser[];
+  users?: UserFormatted[]; // ✅ Cambiado
   permissionCategories?: PermissionCategory[];
   
   // Estados de carga
