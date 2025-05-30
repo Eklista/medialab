@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/SettingsPage.tsx - 🔧 CORREGIDO CON NUEVA ARQUITECTURA
+// src/features/dashboard/pages/SettingsPage.tsx - 🎯 VERSIÓN LIMPIA CON NUEVA ARQUITECTURA
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardButton from '../components/ui/DashboardButton';
@@ -7,24 +7,18 @@ import UserProfilePhoto from '../components/ui/UserProfilePhoto';
 import Badge from '../components/ui/Badge';
 import Switch from '../components/ui/Switch';
 
-// 🔧 HOOKS Y CONTEXTO CORREGIDOS - Solo usar userService
+// 🎯 NUEVA ARQUITECTURA - Solo usar userService y hooks optimizados
 import { useAppData } from '../../../context/AppDataContext';
-
-// 🔧 SERVICIOS CORREGIDOS - authService solo para autenticación
-import { authService, userService } from '../../../services';
+import { authService } from '../../../services';
 import { UserUpdateRequest } from '../../../services/users/types/requests.types';
 
-// 🔧 HOOKS DE USUARIOS - usar el nuevo hook optimizado
+// 🆕 HOOK OPTIMIZADO - Reemplaza toda la lógica de carga manual
 import { useCurrentUserProfile } from '../../../services/users/hooks/useUserService';
 
-// 🔧 HELPERS DE USUARIOS CORREGIDOS
-import { 
-  ensureUserFormatted,
-  isAdmin,
-  getRoleDisplayText 
-} from '../../../utils/userTypeHelpers';
+// 🎯 HELPERS SIMPLIFICADOS
+import { isAdmin, getRoleDisplayText } from '../../../utils/userTypeHelpers';
 
-// 🔧 UTILIDADES DE FECHA (simplificadas)
+// 🎯 UTILIDADES DE FECHA SIMPLIFICADAS
 const formatFullDate = (date: Date): string => {
   return date.toLocaleDateString('es-GT', { 
     year: 'numeric', 
@@ -35,8 +29,7 @@ const formatFullDate = (date: Date): string => {
 
 const formatRelativeTime = (date: Date): string => {
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
   
   if (diffDays === 0) return 'Hoy';
   if (diffDays === 1) return 'Ayer';
@@ -62,63 +55,14 @@ import {
 import heroBanner from '../../../assets/images/medialab-hero.jpg';
 
 const SettingsPage: React.FC = () => {
-  // 🔧 HOOKS CORREGIDOS - Solo userService para datos completos
+  // 🎯 HOOKS OPTIMIZADOS - Una sola fuente de verdad
   const { refreshUser } = useAppData();
-  const { user: currentUser, isLoading, error, refresh } = useCurrentUserProfile(true); // enhanced = true
+  const { user: currentUser, isLoading, error, refresh } = useCurrentUserProfile(true);
   
-  // 🔧 NORMALIZAR USUARIO CON MANEJO SEGURO DE TIPOS
-  const currentUser = useMemo(() => {
-    if (!authUser) return null;
-    
-    // Verificar si ya tiene las propiedades necesarias para ensureUserFormatted
-    if ('roles' in authUser && 'username' in authUser && 'isActive' in authUser) {
-      return ensureUserFormatted(authUser);
-    }
-    
-    // Si es un User básico de authService, convertir manualmente
-    return {
-      id: authUser.id,
-      email: authUser.email,
-      username: authUser.username || authUser.email?.split('@')[0] || 'usuario',
-      firstName: authUser.firstName || authUser.first_name || '',
-      lastName: authUser.lastName || authUser.last_name || '',
-      fullName: `${authUser.firstName || authUser.first_name || ''} ${authUser.lastName || authUser.last_name || ''}`.trim() || authUser.email,
-      initials: getInitials(authUser),
-      isActive: authUser.isActive ?? true,
-      roles: authUser.roles?.map((role: any) => role.name || role) || [],
-      areas: [],
-      permissions: authUser.permissions || [],
-      profileImage: authUser.profileImage || authUser.profile_image || null,
-      bannerImage: authUser.bannerImage || authUser.banner_image || null,
-      phone: authUser.phone || '',
-      birth_date: authUser.birthDate || authUser.birth_date || null,
-      joinDate: authUser.joinDate || '',
-      lastLogin: authUser.lastLogin || null,
-      status: 'offline' as const
-    };
-  }, [authUser]);
-  
-  // Función helper para generar iniciales
-  const getInitials = (user: any): string => {
-    const firstName = user.firstName || user.first_name || '';
-    const lastName = user.lastName || user.last_name || '';
-    
-    if (firstName && lastName) {
-      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-    } else if (firstName) {
-      return firstName.charAt(0).toUpperCase();
-    } else if (user.email) {
-      return user.email.charAt(0).toUpperCase();
-    }
-    return 'U';
-  };
-  
-  // 🚀 ESTADOS OPTIMIZADOS
+  // 🎯 ESTADOS SIMPLIFICADOS
   const [profileData, setProfileData] = useState({
     phone: '',
     birthday: '',
-    profileImage: '',
-    bannerImage: '',
   });
   
   const [passwordData, setPasswordData] = useState({
@@ -133,7 +77,7 @@ const SettingsPage: React.FC = () => {
   const [previewProfileImage, setPreviewProfileImage] = useState<string | null>(null);
   const [previewBannerImage, setPreviewBannerImage] = useState<string | null>(null);
   
-  // Estados de carga y errores
+  // Estados de carga y mensajes
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isLoadingPassword, setIsLoadingPassword] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -148,10 +92,7 @@ const SettingsPage: React.FC = () => {
     loginAlerts: true
   });
   
-  // 🆕 Estado para controlar inicialización
-  const [hasInitialized, setHasInitialized] = useState(false);
-  
-  // 🚀 DATOS COMPUTADOS OPTIMIZADOS - currentUser ya viene con formato correcto
+  // 🎯 DATOS COMPUTADOS OPTIMIZADOS - Manejo seguro de tipos
   const userIsAdmin = useMemo(() => {
     return currentUser ? isAdmin(currentUser) : false;
   }, [currentUser]);
@@ -159,107 +100,92 @@ const SettingsPage: React.FC = () => {
   const userDisplayData = useMemo(() => {
     if (!currentUser) return null;
     
-    // Manejar fullName que puede no existir en UserProfile
-    const fullName = (currentUser as any).fullName || 
-                    `${currentUser.firstName} ${currentUser.lastName}`.trim() ||
-                    currentUser.email;
+    // 🔧 Manejo seguro de fullName - puede existir o no dependiendo del tipo
+    const fullName = ('fullName' in currentUser && currentUser.fullName) 
+      ? currentUser.fullName 
+      : `${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email;
+    
+    // 🔧 Manejo seguro de username - puede existir o no
+    const username = ('username' in currentUser && currentUser.username) 
+      ? currentUser.username 
+      : currentUser.email?.split('@')[0] || 'usuario';
+    
+    // 🔧 Manejo seguro de joinDate - puede existir o no
+    const joinDate = ('joinDate' in currentUser && currentUser.joinDate)
+      ? formatFullDate(new Date(currentUser.joinDate))
+      : formatFullDate(new Date());
+    
+    // 🔧 Manejo seguro de lastLogin - puede existir o no
+    const lastLogin = ('lastLogin' in currentUser && currentUser.lastLogin)
+      ? formatRelativeTime(new Date(currentUser.lastLogin))
+      : 'Primera vez';
     
     return {
       fullName,
       email: currentUser.email,
       role: getRoleDisplayText(currentUser) || 'Usuario',
-      isActive: (currentUser as any).isActive ?? true,
-      joinDate: (currentUser as any).joinDate ? 
-                formatFullDate(new Date((currentUser as any).joinDate)) : 
-                formatFullDate(new Date()),
-      lastLogin: (currentUser as any).lastLogin ? 
-                 formatRelativeTime(new Date((currentUser as any).lastLogin)) : 
-                 'Primera vez',
-      username: (currentUser as any).username || currentUser.email?.split('@')[0] || 'usuario'
-    };
-  }, [currentUser]);
-  
-  // 🚀 DATOS COMPUTADOS OPTIMIZADOS
-  const userIsAdmin = useMemo(() => {
-    return currentUser ? isAdmin(currentUser) : false;
-  }, [currentUser]);
-  
-  const userDisplayData = useMemo(() => {
-    if (!currentUser) return null;
-    
-    return {
-      fullName: currentUser.fullName || `${currentUser.firstName} ${currentUser.lastName}`.trim(),
-      email: currentUser.email,
-      role: getRoleDisplayText(currentUser) || 'Usuario',
       isActive: currentUser.isActive,
-      joinDate: currentUser.joinDate ? formatFullDate(new Date(currentUser.joinDate)) : formatFullDate(new Date()),
-      lastLogin: currentUser.lastLogin ? formatRelativeTime(new Date(currentUser.lastLogin)) : 'Primera vez',
-      username: currentUser.username || currentUser.email?.split('@')[0] || 'usuario'
+      joinDate,
+      lastLogin,
+      username
     };
   }, [currentUser]);
   
-  // 🔧 FUNCIÓN PARA OBTENER URL COMPLETA DE IMAGEN
+  // 🎯 FUNCIÓN PARA OBTENER URL COMPLETA DE IMAGEN - Simplificada
   const getFullImageUrl = useCallback((imagePath: string | undefined | null): string => {
     if (!imagePath || imagePath.trim() === '') return '';
     
-    // Usar el servicio de imágenes del nuevo módulo
-    return userService.images.getImageUrl(imagePath);
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    const baseUrl = import.meta.env.MODE === 'production' 
+      ? window.location.origin 
+      : 'http://localhost:8000';
+    
+    const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    return `${baseUrl}${path}`;
   }, []);
   
-  // 🚀 CARGAR DATOS DEL USUARIO (VERSIÓN SIMPLIFICADA Y CORREGIDA)
+  // 🎯 CARGAR DATOS DEL USUARIO (SIMPLIFICADO)
   useEffect(() => {
-    if (currentUser && currentUser.id && !hasInitialized) {
-      console.log('🔄 Inicializando datos del usuario por primera vez:', {
-        id: currentUser.id,
-        phone: (currentUser as any).phone,
-        birth_date: (currentUser as any).birth_date
+    if (currentUser && currentUser.id) {
+      console.log('🔄 Inicializando datos del perfil desde usuario actual');
+      
+      // 🔧 Manejo seguro de phone - puede existir o no dependiendo del tipo
+      const phone = ('phone' in currentUser && currentUser.phone) ? currentUser.phone : '';
+      
+      // 🔧 Manejo seguro de birth_date - puede existir o no dependiendo del tipo
+      const birthDate = ('birth_date' in currentUser && currentUser.birth_date) 
+        ? new Date(currentUser.birth_date).toISOString().split('T')[0]
+        : '';
+      
+      setProfileData({
+        phone,
+        birthday: birthDate
       });
-      
-      const newProfileData = {
-        phone: (currentUser as any).phone || '',
-        birthday: (currentUser as any).birth_date ? 
-          new Date((currentUser as any).birth_date).toISOString().split('T')[0] : '',
-        profileImage: currentUser.profileImage || '',
-        bannerImage: (currentUser as any).bannerImage || ''
-      };
-      
-      console.log('📝 Estableciendo profileData inicial:', newProfileData);
-      setProfileData(newProfileData);
-      setHasInitialized(true);
     }
-  }, [currentUser?.id, (currentUser as any)?.phone, (currentUser as any)?.birth_date, hasInitialized]);
+  }, [currentUser?.id]);
   
-  // 🔍 DEBUG: Log cuando profileData cambie
-  useEffect(() => {
-    console.log('📊 profileData actualizado:', profileData);
-  }, [profileData]);
-  
-  // 🚀 CALCULAR COMPLETITUD DEL PERFIL
+  // 🎯 CALCULAR COMPLETITUD DEL PERFIL
   const profileCompleteness = useMemo(() => {
     if (!currentUser) return 0;
     
-    let totalFields = 4;
-    let completedFields = 4;
+    let totalFields = 8;
+    let completedFields = 4; // Básicos siempre completos (email, username, firstName, lastName)
     
     if (currentUser.profileImage || previewProfileImage) completedFields += 1;
     if (profileData.phone) completedFields += 1;
     if (profileData.birthday) completedFields += 1;
     if (currentUser.bannerImage || previewBannerImage) completedFields += 1;
     
-    totalFields += 4;
-    
     return Math.round((completedFields / totalFields) * 100);
   }, [currentUser, profileData, previewProfileImage, previewBannerImage]);
   
-  // 🚀 HANDLERS OPTIMIZADOS
+  // 🎯 HANDLERS OPTIMIZADOS
   const handleProfileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    console.log('🔄 Campo cambiado:', name, '=', value); // Debug
-    setProfileData(prev => {
-      const newData = { ...prev, [name]: value };
-      console.log('📝 Nuevo profileData:', newData); // Debug
-      return newData;
-    });
+    setProfileData(prev => ({ ...prev, [name]: value }));
   }, []);
   
   const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,8 +197,8 @@ const SettingsPage: React.FC = () => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       
-      if (file.size > 1 * 1024 * 1024) {
-        alert('El archivo es demasiado grande. El tamaño máximo es 1MB.');
+      if (file.size > 5 * 1024 * 1024) { // 5MB límite
+        alert('El archivo es demasiado grande. El tamaño máximo es 5MB.');
         return;
       }
       
@@ -288,7 +214,7 @@ const SettingsPage: React.FC = () => {
     }
   }, []);
   
-  // 🚀 SUBMIT OPTIMIZADO DEL PERFIL (CORREGIDO)
+  // 🎯 SUBMIT OPTIMIZADO DEL PERFIL - Usando nueva arquitectura
   const handleProfileSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
@@ -303,42 +229,25 @@ const SettingsPage: React.FC = () => {
     try {
       const updateData: Partial<UserUpdateRequest> = {};
       
-      console.log('🔍 Comparando datos para actualización:');
-      console.log('📝 profileData actual:', profileData);
-      console.log('👤 currentUser actual:', {
-        phone: currentUser.phone,
-        birth_date: currentUser.birth_date
-      });
+      // 🎯 COMPARACIÓN SIMPLIFICADA - Manejo seguro de tipos
+      const currentPhone = ('phone' in currentUser && currentUser.phone) ? currentUser.phone : '';
+      const currentBirthday = ('birth_date' in currentUser && currentUser.birth_date) ? 
+        new Date(currentUser.birth_date).toISOString().split('T')[0] : '';
       
-      // 🔧 COMPARACIÓN MEJORADA - Comparar con valores normalizados
-      const currentPhone = (currentUser as any).phone || '';
-      const currentBirthday = (currentUser as any).birth_date ? 
-        new Date((currentUser as any).birth_date).toISOString().split('T')[0] : '';
-      
-      console.log('🔍 Valores normalizados para comparación:');
-      console.log('📞 Teléfono - Actual:', `"${profileData.phone}"`, 'vs Original:', `"${currentPhone}"`);
-      console.log('🎂 Cumpleaños - Actual:', `"${profileData.birthday}"`, 'vs Original:', `"${currentBirthday}"`);
-      
-      // Verificar cambios específicos
       if (profileData.phone !== currentPhone) {
-        console.log('✅ Teléfono ha cambiado, agregando a updateData');
         updateData.phone = profileData.phone;
       }
       
       if (profileData.birthday !== currentBirthday) {
-        console.log('✅ Fecha de nacimiento ha cambiado, agregando a updateData');
         updateData.birthDate = profileData.birthday || undefined;
       }
       
-      // 🔧 SUBIR IMÁGENES CON NUEVO SERVICIO
+      // 🎯 SUBIR IMÁGENES - Usando authService (ya que es parte del perfil de auth)
       if (selectedProfileImage) {
-        console.log('🖼️ Subiendo imagen de perfil...');
         try {
-          const profileImageUrl = await userService.images.uploadImage(selectedProfileImage, 'profile');
+          const profileImageUrl = await authService.uploadProfileImage(selectedProfileImage, 'profile');
           updateData.profileImage = profileImageUrl;
-          console.log('✅ Imagen de perfil subida:', profileImageUrl);
         } catch (imageError) {
-          console.error('💥 Error al subir imagen de perfil:', imageError);
           setProfileError('No se pudo subir la imagen de perfil');
           setIsLoadingProfile(false);
           return;
@@ -346,26 +255,19 @@ const SettingsPage: React.FC = () => {
       }
       
       if (selectedBannerImage) {
-        console.log('🖼️ Subiendo imagen de banner...');
         try {
-          const bannerImageUrl = await userService.images.uploadImage(selectedBannerImage, 'banner');
+          const bannerImageUrl = await authService.uploadProfileImage(selectedBannerImage, 'banner');
           updateData.bannerImage = bannerImageUrl;
-          console.log('✅ Imagen de banner subida:', bannerImageUrl);
         } catch (imageError) {
-          console.error('💥 Error al subir imagen de banner:', imageError);
           setProfileError('No se pudo subir la imagen de banner');
           setIsLoadingProfile(false);
           return;
         }
       }
       
-      console.log('📦 Datos finales para actualizar:', updateData);
-      
-      // 🔧 ACTUALIZAR CON NUEVO SERVICIO MODULAR
+      // 🎯 ACTUALIZAR CON authService (mantiene coherencia con autenticación)
       if (Object.keys(updateData).length > 0) {
-        console.log('🚀 Enviando actualización al servidor...');
-        
-        await userService.edit.updateCurrentProfile(updateData);
+        await authService.updateProfile(updateData);
         
         // Limpiar archivos seleccionados
         setSelectedProfileImage(null);
@@ -377,38 +279,11 @@ const SettingsPage: React.FC = () => {
         
         setProfileSuccess('Perfil actualizado correctamente');
         
-        // 🚀 REFRESCAR DATOS CON LA NUEVA ESTRUCTURA
-        console.log('🔄 Refrescando datos del usuario...');
-        
-        try {
-          const updatedUserData = await userService.profile.getCurrentProfile();
-          console.log('📊 Datos actualizados del usuario:', updatedUserData);
-          
-          // Forzar actualización inmediata del estado local
-          const newProfileData = {
-            phone: updatedUserData.phone || '',
-            birthday: (updatedUserData as any).birth_date ? 
-              new Date((updatedUserData as any).birth_date).toISOString().split('T')[0] : '',
-            profileImage: updatedUserData.profileImage || '',
-            bannerImage: (updatedUserData as any).bannerImage || ''
-          };
-          
-          console.log('🔄 Actualizando profileData con datos frescos:', newProfileData);
-          setProfileData(newProfileData);
-          
-          // También llamar al refresh normal
-          await refreshUser();
-        } catch (refreshError) {
-          console.error('💥 Error obteniendo datos actualizados:', refreshError);
-          // Fallback al refresh normal  
-          await refreshUser();
-        }
-        
-        // 🆕 RESETEAR FLAG DE INICIALIZACIÓN para permitir nueva carga
-        setHasInitialized(false);
+        // 🎯 REFRESCAR CON HOOK OPTIMIZADO
+        await refresh();
+        await refreshUser();
         
       } else {
-        console.warn('⚠️ No se detectaron cambios para actualizar');
         setProfileError('No se detectaron cambios para actualizar');
       }
     } catch (err) {
@@ -417,9 +292,9 @@ const SettingsPage: React.FC = () => {
     } finally {
       setIsLoadingProfile(false);
     }
-  }, [currentUser, profileData, selectedProfileImage, selectedBannerImage, previewProfileImage, previewBannerImage, refreshUser]);
+  }, [currentUser, profileData, selectedProfileImage, selectedBannerImage, previewProfileImage, previewBannerImage, refresh, refreshUser]);
   
-  // 🚀 SUBMIT DE CONTRASEÑA
+  // 🎯 SUBMIT DE CONTRASEÑA - Sin cambios (ya usa authService correctamente)
   const handlePasswordSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -456,23 +331,15 @@ const SettingsPage: React.FC = () => {
     }
   }, [passwordData]);
   
-  // 🚀 MANEJO DE OPCIONES DE SEGURIDAD
+  // 🎯 MANEJO DE OPCIONES DE SEGURIDAD - Simplificado
   const handleSecurityOptionChange = useCallback((option: keyof typeof securityOptions, value: boolean) => {
     setSecurityOptions(prev => ({ ...prev, [option]: value }));
     
-    // Mostrar mensaje temporal
-    const message = document.getElementById('security-message');
-    if (message) {
-      message.textContent = `${option === 'twoFactorEnabled' ? 'Autenticación de dos factores' : 'Esta opción'} ${value ? 'activada' : 'desactivada'}. Funcionalidad disponible próximamente.`;
-      message.style.display = 'block';
-      
-      setTimeout(() => {
-        message.style.display = 'none';
-      }, 3000);
-    }
+    // TODO: Implementar cuando el backend esté listo
+    console.log(`${option} ${value ? 'activado' : 'desactivado'} (función pendiente)`);
   }, []);
   
-  // 🚀 LOADING STATE
+  // 🎯 LOADING STATE OPTIMIZADO
   if (isLoading || !currentUser) {
     return (
       <DashboardLayout>
@@ -499,9 +366,6 @@ const SettingsPage: React.FC = () => {
             Administra tus datos personales y preferencias de seguridad
           </p>
         </div>
-        
-        {/* Mensaje de notificación */}
-        <div id="security-message" className="hidden p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700 text-sm"></div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Columna lateral */}
@@ -628,13 +492,13 @@ const SettingsPage: React.FC = () => {
                     </span>
                   </li>
                   <li className="flex items-center text-sm">
-                    <div className={`h-5 w-5 flex-shrink-0 ${((currentUser as any).bannerImage || previewBannerImage) ? 'text-green-500' : 'text-gray-400'}`}>
-                      {((currentUser as any).bannerImage || previewBannerImage) ? 
+                    <div className={`h-5 w-5 flex-shrink-0 ${(('bannerImage' in currentUser && currentUser.bannerImage) || previewBannerImage) ? 'text-green-500' : 'text-gray-400'}`}>
+                      {(('bannerImage' in currentUser && currentUser.bannerImage) || previewBannerImage) ? 
                         <CheckCircleIcon className="h-5 w-5" /> : 
                         <ExclamationTriangleIcon className="h-5 w-5" />
                       }
                     </div>
-                    <span className={`ml-2 ${((currentUser as any).bannerImage || previewBannerImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span className={`ml-2 ${(('bannerImage' in currentUser && currentUser.bannerImage) || previewBannerImage) ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-secondary)]'}`}>
                       Imagen de banner
                     </span>
                   </li>
@@ -724,7 +588,7 @@ const SettingsPage: React.FC = () => {
                 <div className="border border-[var(--color-border)] rounded-lg p-3 mb-4">
                   <div className="h-32 w-full rounded-lg overflow-hidden bg-gray-200">
                     <img
-                      src={previewBannerImage || getFullImageUrl((currentUser as any).bannerImage) || heroBanner}
+                      src={previewBannerImage || getFullImageUrl(('bannerImage' in currentUser && currentUser.bannerImage) ? currentUser.bannerImage : null) || heroBanner}
                       alt="Banner"
                       className="h-full w-full object-cover"
                     />
@@ -738,7 +602,7 @@ const SettingsPage: React.FC = () => {
                       <input
                         type="file"
                         className="hidden"
-                        accept="image/jpeg, image/png, image/gif"
+                        accept="image/jpeg, image/png, image/gif, image/webp"
                         onChange={(e) => handleFileChange(e, 'banner')}
                       />
                     </label>
@@ -766,12 +630,12 @@ const SettingsPage: React.FC = () => {
                       <input
                         type="file"
                         className="hidden"
-                        accept="image/jpeg, image/png, image/gif"
+                        accept="image/jpeg, image/png, image/gif, image/webp"
                         onChange={(e) => handleFileChange(e, 'profile')}
                       />
                     </label>
                     <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-                      JPG, PNG o GIF. Máximo 1MB
+                      JPG, PNG, GIF o WebP. Máximo 5MB
                     </p>
                   </div>
                 </div>
@@ -815,83 +679,29 @@ const SettingsPage: React.FC = () => {
               
               {/* Formulario editable */}
               <form onSubmit={handleProfileSubmit} className="space-y-4">
-                {/* 🔍 FORMULARIO DE DEBUG TEMPORAL */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <h4 className="text-sm font-medium text-yellow-800 mb-3">
-                    🔧 Inputs de Debug (Temporales)
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Teléfono (Debug):
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={profileData.phone}
-                        onChange={handleProfileChange}
-                        placeholder="Escribe tu teléfono aquí"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Valor: "{profileData.phone}" | Funciona: {profileData.phone ? '✅' : '❌'}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fecha (Debug):
-                      </label>
-                      <input
-                        type="date"
-                        name="birthday"
-                        value={profileData.birthday}
-                        onChange={handleProfileChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Valor: "{profileData.birthday}" | Funciona: {profileData.birthday ? '✅' : '❌'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Formulario original con DashboardTextInput */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <DashboardTextInput
-                      id="phone"
-                      name="phone"
-                      label="Teléfono"
-                      value={profileData.phone}
-                      onChange={handleProfileChange}
-                      placeholder="Tu número de teléfono"
-                      type="tel"
-                      icon={<DevicePhoneMobileIcon className="h-5 w-5" />}
-                      helperText="Para notificaciones importantes"
-                    />
-                    {/* 🔍 Debug info */}
-                    <p className="text-xs text-gray-400 mt-1">
-                      Valor DashboardInput: "{profileData.phone}" | Longitud: {profileData.phone.length}
-                    </p>
-                  </div>
+                  <DashboardTextInput
+                    id="phone"
+                    name="phone"
+                    label="Teléfono"
+                    value={profileData.phone}
+                    onChange={handleProfileChange}
+                    placeholder="Tu número de teléfono"
+                    type="tel"
+                    icon={<DevicePhoneMobileIcon className="h-5 w-5" />}
+                    helperText="Para notificaciones importantes"
+                  />
                   
-                  <div>
-                    <DashboardTextInput
-                      id="birthday"
-                      name="birthday"
-                      label="Fecha de nacimiento"
-                      value={profileData.birthday}
-                      onChange={handleProfileChange}
-                      type="date"
-                      icon={<CakeIcon className="h-5 w-5" />}
-                      helperText="Esta información es privada y opcional"
-                    />
-                    {/* 🔍 Debug info */}
-                    <p className="text-xs text-gray-400 mt-1">
-                      Valor DashboardInput: "{profileData.birthday}" | Válido: {profileData.birthday ? 'Sí' : 'No'}
-                    </p>
-                  </div>
+                  <DashboardTextInput
+                    id="birthday"
+                    name="birthday"
+                    label="Fecha de nacimiento"
+                    value={profileData.birthday}
+                    onChange={handleProfileChange}
+                    type="date"
+                    icon={<CakeIcon className="h-5 w-5" />}
+                    helperText="Esta información es privada y opcional"
+                  />
                 </div>
                 
                 <div className="mt-6 flex justify-end">
@@ -1131,7 +941,7 @@ const SettingsPage: React.FC = () => {
                     <DashboardButton
                       variant="outline"
                       size="sm"
-                      onClick={() => handleSecurityOptionChange('twoFactorEnabled', true)}
+                      onClick={() => console.log('Ver historial (función pendiente)')}
                     >
                       Ver historial de sesiones
                     </DashboardButton>
@@ -1140,7 +950,7 @@ const SettingsPage: React.FC = () => {
               </div>
             </div>
             
-            {/* 🚀 PANEL DE ADMINISTRADOR */}
+            {/* 🎯 PANEL DE ADMINISTRADOR - Simplificado */}
             {userIsAdmin && (
               <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
@@ -1163,7 +973,11 @@ const SettingsPage: React.FC = () => {
                     <p className="text-sm text-purple-700 mb-3">
                       Administra usuarios, roles y permisos del sistema
                     </p>
-                    <DashboardButton size="sm" variant="outline">
+                    <DashboardButton 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.location.href = '/ml-admin/dashboard/users'}
+                    >
                       <UserIcon className="h-4 w-4 mr-2" />
                       Ir a Usuarios
                     </DashboardButton>
@@ -1176,7 +990,11 @@ const SettingsPage: React.FC = () => {
                     <p className="text-sm text-purple-700 mb-3">
                       Ajustes generales y configuración avanzada
                     </p>
-                    <DashboardButton size="sm" variant="outline">
+                    <DashboardButton 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => console.log('Configuración (función pendiente)')}
+                    >
                       <KeyIcon className="h-4 w-4 mr-2" />
                       Configuración
                     </DashboardButton>

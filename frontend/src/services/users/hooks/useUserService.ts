@@ -151,6 +151,57 @@ export const usePresenceTracking = (enabled = true) => {
 };
 
 /**
+ * 🎯 Hook para perfil de usuario específico por ID con datos completos
+ */
+export const useUserProfile = (userId: number | null) => {
+  const [user, setUser] = useState<UserFormatted | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadUser = useCallback(async () => {
+    if (!userId) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // 🎯 Usar la lista formateada y filtrar por ID para obtener datos completos
+      const allUsers = await userService.list.getUsersFormatted({ 
+        formatType: 'with_roles',
+        limit: 1000 // Obtener todos para encontrar el usuario
+      });
+      
+      const foundUser = allUsers.find(u => u.id === userId);
+      
+      if (!foundUser) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      setUser(foundUser);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error cargando usuario');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
+
+  return {
+    user,
+    isLoading,
+    error,
+    refresh: loadUser
+  };
+};
+
+/**
  * 🚀 Hook para carga inicial rápida de datos esenciales
  */
 export const useQuickStart = () => {

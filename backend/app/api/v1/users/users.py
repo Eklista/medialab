@@ -4,8 +4,8 @@
 Módulo de gestión de usuarios
 """
 
-from typing import List, Any
-from fastapi import APIRouter, Depends, status, Body, UploadFile, File, Form, Path
+from typing import List, Any, Dict
+from fastapi import APIRouter, Depends, status, Body, UploadFile, File, Form, Path, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
