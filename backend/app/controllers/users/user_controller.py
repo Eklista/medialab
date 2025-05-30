@@ -32,9 +32,7 @@ class UserController:
     
     @staticmethod
     def get_current_user_info(current_user) -> UserWithRoles:
-        """
-        Obtiene información del usuario actual con roles
-        """
+        """Obtiene información del usuario actual con roles"""
         try:
             return transform_user_with_roles(current_user)
         except Exception as e:
@@ -46,9 +44,7 @@ class UserController:
     
     @staticmethod
     def get_users_list(db: Session, skip: int = 0, limit: int = 100) -> List[UserWithRoles]:
-        """
-        Obtiene lista de usuarios con roles
-        """
+        """Obtiene lista de usuarios con roles"""
         try:
             users = UserService.get_users(db, skip, limit)
             return [transform_user_with_roles(user) for user in users]
@@ -58,7 +54,295 @@ class UserController:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error al obtener usuarios"
             )
+
+    @staticmethod
+    def get_users_list_formatted(db: Session, skip: int = 0, limit: int = 100, format_type: str = "with_roles") -> List[Dict[str, Any]]:
+        """
+        🎯 ENDPOINT FORMATTED IMPLEMENTADO
+        Permite elegir el nivel de detalle necesario
+        """
+        try:
+            logger.info(f"📋 Obteniendo usuarios formateados: {format_type}")
+            
+            # Obtener usuarios base
+            users = UserService.get_users(db, skip, limit)
+            
+            # Formatear según el tipo solicitado
+            formatted_users = []
+            for user in users:
+                if format_type == "basic":
+                    formatted_user = UserController._format_user_basic(user)
+                elif format_type == "detailed":
+                    formatted_user = UserController._format_user_detailed(user)
+                elif format_type == "with_roles":
+                    formatted_user = UserController._format_user_with_roles(user)
+                elif format_type == "complete":
+                    formatted_user = UserController._format_user_complete(user)
+                elif format_type == "active_menu":
+                    formatted_user = UserController._format_user_active_menu(user)
+                else:
+                    # Default: with_roles
+                    formatted_user = UserController._format_user_with_roles(user)
+                
+                formatted_users.append(formatted_user)
+            
+            logger.info(f"✅ Devolviendo {len(formatted_users)} usuarios formateados")
+            return formatted_users
+            
+        except Exception as e:
+            logger.error(f"💥 Error obteniendo usuarios formateados: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al obtener usuarios formateados: {str(e)}"
+            )
     
+    @staticmethod
+    def get_active_users_for_menu(db: Session, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        🎯 USUARIOS ACTIVOS PARA MENÚ/SIDEBAR
+        Optimizado para mostrar en interfaces de usuario
+        """
+        try:
+            from sqlalchemy import and_, or_
+            from datetime import datetime, timedelta
+            from app.models.auth.users import User
+            
+            logger.info(f"👥 Obteniendo {limit} usuarios activos para menú")
+            
+            # Obtener usuarios activos (online + recientemente activos)
+            recent_threshold = datetime.utcnow() - timedelta(minutes=30)
+            
+            users = db.query(User).filter(
+                User.is_active == True,
+                or_(
+                    User.is_online == True,
+                    and_(
+                        User.is_online == False,
+                        User.last_login >= recent_threshold
+                    )
+                )
+            ).order_by(
+                User.is_online.desc(),
+                User.last_login.desc()
+            ).limit(limit).all()
+            
+            # Formatear para menú
+            menu_users = []
+            for user in users:
+                menu_user = UserController._format_user_active_menu(user)
+                menu_users.append(menu_user)
+            
+            logger.info(f"✅ Devolviendo {len(menu_users)} usuarios activos")
+            return menu_users
+            
+        except Exception as e:
+            logger.error(f"💥 Error obteniendo usuarios activos para menú: {e}")
+            return []
+    
+    @staticmethod
+    def get_current_user_info_enhanced(current_user) -> Dict[str, Any]:
+        """
+        🎯 PERFIL COMPLETO MEJORADO PARA FRONTEND
+        Incluye todo lo que el frontend necesita
+        """
+        try:
+            logger.info(f"🎯 Obteniendo perfil enhanced para {current_user.email}")
+            
+            # Obtener info básica con roles
+            base_info = transform_user_with_roles(current_user)
+            
+            # Enhancer con información adicional
+            enhanced_info = UserController._format_user_complete(current_user)
+            
+            logger.info("✅ Perfil enhanced generado")
+            return enhanced_info
+            
+        except Exception as e:
+            logger.error(f"💥 Error obteniendo perfil enhanced: {e}")
+            # Fallback al método original
+            return transform_user_with_roles(current_user)
+
+    # ===== MÉTODOS DE FORMATEO PRIVADOS =====
+    
+    @staticmethod
+    def _format_user_basic(user) -> Dict[str, Any]:
+        """Formato básico mínimo"""
+        return {
+            "id": user.id,
+            "email": user.email,
+            "firstName": user.first_name or "",
+            "lastName": user.last_name or "",
+            "fullName": UserController._get_full_name(user),
+            "isActive": user.is_active
+        }
+    
+    @staticmethod
+    def _format_user_detailed(user) -> Dict[str, Any]:
+        """Formato detallado sin roles"""
+        return {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username or "",
+            "firstName": user.first_name or "",
+            "lastName": user.last_name or "",
+            "fullName": UserController._get_full_name(user),
+            "initials": UserController._get_initials(user),
+            "profileImage": user.profile_image,
+            "bannerImage": user.banner_image,
+            "phone": user.phone or "",
+            "birthDate": str(user.birth_date) if user.birth_date else None,
+            "joinDate": str(user.join_date) if user.join_date else None,
+            "lastLogin": str(user.last_login) if user.last_login else None,
+            "isActive": user.is_active,
+            "isOnline": getattr(user, 'is_online', False)
+        }
+    
+    @staticmethod
+    def _format_user_with_roles(user) -> Dict[str, Any]:
+        """Formato con roles y áreas"""
+        base = UserController._format_user_detailed(user)
+        
+        # Agregar roles
+        roles = []
+        areas = []
+        role_display = "Sin rol"
+        area_display = "Sin área"
+        
+        if hasattr(user, 'roles') and user.roles:
+            roles = [role.name for role in user.roles]
+            role_display = ", ".join(roles) if roles else "Sin rol"
+            
+            # Obtener áreas de los roles
+            for role in user.roles:
+                if hasattr(role, 'area') and role.area:
+                    area_info = {
+                        "id": role.area.id,
+                        "name": role.area.name
+                    }
+                    if area_info not in areas:
+                        areas.append(area_info)
+            
+            area_display = ", ".join([area["name"] for area in areas]) if areas else "Sin área"
+        
+        base.update({
+            "roles": roles,
+            "areas": areas,
+            "roleDisplay": role_display,
+            "areaDisplay": area_display,
+            "status": "online" if getattr(user, 'is_online', False) else ("offline" if user.is_active else "inactive")
+        })
+        
+        return base
+    
+    @staticmethod
+    def _format_user_complete(user) -> Dict[str, Any]:
+        """Formato completo con toda la información"""
+        base = UserController._format_user_with_roles(user)
+        
+        # Agregar estadísticas y información adicional
+        stats = {
+            "profileCompletion": UserController._calculate_profile_completion(user),
+            "accountAgeDays": UserController._calculate_account_age(user),
+            "totalLogins": getattr(user, 'login_count', 0)
+        }
+        
+        display = {
+            "fullName": base["fullName"],
+            "initials": base["initials"],
+            "avatarUrl": UserController._get_avatar_url(user),
+            "roleBadge": base["roleDisplay"],
+            "areaBadge": base["areaDisplay"]
+        }
+        
+        base.update({
+            "stats": stats,
+            "display": display
+        })
+        
+        return base
+    
+    @staticmethod
+    def _format_user_active_menu(user) -> Dict[str, Any]:
+        """Formato optimizado para menús y sidebars"""
+        return {
+            "id": user.id,
+            "fullName": UserController._get_full_name(user),
+            "initials": UserController._get_initials(user),
+            "email": user.email,
+            "profileImage": user.profile_image,
+            "isOnline": getattr(user, 'is_online', False),
+            "status": "online" if getattr(user, 'is_online', False) else "away",
+            "lastSeen": str(user.last_login) if user.last_login else None
+        }
+    
+    # ===== MÉTODOS AUXILIARES =====
+    
+    @staticmethod
+    def _get_full_name(user) -> str:
+        """Obtiene nombre completo del usuario"""
+        first_name = user.first_name or ""
+        last_name = user.last_name or ""
+        
+        if first_name and last_name:
+            return f"{first_name} {last_name}"
+        elif first_name:
+            return first_name
+        elif last_name:
+            return last_name
+        else:
+            return user.email.split('@')[0] if user.email else "Usuario"
+    
+    @staticmethod
+    def _get_initials(user) -> str:
+        """Obtiene iniciales del usuario"""
+        first_name = user.first_name or ""
+        last_name = user.last_name or ""
+        
+        if first_name and last_name:
+            return f"{first_name[0]}{last_name[0]}".upper()
+        elif first_name:
+            return first_name[0].upper()
+        elif user.email:
+            return user.email[0].upper()
+        else:
+            return "U"
+    
+    @staticmethod
+    def _get_avatar_url(user) -> str:
+        """Obtiene URL del avatar"""
+        if user.profile_image:
+            return user.profile_image
+        
+        # Generar avatar con iniciales
+        initials = UserController._get_initials(user)
+        return f"https://ui-avatars.com/api/?name={initials}&size=80&background=6366f1&color=ffffff&bold=true"
+    
+    @staticmethod
+    def _calculate_profile_completion(user) -> int:
+        """Calcula el porcentaje de completitud del perfil"""
+        fields = [
+            user.first_name,
+            user.last_name,
+            user.phone,
+            user.birth_date,
+            user.profile_image
+        ]
+        
+        completed = sum(1 for field in fields if field)
+        return int((completed / len(fields)) * 100)
+    
+    @staticmethod
+    def _calculate_account_age(user) -> int:
+        """Calcula la edad de la cuenta en días"""
+        if not user.join_date:
+            return 0
+        
+        from datetime import datetime
+        now = datetime.utcnow()
+        join_date = user.join_date if isinstance(user.join_date, datetime) else datetime.fromisoformat(str(user.join_date))
+        
+        return (now - join_date).days
+
     @staticmethod
     def create_new_user(db: Session, user_data: UserCreate, current_user) -> UserInDB:
         """
