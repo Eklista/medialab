@@ -63,7 +63,7 @@ class PasswordService:
                 if success:
                     # Enviar email con código
                     try:
-                        from app.services.email_service import send_reset_code_email
+                        from app.services.communication.email_service import send_reset_code_email
                         
                         email_success = send_reset_code_email(
                             email_to=email,

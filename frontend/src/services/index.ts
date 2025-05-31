@@ -1,4 +1,4 @@
-// frontend/src/services/index.ts - 🔄 ACTUALIZADO CON USUARIOS REFACTORIZADOS
+// frontend/src/services/index.ts - 🔄 ACTUALIZADO CON ROLES Y ÁREAS
 
 // ===== SERVICIOS PRINCIPALES =====
 export { default as apiClient } from './api';
@@ -16,15 +16,18 @@ export {
   userCacheService
 } from './users';
 
+// ===== SERVICIOS DE SEGURIDAD =====
 export { default as permissionsService } from './security/permissions.service';
-
-// 🆕 NUEVO: Servicio unificado de datos del sistema
-export { default as systemDataService } from './system/systemData.service';
+export { default as rolesService } from './security/roles.service'; // 🆕 NUEVO
 
 // ===== SERVICIOS DE ORGANIZACIÓN =====
+export { default as areasService } from './organization/areas.service'; // 🆕 NUEVO
 export { default as servicesService } from './organization/services.service';
 export { default as academicUnitService } from './organization/academicUnits.service';
 export { default as departmentTypeService } from './organization/departmentTypes.service';
+
+// 🆕 NUEVO: Servicio unificado de datos del sistema
+export { default as systemDataService } from './system/systemData.service';
 
 // ===== SERVICIOS DEL SISTEMA =====
 export { default as publicService } from './system/public.service';
@@ -61,10 +64,24 @@ export type {
   UserImageUploadRequest
 } from './users/types/requests.types';
 
-// ===== TIPOS DEL SISTEMA (CENTRALIZADOS) =====
+// ===== TIPOS DE ROLES Y ÁREAS (NUEVOS) =====
 export type {
   Role,
+  RoleWithPermissions,
+  RoleCreateRequest,
+  RoleUpdateRequest,
+  RoleStats
+} from './security/roles.service';
+
+export type {
   Area,
+  AreaCreateRequest,
+  AreaUpdateRequest,
+  AreaStats
+} from './organization/areas.service';
+
+// ===== TIPOS DEL SISTEMA (CENTRALIZADOS) =====
+export type {
   Department,
   DepartmentType,
   SystemDataResponse,
@@ -72,11 +89,7 @@ export type {
   SystemDataOptions,
   SystemDataType,
   SystemStats,
-  SystemConfig,
-  RoleCreateRequest,
-  RoleUpdateRequest,
-  AreaCreateRequest,
-  AreaUpdateRequest
+  SystemConfig
 } from '../types/system.types';
 
 // ===== TIPOS DE PERMISOS =====
@@ -143,14 +156,15 @@ export const API_CONFIG = {
 
 // ===== INFORMACIÓN DEL MÓDULO ACTUALIZADA =====
 export const SERVICES_INFO = {
-  version: '2.1.0',
-  description: 'Servicios optimizados con usuarios refactorizados, cache inteligente y carga selectiva',
+  version: '2.2.0',
+  description: 'Servicios optimizados con usuarios refactorizados, roles y áreas modulares',
   features: [
     'Sistema unificado de datos',
     'Cache inteligente con TTL',
     'Deduplicación de requests',
     'Carga selectiva de datos',
     '🆕 Usuarios modulares refactorizados',
+    '🆕 Servicios de roles y áreas independientes',
     '🆕 Operaciones en lote optimizadas',
     '🆕 Cache específico para usuarios',
     '🆕 Hooks React personalizados',
@@ -166,6 +180,10 @@ export const SERVICES_INFO = {
       'permissionsService',
       'systemDataService'
     ],
+    security: [
+      'rolesService (🆕 nuevo)',
+      'permissionsService'
+    ],
     users: [
       'userProfileService',
       'userEditService',
@@ -176,6 +194,7 @@ export const SERVICES_INFO = {
       'userCacheService'
     ],
     organization: [
+      'areasService (🆕 nuevo)',
       'servicesService',
       'academicUnitService',
       'departmentTypeService'
@@ -195,13 +214,15 @@ export const SERVICES_INFO = {
       'fileUploadService'
     ]
   },
-  lastUpdated: '2025-05-29'
+  lastUpdated: '2025-05-30'
 } as const;
 
 // ===== UTILIDADES DE DESARROLLO =====
 // Importaciones para DEV_UTILS
 import userServiceInstance from './users/users.service';
 import systemDataServiceInstance from './system/systemData.service';
+import rolesServiceInstance from './security/roles.service';
+import areasServiceInstance from './organization/areas.service';
 
 export const DEV_UTILS = {
   // Información de todos los servicios
@@ -210,17 +231,30 @@ export const DEV_UTILS = {
   // Debug de usuarios
   debugUsers: () => userServiceInstance.dev.debugInfo(),
   
+  // 🆕 Debug de roles
+  debugRoles: () => ({
+    cache: rolesServiceInstance.getCacheStats(),
+    service: 'roles.service'
+  }),
+  
+  // 🆕 Debug de áreas
+  debugAreas: () => ({
+    cache: areasServiceInstance.getCacheStats(),
+    service: 'areas.service'
+  }),
+  
   // Health check general
   healthCheck: async () => {
     const results = await Promise.allSettled([
       userServiceInstance.dev.healthCheck(),
-      // Aquí podrías agregar más health checks de otros servicios
+      rolesServiceInstance.getRoles({ limit: 1 }).then(() => ({ status: 'OK', service: 'roles' })),
+      areasServiceInstance.getAreas({ limit: 1 }).then(() => ({ status: 'OK', service: 'areas' }))
     ]);
     
     return {
       timestamp: new Date().toISOString(),
       results: results.map((result, index) => ({
-        service: ['users'][index],
+        service: ['users', 'roles', 'areas'][index],
         status: result.status,
         data: result.status === 'fulfilled' ? result.value : result.reason
       }))
@@ -231,6 +265,104 @@ export const DEV_UTILS = {
   clearAllCaches: () => {
     userServiceInstance.cache.clear();
     systemDataServiceInstance.clearCache();
+    rolesServiceInstance.clearCache();
+    areasServiceInstance.clearCache();
     console.log('🧹 Todos los caches limpiados');
+  },
+  
+  // 🆕 Refresh específico
+  refreshModule: async (module: 'users' | 'roles' | 'areas' | 'all') => {
+    console.log(`🔄 Refrescando módulo: ${module}`);
+    
+    switch (module) {
+      case 'users':
+        userServiceInstance.cache.clear();
+        break;
+      case 'roles':
+        await rolesServiceInstance.refresh();
+        break;
+      case 'areas':
+        await areasServiceInstance.refresh();
+        break;
+      case 'all':
+        await Promise.all([
+          rolesServiceInstance.refresh(),
+          areasServiceInstance.refresh()
+        ]);
+        userServiceInstance.cache.clear();
+        systemDataServiceInstance.clearCache();
+        break;
+    }
+    
+    console.log(`✅ Módulo ${module} refrescado`);
   }
 } as const;
+
+// ===== COMPATIBILIDAD CON FORMULARIOS =====
+// Métodos de conveniencia para los formularios existentes
+
+/**
+ * 🔄 Adaptador para compatibility con RoleForm
+ */
+export const roleServiceAdapter = {
+  async getRoles() {
+    return rolesServiceInstance.getRoles();
+  },
+  
+  async getRoleWithPermissions(roleId: number) {
+    return rolesServiceInstance.getRoleById(roleId, true);
+  },
+  
+  async createRole(roleData: any) {
+    return rolesServiceInstance.createRole(roleData);
+  },
+  
+  async updateRole(roleId: number, roleData: any) {
+    return rolesServiceInstance.updateRole(roleId, roleData);
+  },
+  
+  async deleteRole(roleId: number) {
+    return rolesServiceInstance.deleteRole(roleId);
+  },
+  
+  async assignPermissions(roleId: number, permissionIds: number[]) {
+    return rolesServiceInstance.assignPermissions(roleId, permissionIds);
+  }
+};
+
+/**
+ * 🔄 Adaptador para compatibility con AreaForm
+ */
+export const areaServiceAdapter = {
+  async getAreas() {
+    return areasServiceInstance.getAreas();
+  },
+  
+  async getAreaById(areaId: number) {
+    return areasServiceInstance.getAreaById(areaId);
+  },
+  
+  async createArea(areaData: any) {
+    return areasServiceInstance.createArea(areaData);
+  },
+  
+  async updateArea(areaId: number, areaData: any) {
+    return areasServiceInstance.updateArea(areaId, areaData);
+  },
+  
+  async deleteArea(areaId: number) {
+    return areasServiceInstance.deleteArea(areaId);
+  }
+};
+
+// ===== NOTA PARA DESARROLLO =====
+console.log('📚 Servicios cargados:', SERVICES_INFO.version);
+console.log('🆕 Nuevos servicios: rolesService, areasService');
+console.log('🔧 Para debugging: DEV_UTILS.getServicesInfo()');
+
+// Para debugging en desarrollo
+if (import.meta.env.DEV) {
+  (window as any).servicesDebug = DEV_UTILS;
+  (window as any).rolesService = rolesServiceInstance;
+  (window as any).areasService = areasServiceInstance;
+}

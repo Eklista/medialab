@@ -54,14 +54,17 @@ class UserEditService {
   }
 
   /**
-   * 🆕 Crea un nuevo usuario - COMPLETAMENTE CORREGIDO PARA 422
+   * 🆕 Crea un nuevo usuario - VERSIÓN FINAL CORREGIDA
    */
   async createUser(userData: any): Promise<UserProfile> {
     try {
       console.log('👤 Iniciando creación de usuario...');
-      console.log('📝 Datos originales recibidos:', userData);
+      console.log('📝 Datos originales recibidos:', {
+        ...userData,
+        password: userData.password ? '[PROVIDED]' : '[NOT PROVIDED]'
+      });
       
-      // 🔧 PASO 1: VALIDAR CAMPOS REQUERIDOS FRONTEND
+      // 🔧 PASO 1: VALIDAR CAMPOS REQUERIDOS
       const requiredFields = ['email', 'firstName', 'lastName'];
       const missingFields = requiredFields.filter(field => 
         !userData[field] || userData[field].toString().trim() === ''
@@ -77,25 +80,42 @@ class UserEditService {
         throw new Error('Formato de email inválido');
       }
 
-      // 🔧 PASO 3: PREPARAR DATOS SEGÚN LO QUE ESPERA EL BACKEND
-      // Basado en tu código backend, necesita estos campos exactos:
+      // 🔧 PASO 3: MANEJAR CONTRASEÑA CORRECTAMENTE
+      let finalPassword: string;
+      let isGeneratedPassword = false;
+      
+      if (userData.password && userData.password.trim()) {
+        // ✅ USAR LA CONTRASEÑA QUE PROPORCIONÓ EL USUARIO
+        finalPassword = userData.password.trim();
+        console.log('✅ Usando contraseña proporcionada por el usuario');
+        
+        // Validar contraseña proporcionada
+        const passwordValidation = this.validatePasswordStrength(userData.password);
+        if (!passwordValidation.isValid) {
+          throw new Error(`Contraseña no segura: ${passwordValidation.errors.join(', ')}`);
+        }
+      } else {
+        // 🔧 GENERAR CONTRASEÑA AUTOMÁTICA SOLO SI NO SE PROPORCIONÓ
+        finalPassword = this.generateSecurePassword();
+        isGeneratedPassword = true;
+        console.log('🔐 Generando contraseña automática porque no se proporcionó una');
+      }
+
+      // 🔧 PASO 4: PREPARAR DATOS PARA EL BACKEND
       const backendData = {
-        // ⭐ CAMPOS REQUERIDOS (según el backend)
         email: userData.email.toString().trim(),
         username: (userData.username?.toString().trim()) || userData.email.split('@')[0],
         first_name: userData.firstName.toString().trim(),
         last_name: userData.lastName.toString().trim(),
-        password: this.generateSecurePassword(), // Generar password si no se proporciona
+        password: finalPassword, // 🔧 USAR LA CONTRASEÑA CORRECTA
         
-        // ⭐ CAMPOS OPCIONALES PERO CON VALORES DEFAULT SEGUROS
+        // Campos opcionales
         phone: userData.phone?.toString().trim() || '',
         birth_date: this.formatDateForBackend(userData.birthDate) || null,
         join_date: this.formatDateForBackend(userData.joinDate) || new Date().toISOString().split('T')[0],
-        
-        // ⭐ CAMPOS BOOLEANOS CON DEFAULTS SEGUROS
         is_active: userData.isActive !== undefined ? Boolean(userData.isActive) : true,
         
-        // ⭐ ROLES - Solo si están presentes Y son válidos
+        // Roles si están presentes
         ...(this.validateAndFormatRoles(userData.roleId, userData.areaId))
       };
       
@@ -104,7 +124,7 @@ class UserEditService {
         password: '[HIDDEN]' // No mostrar password en logs
       });
 
-      // 🔧 PASO 4: ENVIAR AL BACKEND CON MANEJO DE ERRORES ESPECÍFICO
+      // 🔧 PASO 5: ENVIAR AL BACKEND
       let response;
       try {
         response = await apiClient.post<UserProfile>('/users/', backendData);
@@ -112,7 +132,6 @@ class UserEditService {
       } catch (createError: any) {
         console.error('💥 Error específico de creación:', createError);
         
-        // Manejar errores específicos del backend
         if (createError.response?.status === 422) {
           const validationErrors = this.parseValidationErrors(createError.response.data);
           throw new Error(`Error de validación: ${validationErrors}`);
@@ -129,9 +148,12 @@ class UserEditService {
         throw new Error(handleApiError(createError));
       }
       
-      console.log('📋 Respuesta del backend:', response.data);
+      // 🔧 PASO 6: MOSTRAR CONTRASEÑA SI FUE GENERADA AUTOMÁTICAMENTE
+      if (isGeneratedPassword) {
+        console.log('📢 Mostrando contraseña generada al usuario');
+        this.showGeneratedPassword(response.data, finalPassword);
+      }
       
-      // 🔧 PASO 5: NORMALIZAR RESPUESTA
       const normalizedUser = userTransforms.normalizeUser(response.data);
       console.log('✅ Usuario normalizado:', normalizedUser);
       
@@ -139,8 +161,61 @@ class UserEditService {
       
     } catch (error) {
       console.error('💥 Error en createUser:', error);
-      throw error; // Re-lanzar el error para que lo maneje el componente
+      throw error;
     }
+  }
+
+  /**
+   * 🔐 Valida fortaleza de contraseña
+   */
+  private validatePasswordStrength(password: string): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    if (password.length < 8) {
+      errors.push('Debe tener al menos 8 caracteres');
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      errors.push('Debe contener al menos una letra mayúscula');
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      errors.push('Debe contener al menos una letra minúscula');
+    }
+    
+    if (!/\d/.test(password)) {
+      errors.push('Debe contener al menos un número');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * 💬 Muestra contraseña generada al usuario
+   */
+  private showGeneratedPassword(user: any, password: string): void {
+    console.log('📢 Disparando evento de contraseña generada');
+    
+    // Crear evento personalizado para mostrar la contraseña
+    const event = new CustomEvent('user:passwordGenerated', {
+      detail: {
+        user: user,
+        password: password,
+        message: `Usuario creado exitosamente. Contraseña temporal: ${password}`
+      }
+    });
+    
+    window.dispatchEvent(event);
+    
+    // También guardar en sessionStorage temporalmente
+    sessionStorage.setItem('tempUserPassword', JSON.stringify({
+      email: user.email,
+      password: password,
+      timestamp: Date.now()
+    }));
   }
 
   /**

@@ -175,42 +175,219 @@ def get_online_users(
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    🆕 OBTIENE USUARIOS ONLINE
+    🆕 OBTIENE USUARIOS ONLINE - VERSIÓN CORREGIDA
     Para dashboards y monitores de actividad
     """
     try:
-        from sqlalchemy import and_
+        from sqlalchemy import and_, or_, text
         from datetime import datetime, timedelta
         
-        # Usuarios online en los últimos 5 minutos
+        logger.info(f"📊 Obteniendo usuarios online para {current_user.email}")
+        
+        # Threshold para considerar usuario como "recientemente activo"
         recent_threshold = datetime.utcnow() - timedelta(minutes=5)
         
-        online_users = db.query(User).filter(
-            and_(
-                User.is_active == True,
-                User.is_online == True,
-                User.last_login >= recent_threshold
-            )
-        ).all()
+        # 🔧 QUERY MÁS ROBUSTA - Verificar que las columnas existan
+        try:
+            # Intentar query con is_online primero
+            online_users = db.query(User).filter(
+                and_(
+                    User.is_active == True,
+                    or_(
+                        # Usuarios explícitamente online (si la columna existe)
+                        User.is_online == True,
+                        # O usuarios con login reciente
+                        and_(
+                            User.last_login.isnot(None),
+                            User.last_login >= recent_threshold
+                        )
+                    )
+                )
+            ).order_by(
+                User.last_login.desc().nullslast()
+            ).limit(50).all()  # Limitar resultados
+            
+        except Exception as db_error:
+            logger.warning(f"⚠️ Error con columna is_online, usando solo last_login: {db_error}")
+            
+            # Fallback: Solo usar last_login si is_online no existe
+            online_users = db.query(User).filter(
+                and_(
+                    User.is_active == True,
+                    User.last_login.isnot(None),
+                    User.last_login >= recent_threshold
+                )
+            ).order_by(
+                User.last_login.desc()
+            ).limit(50).all()
         
-        # Formatear para respuesta
+        # Formatear respuesta de forma segura
         formatted_users = []
         for user in online_users:
-            formatted_users.append({
-                "id": user.id,
-                "name": UserController._get_full_name(user),
-                "email": user.email,
-                "status": "online",
-                "lastSeen": str(user.last_login) if user.last_login else None
-            })
+            try:
+                # Verificar si is_online existe como atributo
+                is_online_attr = getattr(user, 'is_online', None)
+                is_currently_online = False
+                
+                if is_online_attr is not None:
+                    is_currently_online = bool(is_online_attr)
+                elif user.last_login:
+                    # Fallback: considerar online si login fue reciente
+                    is_currently_online = user.last_login >= recent_threshold
+                
+                # Determinar status
+                if is_currently_online:
+                    status = "online"
+                elif user.last_login and user.last_login >= datetime.utcnow() - timedelta(hours=1):
+                    status = "away"
+                else:
+                    status = "offline"
+                
+                # Construir objeto usuario de forma segura
+                formatted_user = {
+                    "id": user.id,
+                    "name": UserController._get_full_name(user),
+                    "fullName": UserController._get_full_name(user),
+                    "initials": UserController._get_initials(user),
+                    "email": user.email,
+                    "profileImage": getattr(user, 'profile_image', None),
+                    "status": status,
+                    "isOnline": is_currently_online,
+                    "lastSeen": user.last_login.isoformat() if user.last_login else None,
+                    "lastLogin": user.last_login.isoformat() if user.last_login else None
+                }
+                
+                formatted_users.append(formatted_user)
+                
+            except Exception as format_error:
+                logger.error(f"💥 Error formateando usuario {user.id}: {format_error}")
+                continue
         
-        return formatted_users
+        # Construir respuesta final
+        response_data = {
+            "users": formatted_users,
+            "total": len(formatted_users),
+            "timestamp": datetime.utcnow().isoformat(),
+            "debug": {
+                "query_threshold": recent_threshold.isoformat(),
+                "total_found": len(online_users),
+                "total_formatted": len(formatted_users)
+            }
+        }
+        
+        logger.info(f"✅ Devolviendo {len(formatted_users)} usuarios online")
+        return response_data
         
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"💥 Error obteniendo usuarios online: {e}")
-        return []
+        logger.error(f"💥 Error type: {type(e).__name__}")
+        logger.error(f"💥 Error details: {str(e)}")
+        
+        # Respuesta de error estructurada
+        error_response = {
+            "users": [],
+            "total": 0,
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+        
+        return error_response
+
+@router.post("/heartbeat")
+def user_heartbeat(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    💓 HEARTBEAT SIMPLIFICADO Y ROBUSTO
+    """
+    try:
+        from datetime import datetime
+        
+        logger.info(f"💓 Heartbeat de usuario {current_user.id}")
+        
+        # Actualizar last_login (este campo seguro existe)
+        current_user.last_login = datetime.utcnow()
+        
+        # Intentar actualizar is_online si existe
+        try:
+            if hasattr(current_user, 'is_online'):
+                current_user.is_online = True
+                logger.debug(f"✅ is_online actualizado para usuario {current_user.id}")
+            else:
+                logger.warning(f"⚠️ Campo is_online no existe en modelo User")
+        except Exception as online_error:
+            logger.warning(f"⚠️ No se pudo actualizar is_online: {online_error}")
+        
+        # Commit cambios
+        db.commit()
+        db.refresh(current_user)
+        
+        response = {
+            "success": True,
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "online",
+            "userId": current_user.id,
+            "message": "Heartbeat registrado correctamente"
+        }
+        
+        logger.info(f"✅ Heartbeat exitoso para usuario {current_user.id}")
+        return response
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"💥 Error en heartbeat para usuario {current_user.id}: {e}")
+        
+        return {
+            "success": False,
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "userId": current_user.id,
+            "message": "Error en heartbeat"
+        }
+
+# 🔧 ENDPOINT PARA CAMBIAR ESTADO MANUAL
+@router.patch("/online-status")
+def update_online_status(
+    status_data: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> Any:
+    """
+    🆕 ACTUALIZAR ESTADO ONLINE MANUALMENTE
+    Permite al usuario establecer su estado
+    """
+    try:
+        from datetime import datetime
+        
+        is_online = status_data.get('isOnline', True)
+        status = status_data.get('status', 'online')  # online, away, busy, offline
+        
+        # Actualizar estado
+        current_user.is_online = is_online
+        if is_online:
+            current_user.last_login = datetime.utcnow()
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "status": status,
+            "isOnline": is_online,
+            "timestamp": datetime.utcnow().isoformat(),
+            "message": f"Estado actualizado a {status}"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"💥 Error actualizando estado online: {e}")
+        
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al actualizar estado online"
+        )
 
 @router.patch("/profile/online-status")
 def update_online_status(

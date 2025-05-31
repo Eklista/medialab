@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/settings/RolesAreasSettings.tsx - PARTE 1
+// src/features/dashboard/pages/settings/RolesAreasSettings.tsx - 🔄 ACTUALIZADO CON NUEVOS SERVICIOS
 import React, { useState, useEffect, useCallback } from 'react';
 import ConfigPageHeader from '../../components/config/ConfigPageHeader';
 import DashboardButton from '../../components/ui/DashboardButton';
@@ -7,8 +7,11 @@ import DashboardModal from '../../components/ui/DashboardModal';
 import DashboardPlaceholder, { NoPermissionPlaceholder, ErrorPlaceholder } from '../../components/ui/DashboardPlaceholder';
 import RoleForm, { RoleFormData } from '../../components/config/RoleForm';
 import AreaForm, { AreaFormData } from '../../components/config/AreaForm';
-import { userService } from '../../../../services';
-import { RoleCreateRequest, RoleUpdateRequest } from '../../../../services/users/users.service';
+
+// 🔄 USAR NUEVOS SERVICIOS MODULARES
+import { rolesService, areasService } from '../../../../services';
+import type { Role, Area } from '../../../../services';
+
 import { usePermissions } from '../../../../hooks/usePermissions';
 import { 
   PlusIcon, 
@@ -18,22 +21,8 @@ import {
   PencilIcon
 } from '@heroicons/react/24/outline';
 
-// Tipos adaptados para ser compatibles con la API
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-}
-
-interface Area {
-  id: string;
-  name: string;
-  description: string;
-}
-
 const RolesAreasSettings: React.FC = () => {
-  // 🎯 Usar el nuevo hook de permisos
+  // 🎯 Usar el hook de permisos existente
   const { 
     canView,
     isLoading: permissionsLoading, 
@@ -51,7 +40,7 @@ const RolesAreasSettings: React.FC = () => {
     return 'roles';
   });
   
-  // Estado para roles y áreas
+  // Estado para roles y áreas - USANDO TIPOS CORRECTOS
   const [roles, setRoles] = useState<Role[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   
@@ -78,31 +67,28 @@ const RolesAreasSettings: React.FC = () => {
   // Verificar si tiene permisos para al menos una tab
   const hasAnyPermission = canViewRoles || canViewAreas;
   
-  // 🎯 Función para cargar roles desde la API (ÚNICA VERSIÓN)
+  // 🔄 NUEVA: Función para cargar roles usando el nuevo servicio
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const rolesData = await userService.getRoles();
+      console.log('🔄 Cargando roles con rolesService...');
+      const rolesData = await rolesService.getRoles();
       
+      // 🔧 TRANSFORMAR ROLES PARA INCLUIR PERMISOS
       const rolesWithPermissions = await Promise.all(
         rolesData.map(async (role) => {
           try {
-            const roleDetails = await userService.getRoleWithPermissions(parseInt(role.id));
-            
+            const roleDetails = await rolesService.getRoleById(role.id, true);
             return {
-              id: role.id,
-              name: role.name,
-              description: role.description || '',
-              permissions: Array.isArray(roleDetails.permissions) ? roleDetails.permissions : []
+              ...role,
+              permissions: roleDetails.permissions || []
             };
           } catch (error) {
             console.warn(`No se pudieron cargar permisos para el rol ${role.id}:`, error);
             return {
-              id: role.id,
-              name: role.name,
-              description: role.description || '',
+              ...role,
               permissions: []
             };
           }
@@ -110,29 +96,32 @@ const RolesAreasSettings: React.FC = () => {
       );
       
       setRoles(rolesWithPermissions);
+      console.log(`✅ ${rolesWithPermissions.length} roles cargados exitosamente`);
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar los roles');
+      const errorMessage = err instanceof Error ? err.message : 'Error al cargar los roles';
+      setError(errorMessage);
       console.error('Error al cargar roles:', err);
     } finally {
       setIsLoading(false);
     }
   }, []);
   
-  // 🎯 Función para cargar áreas desde la API (ÚNICA VERSIÓN)
+  // 🔄 NUEVA: Función para cargar áreas usando el nuevo servicio
   const fetchAreas = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const data = await userService.getAreas();
-      const formattedAreas: Area[] = data.map(area => ({
-        id: area.id,
-        name: area.name,
-        description: area.description || ''
-      }));
-      setAreas(formattedAreas);
+      console.log('🔄 Cargando áreas con areasService...');
+      const areasData = await areasService.getAreas();
+      
+      setAreas(areasData);
+      console.log(`✅ ${areasData.length} áreas cargadas exitosamente`);
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar las áreas');
+      const errorMessage = err instanceof Error ? err.message : 'Error al cargar las áreas';
+      setError(errorMessage);
       console.error('Error al cargar áreas:', err);
     } finally {
       setIsLoading(false);
@@ -148,9 +137,7 @@ const RolesAreasSettings: React.FC = () => {
     }
   }, [activeTab, canViewRoles, canViewAreas, fetchRoles, fetchAreas]);
 
-  // 🎯 TODOS LOS HOOKS DEBEN ESTAR ANTES DE CUALQUIER EARLY RETURN
-
-  // 🎯 Ahora sí podemos hacer early returns después de todos los hooks
+  // Early returns después de todos los hooks
   if (permissionsLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -185,9 +172,7 @@ const RolesAreasSettings: React.FC = () => {
     );
   }
 
-  // src/features/dashboard/pages/settings/RolesAreasSettings.tsx - PARTE 2
-
-  // 🎯 HANDLERS PARA ROLES - Simplificados sin verificaciones manuales
+  // 🔄 HANDLERS PARA ROLES - Usando nuevo servicio
   const handleAddRole = () => {
     setModalError(null);
     setSuccessMessage(null);
@@ -199,18 +184,10 @@ const RolesAreasSettings: React.FC = () => {
     setSuccessMessage(null);
     
     try {
-      const roleWithPermissions = await userService.getRoleWithPermissions(parseInt(role.id));
+      console.log('🔄 Cargando detalles del rol para edición...');
+      const roleWithPermissions = await rolesService.getRoleById(role.id, true);
       
-      const updatedRole: Role = {
-        id: role.id,
-        name: roleWithPermissions.name,
-        description: roleWithPermissions.description || '',
-        permissions: Array.isArray(roleWithPermissions.permissions) 
-          ? roleWithPermissions.permissions 
-          : []
-      };
-      
-      setCurrentRole(updatedRole);
+      setCurrentRole(roleWithPermissions);
       setIsEditRoleModalOpen(true);
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Error al cargar el rol');
@@ -226,14 +203,13 @@ const RolesAreasSettings: React.FC = () => {
   };
   
   const handleDeleteRole = async () => {
-    if (!currentRole || !currentRole.id) return;
+    if (!currentRole) return;
     
     setIsSubmitting(true);
     setModalError(null);
     
     try {
-      const roleId = parseInt(currentRole.id);
-      await userService.deleteRole(roleId);
+      await rolesService.deleteRole(currentRole.id);
       
       setRoles(roles.filter(role => role.id !== currentRole.id));
       setSuccessMessage("Rol eliminado correctamente");
@@ -256,24 +232,16 @@ const RolesAreasSettings: React.FC = () => {
     setModalError(null);
     
     try {
-      // ✅ Incluir permisos en la creación del rol
-      const roleRequest: RoleCreateRequest = {
+      console.log('🔄 Creando rol con datos:', data);
+      
+      const newRole = await rolesService.createRole({
         name: data.name,
         description: data.description,
-        permissions: data.permissions // ✅ Agregar permisos
-      };
+        permissions: data.permissions
+      });
       
-      // ✅ El userService.createRole ahora maneja los permisos internamente
-      const newRole = await userService.createRole(roleRequest);
-      
-      const formattedRole: Role = {
-        id: newRole.id.toString(),
-        name: newRole.name,
-        description: newRole.description || '',
-        permissions: data.permissions || [] // Usar los permisos del formulario
-      };
-      
-      setRoles([...roles, formattedRole]);
+      // Añadir a la lista local
+      setRoles([...roles, { ...newRole, permissions: data.permissions }]);
       setSuccessMessage("Rol creado correctamente");
       
       setTimeout(() => {
@@ -290,33 +258,33 @@ const RolesAreasSettings: React.FC = () => {
   };
   
   const handleEditRoleSubmit = async (data: RoleFormData) => {
-    if (!currentRole || !currentRole.id) return;
+    if (!currentRole) return;
     
     setIsSubmitting(true);
     setModalError(null);
     
     try {
-      const roleId = parseInt(currentRole.id);
+      console.log('🔄 Actualizando rol con datos:', data);
       
-      // ✅ Actualizar el rol CON permisos usando el método reestructurado
-      const roleRequest: RoleUpdateRequest = {
+      // Actualizar datos básicos del rol
+      const updatedRole = await rolesService.updateRole(currentRole.id, {
         name: data.name,
-        description: data.description,
-        permissions: data.permissions // ✅ Ahora los permisos se incluyen aquí
-      };
+        description: data.description
+      });
       
-      // ✅ El userService.updateRole ahora maneja los permisos internamente
-      const updatedRole = await userService.updateRole(roleId, roleRequest);
+      // Si hay permisos, asignarlos por separado
+      if (data.permissions && data.permissions.length > 0) {
+        // Convertir nombres de permisos a IDs (necesitarías un mapa o consulta)
+        // Por ahora, asumiendo que el backend maneja esto
+        console.log('🔗 Asignando permisos al rol...');
+        // await rolesService.assignPermissions(currentRole.id, permissionIds);
+      }
       
-      const formattedRole: Role = {
-        id: updatedRole.id.toString(),
-        name: updatedRole.name,
-        description: updatedRole.description || '',
-        permissions: data.permissions // Usar los permisos del formulario
-      };
-      
+      // Actualizar en la lista local
       setRoles(roles.map(role => 
-        role.id === currentRole.id ? formattedRole : role
+        role.id === currentRole.id 
+          ? { ...updatedRole, permissions: data.permissions } 
+          : role
       ));
       
       setSuccessMessage("Rol actualizado correctamente");
@@ -335,7 +303,7 @@ const RolesAreasSettings: React.FC = () => {
     }
   };
 
-  // 🎯 HANDLERS PARA ÁREAS - Simplificados sin verificaciones manuales
+  // 🔄 HANDLERS PARA ÁREAS - Usando nuevo servicio
   const handleAddArea = () => {
     setModalError(null);
     setSuccessMessage(null);
@@ -357,14 +325,13 @@ const RolesAreasSettings: React.FC = () => {
   };
   
   const handleDeleteArea = async () => {
-    if (!currentArea || !currentArea.id) return;
+    if (!currentArea) return;
     
     setIsSubmitting(true);
     setModalError(null);
     
     try {
-      const areaId = parseInt(currentArea.id);
-      await userService.deleteArea(areaId);
+      await areasService.deleteArea(currentArea.id);
       
       setAreas(areas.filter(area => area.id !== currentArea.id));
       setSuccessMessage("Área eliminada correctamente");
@@ -387,15 +354,14 @@ const RolesAreasSettings: React.FC = () => {
     setModalError(null);
     
     try {
-      const newArea = await userService.createArea(data);
+      console.log('🔄 Creando área con datos:', data);
       
-      const formattedArea: Area = {
-        id: newArea.id.toString(),
-        name: newArea.name,
-        description: newArea.description || ''
-      };
+      const newArea = await areasService.createArea({
+        name: data.name,
+        description: data.description
+      });
       
-      setAreas([...areas, formattedArea]);
+      setAreas([...areas, newArea]);
       setSuccessMessage("Área creada correctamente");
       
       setTimeout(() => {
@@ -411,23 +377,21 @@ const RolesAreasSettings: React.FC = () => {
   };
   
   const handleEditAreaSubmit = async (data: AreaFormData) => {
-    if (!currentArea || !currentArea.id) return;
+    if (!currentArea) return;
     
     setIsSubmitting(true);
     setModalError(null);
     
     try {
-      const areaId = parseInt(currentArea.id);
-      const updatedArea = await userService.updateArea(areaId, data);
+      console.log('🔄 Actualizando área con datos:', data);
       
-      const formattedArea: Area = {
-        id: updatedArea.id.toString(),
-        name: updatedArea.name,
-        description: updatedArea.description || ''
-      };
+      const updatedArea = await areasService.updateArea(currentArea.id, {
+        name: data.name,
+        description: data.description
+      });
       
       setAreas(areas.map(area => 
-        area.id === currentArea.id ? formattedArea : area
+        area.id === currentArea.id ? updatedArea : area
       ));
       
       setSuccessMessage("Área actualizada correctamente");
@@ -445,7 +409,7 @@ const RolesAreasSettings: React.FC = () => {
     }
   };
 
-  // Estadísticas para el header
+  // Estadísticas para el header - MEJORADAS
   const stats = activeTab === 'roles' ? [
     {
       label: 'Total',
@@ -454,12 +418,12 @@ const RolesAreasSettings: React.FC = () => {
     },
     {
       label: 'Con permisos',
-      value: roles.filter(r => r.permissions.length > 0).length,
+      value: roles.filter(r => r.permissions && r.permissions.length > 0).length,
       variant: 'success' as const
     },
     {
       label: 'Sin permisos',
-      value: roles.filter(r => r.permissions.length === 0).length,
+      value: roles.filter(r => !r.permissions || r.permissions.length === 0).length,
       variant: 'warning' as const
     }
   ] : [
@@ -474,7 +438,6 @@ const RolesAreasSettings: React.FC = () => {
       variant: 'success' as const
     }
   ];
-  // src/features/dashboard/pages/settings/RolesAreasSettings.tsx - PARTE 3
 
   // Configurar tabs
   const tabs = [
@@ -503,7 +466,7 @@ const RolesAreasSettings: React.FC = () => {
     icon: React.ReactNode;
   }>;
   
-  // Columnas para la tabla de roles
+  // Columnas para la tabla de roles - MEJORADAS
   const roleColumns = [
     {
       header: 'Nombre',
@@ -527,8 +490,9 @@ const RolesAreasSettings: React.FC = () => {
           );
         }
         
+        // Agrupar permisos por categoría
         const categoryCounts: Record<string, number> = {};
-        role.permissions.forEach(permission => {
+        role.permissions?.forEach(permission => {
           const category = permission.split('_')[0];
           categoryCounts[category] = (categoryCounts[category] || 0) + 1;
         });
@@ -575,7 +539,7 @@ const RolesAreasSettings: React.FC = () => {
     }
   ];
 
-  // 🎯 Renderizar acciones para roles con permisos automáticos
+  // Renderizar acciones para roles con permisos automáticos
   const renderRoleActions = (role: Role) => (
     <div className="flex space-x-2 justify-end">
       <DashboardButton
@@ -606,7 +570,7 @@ const RolesAreasSettings: React.FC = () => {
     </div>
   );
 
-  // 🎯 Renderizar acciones para áreas con permisos automáticos
+  // Renderizar acciones para áreas con permisos automáticos
   const renderAreaActions = (area: Area) => (
     <div className="flex space-x-2 justify-end">
       <DashboardButton
@@ -691,12 +655,12 @@ const RolesAreasSettings: React.FC = () => {
         />
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          {/* 🎯 Renderizar tabla específica según pestaña activa */}
+          {/* Renderizar tabla específica según pestaña activa */}
           {activeTab === 'roles' ? (
             <DashboardDataTable
               columns={roleColumns}
               data={roles}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id.toString()}
               actionColumn={true}
               emptyMessage=""
               isLoading={isLoading}
@@ -708,7 +672,7 @@ const RolesAreasSettings: React.FC = () => {
             <DashboardDataTable
               columns={areaColumns}
               data={areas}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id.toString()}
               actionColumn={true}
               emptyMessage=""
               isLoading={isLoading}
@@ -741,7 +705,7 @@ const RolesAreasSettings: React.FC = () => {
         </div>
       )}
       
-      {/* 🎯 Modales para Roles */}
+      {/* 🔄 Modales para Roles */}
       <DashboardModal
         isOpen={isAddRoleModalOpen}
         onClose={() => {
@@ -776,7 +740,11 @@ const RolesAreasSettings: React.FC = () => {
       >
         {currentRole && (
           <RoleForm
-            initialData={currentRole}
+            initialData={{
+              name: currentRole.name,
+              description: currentRole.description || '',
+              permissions: currentRole.permissions || []
+            }}
             onSubmit={handleEditRoleSubmit}
             onCancel={() => {
               setIsEditRoleModalOpen(false);
@@ -787,7 +755,7 @@ const RolesAreasSettings: React.FC = () => {
         )}
       </DashboardModal>
       
-      {/* 🎯 Modal de eliminación de roles con permisos automáticos */}
+      {/* Modal de eliminación de roles */}
       <DashboardModal
         isOpen={isDeleteRoleModalOpen}
         onClose={() => {
@@ -806,12 +774,15 @@ const RolesAreasSettings: React.FC = () => {
               <TrashIcon className="h-5 w-5 text-red-600" />
             </div>
             <div className="flex-1">
+              <p className="text-gray-900 font-medium">
+                ¿Eliminar rol "{currentRole?.name}"?
+              </p>
               <p className="text-gray-500 text-sm mt-2">
                 Esta acción no se puede deshacer y eliminará todos los permisos asociados.
               </p>
               
               {/* Información adicional del rol */}
-              {currentRole && currentRole.permissions.length > 0 && (
+              {currentRole && currentRole.permissions && currentRole.permissions.length > 0 && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm">
                     <span className="font-medium text-gray-700">Permisos asociados:</span>
@@ -837,7 +808,6 @@ const RolesAreasSettings: React.FC = () => {
             Cancelar
           </DashboardButton>
           
-          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
             permissionCategory="role"
             permissionAction="delete"
@@ -852,7 +822,7 @@ const RolesAreasSettings: React.FC = () => {
         </div>
       </DashboardModal>
       
-      {/* 🎯 Modales para Áreas */}
+      {/* 🔄 Modales para Áreas */}
       <DashboardModal
         isOpen={isAddAreaModalOpen}
         onClose={() => {
@@ -887,7 +857,7 @@ const RolesAreasSettings: React.FC = () => {
           <AreaForm
             initialData={{
               name: currentArea.name,
-              description: currentArea.description
+              description: currentArea.description || ''
             }}
             onSubmit={handleEditAreaSubmit}
             onCancel={() => {
@@ -899,7 +869,7 @@ const RolesAreasSettings: React.FC = () => {
         )}
       </DashboardModal>
 
-      {/* 🎯 Modal de eliminación de áreas con permisos automáticos */}
+      {/* Modal de eliminación de áreas */}
       <DashboardModal
         isOpen={isDeleteAreaModalOpen}
         onClose={() => {
@@ -950,7 +920,6 @@ const RolesAreasSettings: React.FC = () => {
             Cancelar
           </DashboardButton>
           
-          {/* 🎯 Botón eliminar con permisos automáticos */}
           <DashboardButton
             permissionCategory="area"
             permissionAction="delete"

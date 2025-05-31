@@ -1,4 +1,4 @@
-// src/features/dashboard/components/users/UserForm.tsx
+// src/features/dashboard/components/users/UserForm.tsx - 🧹 LIMPIO SIN DUPLICADOS
 import React, { useState, useEffect } from 'react';
 import DashboardTextInput from '../ui/DashboardTextInput';
 import DashboardSelect from '../ui/DashboardSelect';
@@ -47,7 +47,6 @@ const UserForm: React.FC<UserFormProps> = ({
   });
   
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
-  const [passwordSet, setPasswordSet] = useState(false);
   
   // Poblar formulario con datos iniciales
   useEffect(() => {
@@ -72,11 +71,6 @@ const UserForm: React.FC<UserFormProps> = ({
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
-    if (name === 'password' && value) {
-      setPasswordSet(true);
-    }
-    
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Limpiar error cuando se edita el campo
@@ -117,55 +111,27 @@ const UserForm: React.FC<UserFormProps> = ({
       newErrors.areaId = 'El área es requerida';
     }
     
-    if (!isEditMode && formData.password) {
+    // Solo validar contraseña SI el usuario la proporcionó
+    if (!isEditMode && formData.password && formData.password.trim()) {
       if (formData.password.length < 8) {
         newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
       }
-    } else if (!isEditMode && !formData.password) {
-      newErrors.password = 'La contraseña es requerida';
+      
+      const hasUpper = /[A-Z]/.test(formData.password);
+      const hasLower = /[a-z]/.test(formData.password);
+      const hasNumber = /\d/.test(formData.password);
+      
+      if (!hasUpper || !hasLower || !hasNumber) {
+        newErrors.password = 'La contraseña debe contener mayúsculas, minúsculas y números';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   
-  const generateSecurePassword = (): string => {
-    const length = Math.max(12, 8);
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+';
-    let password = '';
-    
-    password += chars.charAt(Math.floor(Math.random() * 26)); // Mayúscula
-    password += chars.charAt(26 + Math.floor(Math.random() * 26)); // Minúscula
-    password += chars.charAt(52 + Math.floor(Math.random() * 10)); // Número
-    password += chars.charAt(62 + Math.floor(Math.random() * (chars.length - 62))); // Símbolo
-    
-    for (let i = 4; i < length; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    
-    return password.split('').sort(() => 0.5 - Math.random()).join('');
-  };
-  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!isEditMode && !formData.password) {
-      const generatedPassword = generateSecurePassword();
-      setFormData(prev => ({
-        ...prev,
-        password: generatedPassword
-      }));
-      
-      setTimeout(() => {
-        if (validateForm()) {
-          onSubmit({
-            ...formData,
-            password: generatedPassword
-          });
-        }
-      }, 0);
-      return;
-    }
     
     if (validateForm()) {
       onSubmit(formData);
@@ -185,10 +151,17 @@ const UserForm: React.FC<UserFormProps> = ({
   const roleOptions = hasValidRoles ? prepareSelectOptions(roles) : [];
   const areaOptions = hasValidAreas ? prepareSelectOptions(areas) : [];
   
+  const getPasswordHelperText = () => {
+    if (formData.password && formData.password.trim()) {
+      return undefined;
+    }
+    return "Si no ingresas una contraseña, se generará una segura automáticamente y se te mostrará después de crear el usuario";
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Error Summary - Mejorado */}
+        {/* Error Summary */}
         {Object.keys(errors).length > 0 && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6">
             <div className="flex items-start">
@@ -337,7 +310,7 @@ const UserForm: React.FC<UserFormProps> = ({
           </div>
         </div>
         
-        {/* Security Section - Only for new users */}
+        {/* Security Section - Solo para usuarios nuevos */}
         {!isEditMode && (
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-3">
@@ -353,17 +326,18 @@ const UserForm: React.FC<UserFormProps> = ({
             <DashboardTextInput
               id="user-password"
               name="password"
-              label="Contraseña"
+              label="Contraseña (Opcional)"
               type="password"
               value={formData.password || ''}
               onChange={handleInputChange}
-              placeholder="Contraseña del usuario"
-              helperText={passwordSet ? undefined : "Se generará una contraseña aleatoria si deja este campo vacío"}
+              placeholder="Ingresa una contraseña o déjalo vacío"
+              helperText={getPasswordHelperText()}
               error={errors.password}
               icon={<KeyIcon className="h-5 w-5" />}
             />
             
-            {formData.password && (
+            {/* Indicador de fuerza solo si hay contraseña */}
+            {formData.password && formData.password.trim() && (
               <div className="mt-4 rounded-lg bg-gray-50 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">Fuerza de la contraseña:</span>
@@ -385,10 +359,30 @@ const UserForm: React.FC<UserFormProps> = ({
                 </p>
               </div>
             )}
+            
+            {/* Indicador cuando no hay contraseña */}
+            {(!formData.password || !formData.password.trim()) && (
+              <div className="mt-4 rounded-lg bg-blue-50 border border-blue-200 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 flex-shrink-0 mt-0.5">
+                    <KeyIcon className="h-3 w-3 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900">Contraseña automática</h4>
+                    <p className="mt-1 text-sm text-blue-700">
+                      Se generará una contraseña segura de 12 caracteres con mayúsculas, minúsculas, números y símbolos.
+                    </p>
+                    <p className="mt-1 text-xs text-blue-600">
+                      La contraseña se mostrará después de crear el usuario para que puedas comunicársela.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
-        {/* Status Section - Only for edit mode */}
+        {/* Status Section - Solo para modo edición */}
         {isEditMode && (
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-3">
@@ -420,7 +414,7 @@ const UserForm: React.FC<UserFormProps> = ({
           </div>
         )}
         
-        {/* Username Preview - Only for new users */}
+        {/* Username Preview - Solo para usuarios nuevos */}
         {!isEditMode && formData.username && (
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
             <div className="flex items-start gap-3">

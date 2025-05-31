@@ -1,43 +1,19 @@
-// frontend/src/types/system.types.ts - 🎯 TIPOS COMPARTIDOS DEL SISTEMA
-// Centraliza interfaces que se usan en múltiples servicios
+// frontend/src/types/system.types.ts - 🔄 ACTUALIZADO CON ROLES Y ÁREAS
 
-// ===== ENTIDADES PRINCIPALES =====
+import { UserFormatted } from '../services/users/types/user.types';
+import { PermissionCategory } from '../services/security/permissions.service';
 
+// ===== ROLES =====
 export interface Role {
   id: number;
   name: string;
   description?: string;
   permissions?: string[];
-  created_at?: string;
-  updated_at?: string;
 }
 
-export interface Area {
-  id: number;
-  name: string;
-  description?: string;
-  parent_id?: number;
-  created_at?: string;
-  updated_at?: string;
+export interface RoleWithPermissions extends Role {
+  permissions: string[];
 }
-
-export interface Department {
-  id: number;
-  name: string;
-  abbreviation: string;
-  description?: string;
-  type_id: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface DepartmentType {
-  id: number;
-  name: string;
-  description?: string;
-}
-
-// ===== REQUESTS COMUNES =====
 
 export interface RoleCreateRequest {
   name: string;
@@ -51,27 +27,43 @@ export interface RoleUpdateRequest {
   permissions?: string[];
 }
 
+// ===== ÁREAS =====
+export interface Area {
+  id: number;
+  name: string;
+  description?: string;
+}
+
 export interface AreaCreateRequest {
   name: string;
   description?: string;
-  parent_id?: number;
 }
 
 export interface AreaUpdateRequest {
   name?: string;
   description?: string;
-  parent_id?: number;
 }
 
-// ===== RESPONSES DEL SISTEMA =====
+// ===== DEPARTAMENTOS (EXISTENTES) =====
+export interface Department {
+  id: number;
+  name: string;
+  abbreviation: string;
+  description?: string;
+  type_id: number;
+}
 
+export interface DepartmentType {
+  id: number;
+  name: string;
+}
+
+// ===== RESPUESTAS DEL SISTEMA DE DATOS =====
 export interface SystemDataResponse {
   roles: Role[];
   areas: Area[];
-  users: import('../services/users/types/user.types').UserFormatted[];
-  permissionCategories: import('../services/security/permissions.service').PermissionCategory[];
-  departments?: Department[];
-  departmentTypes?: DepartmentType[];
+  users: UserFormatted[];
+  permissionCategories: PermissionCategory[];
   timestamp: number;
   loadTime: number;
 }
@@ -79,38 +71,23 @@ export interface SystemDataResponse {
 export interface SelectiveDataResponse {
   roles?: Role[];
   areas?: Area[];
-  users?: import('../services/users/types/user.types').UserFormatted[];
-  permissionCategories?: import('../services/security/permissions.service').PermissionCategory[];
-  departments?: Department[];
-  departmentTypes?: DepartmentType[];
+  users?: UserFormatted[];
+  permissionCategories?: PermissionCategory[];
   timestamp: number;
   loadTime: number;
 }
 
-// ===== TIPOS DE CONFIGURACIÓN =====
-
+// ===== CONFIGURACIÓN DEL SISTEMA =====
 export interface SystemDataOptions {
   forceRefresh?: boolean;
   timeout?: number;
   retries?: number;
-  includeInactive?: boolean;
 }
 
-export type SystemDataType = 'roles' | 'areas' | 'users' | 'permissions' | 'departments' | 'departmentTypes';
+export type SystemDataType = 'roles' | 'areas' | 'users' | 'permissions';
 
 // ===== ESTADÍSTICAS DEL SISTEMA =====
-
 export interface SystemStats {
-  roles: {
-    total: number;
-    active: number;
-    withPermissions: number;
-  };
-  areas: {
-    total: number;
-    active: number;
-    withParent: number;
-  };
   users: {
     total: number;
     active: number;
@@ -118,79 +95,289 @@ export interface SystemStats {
     byRole: Record<string, number>;
     byArea: Record<string, number>;
   };
-  departments: {
+  roles: {
     total: number;
-    byType: Record<string, number>;
+    withPermissions: number;
+    withoutPermissions: number;
+    byCategory: Record<string, number>;
   };
-  lastUpdated: string;
-}
-
-// ===== FILTROS Y BÚSQUEDA =====
-
-export interface SystemSearchFilters {
-  query?: string;
-  entityType?: SystemDataType;
-  isActive?: boolean;
-  dateRange?: {
-    from: string;
-    to: string;
+  areas: {
+    total: number;
+    withDescription: number;
+    withoutDescription: number;
   };
-}
-
-export interface SystemPaginationOptions {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-// ===== AUDITORÍA Y LOGS =====
-
-export interface SystemAuditLog {
-  id: number;
-  entity_type: SystemDataType;
-  entity_id: number;
-  action: 'create' | 'update' | 'delete';
-  changes: Record<string, any>;
-  user_id: number;
-  timestamp: string;
+  permissions: {
+    total: number;
+    categories: number;
+    byCategory: Record<string, number>;
+  };
+  timestamp: number;
 }
 
 // ===== CONFIGURACIÓN DEL SISTEMA =====
-
 export interface SystemConfig {
-  maintenance_mode: boolean;
-  registration_enabled: boolean;
-  max_users: number;
-  session_timeout: number;
-  file_upload_max_size: number;
-  supported_file_types: string[];
-  email_verification_required: boolean;
-  password_requirements: {
-    min_length: number;
-    require_uppercase: boolean;
-    require_lowercase: boolean;
-    require_numbers: boolean;
-    require_symbols: boolean;
+  cache: {
+    enabled: boolean;
+    duration: number;
+    maxSize: number;
+  };
+  api: {
+    timeout: number;
+    retries: number;
+    rateLimit: number;
+  };
+  features: {
+    realTimeUpdates: boolean;
+    notifications: boolean;
+    analytics: boolean;
   };
 }
 
-// ===== EXPORTACIONES DE CONVENIENCIA =====
+// ===== DATOS PARA DASHBOARD =====
+export interface DashboardData {
+  summary: {
+    totalUsers: number;
+    activeUsers: number;
+    totalRoles: number;
+    totalAreas: number;
+  };
+  recentActivity: Array<{
+    id: string;
+    type: 'user_created' | 'role_created' | 'area_created' | 'user_updated';
+    description: string;
+    timestamp: string;
+    user?: string;
+  }>;
+  charts: {
+    usersByRole: Array<{ name: string; value: number }>;
+    usersByArea: Array<{ name: string; value: number }>;
+    userActivityOverTime: Array<{ date: string; active: number; total: number }>;
+  };
+}
 
-export type SystemEntity = Role | Area | Department | DepartmentType;
-export type SystemCreateRequest = RoleCreateRequest | AreaCreateRequest;
-export type SystemUpdateRequest = RoleUpdateRequest | AreaUpdateRequest;
+// ===== DATOS PARA GESTIÓN =====
+export interface ManagementData {
+  users: UserFormatted[];
+  roles: RoleWithPermissions[];
+  areas: Area[];
+  stats: SystemStats;
+  filters: {
+    availableRoles: Array<{ id: number; name: string }>;
+    availableAreas: Array<{ id: number; name: string }>;
+    statuses: Array<{ key: string; label: string }>;
+  };
+}
+
+// ===== OPCIONES DE BÚSQUEDA Y FILTRADO =====
+export interface SearchFilters {
+  query?: string;
+  role?: string;
+  area?: string;
+  status?: 'active' | 'inactive' | 'online' | 'offline';
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+}
+
+export interface SortOptions {
+  field: 'name' | 'email' | 'role' | 'area' | 'lastLogin' | 'joinDate';
+  direction: 'asc' | 'desc';
+}
+
+export interface PaginationOptions {
+  page: number;
+  limit: number;
+  total?: number;
+}
+
+// ===== RESPUESTAS DE LISTA CON METADATOS =====
+export interface ListResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  filters?: SearchFilters;
+  sort?: SortOptions;
+  timestamp: number;
+}
+
+// ===== OPERACIONES EN LOTE =====
+export interface BatchOperation<T> {
+  operation: 'create' | 'update' | 'delete';
+  data: T;
+  id?: number;
+}
+
+export interface BatchResult<T> {
+  success: Array<{
+    id: number;
+    data: T;
+    operation: string;
+  }>;
+  failed: Array<{
+    id?: number;
+    error: string;
+    operation: string;
+    data: T;
+  }>;
+  summary: {
+    total: number;
+    successful: number;
+    failed: number;
+    duration: number;
+  };
+}
+
+// ===== EVENTOS Y NOTIFICACIONES =====
+export interface SystemEvent {
+  id: string;
+  type: 'user' | 'role' | 'area' | 'permission' | 'system';
+  action: 'created' | 'updated' | 'deleted' | 'assigned' | 'unassigned';
+  entityId: number;
+  entityName: string;
+  userId: number;
+  userName: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+export interface Notification {
+  id: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionRequired?: boolean;
+  actions?: Array<{
+    label: string;
+    action: string;
+    style: 'primary' | 'secondary' | 'danger';
+  }>;
+}
+
+// ===== CONFIGURACIÓN DE MÓDULOS =====
+export interface ModuleConfig {
+  users: {
+    enabled: boolean;
+    features: string[];
+    permissions: string[];
+  };
+  roles: {
+    enabled: boolean;
+    features: string[];
+    permissions: string[];
+  };
+  areas: {
+    enabled: boolean;
+    features: string[];
+    permissions: string[];
+  };
+}
+
+// ===== HEALTH CHECK =====
+export interface HealthCheckResult {
+  service: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  latency: number;
+  lastCheck: string;
+  details?: Record<string, any>;
+  dependencies?: HealthCheckResult[];
+}
+
+export interface SystemHealth {
+  overall: 'healthy' | 'degraded' | 'unhealthy';
+  services: HealthCheckResult[];
+  timestamp: string;
+  version: string;
+  uptime: number;
+}
+
+// ===== COMPATIBILIDAD CON FORMULARIOS EXISTENTES =====
+// Mantener compatibilidad con el código existente
+
+// Para RoleForm
+export interface RoleFormData {
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
+// Para AreaForm  
+export interface AreaFormData {
+  name: string;
+  description: string;
+}
+
+// Para UserForm
+export interface UserFormData {
+  email: string;
+  firstName: string;
+  lastName: string;
+  roleId?: string;
+  areaId?: string;
+  isActive?: boolean;
+  phone?: string;
+  birthDate?: string;
+}
+
+// ===== UTILIDADES DE TIPO =====
+export type EntityType = 'user' | 'role' | 'area' | 'permission';
+
+export type PermissionAction = 'view' | 'create' | 'edit' | 'delete' | 'assign' | 'manage';
+
+export type CacheKey = `${EntityType}_${string}` | `${EntityType}s_list` | `${EntityType}_stats`;
+
+// ===== CONSTANTES DE TIPO =====
+export const ENTITY_TYPES = ['user', 'role', 'area', 'permission'] as const;
+export const PERMISSION_ACTIONS = ['view', 'create', 'edit', 'delete', 'assign', 'manage'] as const;
+export const SYSTEM_DATA_TYPES = ['roles', 'areas', 'users', 'permissions'] as const;
+
+// ===== MAPAS DE UTILIDAD =====
+export interface EntityDisplayNames {
+  user: 'Usuario';
+  role: 'Rol';
+  area: 'Área';
+  permission: 'Permiso';
+}
+
+export interface ActionDisplayNames {
+  view: 'Ver';
+  create: 'Crear';
+  edit: 'Editar';
+  delete: 'Eliminar';
+  assign: 'Asignar';
+  manage: 'Gestionar';
+}
+
+// ===== CONFIGURACIÓN DE EXPORTACIÓN =====
+export const SYSTEM_CONFIG = {
+  API_VERSION: 'v1',
+  CACHE_PREFIX: 'system_',
+  DEFAULT_PAGE_SIZE: 50,
+  MAX_PAGE_SIZE: 200,
+  REFRESH_INTERVAL: 30000, // 30 segundos
+  DEBOUNCE_DELAY: 300, // 300ms para búsquedas
+} as const;
 
 // ===== INFORMACIÓN DEL MÓDULO =====
 export const SYSTEM_TYPES_INFO = {
-  version: '1.0.0',
-  description: 'Tipos compartidos para entidades del sistema',
-  entities: ['Role', 'Area', 'Department', 'DepartmentType'],
-  purposes: [
-    'Centralizar tipos comunes',
-    'Evitar duplicación de interfaces',
-    'Facilitar mantenimiento',
-    'Mejorar consistencia de tipos'
-  ],
-  lastUpdated: '2025-05-29'
+  version: '2.2.0',
+  description: 'Tipos del sistema actualizados con roles y áreas modulares',
+  lastUpdated: '2025-05-30',
+  entities: ['users', 'roles', 'areas', 'permissions'],
+  features: [
+    'Tipos para roles y áreas',
+    'Respuestas de sistema unificadas',
+    'Operaciones en lote',
+    'Health checks',
+    'Eventos y notificaciones',
+    'Compatibilidad con formularios'
+  ]
 } as const;
