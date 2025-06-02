@@ -1,12 +1,13 @@
-// frontend/src/features/dashboard/components/rightSidebar/OnlineUsersPanel.tsx - CORREGIDO
+// frontend/src/features/dashboard/components/rightSidebar/OnlineUsersPanel.tsx - 🔧 CORREGIDO
 
 import React from 'react';
 import { 
   UserIcon,
   ClockIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { useOnlineUsers } from '../../../../hooks/useOnlineUsers';
+import { useOnlineUsers } from '../../../../hooks/useOnlineUsers'; // 🔧 USAR HOOK CORREGIDO
 
 // Componente para mostrar un usuario individual
 const OnlineUserItem: React.FC<{ user: any }> = ({ user }) => {
@@ -88,7 +89,7 @@ const OnlineUsersPanel: React.FC = () => {
     totalActive,
     lastUpdate,
     refresh 
-  } = useOnlineUsers();
+  } = useOnlineUsers(30000); // 🔧 USAR HOOK CORREGIDO con refresh cada 30s
 
   if (isLoading) {
     return (
@@ -138,12 +139,12 @@ const OnlineUsersPanel: React.FC = () => {
         {/* Error content */}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center text-white/60">
-            <UserIcon className="h-8 w-8 mx-auto mb-2" />
+            <ExclamationTriangleIcon className="h-8 w-8 mx-auto mb-2 text-red-400" />
             <p className="text-sm mb-2">Error cargando usuarios</p>
-            <p className="text-xs text-white/40">{error}</p>
+            <p className="text-xs text-white/40 mb-3">{error}</p>
             <button
               onClick={refresh}
-              className="mt-3 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors"
             >
               Reintentar
             </button>

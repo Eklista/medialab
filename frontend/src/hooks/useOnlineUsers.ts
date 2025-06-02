@@ -1,194 +1,146 @@
-// frontend/src/features/dashboard/hooks/useOnlineUsers.ts - NUEVO HOOK DEDICADO
+// frontend/src/hooks/useOnlineUsers.ts - 🔧 VERSIÓN CORREGIDA
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { onlineUsersService, OnlineUser } from '../services/users/onlineUsers.service';
-import { useWebSocketStatus } from '../context/AppDataContext';
+import { useState, useEffect, useCallback } from 'react';
+import apiClient from '../services/api';
 
-interface UseOnlineUsersReturn {
-  users: OnlineUser[];
-  isLoading: boolean;
-  error: string | null;
-  totalOnline: number;
-  totalActive: number;
-  lastUpdate: string | null;
-  refresh: () => Promise<void>;
-  startAutoRefresh: (interval?: number) => void;
-  stopAutoRefresh: () => void;
-  startHeartbeat: () => void;
-  stopHeartbeat: () => void;
+export interface OnlineUser {
+  id: number;
+  name: string;
+  fullName: string;
+  initials: string;
+  email: string;
+  profileImage?: string;
+  status: 'online' | 'away' | 'busy' | 'offline';
+  isOnline: boolean;
+  lastSeen: string | null;
+  lastLogin: string | null;
 }
 
-export const useOnlineUsers = (
-  autoRefresh: boolean = true,
-  refreshInterval: number = 30000
-): UseOnlineUsersReturn => {
+export interface OnlineUsersResponse {
+  users: OnlineUser[];
+  total: number;
+  totalOnline: number;
+  totalActive: number;
+  timestamp: string;
+  success?: boolean;
+  debug?: any;
+  error?: string;
+}
+
+export const useOnlineUsers = (refreshInterval: number = 30000) => {
   const [users, setUsers] = useState<OnlineUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  
-  const refreshTimerRef = useRef<number | null>(null);
-  const heartbeatStopperRef = useRef<(() => void) | null>(null);
-  const wsStatus = useWebSocketStatus();
-  
-  // Función para cargar usuarios online
-  const loadUsers = useCallback(async () => {
+  const [totalOnline, setTotalOnline] = useState(0);
+  const [totalActive, setTotalActive] = useState(0);
+
+  const fetchOnlineUsers = useCallback(async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      console.log('🔄 Fetching online users...');
       
-      console.log('🔄 Cargando usuarios online...');
-      const response = await onlineUsersService.getOnlineUsers();
+      const response = await apiClient.get<OnlineUsersResponse>('/users/online');
       
-      if (response.error) {
-        setError(response.error);
-        console.error('❌ Error en respuesta:', response.error);
-      } else {
-        setUsers(response.users);
-        setLastUpdate(response.timestamp);
-        console.log(`✅ ${response.users.length} usuarios online cargados`);
+      console.log('✅ Online users response:', response.data);
+      
+      // Verificar si hay error en la respuesta
+      if (response.data.error || response.data.success === false) {
+        const errorMsg = response.data.error || 'Error en la respuesta del servidor';
+        console.warn('⚠️ Response contains error:', errorMsg);
+        setError(errorMsg);
+        setUsers([]);
+        setTotalOnline(0);
+        setTotalActive(0);
+        return;
       }
       
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      // Procesar usuarios
+      const processedUsers = (response.data.users || []).map(user => ({
+        ...user,
+        // Asegurar que todos los campos requeridos estén presentes
+        fullName: user.fullName || user.name || `Usuario ${user.id}`,
+        initials: user.initials || getInitials(user.fullName || user.name || 'U'),
+        status: user.status || (user.isOnline ? 'online' : 'offline'),
+        lastSeen: user.lastSeen || user.lastLogin,
+      }));
+      
+      setUsers(processedUsers);
+      setTotalOnline(response.data.totalOnline || processedUsers.filter(u => u.status === 'online').length);
+      setTotalActive(response.data.totalActive || processedUsers.filter(u => u.isOnline).length);
+      setLastUpdate(response.data.timestamp);
+      setError(null);
+      
+      console.log(`✅ Processed ${processedUsers.length} online users - ${response.data.totalOnline} online, ${response.data.totalActive} active`);
+      
+    } catch (err: any) {
+      console.error('❌ Error fetching online users:', err);
+      
+      let errorMessage = 'Error cargando usuarios online';
+      
+      if (err.response?.status === 422) {
+        console.error('💥 Error 422 - Validation Error:', err.response.data);
+        errorMessage = 'Error de validación en el servidor';
+        
+        // Mostrar detalles del error 422
+        if (err.response.data?.detail) {
+          console.error('Details:', err.response.data.detail);
+          errorMessage += `: ${err.response.data.detail}`;
+        }
+      } else if (err.response?.status === 403) {
+        errorMessage = 'Sin permisos para ver usuarios online';
+      } else if (err.response?.status === 401) {
+        errorMessage = 'No autenticado';
+      } else {
+        errorMessage = err.message || 'Error desconocido';
+      }
+      
       setError(errorMessage);
-      console.error('💥 Error cargando usuarios online:', err);
+      setUsers([]);
+      setTotalOnline(0);
+      setTotalActive(0);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Función para refrescar datos
-  const refresh = useCallback(async () => {
-    console.log('🔄 Refresh manual de usuarios online');
-    await loadUsers();
-  }, [loadUsers]);
+  // Función de refresh manual
+  const refresh = useCallback(() => {
+    setIsLoading(true);
+    fetchOnlineUsers();
+  }, [fetchOnlineUsers]);
 
-  // Auto-refresh
-  const startAutoRefresh = useCallback((interval: number = refreshInterval) => {
-    console.log(`⏰ Iniciando auto-refresh cada ${interval/1000}s`);
-    
-    if (refreshTimerRef.current) {
-      clearInterval(refreshTimerRef.current);
-    }
-    
-    refreshTimerRef.current = window.setInterval(() => {
-      loadUsers();
-    }, interval);
-  }, [loadUsers, refreshInterval]);
-
-  const stopAutoRefresh = useCallback(() => {
-    console.log('🛑 Deteniendo auto-refresh');
-    if (refreshTimerRef.current) {
-      clearInterval(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-  }, []);
-
-  // Heartbeat
-  const startHeartbeat = useCallback(() => {
-    console.log('💓 Iniciando heartbeat automático');
-    if (heartbeatStopperRef.current) {
-      heartbeatStopperRef.current();
-    }
-    heartbeatStopperRef.current = onlineUsersService.startHeartbeat(60000); // Cada minuto
-  }, []);
-
-  const stopHeartbeat = useCallback(() => {
-    console.log('🛑 Deteniendo heartbeat');
-    if (heartbeatStopperRef.current) {
-      heartbeatStopperRef.current();
-      heartbeatStopperRef.current = null;
-    }
-  }, []);
-
-  // Efecto principal - cargar datos iniciales
+  // Efecto inicial
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    fetchOnlineUsers();
+  }, [fetchOnlineUsers]);
 
-  // Efecto para auto-refresh
+  // Auto-refresh si está habilitado
   useEffect(() => {
-    if (autoRefresh) {
-      startAutoRefresh();
-    } else {
-      stopAutoRefresh();
+    if (refreshInterval > 0) {
+      const interval = setInterval(fetchOnlineUsers, refreshInterval);
+      return () => clearInterval(interval);
     }
-
-    return () => {
-      stopAutoRefresh();
-    };
-  }, [autoRefresh, startAutoRefresh, stopAutoRefresh]);
-
-  // Efecto para heartbeat
-  useEffect(() => {
-    startHeartbeat();
-    
-    return () => {
-      stopHeartbeat();
-    };
-  }, [startHeartbeat, stopHeartbeat]);
-
-  // WebSocket updates
-  useEffect(() => {
-    if (wsStatus.isConnected) {
-      console.log('🔌 WebSocket conectado - usuarios online recibirán updates automáticos');
-      
-      // TODO: Implementar listeners específicos para WebSocket cuando sea necesario
-      // Por ahora, el AppDataContext ya maneja esto globalmente
-      // 
-      // Ejemplo de implementación futura:
-      // webSocketService.onUserUpdate(handleUserUpdate);
-      // return () => webSocketService.off('user_updated');
-    }
-  }, [wsStatus.isConnected]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      stopAutoRefresh();
-      stopHeartbeat();
-    };
-  }, [stopAutoRefresh, stopHeartbeat]);
-
-  // Estadísticas calculadas
-  const totalOnline = users.filter(u => u.status === 'online').length;
-  const totalActive = users.filter(u => u.isOnline).length;
+  }, [fetchOnlineUsers, refreshInterval]);
 
   return {
     users,
     isLoading,
     error,
-    totalOnline,
-    totalActive,
     lastUpdate,
-    refresh,
-    startAutoRefresh,
-    stopAutoRefresh,
-    startHeartbeat,
-    stopHeartbeat
-  };
-};
-
-// Hook simplificado para mostrar solo la lista
-export const useOnlineUsersList = () => {
-  const { users, isLoading, error } = useOnlineUsers(true, 30000);
-  
-  return {
-    users,
-    isLoading,
-    error,
-    count: users.length
-  };
-};
-
-// Hook para estadísticas rápidas
-export const useOnlineUsersStats = () => {
-  const { totalOnline, totalActive, lastUpdate } = useOnlineUsers(true, 60000);
-  
-  return {
     totalOnline,
     totalActive,
-    lastUpdate
+    refresh
   };
 };
+
+// Utilidad para generar iniciales
+function getInitials(name: string): string {
+  if (!name) return 'U';
+  
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  
+  return name[0].toUpperCase();
+}
