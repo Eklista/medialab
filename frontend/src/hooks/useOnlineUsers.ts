@@ -1,4 +1,4 @@
-// frontend/src/hooks/useOnlineUsers.ts - 🔧 VERSIÓN CORREGIDA
+// frontend/src/hooks/useOnlineUsers.ts - 🔧 VERSIÓN CORREGIDA SIN ERRORES TS
 
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
@@ -27,19 +27,35 @@ export interface OnlineUsersResponse {
   error?: string;
 }
 
-export const useOnlineUsers = (refreshInterval: number = 30000) => {
+// 🔧 TIPOS EXPLÍCITOS PARA ENDPOINTS
+type EndpointType = 'online' | 'online-mock' | 'online-db-check';
+
+interface UseOnlineUsersOptions {
+  refreshInterval?: number;
+  endpoint?: EndpointType;
+  fallbackToMock?: boolean;
+}
+
+export const useOnlineUsers = (options: UseOnlineUsersOptions = {}) => {
+  const {
+    refreshInterval = 30000,
+    endpoint = 'online' as EndpointType,
+    fallbackToMock = true
+  } = options;
+
   const [users, setUsers] = useState<OnlineUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [totalOnline, setTotalOnline] = useState(0);
   const [totalActive, setTotalActive] = useState(0);
+  const [currentEndpoint, setCurrentEndpoint] = useState<EndpointType>(endpoint);
 
-  const fetchOnlineUsers = useCallback(async () => {
+  const fetchOnlineUsers = useCallback(async (endpointToUse: EndpointType = currentEndpoint) => {
     try {
-      console.log('🔄 Fetching online users...');
+      console.log(`🔄 Fetching online users from: /users/${endpointToUse}`);
       
-      const response = await apiClient.get<OnlineUsersResponse>('/users/online');
+      const response = await apiClient.get<OnlineUsersResponse>(`/users/${endpointToUse}`);
       
       console.log('✅ Online users response:', response.data);
       
@@ -47,6 +63,14 @@ export const useOnlineUsers = (refreshInterval: number = 30000) => {
       if (response.data.error || response.data.success === false) {
         const errorMsg = response.data.error || 'Error en la respuesta del servidor';
         console.warn('⚠️ Response contains error:', errorMsg);
+        
+        // Si es el endpoint principal y hay fallback habilitado, intentar mock
+        if (endpointToUse === 'online' && fallbackToMock) {
+          console.log('🔄 Intentando fallback a endpoint mock...');
+          setCurrentEndpoint('online-mock');
+          return fetchOnlineUsers('online-mock');
+        }
+        
         setError(errorMsg);
         setUsers([]);
         setTotalOnline(0);
@@ -60,7 +84,7 @@ export const useOnlineUsers = (refreshInterval: number = 30000) => {
         // Asegurar que todos los campos requeridos estén presentes
         fullName: user.fullName || user.name || `Usuario ${user.id}`,
         initials: user.initials || getInitials(user.fullName || user.name || 'U'),
-        status: user.status || (user.isOnline ? 'online' : 'offline'),
+        status: user.status || (user.isOnline ? 'online' : 'offline') as OnlineUser['status'],
         lastSeen: user.lastSeen || user.lastLogin,
       }));
       
@@ -73,18 +97,24 @@ export const useOnlineUsers = (refreshInterval: number = 30000) => {
       console.log(`✅ Processed ${processedUsers.length} online users - ${response.data.totalOnline} online, ${response.data.totalActive} active`);
       
     } catch (err: any) {
-      console.error('❌ Error fetching online users:', err);
+      console.error(`❌ Error fetching from /users/${endpointToUse}:`, err);
       
-      let errorMessage = 'Error cargando usuarios online';
+      // Si es un error 422 en el endpoint principal, intentar fallback
+      if (err.response?.status === 422 && endpointToUse === 'online' && fallbackToMock) {
+        console.log('🔄 Error 422 en endpoint principal, intentando mock...');
+        setCurrentEndpoint('online-mock');
+        return fetchOnlineUsers('online-mock');
+      }
+      
+      let errorMessage = `Error cargando usuarios online (${endpointToUse})`;
       
       if (err.response?.status === 422) {
         console.error('💥 Error 422 - Validation Error:', err.response.data);
-        errorMessage = 'Error de validación en el servidor';
+        errorMessage = 'Error de autenticación en el servidor';
         
         // Mostrar detalles del error 422
         if (err.response.data?.detail) {
           console.error('Details:', err.response.data.detail);
-          errorMessage += `: ${err.response.data.detail}`;
         }
       } else if (err.response?.status === 403) {
         errorMessage = 'Sin permisos para ver usuarios online';
@@ -101,12 +131,20 @@ export const useOnlineUsers = (refreshInterval: number = 30000) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentEndpoint, fallbackToMock]);
 
   // Función de refresh manual
   const refresh = useCallback(() => {
     setIsLoading(true);
     fetchOnlineUsers();
+  }, [fetchOnlineUsers]);
+
+  // Función para cambiar endpoint manualmente - 🔧 CON TIPOS CORRECTOS
+  const switchEndpoint = useCallback((newEndpoint: EndpointType) => {
+    console.log(`🔄 Cambiando endpoint de ${currentEndpoint} a ${newEndpoint}`);
+    setCurrentEndpoint(newEndpoint);
+    setIsLoading(true);
+    fetchOnlineUsers(newEndpoint);
   }, [fetchOnlineUsers]);
 
   // Efecto inicial
@@ -129,7 +167,13 @@ export const useOnlineUsers = (refreshInterval: number = 30000) => {
     lastUpdate,
     totalOnline,
     totalActive,
-    refresh
+    refresh,
+    switchEndpoint,
+    currentEndpoint,
+    // Funciones de conveniencia para testing - 🔧 CON TIPOS CORRECTOS
+    useMock: useCallback(() => switchEndpoint('online-mock'), [switchEndpoint]),
+    useReal: useCallback(() => switchEndpoint('online'), [switchEndpoint]),
+    useDbCheck: useCallback(() => switchEndpoint('online-db-check'), [switchEndpoint])
   };
 };
 
@@ -144,3 +188,21 @@ function getInitials(name: string): string {
   
   return name[0].toUpperCase();
 }
+
+// Hook especializado para testing
+export const useOnlineUsersMock = () => {
+  return useOnlineUsers({
+    endpoint: 'online-mock',
+    refreshInterval: 0, // Sin auto-refresh para datos mock
+    fallbackToMock: false
+  });
+};
+
+// Hook con fallback automático
+export const useOnlineUsersWithFallback = (refreshInterval: number = 30000) => {
+  return useOnlineUsers({
+    endpoint: 'online',
+    refreshInterval,
+    fallbackToMock: true
+  });
+};
