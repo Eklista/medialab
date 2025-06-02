@@ -6,6 +6,14 @@ import { authService } from '../services';
 import { User as AuthServiceUser } from '../services/auth/auth.service';
 import { PermissionCategory } from '../services/security/permissions.service';
 import systemDataService from '../services/system/systemData.service';
+import webSocketService from '../services/websocket/websocket.service';
+
+// 🆕 IMPORT DEL ONLINE USERS SERVICE
+import { onlineUsersService } from '../services/users/onlineUsers.service';
+
+// 🔧 IMPORTS CORREGIDOS - usando la nueva estructura modular
+import { UserFormatted } from '../services/users/types/user.types';
+import { Role, Area } from '../types/system.types';
 
 // 🔧 TIPOS IMPORTADOS DIRECTAMENTE (mientras verificamos system.types.ts)
 type SystemDataType = 'roles' | 'areas' | 'users' | 'permissions';
@@ -18,11 +26,6 @@ interface SystemDataResponse {
   timestamp: number;
   loadTime: number;
 }
-import webSocketService from '../services/websocket/websocket.service';
-
-// 🔧 IMPORTS CORREGIDOS - usando la nueva estructura modular
-import { UserFormatted } from '../services/users/types/user.types';
-import { Role, Area } from '../types/system.types';
 
 // ===== INTERFACES ACTUALIZADAS =====
 interface AppData {
@@ -68,6 +71,13 @@ interface AppData {
   connectWebSocket: () => Promise<void>;
   disconnectWebSocket: () => void;
   debugWebSocket: () => void;
+  
+  // 🆕 AGREGAR ESTE MÉTODO A LA INTERFAZ
+  getOnlineUsersInfo: () => {
+    performanceInfo: any;
+    serviceInfo: any;
+    isRedisAvailable: boolean;
+  };
 }
 
 const AppDataContext = createContext<AppData | null>(null);
@@ -88,7 +98,7 @@ interface AppDataProviderProps {
 }
 
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
-  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache' | 'ensureSystemData' | 'getSystemDataStats' | 'connectWebSocket' | 'disconnectWebSocket' | 'debugWebSocket'>>({
+  const [state, setState] = useState<Omit<AppData, 'refreshUser' | 'refreshSystemData' | 'refreshAll' | 'invalidateCache' | 'ensureSystemData' | 'getSystemDataStats' | 'connectWebSocket' | 'disconnectWebSocket' | 'debugWebSocket' | 'getOnlineUsersInfo'>>({
     user: null,
     isAuthenticated: false,
     permissions: [],
@@ -609,10 +619,11 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   // ===== EFECTOS =====
   
   useEffect(() => {
-    const handleAuthLogin = () => {
+     const handleAuthLogin = () => {
       console.log('🔔 Auth login event received');
       loadUserData(true);
-    };
+     onlineUsersService.onAuthLogin();
+  };
 
     const handleAuthLogout = () => {
       console.log('🔔 Auth logout event received');
@@ -624,6 +635,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       }));
       userCacheRef.current = 0;
       disconnectWebSocket();
+      
+      // 🆕 LIMPIAR ESTADO ONLINE
+      onlineUsersService.onAuthLogout();
     };
 
     const handleRefreshUser = () => {
@@ -641,6 +655,14 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       window.removeEventListener('auth:refresh-user', handleRefreshUser);
     };
   }, [loadUserData, disconnectWebSocket]);
+
+  const getOnlineUsersInfo = useCallback(() => {
+    return {
+      performanceInfo: onlineUsersService.getPerformanceInfo(),
+      serviceInfo: onlineUsersService.getServiceInfo(),
+      isRedisAvailable: onlineUsersService.getPerformanceInfo().redisAvailable
+    };
+  }, []);
 
   useEffect(() => {
     if (!state.isInitialized && !isLoadingRef.current) {
@@ -721,7 +743,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     getSystemDataStats,
     connectWebSocket,
     disconnectWebSocket,
-    debugWebSocket
+    debugWebSocket,
+    
+    // 🆕 NUEVA FUNCIONALIDAD
+    getOnlineUsersInfo
   };
 
   return (
