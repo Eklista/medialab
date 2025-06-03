@@ -1,4 +1,4 @@
-// frontend/src/features/dashboard/components/rightSidebar/OnlineUsersPanel.tsx - 🔧 VERSIÓN CON DEBUG
+// frontend/src/features/dashboard/components/rightSidebar/OnlineUsersPanel.tsx - 🔧 VERSIÓN CORREGIDA
 
 import React from 'react';
 import { 
@@ -8,7 +8,8 @@ import {
   ExclamationTriangleIcon,
   WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
-import { useOnlineUsersWithFallback } from '../../../../hooks/useOnlineUsers';
+// ✅ IMPORT CORREGIDO - usar el hook principal
+import { useOnlineUsers } from '../../../../hooks/useOnlineUsers';
 
 // Componente para mostrar un usuario individual
 const OnlineUserItem: React.FC<{ user: any }> = ({ user }) => {
@@ -86,6 +87,7 @@ const OnlineUserItem: React.FC<{ user: any }> = ({ user }) => {
 
 // Componente principal con debug
 const OnlineUsersPanel: React.FC = () => {
+  // ✅ USAR EL HOOK PRINCIPAL con configuración personalizada
   const { 
     users, 
     isLoading, 
@@ -93,12 +95,11 @@ const OnlineUsersPanel: React.FC = () => {
     totalOnline, 
     totalActive,
     lastUpdate,
-    refresh,
-    currentEndpoint,
-    useMock,
-    useReal,
-    useDbCheck
-  } = useOnlineUsersWithFallback(30000);
+    refresh
+  } = useOnlineUsers({
+    refreshInterval: 30000,
+    enabled: true
+  });
 
   // 🧪 Estado para mostrar/ocultar debug
   const [showDebug, setShowDebug] = React.useState(false);
@@ -123,7 +124,7 @@ const OnlineUsersPanel: React.FC = () => {
           <div className="text-center text-white/60">
             <UserIcon className="h-8 w-8 mx-auto mb-2" />
             <p className="text-sm">Cargando usuarios...</p>
-            <p className="text-xs text-white/40 mt-1">Endpoint: {currentEndpoint}</p>
+            <p className="text-xs text-white/40 mt-1">Endpoint: /public/online-users</p>
           </div>
         </div>
       </div>
@@ -163,27 +164,10 @@ const OnlineUsersPanel: React.FC = () => {
           <div className="p-3 bg-red-900/20 border-b border-red-500/20">
             <div className="text-xs text-white/80 space-y-2">
               <div>
-                <span className="font-medium">Endpoint actual:</span> {currentEndpoint}
+                <span className="font-medium">Endpoint:</span> /public/online-users
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={useMock}
-                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
-                >
-                  Usar Mock
-                </button>
-                <button
-                  onClick={useReal}
-                  className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
-                >
-                  Usar Real
-                </button>
-                <button
-                  onClick={useDbCheck}
-                  className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
-                >
-                  DB Check
-                </button>
+              <div>
+                <span className="font-medium">Error:</span> {error}
               </div>
             </div>
           </div>
@@ -195,19 +179,13 @@ const OnlineUsersPanel: React.FC = () => {
             <ExclamationTriangleIcon className="h-8 w-8 mx-auto mb-2 text-red-400" />
             <p className="text-sm mb-2">Error cargando usuarios</p>
             <p className="text-xs text-white/40 mb-3">{error}</p>
-            <p className="text-xs text-white/40 mb-3">Endpoint: {currentEndpoint}</p>
+            <p className="text-xs text-white/40 mb-3">Endpoint: /public/online-users</p>
             <div className="space-y-2">
               <button
                 onClick={refresh}
                 className="block mx-auto px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors"
               >
                 Reintentar
-              </button>
-              <button
-                onClick={useMock}
-                className="block mx-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors"
-              >
-                Usar datos de prueba
               </button>
             </div>
           </div>
@@ -248,42 +226,13 @@ const OnlineUsersPanel: React.FC = () => {
           <div className="mt-3 p-3 bg-gray-800/50 rounded-lg border border-white/10">
             <div className="text-xs text-white/80 space-y-2">
               <div>
-                <span className="font-medium">Endpoint:</span> /users/{currentEndpoint}
+                <span className="font-medium">Endpoint:</span> /public/online-users
               </div>
               <div>
                 <span className="font-medium">Estado:</span> {error ? 'Error' : 'OK'}
               </div>
-              <div className="flex flex-wrap gap-1">
-                <button
-                  onClick={useMock}
-                  className={`px-2 py-1 text-xs rounded ${
-                    currentEndpoint === 'online-mock' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/40'
-                  }`}
-                >
-                  Mock
-                </button>
-                <button
-                  onClick={useReal}
-                  className={`px-2 py-1 text-xs rounded ${
-                    currentEndpoint === 'online' 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-green-600/20 text-green-300 hover:bg-green-600/40'
-                  }`}
-                >
-                  Real
-                </button>
-                <button
-                  onClick={useDbCheck}
-                  className={`px-2 py-1 text-xs rounded ${
-                    currentEndpoint === 'online-db-check' 
-                      ? 'bg-purple-600 text-white' 
-                      : 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/40'
-                  }`}
-                >
-                  DB
-                </button>
+              <div>
+                <span className="font-medium">Última actualización:</span> {lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : 'N/A'}
               </div>
             </div>
           </div>
@@ -299,12 +248,6 @@ const OnlineUsersPanel: React.FC = () => {
             <UserIcon className="h-4 w-4" />
             <span>{totalActive} activos</span>
           </div>
-          {currentEndpoint === 'online-mock' && (
-            <div className="flex items-center space-x-1">
-              <WrenchScrewdriverIcon className="h-4 w-4" />
-              <span className="text-blue-400">Mock</span>
-            </div>
-          )}
         </div>
         
         {/* Última actualización */}
@@ -328,14 +271,9 @@ const OnlineUsersPanel: React.FC = () => {
               <p className="text-xs text-white/40 mt-1">
                 Los usuarios aparecerán aquí cuando estén activos
               </p>
-              {currentEndpoint === 'online' && (
-                <button
-                  onClick={useMock}
-                  className="mt-3 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors"
-                >
-                  Ver datos de prueba
-                </button>
-              )}
+              <p className="text-xs text-blue-400 mt-2">
+                Usando endpoint público: /public/online-users
+              </p>
             </div>
           </div>
         ) : (

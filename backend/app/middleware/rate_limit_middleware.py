@@ -27,7 +27,13 @@ class RateLimitMiddleware:
         self.period = period
         self.prefer_user_based = prefer_user_based
         self.exclude_paths = exclude_paths or [
-            "/docs", "/redoc", "/openapi.json", "/health", "/favicon.ico"
+            "/docs", "/redoc", "/openapi.json", "/health", "/favicon.ico",
+            "/api/v1/docs", "/api/v1/openapi.json",
+            "/ws", "/ws/", "/ws/secure", "/ws/test",
+            "/ws/status", "/ws/health", "/ws/debug/info",
+            "/ws/admin", "/ws/admin/", "/ws/admin/stats",
+            "/api/v1/users/online",
+            "/api/v1/public"
         ]
         
         rate_type = "usuario (fallback IP)" if prefer_user_based else "IP"

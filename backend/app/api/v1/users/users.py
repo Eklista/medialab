@@ -1,6 +1,6 @@
 # backend/app/api/v1/users/users.py
 
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 from fastapi import APIRouter, Depends, status, Body, UploadFile, File, Form, Path, Query, Request
 from sqlalchemy.orm import Session
 import logging
@@ -17,14 +17,11 @@ from app.api.deps import (
     get_current_user, 
     get_current_active_user,
     has_permission,
-    is_self_or_has_permission
+    is_self_or_has_permission,
+    get_optional_current_user
 )
 
-# 🆕 CONFIGURAR LOGGER DESPUÉS DE LAS IMPORTACIONES
 logger = logging.getLogger(__name__)
-
-router = APIRouter()
-
 router = APIRouter()
 
 # ===== INFORMACIÓN DEL USUARIO ACTUAL =====
@@ -74,7 +71,6 @@ def read_users(
     """Obtiene lista de usuarios (requiere permiso user_view)"""
     return UserController.get_users_list(db, skip, limit)
 
-# 🆕 NUEVO: ENDPOINT FORMATTED QUE FALTABA
 @router.get("/formatted")
 def read_users_formatted(
     skip: int = 0,
@@ -90,9 +86,6 @@ def read_users_formatted(
     try:
         return UserController.get_users_list_formatted(db, skip, limit, format_type)
     except Exception as e:
-        # Log del error pero devolver respuesta HTTP válida
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"💥 Error en /users/formatted: {e}")
         
         from fastapi import HTTPException
@@ -101,7 +94,6 @@ def read_users_formatted(
             detail=f"Error al obtener usuarios formateados: {str(e)}"
         )
 
-# 🆕 NUEVO: USUARIOS ACTIVOS PARA MENÚ
 @router.get("/active-menu")
 def get_active_users_menu(
     limit: int = Query(50, ge=1, le=100),
@@ -178,556 +170,108 @@ def upload_user_image(
 
 # ===== ENDPOINTS DE ESTADO/PRESENCIA =====
 
-# 🚨 COPIAR Y PEGAR ESTE CÓDIGO EN backend/app/api/v1/users/users.py
-# REEMPLAZAR EL ENDPOINT @router.get("/online") COMPLETO
-
 @router.get("/online")
-def get_online_users_simple(
+def get_online_users(
     db: Session = Depends(get_db)
-    # 🔧 SIN current_user dependency para evitar error 422
+    # 🔧 SIN autenticación por ahora para evitar 422
 ) -> dict:
     """
-    🔧 USUARIOS ONLINE - VERSIÓN SIMPLIFICADA SIN AUTENTICACIÓN
-    Esta versión evita el error 422 al no requerir autenticación
-    """
-    from datetime import datetime, timedelta
-    from sqlalchemy import and_, or_
-    import logging
-    
-    logger = logging.getLogger(__name__)
-    
-    try:
-        logger.info("📊 [SIMPLE] Obteniendo usuarios online SIN autenticación")
-        
-        # Respuesta base que SIEMPRE funciona
-        response = {
-            "users": [],
-            "total": 0,
-            "totalOnline": 0,
-            "totalActive": 0,
-            "timestamp": datetime.utcnow().isoformat(),
-            "success": True,
-            "debug": {
-                "version": "simple_v1",
-                "auth_required": False,
-                "message": "Endpoint simplificado sin autenticación"
-            }
-        }
-        
-        # Intentar obtener usuarios de forma defensiva
-        try:
-            # Threshold para usuarios recientes (últimos 10 minutos)
-            recent_threshold = datetime.utcnow() - timedelta(minutes=10)
-            
-            # Query simple: usuarios activos que han hecho login recientemente
-            online_users = db.query(User).filter(
-                and_(
-                    User.is_active == True,
-                    User.last_login.isnot(None),
-                    User.last_login >= recent_threshold
-                )
-            ).order_by(User.last_login.desc()).limit(20).all()
-            
-            logger.info(f"✅ [SIMPLE] Query exitosa: {len(online_users)} usuarios")
-            
-            # Formatear usuarios de forma ultra-defensiva
-            formatted_users = []
-            for user in online_users:
-                try:
-                    # Nombres defensivos
-                    first_name = getattr(user, 'first_name', '') or ''
-                    last_name = getattr(user, 'last_name', '') or ''
-                    
-                    if first_name and last_name:
-                        full_name = f"{first_name} {last_name}"
-                        initials = f"{first_name[0]}{last_name[0]}".upper()
-                    elif first_name:
-                        full_name = first_name
-                        initials = first_name[0].upper()
-                    else:
-                        full_name = user.email.split('@')[0] if user.email else f"Usuario {user.id}"
-                        initials = full_name[0].upper() if full_name else "U"
-                    
-                    # Estado simple basado en última actividad
-                    last_login = getattr(user, 'last_login', None)
-                    is_online = False
-                    status = "offline"
-                    
-                    if last_login:
-                        minutes_ago = (datetime.utcnow() - last_login).total_seconds() / 60
-                        if minutes_ago <= 5:
-                            status = "online"
-                            is_online = True
-                        elif minutes_ago <= 15:
-                            status = "away"
-                            is_online = True
-                    
-                    # Usuario formateado
-                    user_data = {
-                        "id": user.id,
-                        "name": full_name,
-                        "fullName": full_name,
-                        "initials": initials,
-                        "email": user.email or "",
-                        "profileImage": getattr(user, 'profile_image', None),
-                        "status": status,
-                        "isOnline": bool(is_online),
-                        "lastSeen": last_login.isoformat() if last_login else None,
-                        "lastLogin": last_login.isoformat() if last_login else None
-                    }
-                    
-                    formatted_users.append(user_data)
-                    
-                except Exception as user_error:
-                    logger.warning(f"⚠️ [SIMPLE] Error usuario {getattr(user, 'id', '?')}: {user_error}")
-                    continue
-            
-            # Actualizar respuesta
-            response["users"] = formatted_users
-            response["total"] = len(formatted_users)
-            response["totalOnline"] = len([u for u in formatted_users if u["status"] == "online"])
-            response["totalActive"] = len([u for u in formatted_users if u["isOnline"]])
-            response["debug"]["users_processed"] = len(formatted_users)
-            
-            logger.info(f"✅ [SIMPLE] Respuesta exitosa: {len(formatted_users)} usuarios")
-            
-        except Exception as query_error:
-            logger.error(f"💥 [SIMPLE] Error en query: {query_error}")
-            response["debug"]["query_error"] = str(query_error)
-            response["debug"]["fallback"] = "empty_due_to_query_error"
-        
-        return response
-        
-    except Exception as critical_error:
-        logger.error(f"💥 [SIMPLE] Error crítico: {critical_error}")
-        
-        # Respuesta de emergencia que SIEMPRE funciona
-        return {
-            "users": [],
-            "total": 0,
-            "totalOnline": 0,
-            "totalActive": 0,
-            "timestamp": datetime.utcnow().isoformat(),
-            "success": False,
-            "error": str(critical_error),
-            "debug": {
-                "version": "emergency_fallback",
-                "error_type": type(critical_error).__name__
-            }
-        }
-
-# 🆕 AGREGAR TAMBIÉN ESTE ENDPOINT ALTERNATIVO CON AUTENTICACIÓN (para después)
-@router.get("/online-with-auth")
-def get_online_users_with_auth(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> dict:
-    """
-    🔐 USUARIOS ONLINE CON AUTENTICACIÓN
-    Versión que requiere autenticación para usar cuando se arregle el middleware
-    """
-    # Usar la misma lógica que el endpoint simple
-    # pero agregando el log del usuario que hace la request
-    from datetime import datetime
-    
-    logger = logging.getLogger(__name__)
-    logger.info(f"📊 Usuario autenticado {current_user.email} obteniendo usuarios online")
-    
-    # Reutilizar la lógica del endpoint simple
-    # (copiar todo el código de arriba aquí cuando funcione)
-    
-    return {
-        "message": "Endpoint con autenticación - implementar cuando se solucione el middleware",
-        "user": current_user.email,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-@router.get("/online-mock")
-def get_online_users_mock() -> dict:
-    """
-    🧪 MOCK DATA para testing del frontend
-    Este endpoint devuelve datos simulados para verificar que el componente funciona
-    """
-    from datetime import datetime, timedelta
-    import random
-    
-    # Datos simulados de usuarios online
-    mock_users = [
-        {
-            "id": 1,
-            "name": "Pablo Lacán",
-            "fullName": "Pablo Lacán",
-            "initials": "PL",
-            "email": "pablo.lacan@galileo.edu",
-            "profileImage": None,
-            "status": "online",
-            "isOnline": True,
-            "lastSeen": (datetime.utcnow() - timedelta(minutes=1)).isoformat(),
-            "lastLogin": (datetime.utcnow() - timedelta(minutes=1)).isoformat()
-        },
-        {
-            "id": 2,
-            "name": "María González",
-            "fullName": "María González",
-            "initials": "MG",
-            "email": "maria.gonzalez@medialab.com",
-            "profileImage": None,
-            "status": "away",
-            "isOnline": True,
-            "lastSeen": (datetime.utcnow() - timedelta(minutes=8)).isoformat(),
-            "lastLogin": (datetime.utcnow() - timedelta(minutes=8)).isoformat()
-        },
-        {
-            "id": 3,
-            "name": "Carlos Ramírez",
-            "fullName": "Carlos Ramírez", 
-            "initials": "CR",
-            "email": "carlos.ramirez@medialab.com",
-            "profileImage": None,
-            "status": "online",
-            "isOnline": True,
-            "lastSeen": (datetime.utcnow() - timedelta(seconds=30)).isoformat(),
-            "lastLogin": (datetime.utcnow() - timedelta(seconds=30)).isoformat()
-        },
-        {
-            "id": 4,
-            "name": "Ana Martínez",
-            "fullName": "Ana Martínez",
-            "initials": "AM", 
-            "email": "ana.martinez@medialab.com",
-            "profileImage": None,
-            "status": "busy",
-            "isOnline": True,
-            "lastSeen": (datetime.utcnow() - timedelta(minutes=3)).isoformat(),
-            "lastLogin": (datetime.utcnow() - timedelta(minutes=3)).isoformat()
-        },
-        {
-            "id": 5,
-            "name": "Luis Torres",
-            "fullName": "Luis Torres",
-            "initials": "LT",
-            "email": "luis.torres@medialab.com", 
-            "profileImage": None,
-            "status": "online",
-            "isOnline": True,
-            "lastSeen": (datetime.utcnow() - timedelta(minutes=2)).isoformat(),
-            "lastLogin": (datetime.utcnow() - timedelta(minutes=2)).isoformat()
-        }
-    ]
-    
-    # Simular variación en el tiempo
-    online_count = len([u for u in mock_users if u["status"] == "online"])
-    active_count = len([u for u in mock_users if u["isOnline"]])
-    
-    return {
-        "users": mock_users,
-        "total": len(mock_users),
-        "totalOnline": online_count,
-        "totalActive": active_count,
-        "timestamp": datetime.utcnow().isoformat(),
-        "success": True,
-        "debug": {
-            "version": "mock_v1",
-            "auth_required": False,
-            "message": "Datos simulados para testing",
-            "note": "Este endpoint es temporal para verificar el frontend"
-        }
-    }
-
-# 🔧 ENDPOINT PARA VERIFICAR LA BASE DE DATOS
-@router.get("/online-db-check")
-def check_users_database(db: Session = Depends(get_db)) -> dict:
-    """
-    🔍 VERIFICAR ESTADO DE LA BASE DE DATOS
-    Para diagnosticar problemas con usuarios
+    📊 USUARIOS ONLINE 
+    Obtiene lista de usuarios activos recientemente
     """
     try:
-        from datetime import datetime
+        logger.info("📊 Obteniendo usuarios online")
         
-        # Contar todos los usuarios
-        total_users = db.query(User).count()
+        # Threshold para usuarios recientes (últimos 15 minutos)
+        recent_threshold = datetime.utcnow() - timedelta(minutes=15)
         
-        # Contar usuarios activos
-        active_users = db.query(User).filter(User.is_active == True).count()
+        # Query: usuarios activos que han hecho login recientemente
+        online_users = db.query(User).filter(
+            and_(
+                User.is_active == True,
+                User.last_login.isnot(None),
+                User.last_login >= recent_threshold
+            )
+        ).order_by(User.last_login.desc()).limit(20).all()
         
-        # Obtener algunos usuarios para verificar estructura
-        sample_users = db.query(User).limit(3).all()
+        logger.info(f"✅ Encontrados {len(online_users)} usuarios online")
         
-        # Información de los usuarios de muestra
-        sample_info = []
-        for user in sample_users:
-            sample_info.append({
-                "id": user.id,
-                "email": user.email,
-                "first_name": getattr(user, 'first_name', None),
-                "last_name": getattr(user, 'last_name', None),
-                "is_active": getattr(user, 'is_active', None),
-                "is_online": getattr(user, 'is_online', None),
-                "last_login": getattr(user, 'last_login', None)
-            })
-        
-        return {
-            "database_status": "connected",
-            "total_users": total_users,
-            "active_users": active_users,
-            "sample_users": sample_info,
-            "timestamp": datetime.utcnow().isoformat(),
-            "debug": {
-                "table_exists": True,
-                "columns_accessible": True
-            }
-        }
-        
-    except Exception as e:
-        return {
-            "database_status": "error",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat(),
-            "debug": {
-                "error_type": type(e).__name__
-            }
-        }
-
-@router.post("/logout-online")
-def logout_mark_offline(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
-    """
-    🔴 MARCAR USUARIO COMO OFFLINE EN LOGOUT
-    Limpia estado online de Redis + actualiza BD
-    """
-    try:
-        from datetime import datetime
-        
-        logger.info(f"🔴 Marcando usuario {current_user.id} como offline")
-        
-        # 1. LIMPIAR DE REDIS
-        redis_key = f"user:online:{current_user.id}"
-        redis_success = redis_manager.delete(redis_key)
-        
-        if redis_success:
-            logger.debug(f"✅ Usuario {current_user.id} removido de Redis")
-        else:
-            logger.warning(f"⚠️ No se pudo remover usuario {current_user.id} de Redis")
-        
-        # 2. ACTUALIZAR BD
-        try:
-            if hasattr(current_user, 'is_online'):
-                current_user.is_online = False
-            
-            # Mantener last_login para historial
-            db.commit()
-            logger.debug(f"✅ Usuario {current_user.id} marcado como offline en BD")
-            
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"💥 Error actualizando BD en logout: {db_error}")
-        
-        # 3. RESPUESTA
-        return {
-            "success": True,
-            "user_id": current_user.id,
-            "timestamp": datetime.utcnow().isoformat(),
-            "message": "Usuario marcado como offline",
-            "storage": {
-                "redis_removed": redis_success,
-                "database_updated": True
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"💥 Error marcando usuario offline: {e}")
-        return {
-            "success": False,
-            "user_id": current_user.id,
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e)
-        }
-        
-@router.get("/online-secure")
-def get_online_users_secure(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
-    """
-    📊 USUARIOS ONLINE CON AUTENTICACIÓN REQUERIDA
-    Una vez que fixes el problema de auth, usa este endpoint
-    """
-    try:
-        logger.info(f"📊 Usuario autenticado {current_user.email} obteniendo usuarios online")
-        
-        # Reutilizar la lógica del endpoint sin auth
-        # (mismo código que arriba)
-        # ...
-        
-        return {"message": "Una vez que fixes la auth, implementa la lógica aquí"}
-        
-    except Exception as e:
-        logger.error(f"💥 Error en endpoint seguro: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al obtener usuarios online"
-        )
-
-
-# 🧪 ENDPOINT TEMPORAL DE DEBUG SIN AUTENTICACIÓN
-@router.get("/online-debug")
-def get_online_users_debug(
-    db: Session = Depends(get_db)
-    # SIN current_user dependency para testing
-) -> Any:
-    """
-    🧪 ENDPOINT DE DEBUG SIN AUTENTICACIÓN
-    Solo para verificar que la lógica funciona
-    """
-    try:
-        from sqlalchemy import and_, or_, text
-        from datetime import datetime, timedelta
-        
-        logger.info("🧪 DEBUG: Obteniendo usuarios online SIN autenticación")
-        
-        # Threshold para considerar usuario como "recientemente activo"
-        recent_threshold = datetime.utcnow() - timedelta(minutes=5)
-        
-        # Query básica de usuarios activos
-        try:
-            online_users = db.query(User).filter(
-                User.is_active == True
-            ).limit(10).all()  # Solo 10 para debug
-            
-        except Exception as db_error:
-            logger.error(f"💥 Error en query: {db_error}")
-            return {
-                "users": [],
-                "total": 0,
-                "error": str(db_error),
-                "debug": "Query failed"
-            }
-        
-        # Formatear respuesta básica
+        # Formatear usuarios
         formatted_users = []
         for user in online_users:
             try:
-                formatted_user = {
+                # Nombres
+                first_name = getattr(user, 'first_name', '') or ''
+                last_name = getattr(user, 'last_name', '') or ''
+                
+                if first_name and last_name:
+                    full_name = f"{first_name} {last_name}"
+                    initials = f"{first_name[0]}{last_name[0]}".upper()
+                elif first_name:
+                    full_name = first_name
+                    initials = first_name[0].upper()
+                else:
+                    full_name = user.email.split('@')[0] if user.email else f"Usuario {user.id}"
+                    initials = full_name[0].upper() if full_name else "U"
+                
+                # Estado basado en última actividad
+                last_login = getattr(user, 'last_login', None)
+                is_online = False
+                status = "offline"
+                
+                if last_login:
+                    minutes_ago = (datetime.utcnow() - last_login).total_seconds() / 60
+                    if minutes_ago <= 5:
+                        status = "online"
+                        is_online = True
+                    elif minutes_ago <= 15:
+                        status = "away"
+                        is_online = True
+                
+                user_data = {
                     "id": user.id,
-                    "email": user.email,
-                    "fullName": f"{user.first_name or ''} {user.last_name or ''}".strip() or user.email,
-                    "isActive": user.is_active,
-                    "lastLogin": user.last_login.isoformat() if user.last_login else None,
-                    "debug": "formatted_ok"
+                    "name": full_name,
+                    "fullName": full_name,
+                    "initials": initials,
+                    "email": user.email or "",
+                    "profileImage": getattr(user, 'profile_image', None),
+                    "status": status,
+                    "isOnline": bool(is_online),
+                    "lastSeen": last_login.isoformat() if last_login else None,
+                    "lastLogin": last_login.isoformat() if last_login else None
                 }
                 
-                formatted_users.append(formatted_user)
+                formatted_users.append(user_data)
                 
-            except Exception as format_error:
-                logger.error(f"💥 Error formateando usuario {user.id}: {format_error}")
+            except Exception as user_error:
+                logger.warning(f"⚠️ Error formateando usuario {getattr(user, 'id', '?')}: {user_error}")
                 continue
         
-        response_data = {
+        # Respuesta
+        response = {
             "users": formatted_users,
             "total": len(formatted_users),
+            "totalOnline": len([u for u in formatted_users if u["status"] == "online"]),
+            "totalActive": len([u for u in formatted_users if u["isOnline"]]),
             "timestamp": datetime.utcnow().isoformat(),
-            "debug": {
-                "endpoint": "online-debug",
-                "auth_required": False,
-                "total_users_in_db": len(online_users),
-                "successfully_formatted": len(formatted_users)
-            }
+            "success": True
         }
         
-        logger.info(f"✅ DEBUG: Devolviendo {len(formatted_users)} usuarios")
-        return response_data
+        logger.info(f"✅ Respuesta exitosa: {len(formatted_users)} usuarios")
+        return response
         
     except Exception as e:
-        logger.error(f"💥 Error en endpoint debug: {e}")
+        logger.error(f"💥 Error obteniendo usuarios online: {e}")
         
+        # Respuesta de error
         return {
             "users": [],
             "total": 0,
+            "totalOnline": 0,
+            "totalActive": 0,
             "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e),
-            "debug": {
-                "endpoint": "online-debug",
-                "auth_required": False,
-                "error_type": type(e).__name__
-            }
-        }
-
-# 🔍 ENDPOINT PARA DEBUG DE AUTENTICACIÓN
-@router.get("/auth-debug")
-def debug_auth_status(
-    request: Request,
-    db: Session = Depends(get_db)
-) -> Any:
-    """
-    🔍 DEBUG: Verificar estado de autenticación
-    Sin dependency de current_user para ver qué está pasando
-    """
-    try:
-        from fastapi import Request
-        
-        debug_info = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "debug_type": "auth_status",
-            "request_info": {
-                "method": request.method,
-                "url": str(request.url),
-                "headers": {},
-                "cookies": {}
-            },
-            "auth_attempt": {
-                "success": False,
-                "error": None,
-                "user_id": None
-            }
-        }
-        
-        # Inspeccionar headers
-        auth_headers = {}
-        for header_name, header_value in request.headers.items():
-            if 'auth' in header_name.lower() or 'token' in header_name.lower():
-                # No mostrar el token completo por seguridad
-                auth_headers[header_name] = f"{header_value[:10]}..." if len(header_value) > 10 else header_value
-        
-        debug_info["request_info"]["headers"] = auth_headers
-        
-        # Inspeccionar cookies (nombres solamente)
-        cookie_names = list(request.cookies.keys()) if request.cookies else []
-        debug_info["request_info"]["cookies"] = {
-            "names": cookie_names,
-            "has_access_token": "access_token" in cookie_names,
-            "has_refresh_token": "refresh_token" in cookie_names,
-            "total_cookies": len(cookie_names)
-        }
-        
-        # Intentar obtener usuario usando el dependency normal
-        try:
-            from app.api.deps import get_current_active_user
-            
-            # NOTA: Esto debería fallar con 422 si hay problema de auth
-            # current_user = get_current_active_user(db, request)
-            
-            debug_info["auth_attempt"]["error"] = "Cannot test dependency directly in debug endpoint"
-            
-        except Exception as auth_error:
-            debug_info["auth_attempt"]["error"] = str(auth_error)
-        
-        # Información adicional
-        debug_info["suggestions"] = [
-            "Verifica que las cookies HttpOnly estén siendo enviadas",
-            "Confirma que el token no haya expirado",
-            "Revisa los logs del middleware de autenticación",
-            "Usa /users/online-debug para probar sin auth"
-        ]
-        
-        return debug_info
-        
-    except Exception as e:
-        return {
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat(),
-            "debug_type": "auth_status_failed"
+            "success": False,
+            "error": str(e)
         }
 
 @router.post("/heartbeat")
@@ -736,118 +280,41 @@ def user_heartbeat(
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    💓 HEARTBEAT MIGRADO A REDIS - VERSIÓN CORREGIDA
-    Ahora usa Redis para estado online + BD para last_login
+    💓 HEARTBEAT - Mantiene usuario activo
+    Actualiza last_login y estado online
     """
     try:
-        from datetime import datetime
-        
-        logger.info(f"💓 Heartbeat de usuario {current_user.id} (Redis + BD)")
-        
-        # 1. MARCAR COMO ONLINE EN REDIS (rápido y ligero)
-        redis_key = f"user:online:{current_user.id}"
-        redis_timestamp = datetime.utcnow().isoformat()
-        
-        redis_success = redis_manager.set(
-            key=redis_key,
-            value=redis_timestamp,
-            expire=90  # 90 segundos TTL
-        )
-        
-        if redis_success:
-            logger.debug(f"✅ Usuario {current_user.id} marcado como online en Redis")
-        else:
-            logger.warning(f"⚠️ No se pudo marcar usuario {current_user.id} en Redis")
-        
-        # 2. ACTUALIZAR BD (solo last_login, no is_online)
-        try:
-            current_user.last_login = datetime.utcnow()
-            
-            # Solo actualizar is_online en BD si Redis falló (fallback)
-            if not redis_success and hasattr(current_user, 'is_online'):
-                current_user.is_online = True
-            
-            db.commit()
-            logger.debug(f"✅ last_login actualizado en BD para usuario {current_user.id}")
-            
-        except Exception as db_error:
-            db.rollback()
-            logger.error(f"💥 Error actualizando BD: {db_error}")
-            # No fallar por error de BD si Redis funcionó
-            if not redis_success:
-                raise db_error
-        
-        # 3. RESPUESTA UNIFICADA
-        response = {
-            "success": True,
-            "timestamp": datetime.utcnow().isoformat(),
-            "status": "online",
-            "userId": current_user.id,
-            "message": "Heartbeat registrado",
-            "storage": {
-                "redis": redis_success,
-                "database": True,  # Asumimos que BD siempre funciona
-                "primary": "redis"
-            }
-        }
-        
-        logger.info(f"✅ Heartbeat exitoso para usuario {current_user.id}")
-        return response
-        
-    except Exception as e:
-        # Rollback de BD si hay error
-        try:
-            db.rollback()
-        except:
-            pass
-            
-        logger.error(f"💥 Error en heartbeat para usuario {current_user.id}: {e}")
-        
-        return {
-            "success": False,
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e),
-            "userId": current_user.id,
-            "message": "Error en heartbeat"
-        }
-
-# 🔧 HEARTBEAT CON AUTENTICACIÓN (PARA DESPUÉS)
-@router.post("/heartbeat-secure")
-def user_heartbeat_secure(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
-    """
-    💓 HEARTBEAT CON AUTENTICACIÓN - PARA CUANDO SE ARREGLE AUTH
-    """
-    try:
-        from datetime import datetime
-        
         logger.info(f"💓 Heartbeat de usuario {current_user.id}")
         
-        # Actualizar last_login (este campo seguro existe)
+        # Actualizar last_login
         current_user.last_login = datetime.utcnow()
         
-        # Intentar actualizar is_online si existe
-        try:
-            if hasattr(current_user, 'is_online'):
-                current_user.is_online = True
-                logger.debug(f"✅ is_online actualizado para usuario {current_user.id}")
-            else:
-                logger.warning(f"⚠️ Campo is_online no existe en modelo User")
-        except Exception as online_error:
-            logger.warning(f"⚠️ No se pudo actualizar is_online: {online_error}")
+        # Actualizar is_online si existe el campo
+        if hasattr(current_user, 'is_online'):
+            current_user.is_online = True
         
-        # Commit cambios
+        # Usar Redis si está disponible
+        try:
+            redis_key = f"user:online:{current_user.id}"
+            redis_timestamp = datetime.utcnow().isoformat()
+            redis_success = redis_manager.set(
+                key=redis_key,
+                value=redis_timestamp,
+                expire=90  # 90 segundos TTL
+            )
+            logger.debug(f"Redis heartbeat: {'✅' if redis_success else '❌'}")
+        except Exception as redis_error:
+            logger.warning(f"Redis no disponible: {redis_error}")
+        
+        # Commit cambios a BD
         db.commit()
-        db.refresh(current_user)
         
         response = {
             "success": True,
             "timestamp": datetime.utcnow().isoformat(),
             "status": "online",
             "userId": current_user.id,
-            "message": "Heartbeat registrado correctamente"
+            "message": "Heartbeat registrado"
         }
         
         logger.info(f"✅ Heartbeat exitoso para usuario {current_user.id}")
@@ -855,113 +322,75 @@ def user_heartbeat_secure(
         
     except Exception as e:
         db.rollback()
-        logger.error(f"💥 Error en heartbeat para usuario {current_user.id}: {e}")
+        logger.error(f"💥 Error en heartbeat: {e}")
         
         return {
             "success": False,
             "timestamp": datetime.utcnow().isoformat(),
             "error": str(e),
-            "userId": current_user.id,
+            "userId": getattr(current_user, 'id', None),
             "message": "Error en heartbeat"
         }
 
-# 🔧 ENDPOINT PARA CAMBIAR ESTADO MANUAL
-@router.patch("/online-status")
-def update_online_status(
-    status_data: dict = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
+@router.get("/debug-users")
+def debug_users_in_database(
+    db: Session = Depends(get_db)
+) -> dict:
     """
-    🆕 ACTUALIZAR ESTADO ONLINE MANUALMENTE
-    Permite al usuario establecer su estado
+    🔍 DEBUG: Ver todos los usuarios en la BD y sus last_login
     """
     try:
-        from datetime import datetime
+        from app.models.auth.users import User
+        from datetime import datetime, timedelta
         
-        is_online = status_data.get('isOnline', True)
-        status = status_data.get('status', 'online')  # online, away, busy, offline
+        # Obtener TODOS los usuarios activos
+        all_users = db.query(User).filter(User.is_active == True).limit(10).all()
         
-        # Actualizar estado
-        current_user.is_online = is_online
-        if is_online:
-            current_user.last_login = datetime.utcnow()
+        users_info = []
+        recent_threshold = datetime.utcnow() - timedelta(minutes=15)
         
-        db.commit()
+        for user in all_users:
+            last_login = getattr(user, 'last_login', None)
+            
+            user_info = {
+                "id": user.id,
+                "email": user.email,
+                "first_name": getattr(user, 'first_name', None),
+                "last_name": getattr(user, 'last_name', None),
+                "is_active": user.is_active,
+                "last_login": last_login.isoformat() if last_login else None,
+                "minutes_ago": None,
+                "is_recent": False
+            }
+            
+            if last_login:
+                minutes_ago = (datetime.utcnow() - last_login).total_seconds() / 60
+                user_info["minutes_ago"] = round(minutes_ago, 1)
+                user_info["is_recent"] = last_login >= recent_threshold
+            
+            users_info.append(user_info)
+        
+        # Estadísticas
+        total_users = len(users_info)
+        users_with_login = len([u for u in users_info if u["last_login"]])
+        recent_users = len([u for u in users_info if u["is_recent"]])
         
         return {
-            "success": True,
-            "status": status,
-            "isOnline": is_online,
-            "timestamp": datetime.utcnow().isoformat(),
-            "message": f"Estado actualizado a {status}"
+            "total_active_users": total_users,
+            "users_with_last_login": users_with_login,
+            "recent_users_15min": recent_users,
+            "threshold": recent_threshold.isoformat(),
+            "current_time": datetime.utcnow().isoformat(),
+            "users": users_info
         }
         
     except Exception as e:
-        db.rollback()
-        logger.error(f"💥 Error actualizando estado online: {e}")
+        return {
+            "error": str(e),
+            "debug": "Error obteniendo información de usuarios"
+        }
         
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al actualizar estado online"
-        )
-
-@router.patch("/profile/online-status")
-def update_online_status(
-    is_online: bool = Body(..., embed=True),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
-    """
-    🆕 ACTUALIZA ESTADO ONLINE DEL USUARIO
-    Para tracking de presencia
-    """
-    try:
-        current_user.is_online = is_online
-        if is_online:
-            from datetime import datetime
-            current_user.last_login = datetime.utcnow()
-        
-        db.commit()
-        
-        return {"success": True, "message": f"Estado actualizado a {'online' if is_online else 'offline'}"}
-        
-    except Exception as e:
-        db.rollback()
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"💥 Error actualizando estado online: {e}")
-        
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al actualizar estado online"
-        )
-
-@router.post("/presence/heartbeat")
-def send_heartbeat(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
-    """
-    🆕 HEARTBEAT PARA MANTENER USUARIO ACTIVO
-    Llamado periódicamente por el frontend
-    """
-    try:
-        from datetime import datetime
-        
-        current_user.last_login = datetime.utcnow()
-        current_user.is_online = True
-        db.commit()
-        
-        return {"success": True, "timestamp": datetime.utcnow().isoformat()}
-        
-    except Exception as e:
-        db.rollback()
-        return {"success": False, "error": str(e)}
-
-# ===== ENDPOINTS DE BÚSQUEDA =====
+# ===== BÚSQUEDA DE USUARIOS =====
 
 @router.get("/search")
 def search_users(
@@ -974,12 +403,10 @@ def search_users(
     current_user: User = Depends(has_permission("user_view"))
 ) -> Any:
     """
-    🆕 BÚSQUEDA AVANZADA DE USUARIOS
+    🔍 BÚSQUEDA AVANZADA DE USUARIOS
     Busca por nombre, email y aplica filtros
     """
     try:
-        from sqlalchemy import or_, and_
-        
         # Construir query base
         query = db.query(User)
         
@@ -1009,8 +436,6 @@ def search_users(
         return results
         
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"💥 Error en búsqueda de usuarios: {e}")
         
         from fastapi import HTTPException

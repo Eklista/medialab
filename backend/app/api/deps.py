@@ -5,9 +5,10 @@ Limpieza completa, eliminación de código muerto, organización mejorada
 """
 
 from typing import Optional, List, Callable, Dict, Any
-from fastapi import Depends, HTTPException, status, Security, Request, WebSocket
+from fastapi import Depends, HTTPException, status, Security, Request, WebSocket, Cookie
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
+from typing import Optional
 import logging
 from datetime import datetime, timedelta
 
