@@ -32,7 +32,7 @@ const RequestDetailsPage = lazy(() => import('../features/dashboard/pages/Reques
 
 //  INVENTORY PAGES
 const InventoryDashboardPage = lazy(() => import('../features/dashboard/pages/inventory/InventoryDashboardPage'))
-//const EquipmentPage = lazy(() => import('../features/dashboard/pages/inventory/EquipmentPage'))
+const EquipmentPage = lazy(() => import('../features/dashboard/pages/inventory/EquipmentPage'))
 //const SuppliesPage = lazy(() => import('../features/dashboard/pages/inventory/SuppliesPage'))
 //const InventorySettingsPage = lazy(() => import('../features/dashboard/pages/inventory/InventorySettingsPage'))
 //const InventoryReportsPage = lazy(() => import('../features/dashboard/pages/inventory/InventoryReportsPage'))
@@ -241,6 +241,15 @@ export const AppRouter: React.FC = () => {
           } 
         />
 
+        <Route 
+          path="/dashboard/inventory/equipment" 
+          element={
+        <LazyErrorBoundary>
+          <EquipmentPage />
+        </LazyErrorBoundary>
+          } 
+        />
+
         {/* 🆕 RUTAS DE INVENTARIO */}
         {/*
         <Route 
@@ -252,14 +261,7 @@ export const AppRouter: React.FC = () => {
           } 
         />
         
-        <Route 
-          path="/dashboard/inventory/equipment" 
-          element={
-        <LazyErrorBoundary>
-          <EquipmentPage />
-        </LazyErrorBoundary>
-          } 
-        />
+        
         
         <Route 
           path="/dashboard/inventory/supplies" 
