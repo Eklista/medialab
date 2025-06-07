@@ -1,4 +1,4 @@
-// frontend/src/services/inventory/hooks/index.ts
+// frontend/src/services/inventory/hooks/index.ts - ACTUALIZADO
 
 // Re-exportar todos los hooks
 export { useInventoryDashboard } from './useInventoryDashboard';
@@ -10,3 +10,4 @@ export {
   useEquipmentDetails, 
   useSupplyDetails 
 } from './useInventorySearch';
+export { useActivityFeed } from './useActivityFeed';

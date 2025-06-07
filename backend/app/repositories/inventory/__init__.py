@@ -1,5 +1,5 @@
 # ============================================================================
-# backend/app/repositories/inventory/__init__.py
+# backend/app/repositories/inventory/__init__.py - ACTUALIZADO
 # ============================================================================
 
 from .equipment_repository import EquipmentRepository
@@ -9,6 +9,7 @@ from .location_repository import LocationRepository
 from .supplier_repository import SupplierRepository
 from .equipment_state_repository import EquipmentStateRepository
 from .movement_type_repository import MovementTypeRepository
+from .activity_repository import ActivityRepository
 
 __all__ = [
     "EquipmentRepository",
@@ -18,5 +19,6 @@ __all__ = [
     "LocationRepository",
     "SupplierRepository",
     "EquipmentStateRepository",
-    "MovementTypeRepository"
+    "MovementTypeRepository",
+    "ActivityRepository"
 ]

@@ -368,22 +368,93 @@ class InventoryCommonService {
   }
 }
 
-// ===== API PRINCIPAL CONSOLIDADA =====
+// frontend/src/services/inventory/inventoryApi.ts - ACTUALIZACIÓN
+
+// Agregar al final del archivo, antes del export:
+
+// ===== ACTIVITIES SERVICE =====
+class InventoryActivitiesService {
+  /**
+   * Obtiene feed de actividades
+   */
+  static async getActivityFeed(params: {
+    limit?: number;
+    activity_types?: string;
+    user_id?: number;
+    days_back?: number;
+  } = {}): Promise<any> {
+    const { limit = 50, activity_types, user_id, days_back = 30 } = params;
+    const cacheKey = createCacheKey(`${API_BASE}/activities`, params);
+    
+    return requestDeduplicator.deduplicate(cacheKey, async () => {
+      const searchParams = new URLSearchParams();
+      searchParams.append('limit', limit.toString());
+      searchParams.append('days_back', days_back.toString());
+      
+      if (activity_types) {
+        searchParams.append('activity_types', activity_types);
+      }
+      
+      if (user_id) {
+        searchParams.append('user_id', user_id.toString());
+      }
+      
+      const response = await apiClient.get(`${API_BASE}/activities?${searchParams.toString()}`);
+      return response.data;
+    });
+  }
+
+  /**
+   * Obtiene tipos de actividades disponibles
+   */
+  static async getActivityTypes(): Promise<any> {
+    const cacheKey = createCacheKey(`${API_BASE}/activities/types`);
+    
+    return requestDeduplicator.deduplicate(cacheKey, async () => {
+      const response = await apiClient.get(`${API_BASE}/activities/types`);
+      return response.data;
+    });
+  }
+
+  /**
+   * Obtiene resumen de actividades
+   */
+  static async getActivitySummary(): Promise<any> {
+    const cacheKey = createCacheKey(`${API_BASE}/activities/summary`);
+    
+    return requestDeduplicator.deduplicate(cacheKey, async () => {
+      const response = await apiClient.get(`${API_BASE}/activities/summary`);
+      return response.data;
+    });
+  }
+
+  /**
+   * Marca actividad como leída
+   */
+  static async markActivityAsRead(activityId: string): Promise<any> {
+    const response = await apiClient.post(`${API_BASE}/activities/${activityId}/read`);
+    return response.data;
+  }
+}
+
+// ===== API PRINCIPAL CONSOLIDADA - ACTUALIZADA =====
 export const inventoryApi = {
   dashboard: InventoryDashboardService,
   equipment: EquipmentService,
   supplies: SuppliesService,
   search: InventorySearchService,
-  common: InventoryCommonService
+  common: InventoryCommonService,
+  activities: InventoryActivitiesService  // 🆕 NUEVO
 };
 
-// Export individual services para flexibilidad
+// Export individual services para flexibilidad - ACTUALIZADO
 export {
   InventoryDashboardService,
   EquipmentService,
   SuppliesService,
   InventorySearchService,
-  InventoryCommonService
+  InventoryCommonService,
+  InventoryActivitiesService  // 🆕 NUEVO
 };
 
 // Export default para uso simple
