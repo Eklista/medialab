@@ -20,7 +20,8 @@ import {
   ChevronRightIcon,
   UserIcon,
   WrenchIcon,
-  ArrowUpRightIcon
+  ArrowUpRightIcon,
+  CalendarIcon
 } from '@heroicons/react/24/solid';
 
 interface SidebarProps {
@@ -156,22 +157,28 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
       alwaysVisible: true // Dashboard siempre visible
     },
     {
+      title: 'Calendario',
+      path: '/dashboard/calendar',
+      icon: <CalendarIcon className="h-5 w-5" />,
+      alwaysVisible: true // Calendario siempre visible
+    },
+    {
       title: 'Producción',
       path: '/dashboard/production',
       icon: <FilmIcon className="h-5 w-5" />,
-      permissionCheck: canViewProduction
+     // permissionCheck: canViewProduction
     },
     {
       title: 'Cursos',
       path: '/dashboard/courses',
       icon: <AcademicCapIcon className="h-5 w-5" />,
-      permissionCheck: canViewCourses
+      // permissionCheck: canViewCourses
     },
     {
       title: 'Podcasts',
       path: '/dashboard/podcast',
       icon: <MicrophoneIcon className="h-5 w-5" />,
-      permissionCheck: canViewPodcast
+     // permissionCheck: canViewPodcast
     },
     {
       title: 'Solicitudes',

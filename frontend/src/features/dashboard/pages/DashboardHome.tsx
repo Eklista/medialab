@@ -1,9 +1,10 @@
-// src/features/dashboard/pages/DashboardHome.tsx - 🎨 DISEÑO ORIGINAL CON CONTENIDO SIMPLIFICADO
+// src/features/dashboard/pages/DashboardHome.tsx - 🎨 DISEÑO ORIGINAL CON CALENDARIO
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import Badge from '../components/ui/Badge';
 import UserProfilePhoto from '../components/ui/UserProfilePhoto';
+import Calendar from '../components/ui/Calendar';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { userService } from '../../../services';
 import { parseDate, formatBirthday, getDaysUntilBirthday } from '../utils/dateUtils';
@@ -159,7 +160,7 @@ const DashboardHome: React.FC = () => {
           </div>
         </div>
 
-        {/* 🎯 Solo las dos tarjetas principales - DISEÑO ORIGINAL MANTENIDO */}
+        {/* 🎯 Primera fila: Colaborador del mes y Cumpleaños */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           {/* 🏆 Colaborador del mes - DISEÑO ORIGINAL COMPLETO */}
@@ -192,7 +193,7 @@ const DashboardHome: React.FC = () => {
                 </div>
                 <div className="ml-4 flex-1">
                   <h4 className="text-xl font-bold text-[var(--color-text-main)]">
-                    Pablito Lindo
+                    John Doe
                   </h4>
                   <p className="text-[var(--color-text-secondary)]">Área de Transmisión</p>
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -203,7 +204,7 @@ const DashboardHome: React.FC = () => {
               </div>
               <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
                 <p className="text-sm text-gray-700">
-                  Es el mejor del mundo mundial.
+                  ¡Felicidades por tu dedicación y esfuerzo! Tu compromiso inspira a todo el equipo y nos motiva a seguir creciendo juntos. ¡Gracias por ser un ejemplo de excelencia!
                 </p>
               </div>
             </div>
@@ -279,6 +280,11 @@ const DashboardHome: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+
+        {/* 📅 Nueva sección: Calendario compacto */}
+        <div>
+          <Calendar compact className="w-full" />
         </div>
       </div>
     </DashboardLayout>

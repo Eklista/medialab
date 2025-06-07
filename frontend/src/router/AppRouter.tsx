@@ -27,6 +27,8 @@ const UsersPage = lazy(() => import('../features/dashboard').then(module => ({ d
 const AppSettingsPage = lazy(() => import('../features/dashboard').then(module => ({ default: module.AppSettingsPage })))
 const SettingsPage = lazy(() => import('../features/dashboard').then(module => ({ default: module.SettingsPage })))
 const UserProfilePage = lazy(() => import('../features/dashboard').then(module => ({ default: module.UserProfilePage })))
+const CalendarPage = lazy(() => import('../features/dashboard/pages/CalendarPage'))
+
 const RequestDetailsPage = lazy(() => import('../features/dashboard/pages/RequestDetailsPage'))
 
 // Componente de loading personalizado
@@ -64,7 +66,7 @@ export const AppRouter: React.FC = () => {
           </PublicRoute>
         } 
       />
-      
+
       <Route 
         path="/request" 
         element={
@@ -133,7 +135,16 @@ export const AppRouter: React.FC = () => {
             </LazyErrorBoundary>
           } 
         />
-        
+
+        <Route 
+          path="/dashboard/calendar" 
+          element={
+            <LazyErrorBoundary>
+              <CalendarPage />
+            </LazyErrorBoundary>
+          }
+        />
+
         <Route 
           path="/dashboard/production" 
           element={
