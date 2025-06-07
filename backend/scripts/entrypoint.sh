@@ -1,5 +1,5 @@
 #!/bin/bash
-# backend/scripts/entrypoint.sh - FUSIONADO CON REDIS
+# backend/scripts/entrypoint.sh - FUSIONADO CON REDIS (CORREGIDO)
 
 set -e
 
@@ -28,16 +28,41 @@ info() {
 }
 
 # ===============================================
-# FUNCIONES DE ESPERA DE SERVICIOS
+# FUNCIONES DE ESPERA DE SERVICIOS (CORREGIDAS)
 # ===============================================
 
 wait_for_mysql() {
     log "Esperando a que la base de datos esté lista..."
-    while ! nc -z db 3306; do
-        info "MySQL no está disponible todavía - esperando..."
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        # Usar timeout y manejo de errores más robusto
+        if timeout 5 nc -z db 3306 >/dev/null 2>&1; then
+            log "✅ Base de datos lista!"
+            
+            # Verificación adicional con mysql client si está disponible
+            if command -v mysql >/dev/null 2>&1; then
+                info "🔍 Verificando acceso a la base de datos..."
+                if timeout 10 mysql -h db -u "${DB_USER:-medialab_user}" -p"${DB_PASSWORD:-MediaLab2025Db\$3cur3}" -e "SELECT 1;" >/dev/null 2>&1; then
+                    log "✅ Acceso a base de datos verificado!"
+                    return 0
+                else
+                    warn "⚠️ Conexión de red OK pero acceso a DB falló, reintentando..."
+                fi
+            else
+                log "✅ Conexión de red a MySQL verificada!"
+                return 0
+            fi
+        fi
+        
+        info "Intento $attempt/$max_attempts - MySQL no disponible, esperando 2s..."
         sleep 2
+        attempt=$((attempt + 1))
     done
-    log "✅ Base de datos lista!"
+    
+    error "❌ MySQL no disponible después de $max_attempts intentos"
+    return 1
 }
 
 wait_for_redis() {
@@ -54,12 +79,12 @@ wait_for_redis() {
     
     local attempt=1
     while [ $attempt -le $max_attempts ]; do
-        if nc -z "$redis_host" "$redis_port" >/dev/null 2>&1; then
+        if timeout 3 nc -z "$redis_host" "$redis_port" >/dev/null 2>&1; then
             log "✅ Redis disponible!"
             
             # Test básico de ping si redis-cli está disponible
             if command -v redis-cli >/dev/null 2>&1; then
-                if redis-cli -h "$redis_host" -p "$redis_port" ping >/dev/null 2>&1; then
+                if timeout 5 redis-cli -h "$redis_host" -p "$redis_port" ping >/dev/null 2>&1; then
                     log "✅ Test de ping a Redis exitoso"
                 else
                     warn "⚠️ Redis responde pero ping falló"
@@ -131,7 +156,7 @@ init_redis() {
         
         # Verificar si el script de inicialización existe
         if [ -f "/app/scripts/init_redis.py" ]; then
-            if python /app/scripts/init_redis.py; then
+            if timeout 30 python /app/scripts/init_redis.py; then
                 log "✅ Redis inicializado correctamente"
             else
                 warn "⚠️ Problemas inicializando Redis (continuando)"
@@ -150,7 +175,7 @@ init_redis() {
 
 run_migrations() {
     log "🔄 Ejecutando migraciones..."
-    python -m alembic upgrade head
+    timeout 60 python -m alembic upgrade head
     log "✅ Migraciones completadas"
 }
 
@@ -160,7 +185,7 @@ init_base_structure() {
     if [ "$INIT_BASE_STRUCTURE" = "true" ] && [ ! -f "$flag" ]; then
         log "🏗️ Inicializando estructura base..."
         if [ -f "/app/scripts/init_base_structure.py" ]; then
-            python /app/scripts/init_base_structure.py
+            timeout 60 python /app/scripts/init_base_structure.py
             touch "$flag"
             log "✅ Estructura base inicializada"
         else
@@ -177,7 +202,7 @@ init_permissions() {
     if [ "$INIT_PERMISSIONS" = "true" ] && [ ! -f "$flag" ]; then
         log "🔐 Inicializando permisos extendidos..."
         if [ -f "/app/scripts/add_permissions.py" ]; then
-            python /app/scripts/add_permissions.py
+            timeout 60 python /app/scripts/add_permissions.py
             touch "$flag"
             log "✅ Permisos inicializados"
         else
@@ -194,7 +219,7 @@ init_department_data() {
     if [ "$INIT_DEPARTMENT_DATA" = "true" ] && [ ! -f "$flag" ]; then
         log "🏢 Inicializando datos de departamentos..."
         if [ -f "/app/scripts/init_department_data.py" ]; then
-            python /app/scripts/init_department_data.py
+            timeout 60 python /app/scripts/init_department_data.py
             touch "$flag"
             log "✅ Datos de departamentos inicializados"
         else
@@ -211,7 +236,7 @@ init_service_data() {
     if [ "$INIT_SERVICE_DATA" = "true" ] && [ ! -f "$flag" ]; then
         log "⚙️ Inicializando datos de servicios..."
         if [ -f "/app/scripts/init_services_data.py" ]; then
-            python /app/scripts/init_services_data.py
+            timeout 60 python /app/scripts/init_services_data.py
             touch "$flag"
             log "✅ Datos de servicios inicializados"
         else
@@ -228,7 +253,7 @@ init_email_templates() {
     if [ "$INIT_EMAIL_TEMPLATES" = "true" ] && [ ! -f "$flag" ]; then
         log "📧 Inicializando plantillas de correo..."
         if [ -f "/app/scripts/init_email_templates.py" ]; then
-            python /app/scripts/init_email_templates.py
+            timeout 60 python /app/scripts/init_email_templates.py
             touch "$flag"
             log "✅ Plantillas de correo inicializadas"
         else
@@ -245,7 +270,7 @@ interactive_admin_setup() {
     if [ "$INTERACTIVE_ADMIN" = "true" ] && [ ! -f "$flag" ]; then
         log "👤 Iniciando configuración interactiva de administrador..."
         if [ -f "/app/scripts/interactive_admin_setup.py" ]; then
-            python /app/scripts/interactive_admin_setup.py
+            timeout 120 python /app/scripts/interactive_admin_setup.py
             touch "$flag"
             log "✅ Configuración de administrador completada"
         else
@@ -278,20 +303,29 @@ main() {
     info "  • Redis habilitado: $REDIS_ENABLED"
     info "  • Iniciar servidor: $START_SERVER"
     
-    # 3. Esperar servicios
+    # 3. Esperar servicios externos
     log "⏳ Esperando servicios externos..."
-    wait_for_mysql
-    wait_for_redis
     
-    # 4. Ejecutar migraciones
+    # Usar funciones con timeout y mejor manejo de errores
+    if ! wait_for_mysql; then
+        error "❌ No se pudo conectar a MySQL"
+        exit 1
+    fi
+    
+    wait_for_redis  # Redis puede fallar sin detener el proceso
+    
+    # 4. Ejecutar migraciones con timeout
     log "🔄 Ejecutando migraciones de base de datos..."
-    run_migrations
+    if ! run_migrations; then
+        error "❌ Error ejecutando migraciones"
+        exit 1
+    fi
     
-    # 5. Inicializar Redis
+    # 5. Inicializar Redis con timeout
     log "🔧 Configurando Redis..."
     init_redis
     
-    # 6. Inicializar estructura de datos
+    # 6. Inicializar estructura de datos con timeouts
     log "🏗️ Inicializando estructura de datos..."
     init_base_structure
     init_permissions
@@ -330,12 +364,16 @@ main() {
     info "  • Usuario: $(whoami)"
     info "  • Entorno: $ENVIRONMENT"
     
-    # 10. Resumen de servicios
+    # 10. Resumen de servicios con verificación robusta
     log "🔍 Estado de servicios:"
-    info "  • MySQL: ✅ Disponible"
+    if timeout 3 nc -z db 3306 >/dev/null 2>&1; then
+        info "  • MySQL: ✅ Disponible"
+    else
+        warn "  • MySQL: ⚠️ Problema de conectividad detectado"
+    fi
     
     if [ "$REDIS_ENABLED" = "true" ]; then
-        if nc -z "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" >/dev/null 2>&1; then
+        if timeout 3 nc -z "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" >/dev/null 2>&1; then
             info "  • Redis: ✅ Disponible"
         else
             info "  • Redis: ⚠️ No disponible (funcionalidad limitada)"
@@ -379,7 +417,7 @@ main() {
 }
 
 # ===============================================
-# MANEJO DE ERRORES
+# MANEJO DE ERRORES MEJORADO
 # ===============================================
 
 cleanup() {
@@ -394,15 +432,15 @@ cleanup() {
         error "  • ENVIRONMENT: ${ENVIRONMENT:-'no definido'}"
         error "  • REDIS_ENABLED: ${REDIS_ENABLED:-'no definido'}"
         
-        # Verificar servicios
-        if nc -z db 3306 >/dev/null 2>&1; then
+        # Verificar servicios con timeout
+        if timeout 3 nc -z db 3306 >/dev/null 2>&1; then
             error "  • MySQL: ✅ Disponible"
         else
             error "  • MySQL: ❌ No disponible"
         fi
         
         if [ "$REDIS_ENABLED" = "true" ]; then
-            if nc -z "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" >/dev/null 2>&1; then
+            if timeout 3 nc -z "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" >/dev/null 2>&1; then
                 error "  • Redis: ✅ Disponible"
             else
                 error "  • Redis: ❌ No disponible"

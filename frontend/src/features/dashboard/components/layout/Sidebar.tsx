@@ -192,6 +192,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, collapsed = false, onToggleC
       icon: <UserIcon className="h-5 w-5" />,
       permissionCheck: canViewGeneral
     },
+    {
+      title: 'Inventario',
+      path: '/dashboard/inventory',
+      icon: <ClipboardDocumentListIcon className="h-5 w-5" />,
+    },
     // Administración con hijos (TU ESTRUCTURA ORIGINAL)
     {
       title: 'Administración',

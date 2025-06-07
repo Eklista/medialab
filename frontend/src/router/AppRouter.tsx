@@ -1,4 +1,4 @@
-// src/router/AppRouter.tsx - UPDATED VERSION
+// src/router/AppRouter.tsx - CON RUTAS DE INVENTARIO
 import React, { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
@@ -28,8 +28,14 @@ const AppSettingsPage = lazy(() => import('../features/dashboard').then(module =
 const SettingsPage = lazy(() => import('../features/dashboard').then(module => ({ default: module.SettingsPage })))
 const UserProfilePage = lazy(() => import('../features/dashboard').then(module => ({ default: module.UserProfilePage })))
 const CalendarPage = lazy(() => import('../features/dashboard/pages/CalendarPage'))
-
 const RequestDetailsPage = lazy(() => import('../features/dashboard/pages/RequestDetailsPage'))
+
+//  INVENTORY PAGES
+const InventoryDashboardPage = lazy(() => import('../features/dashboard/pages/inventory/InventoryDashboardPage'))
+//const EquipmentPage = lazy(() => import('../features/dashboard/pages/inventory/EquipmentPage'))
+//const SuppliesPage = lazy(() => import('../features/dashboard/pages/inventory/SuppliesPage'))
+//const InventorySettingsPage = lazy(() => import('../features/dashboard/pages/inventory/InventorySettingsPage'))
+//const InventoryReportsPage = lazy(() => import('../features/dashboard/pages/inventory/InventoryReportsPage'))
 
 // Componente de loading personalizado
 const PageLoader = () => (
@@ -130,101 +136,158 @@ export const AppRouter: React.FC = () => {
         <Route 
           path="/dashboard" 
           element={
-            <LazyErrorBoundary>
-              <DashboardHome />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <DashboardHome />
+        </LazyErrorBoundary>
           } 
         />
 
         <Route 
           path="/dashboard/calendar" 
           element={
-            <LazyErrorBoundary>
-              <CalendarPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <CalendarPage />
+        </LazyErrorBoundary>
           }
         />
 
         <Route 
           path="/dashboard/production" 
           element={
-            <LazyErrorBoundary>
-              <ProductionPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <ProductionPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/courses" 
           element={
-            <LazyErrorBoundary>
-              <CoursesPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <CoursesPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/podcast" 
           element={
-            <LazyErrorBoundary>
-              <PodcastPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <PodcastPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/requests" 
           element={
-            <LazyErrorBoundary>
-              <RequestsPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <RequestsPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/requests/:id" 
           element={
-            <LazyErrorBoundary>
-              <RequestDetailsPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <RequestDetailsPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/users" 
           element={
-            <LazyErrorBoundary>
-              <UsersPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <UsersPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/app-settings/*" 
           element={
-            <LazyErrorBoundary>
-              <AppSettingsPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <AppSettingsPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/settings" 
           element={
-            <LazyErrorBoundary>
-              <SettingsPage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <SettingsPage />
+        </LazyErrorBoundary>
           } 
         />
         
         <Route 
           path="/dashboard/users/:userId" 
           element={
-            <LazyErrorBoundary>
-              <UserProfilePage />
-            </LazyErrorBoundary>
+        <LazyErrorBoundary>
+          <UserProfilePage />
+        </LazyErrorBoundary>
           } 
         />
+
+        <Route 
+          path="/dashboard/inventory" 
+          element={
+        <LazyErrorBoundary>
+          <InventoryDashboardPage />
+        </LazyErrorBoundary>
+          } 
+        />
+
+        {/* 🆕 RUTAS DE INVENTARIO */}
+        {/*
+        <Route 
+          path="/dashboard/inventory" 
+          element={
+        <LazyErrorBoundary>
+          <InventoryDashboardPage />
+        </LazyErrorBoundary>
+          } 
+        />
+        
+        <Route 
+          path="/dashboard/inventory/equipment" 
+          element={
+        <LazyErrorBoundary>
+          <EquipmentPage />
+        </LazyErrorBoundary>
+          } 
+        />
+        
+        <Route 
+          path="/dashboard/inventory/supplies" 
+          element={
+        <LazyErrorBoundary>
+          <SuppliesPage />
+        </LazyErrorBoundary>
+          } 
+        />
+        
+        <Route 
+          path="/dashboard/inventory/reports" 
+          element={
+        <LazyErrorBoundary>
+          <InventoryReportsPage />
+        </LazyErrorBoundary>
+          } 
+        />
+        
+        <Route 
+          path="/dashboard/inventory/settings" 
+          element={
+        <LazyErrorBoundary>
+          <InventorySettingsPage />
+        </LazyErrorBoundary>
+          } 
+        />
+        */}
       </Route>
      
       {/* Redirect para rutas no encontradas */}

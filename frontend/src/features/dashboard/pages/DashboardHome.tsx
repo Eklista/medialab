@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import Badge from '../components/ui/Badge';
 import UserProfilePhoto from '../components/ui/UserProfilePhoto';
-import Calendar from '../components/ui/Calendar';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { userService } from '../../../services';
 import { parseDate, formatBirthday, getDaysUntilBirthday } from '../utils/dateUtils';
@@ -16,12 +15,10 @@ import {
   CalendarDaysIcon,
   FireIcon,
   LightBulbIcon,
-  ClockIcon,
   StarIcon,
   RocketLaunchIcon,
   SparklesIcon,
   HeartIcon,
-  ChartBarIcon,
   BoltIcon
 } from '@heroicons/react/24/outline';
 
@@ -41,8 +38,8 @@ const DashboardHome: React.FC = () => {
   const [isLoadingBirthdays, setIsLoadingBirthdays] = useState(true);
   
   // 🎯 Mock data motivacional que puedes implementar en el futuro
-  const [weeklyStreak, setWeeklyStreak] = useState(7); // Días consecutivos trabajando
-  const [teamMood, setTeamMood] = useState(85); // Porcentaje de satisfacción del equipo
+  const [weeklyStreak] = useState(7); // Días consecutivos trabajando
+  const [teamMood] = useState(85); // Porcentaje de satisfacción del equipo
   const [inspirationalQuote] = useState({
     text: "La creatividad es la inteligencia divirtiéndose.",
     author: "Albert Einstein"
