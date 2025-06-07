@@ -57,6 +57,16 @@ from app.models.security.two_factor import TwoFactorMethod, UserTwoFactor
 from app.models.security.audit_log import AuditLog
 from app.models.security.token_blacklist import TokenBlacklist 
 
+# Módulos de inventario
+from app.models.inventory.categories import InventoryCategory
+from app.models.inventory.locations import InventoryLocation
+from app.models.inventory.suppliers import Supplier
+from app.models.inventory.equipment_states import EquipmentState
+from app.models.inventory.movement_types import MovementType
+from app.models.inventory.equipment import Equipment, EquipmentLab
+from app.models.inventory.supplies import Supply, SupplyMovement
+from app.models.inventory.assignments import ComponentAssignment
+
 # Lista de todos los modelos
 __all__ = [
     'Base', 'user_roles', 'role_permissions',
@@ -74,5 +84,8 @@ __all__ = [
     'PodcastRequest', 'PodcastModerator', 'PodcastRequestEpisode', 'PodcastGuest',
     'CourseRequest', 'CourseItem', 'CourseRecordingDate',
     'InstitutionalUser',
-    'Notification', 'NotificationTrigger'
+    'Notification', 'NotificationTrigger',
+    'InventoryCategory', 'InventoryLocation', 'Supplier', 'EquipmentState',
+    'MovementType', 'Equipment', 'EquipmentLab', 'Supply', 'SupplyMovement',
+    'ComponentAssignment'
 ]

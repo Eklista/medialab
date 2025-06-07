@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/DashboardHome.tsx - 🎨 DISEÑO ORIGINAL CON CALENDARIO
+// src/features/dashboard/pages/DashboardHome.tsx - 🎨 SORPRESA MOTIVACIONAL
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -14,10 +14,15 @@ import {
   TrophyIcon,
   CakeIcon,
   CalendarDaysIcon,
-  PlayIcon,
-  MicrophoneIcon,
-  VideoCameraIcon,
-  ChartBarIcon
+  FireIcon,
+  LightBulbIcon,
+  ClockIcon,
+  StarIcon,
+  RocketLaunchIcon,
+  SparklesIcon,
+  HeartIcon,
+  ChartBarIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 // Interfaces
@@ -35,6 +40,39 @@ const DashboardHome: React.FC = () => {
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<BirthdayUser[]>([]);
   const [isLoadingBirthdays, setIsLoadingBirthdays] = useState(true);
   
+  // 🎯 Mock data motivacional que puedes implementar en el futuro
+  const [weeklyStreak, setWeeklyStreak] = useState(7); // Días consecutivos trabajando
+  const [teamMood, setTeamMood] = useState(85); // Porcentaje de satisfacción del equipo
+  const [inspirationalQuote] = useState({
+    text: "La creatividad es la inteligencia divirtiéndose.",
+    author: "Albert Einstein"
+  });
+  
+  // 🚀 Actividad reciente motivacional
+  const [recentWins] = useState([
+    {
+      id: 1,
+      title: "Podcast FACIMED alcanzó 1K reproducciones",
+      time: "hace 2 horas",
+      type: "milestone",
+      icon: "🎉"
+    },
+    {
+      id: 2,
+      title: "Video institucional completado",
+      time: "hace 4 horas", 
+      type: "completion",
+      icon: "✅"
+    },
+    {
+      id: 3,
+      title: "Nueva colaboración con FISICC",
+      time: "ayer",
+      type: "partnership",
+      icon: "🤝"
+    }
+  ]);
+  
   // Función para generar iniciales
   const getInitials = (name: string): string => {
     if (!name) return 'U';
@@ -45,13 +83,12 @@ const DashboardHome: React.FC = () => {
     return name.charAt(0).toUpperCase();
   };
 
-  // Cargar cumpleaños usando el nuevo service stack
+  // Cargar cumpleaños
   useEffect(() => {
     const fetchBirthdays = async () => {
       try {
         setIsLoadingBirthdays(true);
         
-        // 🆕 USANDO NUEVO STACK DE SERVICES
         const users = await userService.list.getUsersFormatted({ 
           limit: 100,
           formatType: 'with_roles'
@@ -64,8 +101,6 @@ const DashboardHome: React.FC = () => {
             if (!birthDate) return null;
           
             const daysUntilBirthday = getDaysUntilBirthday(birthDate);
-            
-            // 🔧 SOLUCIÓN ROBUSTA: Usar el fullName del nuevo stack
             const name = user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
             const profileImage = user.profileImage || null;
           
@@ -93,65 +128,76 @@ const DashboardHome: React.FC = () => {
     fetchBirthdays();
   }, []);
   
-  // 🎯 Estadísticas principales con diseño moderno ORIGINAL
-  const mainStats = [
+  // 🎯 Estadísticas MOTIVACIONALES que puedes sacar de AuditLog + otros modelos
+  const motivationalStats = [
     {
-      title: "Proyectos Activos",
-      value: "24",
-      icon: <PlayIcon className="h-6 w-6" />,
-      change: { value: 12, isPositive: true },
-      bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
-      iconColor: "text-blue-600"
+      title: "Racha de Productividad",
+      value: `${weeklyStreak} días`,
+      subtitle: "consecutivos creando",
+      icon: <FireIcon className="h-6 w-6" />,
+      gradient: "from-orange-400 to-red-500",
+      textColor: "text-white",
+      description: "¡Increíble constancia!"
     },
     {
-      title: "Producciones Completadas",
-      value: "156",
-      icon: <VideoCameraIcon className="h-6 w-6" />,
-      change: { value: 8, isPositive: true },
-      bgColor: "bg-gradient-to-br from-green-50 to-green-100",
-      iconColor: "text-green-600"
+      title: "Proyectos Completados",
+      value: "23",
+      subtitle: "este trimestre",
+      icon: <RocketLaunchIcon className="h-6 w-6" />,
+      gradient: "from-blue-400 to-purple-500",
+      textColor: "text-white",
+      description: "¡Superando metas!"
     },
     {
-      title: "Podcasts Publicados",
-      value: "42",
-      icon: <MicrophoneIcon className="h-6 w-6" />,
-      change: { value: 3, isPositive: true },
-      bgColor: "bg-gradient-to-br from-purple-50 to-purple-100",
-      iconColor: "text-purple-600"
+      title: "Horas de Creatividad",
+      value: "184h",
+      subtitle: "invertidas este mes",
+      icon: <LightBulbIcon className="h-6 w-6" />,
+      gradient: "from-yellow-400 to-orange-400",
+      textColor: "text-white",
+      description: "¡Pura innovación!"
     },
     {
-      title: "Horas de Contenido",
-      value: "1,284",
-      icon: <ChartBarIcon className="h-6 w-6" />,
-      change: { value: 156, isPositive: true },
-      bgColor: "bg-gradient-to-br from-amber-50 to-amber-100",
-      iconColor: "text-amber-600"
+      title: "Satisfacción del Equipo",
+      value: `${teamMood}%`,
+      subtitle: "nivel de felicidad",
+      icon: <HeartIcon className="h-6 w-6" />,
+      gradient: "from-pink-400 to-rose-500",
+      textColor: "text-white",
+      description: "¡Ambiente genial!"
     }
   ];
 
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* 📊 Estadísticas principales - DISEÑO ORIGINAL */}
+        {/* 🔥 Estadísticas MOTIVACIONALES - Nuevo diseño súper atractivo */}
         <div>
-          <h2 className="text-xl font-semibold text-[var(--color-text-main)] mb-6">
-            Resumen General
-          </h2>
+          <div className="flex items-center gap-2 mb-6">
+            <SparklesIcon className="h-6 w-6 text-yellow-500" />
+            <h2 className="text-xl font-semibold text-[var(--color-text-main)]">
+              Tu Impacto Creativo
+            </h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {mainStats.map((stat, index) => (
-              <div key={index} className={`${stat.bgColor} rounded-xl p-6 border border-white shadow-sm hover:shadow-md transition-shadow duration-200`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-3xl font-bold text-[var(--color-text-main)] mt-1">{stat.value}</p>
-                    <div className="flex items-center mt-2">
-                      <span className={`text-sm font-medium ${stat.change.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                        {stat.change.isPositive ? '+' : '-'}{stat.change.value}
-                      </span>
-                      <span className="text-sm text-gray-500 ml-1">este mes</span>
+            {motivationalStats.map((stat, index) => (
+              <div key={index} className={`bg-gradient-to-br ${stat.gradient} rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className={`${stat.textColor} opacity-90 text-sm font-medium mb-1`}>
+                      {stat.title}
+                    </div>
+                    <div className={`${stat.textColor} text-3xl font-bold mb-1`}>
+                      {stat.value}
+                    </div>
+                    <div className={`${stat.textColor} opacity-75 text-xs mb-2`}>
+                      {stat.subtitle}
+                    </div>
+                    <div className={`${stat.textColor} opacity-90 text-xs font-medium`}>
+                      {stat.description}
                     </div>
                   </div>
-                  <div className={`${stat.iconColor} p-3 rounded-xl bg-white shadow-sm`}>
+                  <div className={`${stat.textColor} p-2 rounded-lg bg-white bg-opacity-20`}>
                     {stat.icon}
                   </div>
                 </div>
@@ -160,26 +206,108 @@ const DashboardHome: React.FC = () => {
           </div>
         </div>
 
-        {/* 🎯 Primera fila: Colaborador del mes y Cumpleaños */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* 🎯 Fila principal: Mini Calendario + Frase Inspiracional */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           
-          {/* 🏆 Colaborador del mes - DISEÑO ORIGINAL COMPLETO */}
-          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 relative">
-            {/* PIN ICON - TROPHY */}
-            <div className="absolute top-4 right-4 z-10">
-              <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full p-2 shadow-md">
-                <TrophyIcon className="h-4 w-4 text-white" />
+          {/* 📅 Mini Calendario - SÚPER COMPACTO */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="text-center">
+              <div className="text-sm font-medium text-gray-500 mb-1">
+                {new Date().toLocaleDateString('es', { weekday: 'long' })}
+              </div>
+              <div className="text-4xl font-bold text-gray-900 mb-1">
+                {new Date().getDate()}
+              </div>
+              <div className="text-lg font-medium text-gray-700 mb-4">
+                {new Date().toLocaleDateString('es', { month: 'long', year: 'numeric' })}
+              </div>
+              
+              {/* Mini vista de eventos de hoy */}
+              <div className="border-t border-gray-100 pt-4">
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-2">
+                  <CalendarDaysIcon className="h-4 w-4" />
+                  <span>Eventos de hoy</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-gray-600">Grabación FISICC - 10:00</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span className="text-gray-600">Podcast FACIMED - 14:30</span>
+                  </div>
+                </div>
+                <button className="mt-3 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                  Ver calendario completo →
+                </button>
               </div>
             </div>
-            
-            <div className="p-6 border-b border-[var(--color-border)]">
-              <div className="pr-12">
-                <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
-                  Colaborador del Mes
+          </div>
+
+          {/* 💡 Frase Inspiracional + Mood del equipo */}
+          <div className="space-y-6">
+            {/* Frase del día */}
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 shadow-lg text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 opacity-10">
+                <LightBulbIcon className="h-24 w-24" />
+              </div>
+              <div className="relative z-10">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <SparklesIcon className="h-5 w-5" />
+                  Inspiración del Día
                 </h3>
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  Mejor desempeño en mayo 2025
-                </p>
+                <blockquote className="text-sm italic mb-3 leading-relaxed">
+                  "{inspirationalQuote.text}"
+                </blockquote>
+                <cite className="text-xs opacity-75">— {inspirationalQuote.author}</cite>
+              </div>
+            </div>
+
+            {/* Mood del equipo */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <HeartIcon className="h-5 w-5 text-pink-500" />
+                  Energía del Equipo
+                </h3>
+                <span className="text-2xl">😊</span>
+              </div>
+              <div className="mb-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Satisfacción</span>
+                  <span className="font-medium">{teamMood}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                  <div 
+                    className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${teamMood}%` }}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-600">
+                ¡El equipo está súper motivado! 🚀
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 🏆 Segunda fila: Colaborador del mes + Próximos cumpleaños */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          
+          {/* 🏆 Colaborador del mes - REDISEÑADO con más estilo */}
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+            {/* Header con gradiente dorado */}
+            <div className="bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 p-6 relative">
+              <div className="absolute top-0 right-0 opacity-20">
+                <TrophyIcon className="h-16 w-16" />
+              </div>
+              <div className="flex items-center gap-3 text-white relative z-10">
+                <TrophyIcon className="h-6 w-6" />
+                <div>
+                  <h3 className="text-lg font-semibold">Colaborador del Mes</h3>
+                  <p className="text-sm opacity-90">Mayo 2025 • ¡Felicidades! 🎉</p>
+                </div>
               </div>
             </div>
             
@@ -187,46 +315,43 @@ const DashboardHome: React.FC = () => {
               <div className="flex items-center">
                 <div className="relative">
                   <UserProfilePhoto size="xl" />
-                  <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full p-2">
-                    <TrophyIcon className="h-4 w-4 text-white" />
+                  <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full p-2 shadow-lg">
+                    <StarIcon className="h-4 w-4 text-white" />
                   </div>
                 </div>
                 <div className="ml-4 flex-1">
                   <h4 className="text-xl font-bold text-[var(--color-text-main)]">
                     John Doe
                   </h4>
-                  <p className="text-[var(--color-text-secondary)]">Área de Transmisión</p>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <Badge variant="primary">1 Producción</Badge>
-                    <Badge variant="success">5000 Transmisiones</Badge>
+                  <p className="text-[var(--color-text-secondary)] mb-2">Área de Transmisión</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="primary" size="sm">15 Proyectos</Badge>
+                    <Badge variant="success" size="sm">98% Calidad</Badge>
+                    <Badge variant="secondary" size="sm">Mentor</Badge>
                   </div>
                 </div>
               </div>
               <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
                 <p className="text-sm text-gray-700">
-                  ¡Felicidades por tu dedicación y esfuerzo! Tu compromiso inspira a todo el equipo y nos motiva a seguir creciendo juntos. ¡Gracias por ser un ejemplo de excelencia!
+                  "Su dedicación en el proyecto FISICC y su constante innovación lo convierten en un ejemplo para todo el equipo. ¡Gracias por elevar nuestros estándares!" ⭐
                 </p>
               </div>
             </div>
           </div>
 
-          {/* 🎂 Próximos cumpleaños - DISEÑO ORIGINAL COMPLETO */}
-          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 relative">
-            {/* PIN ICON - CAKE */}
-            <div className="absolute top-4 right-4 z-10">
-              <div className="bg-gradient-to-r from-pink-400 to-pink-500 rounded-full p-2 shadow-md">
-                <CakeIcon className="h-4 w-4 text-white" />
+          {/* 🎂 Próximos cumpleaños - REDISEÑADO */}
+          <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+            {/* Header con gradiente rosa */}
+            <div className="bg-gradient-to-r from-pink-400 via-rose-500 to-purple-500 p-6 relative">
+              <div className="absolute top-0 right-0 opacity-20">
+                <CakeIcon className="h-16 w-16" />
               </div>
-            </div>
-            
-            <div className="p-6 border-b border-[var(--color-border)]">
-              <div className="pr-12">
-                <h3 className="text-lg font-semibold text-[var(--color-text-main)]">
-                  Próximos Cumpleaños
-                </h3>
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  Celebremos juntos estos momentos especiales
-                </p>
+              <div className="flex items-center gap-3 text-white relative z-10">
+                <CakeIcon className="h-6 w-6" />
+                <div>
+                  <h3 className="text-lg font-semibold">Próximos Cumpleaños</h3>
+                  <p className="text-sm opacity-90">¡Celebremos juntos! 🎈</p>
+                </div>
               </div>
             </div>
 
@@ -238,12 +363,13 @@ const DashboardHome: React.FC = () => {
               ) : upcomingBirthdays.length === 0 ? (
                 <div className="text-center py-8 text-[var(--color-text-secondary)]">
                   <CakeIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p>No hay cumpleaños próximos</p>
+                  <p className="mb-2">No hay cumpleaños próximos</p>
+                  <p className="text-xs">¡Pero siempre hay motivos para celebrar! 🎉</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {upcomingBirthdays.map((user) => (
-                    <div key={user.id} className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                    <div key={user.id} className="flex items-center p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg hover:from-pink-100 hover:to-purple-100 transition-colors duration-200 border border-pink-100">
                       <UserProfilePhoto 
                         user={{
                           firstName: user.name.split(' ')[0],
@@ -269,8 +395,8 @@ const DashboardHome: React.FC = () => {
                             user.daysUntilBirthday <= 7 ? "warning" : "info"
                           }
                         >
-                          {user.daysUntilBirthday === 0 ? "¡Hoy!" : 
-                           user.daysUntilBirthday === 1 ? "¡Mañana!" : 
+                          {user.daysUntilBirthday === 0 ? "¡Hoy! 🎉" : 
+                           user.daysUntilBirthday === 1 ? "¡Mañana! 🎂" : 
                            `En ${user.daysUntilBirthday} días`}
                         </Badge>
                       </div>
@@ -282,9 +408,34 @@ const DashboardHome: React.FC = () => {
           </div>
         </div>
 
-        {/* 📅 Nueva sección: Calendario compacto */}
-        <div>
-          <Calendar compact className="w-full" />
+        {/* 🚀 Tercera fila: Logros Recientes del Equipo */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BoltIcon className="h-6 w-6 text-yellow-500" />
+              <h3 className="text-lg font-semibold text-gray-900">Logros Recientes</h3>
+            </div>
+            <Badge variant="success" size="sm">¡En racha!</Badge>
+          </div>
+          
+          <div className="space-y-3">
+            {recentWins.map((win) => (
+              <div key={win.id} className="flex items-center gap-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100 hover:from-green-100 hover:to-emerald-100 transition-colors duration-200">
+                <div className="text-2xl">{win.icon}</div>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900 text-sm">{win.title}</p>
+                  <p className="text-xs text-gray-500">{win.time}</p>
+                </div>
+                <Badge variant="success" size="sm">Completado</Badge>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600">
+              🎯 <strong>¡Increíble trabajo en equipo!</strong> Sigamos construyendo el futuro del MediaLab juntos.
+            </p>
+          </div>
         </div>
       </div>
     </DashboardLayout>

@@ -69,6 +69,18 @@ from app.models.requests.recurrent_events import RecurrentEvent, EventDate
 from app.models.requests.podcast_requests import PodcastRequest, PodcastModerator, PodcastRequestEpisode, PodcastGuest
 from app.models.requests.course_requests import CourseRequest, CourseItem, CourseRecordingDate
 
+# Modelos de inventario
+from app.models.inventory.categories import InventoryCategory
+from app.models.inventory.locations import InventoryLocation
+from app.models.inventory.suppliers import Supplier
+from app.models.inventory.equipment_states import EquipmentState
+from app.models.inventory.movement_types import MovementType
+from app.models.inventory.equipment import Equipment, EquipmentLab
+from app.models.inventory.supplies import Supply, SupplyMovement
+from app.models.inventory.assignments import ComponentAssignment
+
+
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
