@@ -10,7 +10,6 @@ import SearchFilters from '../common/SearchFilters';
 import { 
   TableCellsIcon,
   Squares2X2Icon,
-  PlusIcon,
   ArrowPathIcon,
   DocumentArrowDownIcon,
   QrCodeIcon,
@@ -19,7 +18,6 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
-  FunnelIcon
 } from '@heroicons/react/24/outline';
 
 // ===== TIPOS =====
@@ -162,7 +160,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({
   className = ''
 }) => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>(defaultViewMode);
-  const [showFiltersPanel, setShowFiltersPanel] = useState(false);
+  // const [showFiltersPanel, setShowFiltersPanel] = useState(false);
 
   // Configuración de filtros
   const filterConfig = [
@@ -432,7 +430,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({
           suppliers={suppliers}
           isLoading={isLoading}
           collapsible={true}
-          defaultExpanded={showFiltersPanel}
+          defaultExpanded={false}
         />
       )}
 

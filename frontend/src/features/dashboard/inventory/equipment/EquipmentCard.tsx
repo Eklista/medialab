@@ -122,7 +122,6 @@ const CompactCard: React.FC<EquipmentCardProps> = ({
   isSelected = false,
   onSelect,
   onView,
-  onEdit,
   onAssign,
   onUnassign,
   className = ''
@@ -542,7 +541,9 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({ variant = 'default', ...p
               size="sm"
               onClick={() => props.onQrCode!(props.equipment)}
               leftIcon={<QrCodeIcon className="h-4 w-4" />}
-            />
+            >
+              QR
+            </DashboardButton>
           )}
         </div>
         

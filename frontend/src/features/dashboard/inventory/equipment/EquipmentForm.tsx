@@ -13,9 +13,8 @@ import {
   InformationCircleIcon,
   MapPinIcon,
   BuildingStorefrontIcon,
-  DocumentTextIcon,
   BeakerIcon,
-  SaveIcon,
+  ScaleIcon,
   XMarkIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon
@@ -643,7 +642,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({
             type="submit"
             variant="primary"
             loading={isSubmitting || isLoading}
-            leftIcon={<SaveIcon className="h-4 w-4" />}
+            leftIcon={<ScaleIcon className="h-4 w-4" />}
             disabled={!hasChanges || Object.keys(errors).length > 0}
           >
             {isEditing ? 'Actualizar' : 'Crear'} Equipo
