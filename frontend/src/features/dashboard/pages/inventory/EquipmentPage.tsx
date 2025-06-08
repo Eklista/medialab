@@ -1,6 +1,6 @@
-// frontend/src/features/dashboard/pages/inventory/EquipmentPage.tsx
+// frontend/src/features/dashboard/pages/inventory/EquipmentPage.tsx - OPTIMIZADO
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
@@ -10,12 +10,9 @@ import EquipmentList from '../../inventory/equipment/EquipmentList';
 import EquipmentForm from '../../inventory/equipment/EquipmentForm';
 import AssignmentModal from '../../inventory/equipment/AssignmentModal';
 import QuickActions from '../../inventory/common/QuickActions';
-import { useSearchFilters } from '../../inventory/common/SearchFilters';
 
-// Icons - solo los que se usan
-import { 
-  ComputerDesktopIcon
-} from '@heroicons/react/24/outline';
+// Icons
+import { ComputerDesktopIcon } from '@heroicons/react/24/outline';
 
 // Hooks
 import { useEquipmentList, useInventoryCommon } from '../../../../services/inventory';
@@ -26,39 +23,36 @@ const EquipmentPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Estados del modal/formulario
+  // ===== ESTADOS LOCALES =====
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentWithDetails | null>(null);
   const [editingEquipment, setEditingEquipment] = useState<EquipmentWithDetails | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  // Filtros desde URL
-  const currentPage = parseInt(searchParams.get('page') || '1');
-  const searchTerm = searchParams.get('search') || '';
-  const categoryFilter = searchParams.get('category') || '';
-  const stateFilter = searchParams.get('state') || '';
-  const locationFilter = searchParams.get('location') || '';
-  const assignmentFilter = searchParams.get('assignment') || '';
-  const itemsPerPage = parseInt(searchParams.get('limit') || '25');
+  // ===== PARÁMETROS DE URL =====
+  const urlParams = useMemo(() => ({
+    page: parseInt(searchParams.get('page') || '1'),
+    search: searchParams.get('search') || '',
+    category: searchParams.get('category') || '',
+    state: searchParams.get('state') || '',
+    location: searchParams.get('location') || '',
+    assignment: searchParams.get('assignment') || '',
+    limit: parseInt(searchParams.get('limit') || '25')
+  }), [searchParams]);
 
-  // Hook de filtros
-  const {
-    searchValue,
-    setSearchValue,
-    activeFilters,
-    setActiveFilters
-  } = useSearchFilters({
-    category_id: categoryFilter,
-    state_id: stateFilter,
-    location_id: locationFilter,
-    assignment_status: assignmentFilter
+  // ===== FILTROS CON DEBOUNCE =====
+  const [searchValue, setSearchValue] = useState(urlParams.search);
+  const debouncedSearch = useDebounce(searchValue, 300);
+  
+  const [activeFilters, setActiveFilters] = useState({
+    category_id: urlParams.category,
+    state_id: urlParams.state,
+    location_id: urlParams.location,
+    assignment_status: urlParams.assignment
   });
 
-  // Debounced search
-  const debouncedSearch = useDebounce(searchValue || searchTerm, 300);
-
-  // Hooks de datos
+  // ===== HOOKS DE DATOS =====
   const {
     equipment,
     totalCount,
@@ -74,25 +68,20 @@ const EquipmentPage: React.FC = () => {
     autoFetch: true,
     searchParams: {
       q: debouncedSearch,
-      skip: (currentPage - 1) * itemsPerPage,
-      limit: itemsPerPage,
-      category_id: categoryFilter ? parseInt(categoryFilter) : undefined,
-      state_id: stateFilter ? parseInt(stateFilter) : undefined,
-      location_id: locationFilter ? parseInt(locationFilter) : undefined,
-      assigned_only: assignmentFilter === 'assigned' ? true : undefined,
-      unassigned_only: assignmentFilter === 'unassigned' ? true : undefined
+      skip: (urlParams.page - 1) * urlParams.limit,
+      limit: urlParams.limit,
+      category_id: activeFilters.category_id ? parseInt(activeFilters.category_id) : undefined,
+      state_id: activeFilters.state_id ? parseInt(activeFilters.state_id) : undefined,
+      location_id: activeFilters.location_id ? parseInt(activeFilters.location_id) : undefined,
+      assigned_only: activeFilters.assignment_status === 'assigned' ? true : undefined,
+      unassigned_only: activeFilters.assignment_status === 'unassigned' ? true : undefined
     }
   });
 
-  const {
-    categories,
-    locations,
-    equipmentStates,
-    suppliers
-  } = useInventoryCommon();
+  const { categories, locations, equipmentStates, suppliers } = useInventoryCommon();
 
-  // Handlers de actualización de URL
-  const updateSearchParams = useCallback((updates: Record<string, string | null>) => {
+  // ===== HANDLERS DE URL =====
+  const updateURL = useCallback((updates: Record<string, string | null>) => {
     setSearchParams(prev => {
       const newParams = new URLSearchParams(prev);
       
@@ -104,6 +93,7 @@ const EquipmentPage: React.FC = () => {
         }
       });
       
+      // Reset página cuando cambian filtros (excepto cambio directo de página)
       if (Object.keys(updates).some(key => key !== 'page')) {
         newParams.set('page', '1');
       }
@@ -112,30 +102,35 @@ const EquipmentPage: React.FC = () => {
     });
   }, [setSearchParams]);
 
-  // Handlers principales
+  // ===== HANDLERS DE FILTROS =====
   const handleSearch = useCallback((value: string) => {
     setSearchValue(value);
-    updateSearchParams({ search: value });
-  }, [setSearchValue, updateSearchParams]);
+    updateURL({ search: value });
+  }, [updateURL]);
 
   const handleFiltersChange = useCallback((filters: Record<string, any>) => {
-    setActiveFilters(filters);
-    updateSearchParams(filters);
-  }, [setActiveFilters, updateSearchParams]);
+    // Asegurar que tenemos todos los campos requeridos
+    const newFilters = {
+      category_id: filters.category_id || '',
+      state_id: filters.state_id || '',
+      location_id: filters.location_id || '',
+      assignment_status: filters.assignment_status || ''
+    };
+    setActiveFilters(newFilters);
+    updateURL(filters);
+  }, [updateURL]);
 
   const handlePageChange = useCallback((page: number) => {
-    updateSearchParams({ page: page.toString() });
-  }, [updateSearchParams]);
+    updateURL({ page: page.toString() });
+  }, [updateURL]);
 
-  // Handlers de equipos - ADAPTADORES SIMPLES
+  // ===== HANDLERS DE EQUIPOS =====
   const handleCreateEquipment = useCallback(() => {
-    setShowCreateForm(true);
     setEditingEquipment(null);
+    setShowCreateForm(true);
   }, []);
 
-  // ✅ Adaptador: EquipmentList espera Equipment, nosotros tenemos EquipmentWithDetails
   const handleEditEquipment = useCallback((equipment: any) => {
-    // El equipo ya viene con toda la información necesaria
     setEditingEquipment(equipment);
     setShowCreateForm(true);
   }, []);
@@ -145,7 +140,8 @@ const EquipmentPage: React.FC = () => {
   }, [navigate]);
 
   const handleDeleteEquipment = useCallback(async (equipment: any) => {
-    if (window.confirm(`¿Estás seguro de eliminar el equipo ${equipment.codigo_ug || equipment.id}?`)) {
+    const equipmentName = equipment.codigo_ug || `Equipo #${equipment.id}`;
+    if (window.confirm(`¿Estás seguro de eliminar ${equipmentName}?`)) {
       try {
         await deleteEquipment(equipment.id);
       } catch (error) {
@@ -155,13 +151,13 @@ const EquipmentPage: React.FC = () => {
   }, [deleteEquipment]);
 
   const handleAssignEquipment = useCallback((equipment: any) => {
-    // El equipo ya viene con toda la información necesaria
     setSelectedEquipment(equipment);
     setShowAssignmentModal(true);
   }, []);
 
   const handleUnassignEquipment = useCallback(async (equipment: any) => {
-    if (window.confirm(`¿Desasignar equipo ${equipment.codigo_ug || equipment.id}?`)) {
+    const equipmentName = equipment.codigo_ug || `Equipo #${equipment.id}`;
+    if (window.confirm(`¿Desasignar ${equipmentName}?`)) {
       try {
         await unassignEquipment(equipment.id);
       } catch (error) {
@@ -171,11 +167,11 @@ const EquipmentPage: React.FC = () => {
   }, [unassignEquipment]);
 
   const handleQrCodeEquipment = useCallback((equipment: any) => {
-    // TODO: Implementar generación de QR
     console.log('Generar QR para equipo:', equipment.id);
+    // TODO: Implementar generación de QR
   }, []);
 
-  // Handlers de formulario
+  // ===== HANDLERS DE FORMULARIOS =====
   const handleFormSubmit = useCallback(async (formData: any) => {
     try {
       if (editingEquipment) {
@@ -196,7 +192,7 @@ const EquipmentPage: React.FC = () => {
     setEditingEquipment(null);
   }, []);
 
-  // Handlers de asignación
+  // ===== HANDLERS DE ASIGNACIÓN =====
   const handleAssignmentSuccess = useCallback(() => {
     setShowAssignmentModal(false);
     setSelectedEquipment(null);
@@ -208,7 +204,7 @@ const EquipmentPage: React.FC = () => {
     setSelectedEquipment(null);
   }, []);
 
-  // Handlers de acciones masivas
+  // ===== HANDLERS DE ACCIONES MASIVAS =====
   const handleBulkAction = useCallback(async (action: string, equipmentIds: number[]) => {
     console.log(`Acción masiva: ${action} para equipos:`, equipmentIds);
     
@@ -237,26 +233,53 @@ const EquipmentPage: React.FC = () => {
     }
   }, [exportEquipment]);
 
-  // Preparar datos para el componente EquipmentList
-  const categoryOptions = categories.map(cat => ({
-    value: cat.id.toString(),
-    label: cat.name,
-    count: 0
-  }));
+  // ===== HANDLERS DE ACCIONES RÁPIDAS =====
+  const handleQuickAction = useCallback((actionId: string) => {
+    switch (actionId) {
+      case 'add_equipment':
+        handleCreateEquipment();
+        break;
+      case 'bulk_assign':
+        if (selectedIds.length > 0) {
+          setShowAssignmentModal(true);
+        }
+        break;
+      case 'export_equipment':
+        handleExport();
+        break;
+      default:
+        console.log('Acción:', actionId);
+    }
+  }, [handleCreateEquipment, selectedIds.length, handleExport]);
 
-  const locationOptions = locations.map(loc => ({
-    value: loc.id.toString(),
-    label: loc.name,
-    count: 0
-  }));
+  // ===== DATOS PARA COMPONENTES =====
+  // Convertir a formato esperado por EquipmentList (sin transformaciones complejas)
+  const filterOptions = useMemo(() => ({
+    categories: categories.map(cat => ({
+      value: cat.id.toString(),
+      label: cat.name,
+      count: 0 // El backend podría proporcionar esto
+    })),
+    locations: locations.map(loc => ({
+      value: loc.id.toString(),
+      label: loc.name,
+      count: 0
+    })),
+    states: equipmentStates.map(state => ({
+      value: state.id.toString(),
+      label: state.name,
+      count: 0
+    }))
+  }), [categories, locations, equipmentStates]);
 
-  const stateOptions = equipmentStates.map(state => ({
-    value: state.id.toString(),
-    label: state.name,
-    count: 0
-  }));
+  const formOptions = useMemo(() => ({
+    categories: categories.map(cat => ({ value: cat.id.toString(), label: cat.name })),
+    states: equipmentStates.map(state => ({ value: state.id.toString(), label: state.name })),
+    locations: locations.map(loc => ({ value: loc.id.toString(), label: loc.name })),
+    suppliers: suppliers.map(sup => ({ value: sup.id.toString(), label: sup.name }))
+  }), [categories, equipmentStates, locations, suppliers]);
 
-  // Manejo de errores
+  // ===== MANEJO DE ERRORES =====
   if (error) {
     return (
       <DashboardLayout>
@@ -300,29 +323,13 @@ const EquipmentPage: React.FC = () => {
               damaged: equipment.filter(eq => !eq.state?.is_operational).length,
               unassigned: equipment.filter(eq => !eq.assigned_user).length
             }}
-            onCustomAction={(actionId) => {
-              switch (actionId) {
-                case 'add_equipment':
-                  handleCreateEquipment();
-                  break;
-                case 'bulk_assign':
-                  if (selectedIds.length > 0) {
-                    setShowAssignmentModal(true);
-                  }
-                  break;
-                case 'export_equipment':
-                  handleExport();
-                  break;
-                default:
-                  console.log('Acción:', actionId);
-              }
-            }}
+            onCustomAction={handleQuickAction}
           />
         </div>
 
-        {/* Lista principal de equipos - ✅ Pasar datos as any para evitar errores de tipos */}
+        {/* Lista principal de equipos */}
         <EquipmentList
-          equipment={equipment as any}
+          equipment={equipment}
           totalCount={totalCount}
           isLoading={isLoading}
           error={error}
@@ -333,8 +340,8 @@ const EquipmentPage: React.FC = () => {
           showBulkActions={true}
           
           // Paginación
-          currentPage={currentPage}
-          itemsPerPage={itemsPerPage}
+          currentPage={urlParams.page}
+          itemsPerPage={urlParams.limit}
           onPageChange={handlePageChange}
           
           // Filtros
@@ -344,15 +351,15 @@ const EquipmentPage: React.FC = () => {
           onFiltersChange={handleFiltersChange}
           
           // Datos para filtros
-          categories={categoryOptions}
-          locations={locationOptions}
-          states={stateOptions}
+          categories={filterOptions.categories}
+          locations={filterOptions.locations}
+          states={filterOptions.states}
           
           // Selección
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           
-          // Acciones - usar adaptadores simples
+          // Acciones
           onEquipmentView={handleViewEquipment}
           onEquipmentEdit={handleEditEquipment}
           onEquipmentDelete={handleDeleteEquipment}
@@ -374,10 +381,10 @@ const EquipmentPage: React.FC = () => {
             onCancel={handleFormCancel}
             
             // Opciones para selects
-            categories={categories.map(cat => ({ value: cat.id.toString(), label: cat.name }))}
-            states={equipmentStates.map(state => ({ value: state.id.toString(), label: state.name }))}
-            locations={locations.map(loc => ({ value: loc.id.toString(), label: loc.name }))}
-            suppliers={suppliers.map(sup => ({ value: sup.id.toString(), label: sup.name }))}
+            categories={formOptions.categories}
+            states={formOptions.states}
+            locations={formOptions.locations}
+            suppliers={formOptions.suppliers}
             
             // Configuración
             showLabDetails={true}
