@@ -5,6 +5,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DashboardCard from '../../components/ui/DashboardCard';
 import DashboardTabs, { useDashboardTabs } from '../../components/ui/DashboardTabs';
+import Badge from '../../components/ui/Badge'; // ✅ Agregar import faltante
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
 // Importar componentes específicos de suministros
@@ -14,18 +15,15 @@ import StockMovements from '../../inventory/supplies/StockMovements';
 import LowStockAlert from '../../inventory/supplies/LowStockAlert';
 import QuickActions from '../../inventory/common/QuickActions';
 
-// Icons
+// Icons - solo los que se usan
 import { 
   CubeIcon,
   ExclamationTriangleIcon,
-  PlusIcon,
-  ArrowPathIcon,
-  ClipboardDocumentListIcon,
-  BellIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 // Hooks
-import { useSuppliesList, useInventoryCommon } from '../../../../services/inventory';
+import { useSuppliesList } from '../../../../services/inventory';
 import type { SupplyWithDetails } from '../../../../services/inventory/types';
 
 const SuppliesPage: React.FC = () => {
@@ -43,24 +41,18 @@ const SuppliesPage: React.FC = () => {
     searchParams.get('tab') || 'list'
   );
 
-  // Hooks de datos
+  // Hooks de datos - ✅ Solo usar las variables que realmente se necesitan
   const {
     supplies,
     lowStockSupplies,
-    totalCount,
     isLoading,
     error,
     refresh,
-    createSupply,
-    updateSupply,
     deleteSupply
   } = useSuppliesList();
 
-  const {
-    categories,
-    locations,
-    isLoading: isLoadingCommon
-  } = useInventoryCommon();
+  // ✅ Remover destructuring de useInventoryCommon si no se usa
+  // const { categories, locations } = useInventoryCommon();
 
   // Handlers principales
   const handleCreateSupply = useCallback(() => {
@@ -93,7 +85,7 @@ const SuppliesPage: React.FC = () => {
   }, []);
 
   // Handlers de formulario
-  const handleFormSuccess = useCallback((supply: SupplyWithDetails) => {
+  const handleFormSuccess = useCallback(() => { // ✅ Remover parámetro no usado
     setShowSupplyForm(false);
     setEditingSupply(null);
     refresh();

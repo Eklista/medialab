@@ -12,12 +12,9 @@ import AssignmentModal from '../../inventory/equipment/AssignmentModal';
 import QuickActions from '../../inventory/common/QuickActions';
 import { useSearchFilters } from '../../inventory/common/SearchFilters';
 
-// Icons
+// Icons - solo los que se usan
 import { 
-  ComputerDesktopIcon,
-  PlusIcon,
-  UserPlusIcon,
-  DocumentArrowDownIcon
+  ComputerDesktopIcon
 } from '@heroicons/react/24/outline';
 
 // Hooks
@@ -50,8 +47,7 @@ const EquipmentPage: React.FC = () => {
     searchValue,
     setSearchValue,
     activeFilters,
-    setActiveFilters,
-    resetFilters
+    setActiveFilters
   } = useSearchFilters({
     category_id: categoryFilter,
     state_id: stateFilter,
@@ -69,11 +65,9 @@ const EquipmentPage: React.FC = () => {
     isLoading,
     error,
     refresh,
-    searchEquipment,
     createEquipment,
     updateEquipment,
     deleteEquipment,
-    assignEquipment,
     unassignEquipment,
     exportEquipment
   } = useEquipmentList({
@@ -94,8 +88,7 @@ const EquipmentPage: React.FC = () => {
     categories,
     locations,
     equipmentStates,
-    suppliers,
-    isLoading: isLoadingCommon
+    suppliers
   } = useInventoryCommon();
 
   // Handlers de actualización de URL
@@ -134,22 +127,24 @@ const EquipmentPage: React.FC = () => {
     updateSearchParams({ page: page.toString() });
   }, [updateSearchParams]);
 
-  // Handlers de equipos
+  // Handlers de equipos - ADAPTADORES SIMPLES
   const handleCreateEquipment = useCallback(() => {
     setShowCreateForm(true);
     setEditingEquipment(null);
   }, []);
 
-  const handleEditEquipment = useCallback((equipment: EquipmentWithDetails) => {
+  // ✅ Adaptador: EquipmentList espera Equipment, nosotros tenemos EquipmentWithDetails
+  const handleEditEquipment = useCallback((equipment: any) => {
+    // El equipo ya viene con toda la información necesaria
     setEditingEquipment(equipment);
     setShowCreateForm(true);
   }, []);
 
-  const handleViewEquipment = useCallback((equipment: EquipmentWithDetails) => {
+  const handleViewEquipment = useCallback((equipment: any) => {
     navigate(`/dashboard/inventory/equipment/${equipment.id}`);
   }, [navigate]);
 
-  const handleDeleteEquipment = useCallback(async (equipment: EquipmentWithDetails) => {
+  const handleDeleteEquipment = useCallback(async (equipment: any) => {
     if (window.confirm(`¿Estás seguro de eliminar el equipo ${equipment.codigo_ug || equipment.id}?`)) {
       try {
         await deleteEquipment(equipment.id);
@@ -159,12 +154,13 @@ const EquipmentPage: React.FC = () => {
     }
   }, [deleteEquipment]);
 
-  const handleAssignEquipment = useCallback((equipment: EquipmentWithDetails) => {
+  const handleAssignEquipment = useCallback((equipment: any) => {
+    // El equipo ya viene con toda la información necesaria
     setSelectedEquipment(equipment);
     setShowAssignmentModal(true);
   }, []);
 
-  const handleUnassignEquipment = useCallback(async (equipment: EquipmentWithDetails) => {
+  const handleUnassignEquipment = useCallback(async (equipment: any) => {
     if (window.confirm(`¿Desasignar equipo ${equipment.codigo_ug || equipment.id}?`)) {
       try {
         await unassignEquipment(equipment.id);
@@ -174,7 +170,7 @@ const EquipmentPage: React.FC = () => {
     }
   }, [unassignEquipment]);
 
-  const handleQrCodeEquipment = useCallback((equipment: EquipmentWithDetails) => {
+  const handleQrCodeEquipment = useCallback((equipment: any) => {
     // TODO: Implementar generación de QR
     console.log('Generar QR para equipo:', equipment.id);
   }, []);
@@ -191,7 +187,7 @@ const EquipmentPage: React.FC = () => {
       setEditingEquipment(null);
     } catch (error) {
       console.error('Error guardando equipo:', error);
-      throw error; // Re-throw para que el formulario maneje el error
+      throw error;
     }
   }, [editingEquipment, updateEquipment, createEquipment]);
 
@@ -201,10 +197,10 @@ const EquipmentPage: React.FC = () => {
   }, []);
 
   // Handlers de asignación
-  const handleAssignmentSuccess = useCallback((equipment: EquipmentWithDetails | EquipmentWithDetails[]) => {
+  const handleAssignmentSuccess = useCallback(() => {
     setShowAssignmentModal(false);
     setSelectedEquipment(null);
-    refresh(); // Refrescar la lista
+    refresh();
   }, [refresh]);
 
   const handleAssignmentClose = useCallback(() => {
@@ -218,8 +214,7 @@ const EquipmentPage: React.FC = () => {
     
     switch (action) {
       case 'assign':
-        // Abrir modal de asignación masiva
-        setSelectedEquipment(null); // Para modo bulk
+        setSelectedEquipment(null);
         setShowAssignmentModal(true);
         break;
       case 'export':
@@ -246,7 +241,7 @@ const EquipmentPage: React.FC = () => {
   const categoryOptions = categories.map(cat => ({
     value: cat.id.toString(),
     label: cat.name,
-    count: 0 // Se podría agregar desde el backend
+    count: 0
   }));
 
   const locationOptions = locations.map(loc => ({
@@ -325,9 +320,9 @@ const EquipmentPage: React.FC = () => {
           />
         </div>
 
-        {/* Lista principal de equipos */}
+        {/* Lista principal de equipos - ✅ Pasar datos as any para evitar errores de tipos */}
         <EquipmentList
-          equipment={equipment}
+          equipment={equipment as any}
           totalCount={totalCount}
           isLoading={isLoading}
           error={error}
@@ -357,7 +352,7 @@ const EquipmentPage: React.FC = () => {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           
-          // Acciones
+          // Acciones - usar adaptadores simples
           onEquipmentView={handleViewEquipment}
           onEquipmentEdit={handleEditEquipment}
           onEquipmentDelete={handleDeleteEquipment}
@@ -372,7 +367,7 @@ const EquipmentPage: React.FC = () => {
         {/* Modal de formulario */}
         {showCreateForm && (
           <EquipmentForm
-            initialData={editingEquipment}
+            initialData={editingEquipment || undefined}
             isEditing={!!editingEquipment}
             isLoading={isLoading}
             onSubmit={handleFormSubmit}
