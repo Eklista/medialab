@@ -1,69 +1,68 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+// frontend/src/features/dashboard/pages/inventory/EquipmentPage.tsx
+
+import React, { useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import DashboardCard from '../../components/ui/DashboardCard';
-import DashboardButton from '../../components/ui/DashboardButton';
-import DashboardDataTable from '../../components/ui/DashboardDataTable';
-import DashboardTextInput from '../../components/ui/DashboardTextInput';
-import DashboardSelect from '../../components/ui/DashboardSelect';
-import Badge from '../../components/ui/Badge';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
+
+// Importar los componentes de inventario
+import EquipmentList from '../../inventory/equipment/EquipmentList';
+import EquipmentForm from '../../inventory/equipment/EquipmentForm';
+import AssignmentModal from '../../inventory/equipment/AssignmentModal';
+import QuickActions from '../../inventory/common/QuickActions';
+import { useSearchFilters } from '../../inventory/common/SearchFilters';
 
 // Icons
 import { 
   ComputerDesktopIcon,
   PlusIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  Squares2X2Icon,
-  TableCellsIcon,
-  ArrowPathIcon,
-  PencilIcon,
-  TrashIcon,
   UserPlusIcon,
-  UserMinusIcon
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 
-// Hooks y servicios REALES
+// Hooks
 import { useEquipmentList, useInventoryCommon } from '../../../../services/inventory';
 import { useDebounce } from '../../../../hooks/useDebounce';
-import type { EquipmentWithDetails, EquipmentSearchParams } from '../../../../services/inventory/types';
+import type { EquipmentWithDetails } from '../../../../services/inventory/types';
 
 const EquipmentPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // ===== ESTADO LOCAL =====
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
-  const [selectedEquipment, setSelectedEquipment] = useState<Set<number>>(new Set());
-  const [showFilters, setShowFilters] = useState(false);
-  
-  // ===== FILTROS DESDE URL =====
+  // Estados del modal/formulario
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentWithDetails | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<EquipmentWithDetails | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Filtros desde URL
   const currentPage = parseInt(searchParams.get('page') || '1');
   const searchTerm = searchParams.get('search') || '';
   const categoryFilter = searchParams.get('category') || '';
   const stateFilter = searchParams.get('state') || '';
   const locationFilter = searchParams.get('location') || '';
-  const assignmentFilter = searchParams.get('assignment') || ''; // 'assigned', 'unassigned', 'all'
+  const assignmentFilter = searchParams.get('assignment') || '';
   const itemsPerPage = parseInt(searchParams.get('limit') || '25');
 
-  // ===== DEBOUNCED SEARCH =====
-  const debouncedSearch = useDebounce(searchTerm, 300);
+  // Hook de filtros
+  const {
+    searchValue,
+    setSearchValue,
+    activeFilters,
+    setActiveFilters,
+    resetFilters
+  } = useSearchFilters({
+    category_id: categoryFilter,
+    state_id: stateFilter,
+    location_id: locationFilter,
+    assignment_status: assignmentFilter
+  });
 
-  // ===== PARÁMETROS DE BÚSQUEDA OPTIMIZADOS =====
-  const searchParams_optimized = useMemo((): EquipmentSearchParams => ({
-    q: debouncedSearch || undefined,
-    skip: (currentPage - 1) * itemsPerPage,
-    limit: itemsPerPage,
-    category_id: categoryFilter ? parseInt(categoryFilter) : undefined,
-    state_id: stateFilter ? parseInt(stateFilter) : undefined,
-    location_id: locationFilter ? parseInt(locationFilter) : undefined,
-    assigned_only: assignmentFilter === 'assigned' ? true : undefined,
-    unassigned_only: assignmentFilter === 'unassigned' ? true : undefined,
-    operational_only: false // Mostrar todos los estados
-  }), [debouncedSearch, currentPage, itemsPerPage, categoryFilter, stateFilter, locationFilter, assignmentFilter]);
+  // Debounced search
+  const debouncedSearch = useDebounce(searchValue || searchTerm, 300);
 
-  // ===== HOOKS DE DATOS REALES =====
+  // Hooks de datos
   const {
     equipment,
     totalCount,
@@ -71,25 +70,35 @@ const EquipmentPage: React.FC = () => {
     error,
     refresh,
     searchEquipment,
+    createEquipment,
+    updateEquipment,
     deleteEquipment,
     assignEquipment,
-    unassignEquipment
-  } = useEquipmentList({ autoFetch: false });
+    unassignEquipment,
+    exportEquipment
+  } = useEquipmentList({
+    autoFetch: true,
+    searchParams: {
+      q: debouncedSearch,
+      skip: (currentPage - 1) * itemsPerPage,
+      limit: itemsPerPage,
+      category_id: categoryFilter ? parseInt(categoryFilter) : undefined,
+      state_id: stateFilter ? parseInt(stateFilter) : undefined,
+      location_id: locationFilter ? parseInt(locationFilter) : undefined,
+      assigned_only: assignmentFilter === 'assigned' ? true : undefined,
+      unassigned_only: assignmentFilter === 'unassigned' ? true : undefined
+    }
+  });
 
   const {
     categories,
     locations,
     equipmentStates,
+    suppliers,
     isLoading: isLoadingCommon
   } = useInventoryCommon();
 
-  // ===== EFECTOS =====
-  // Buscar cuando cambien los parámetros
-  useEffect(() => {
-    searchEquipment(searchParams_optimized);
-  }, [searchParams_optimized, searchEquipment]);
-
-  // ===== HANDLERS OPTIMIZADOS =====
+  // Handlers de actualización de URL
   const updateSearchParams = useCallback((updates: Record<string, string | null>) => {
     setSearchParams(prev => {
       const newParams = new URLSearchParams(prev);
@@ -102,7 +111,6 @@ const EquipmentPage: React.FC = () => {
         }
       });
       
-      // Reset page cuando se cambian filtros
       if (Object.keys(updates).some(key => key !== 'page')) {
         newParams.set('page', '1');
       }
@@ -111,247 +119,149 @@ const EquipmentPage: React.FC = () => {
     });
   }, [setSearchParams]);
 
+  // Handlers principales
   const handleSearch = useCallback((value: string) => {
+    setSearchValue(value);
     updateSearchParams({ search: value });
-  }, [updateSearchParams]);
+  }, [setSearchValue, updateSearchParams]);
 
-  const handleFilterChange = useCallback((filterType: string, value: string) => {
-    updateSearchParams({ [filterType]: value });
-  }, [updateSearchParams]);
+  const handleFiltersChange = useCallback((filters: Record<string, any>) => {
+    setActiveFilters(filters);
+    updateSearchParams(filters);
+  }, [setActiveFilters, updateSearchParams]);
 
   const handlePageChange = useCallback((page: number) => {
     updateSearchParams({ page: page.toString() });
   }, [updateSearchParams]);
 
-  const handleCreate = useCallback(() => {
-    navigate('/dashboard/inventory/equipment/new');
-  }, [navigate]);
+  // Handlers de equipos
+  const handleCreateEquipment = useCallback(() => {
+    setShowCreateForm(true);
+    setEditingEquipment(null);
+  }, []);
 
-  const handleEdit = useCallback((equipment: EquipmentWithDetails) => {
-    navigate(`/dashboard/inventory/equipment/${equipment.id}/edit`);
-  }, [navigate]);
+  const handleEditEquipment = useCallback((equipment: EquipmentWithDetails) => {
+    setEditingEquipment(equipment);
+    setShowCreateForm(true);
+  }, []);
 
-  const handleView = useCallback((equipment: EquipmentWithDetails) => {
+  const handleViewEquipment = useCallback((equipment: EquipmentWithDetails) => {
     navigate(`/dashboard/inventory/equipment/${equipment.id}`);
   }, [navigate]);
 
-  const handleDelete = useCallback(async (equipment: EquipmentWithDetails) => {
+  const handleDeleteEquipment = useCallback(async (equipment: EquipmentWithDetails) => {
     if (window.confirm(`¿Estás seguro de eliminar el equipo ${equipment.codigo_ug || equipment.id}?`)) {
       try {
         await deleteEquipment(equipment.id);
-        // La tabla se actualizará automáticamente por el hook
       } catch (error) {
-        // Error ya manejado por el hook
         console.error('Error eliminando equipo:', error);
       }
     }
   }, [deleteEquipment]);
 
-  const handleAssign = useCallback((equipment: EquipmentWithDetails) => {
-    // TODO: Abrir modal de asignación
-    console.log('Asignar equipo:', equipment.id);
-    // navigate(`/dashboard/inventory/equipment/${equipment.id}/assign`);
+  const handleAssignEquipment = useCallback((equipment: EquipmentWithDetails) => {
+    setSelectedEquipment(equipment);
+    setShowAssignmentModal(true);
   }, []);
 
-  const handleUnassign = useCallback(async (equipment: EquipmentWithDetails) => {
+  const handleUnassignEquipment = useCallback(async (equipment: EquipmentWithDetails) => {
     if (window.confirm(`¿Desasignar equipo ${equipment.codigo_ug || equipment.id}?`)) {
       try {
         await unassignEquipment(equipment.id);
-        // La tabla se actualizará automáticamente por el hook
       } catch (error) {
-        // Error ya manejado por el hook
         console.error('Error desasignando equipo:', error);
       }
     }
   }, [unassignEquipment]);
 
-  // ===== HANDLER PARA SELECCIÓN =====
-  const handleSelectionChange = useCallback((selectedItems: Set<string | number>) => {
-    // Convertir Set<string | number> a Set<number>
-    const numberSet = new Set<number>();
-    selectedItems.forEach(item => {
-      if (typeof item === 'number') {
-        numberSet.add(item);
-      } else if (typeof item === 'string') {
-        const num = parseInt(item, 10);
-        if (!isNaN(num)) {
-          numberSet.add(num);
-        }
-      }
-    });
-    setSelectedEquipment(numberSet);
+  const handleQrCodeEquipment = useCallback((equipment: EquipmentWithDetails) => {
+    // TODO: Implementar generación de QR
+    console.log('Generar QR para equipo:', equipment.id);
   }, []);
 
-  // ===== COLUMNAS DE TABLA OPTIMIZADAS =====
-  const columns = useMemo(() => [
-    {
-      header: 'Código',
-      accessor: (item: EquipmentWithDetails) => (
-        <div className="font-medium">
-          {item.codigo_ug || `#${item.id}`}
-        </div>
-      ),
-      sortable: true,
-      width: '120px'
-    },
-    {
-      header: 'Equipo',
-      accessor: (item: EquipmentWithDetails) => (
-        <div>
-          <div className="font-medium text-gray-900">
-            {item.marca} {item.modelo}
-          </div>
-          {item.descripcion && (
-            <div className="text-sm text-gray-500 truncate max-w-xs">
-              {item.descripcion}
-            </div>
-          )}
-        </div>
-      ),
-      sortable: true
-    },
-    {
-      header: 'Categoría',
-      accessor: (item: EquipmentWithDetails) => (
-        <Badge variant="secondary" size="sm">
-          {item.category?.name || 'Sin categoría'}
-        </Badge>
-      ),
-      width: '120px'
-    },
-    {
-      header: 'Estado',
-      accessor: (item: EquipmentWithDetails) => (
-        <Badge 
-          variant={item.state?.is_operational ? 'success' : 'danger'}
-          size="sm"
-        >
-          {item.state?.name || 'Sin estado'}
-        </Badge>
-      ),
-      width: '100px'
-    },
-    {
-      header: 'Ubicación',
-      accessor: (item: EquipmentWithDetails) => (
-        <span className="text-sm text-gray-600">
-          {item.location?.name || 'Sin ubicación'}
-        </span>
-      ),
-      width: '140px'
-    },
-    {
-      header: 'Asignado a',
-      accessor: (item: EquipmentWithDetails) => (
-        item.assigned_user ? (
-          <div className="text-sm">
-            <div className="font-medium text-gray-900">
-              {item.assigned_user.fullName}
-            </div>
-            <div className="text-gray-500">
-              {item.assigned_user.email}
-            </div>
-          </div>
-        ) : (
-          <Badge variant="neutral" size="sm">
-            Disponible
-          </Badge>
-        )
-      ),
-      width: '180px'
+  // Handlers de formulario
+  const handleFormSubmit = useCallback(async (formData: any) => {
+    try {
+      if (editingEquipment) {
+        await updateEquipment(editingEquipment.id, formData);
+      } else {
+        await createEquipment(formData);
+      }
+      setShowCreateForm(false);
+      setEditingEquipment(null);
+    } catch (error) {
+      console.error('Error guardando equipo:', error);
+      throw error; // Re-throw para que el formulario maneje el error
     }
-  ], []);
+  }, [editingEquipment, updateEquipment, createEquipment]);
 
-  // ===== OPCIONES PARA SELECTS =====
-  const categoryOptions = useMemo(() => [
-    { value: '', label: 'Todas las categorías' },
-    ...categories.map(cat => ({ value: cat.id.toString(), label: cat.name }))
-  ], [categories]);
+  const handleFormCancel = useCallback(() => {
+    setShowCreateForm(false);
+    setEditingEquipment(null);
+  }, []);
 
-  const stateOptions = useMemo(() => [
-    { value: '', label: 'Todos los estados' },
-    ...equipmentStates.map(state => ({ value: state.id.toString(), label: state.name }))
-  ], [equipmentStates]);
+  // Handlers de asignación
+  const handleAssignmentSuccess = useCallback((equipment: EquipmentWithDetails | EquipmentWithDetails[]) => {
+    setShowAssignmentModal(false);
+    setSelectedEquipment(null);
+    refresh(); // Refrescar la lista
+  }, [refresh]);
 
-  const locationOptions = useMemo(() => [
-    { value: '', label: 'Todas las ubicaciones' },
-    ...locations.map(loc => ({ value: loc.id.toString(), label: loc.name }))
-  ], [locations]);
+  const handleAssignmentClose = useCallback(() => {
+    setShowAssignmentModal(false);
+    setSelectedEquipment(null);
+  }, []);
 
-  const assignmentOptions = useMemo(() => [
-    { value: '', label: 'Todos' },
-    { value: 'assigned', label: 'Asignados' },
-    { value: 'unassigned', label: 'Disponibles' }
-  ], []);
+  // Handlers de acciones masivas
+  const handleBulkAction = useCallback(async (action: string, equipmentIds: number[]) => {
+    console.log(`Acción masiva: ${action} para equipos:`, equipmentIds);
+    
+    switch (action) {
+      case 'assign':
+        // Abrir modal de asignación masiva
+        setSelectedEquipment(null); // Para modo bulk
+        setShowAssignmentModal(true);
+        break;
+      case 'export':
+        try {
+          await exportEquipment({ equipment_ids: equipmentIds });
+        } catch (error) {
+          console.error('Error exportando equipos:', error);
+        }
+        break;
+      default:
+        console.log('Acción no implementada:', action);
+    }
+  }, [exportEquipment]);
 
-  // ===== RENDERIZADO DE ACCIONES =====
-  const renderActions = useCallback((equipment: EquipmentWithDetails) => (
-    <div className="flex items-center gap-1">
-      <DashboardButton
-        variant="text"
-        size="sm"
-        onClick={() => handleView(equipment)}
-        leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
-        className="text-blue-600 hover:text-blue-900"
-      >
-        Ver
-      </DashboardButton>
-      
-      <DashboardButton
-        variant="text"
-        size="sm"
-        onClick={() => handleEdit(equipment)}
-        leftIcon={<PencilIcon className="h-4 w-4" />}
-        className="text-gray-600 hover:text-gray-900"
-      >
-        Editar
-      </DashboardButton>
+  const handleExport = useCallback(async () => {
+    try {
+      await exportEquipment({});
+    } catch (error) {
+      console.error('Error exportando equipos:', error);
+    }
+  }, [exportEquipment]);
 
-      {equipment.assigned_user ? (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleUnassign(equipment)}
-          leftIcon={<UserMinusIcon className="h-4 w-4" />}
-          className="text-orange-600 hover:text-orange-900"
-        >
-          Desasignar
-        </DashboardButton>
-      ) : (
-        <DashboardButton
-          variant="text"
-          size="sm"
-          onClick={() => handleAssign(equipment)}
-          leftIcon={<UserPlusIcon className="h-4 w-4" />}
-          className="text-green-600 hover:text-green-900"
-        >
-          Asignar
-        </DashboardButton>
-      )}
+  // Preparar datos para el componente EquipmentList
+  const categoryOptions = categories.map(cat => ({
+    value: cat.id.toString(),
+    label: cat.name,
+    count: 0 // Se podría agregar desde el backend
+  }));
 
-      <DashboardButton
-        variant="text"
-        size="sm"
-        onClick={() => handleDelete(equipment)}
-        leftIcon={<TrashIcon className="h-4 w-4" />}
-        className="text-red-600 hover:text-red-900"
-      >
-        Eliminar
-      </DashboardButton>
-    </div>
-  ), [handleView, handleEdit, handleAssign, handleUnassign, handleDelete]);
+  const locationOptions = locations.map(loc => ({
+    value: loc.id.toString(),
+    label: loc.name,
+    count: 0
+  }));
 
-  // ===== PAGINACIÓN OPTIMIZADA =====
-  const totalPages = Math.ceil(totalCount / itemsPerPage);
-  const pagination = {
-    currentPage,
-    totalPages,
-    onPageChange: handlePageChange,
-    itemsPerPage,
-    totalItems: totalCount
-  };
+  const stateOptions = equipmentStates.map(state => ({
+    value: state.id.toString(),
+    label: state.name,
+    count: 0
+  }));
 
-  // ===== MANEJO DE ERRORES =====
+  // Manejo de errores
   if (error) {
     return (
       <DashboardLayout>
@@ -374,7 +284,7 @@ const EquipmentPage: React.FC = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* ===== HEADER ===== */}
+        {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -382,176 +292,113 @@ const EquipmentPage: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">Gestión de Equipos</h1>
             </div>
             <p className="text-gray-600">
-              {isLoading ? 'Cargando...' : `${totalCount.toLocaleString()} equipos encontrados`}
+              Control y administración de equipos tecnológicos
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <DashboardButton
-              onClick={refresh}
-              variant="outline"
-              leftIcon={<ArrowPathIcon className="h-4 w-4" />}
-              loading={isLoading}
-            >
-              Actualizar
-            </DashboardButton>
-
-            <DashboardButton
-              onClick={handleCreate}
-              leftIcon={<PlusIcon className="h-4 w-4" />}
-            >
-              Nuevo Equipo
-            </DashboardButton>
-          </div>
+          {/* Acciones rápidas en el header */}
+          <QuickActions
+            type="equipment"
+            layout="horizontal"
+            showTitle={false}
+            alertCounts={{
+              damaged: equipment.filter(eq => !eq.state?.is_operational).length,
+              unassigned: equipment.filter(eq => !eq.assigned_user).length
+            }}
+            onCustomAction={(actionId) => {
+              switch (actionId) {
+                case 'add_equipment':
+                  handleCreateEquipment();
+                  break;
+                case 'bulk_assign':
+                  if (selectedIds.length > 0) {
+                    setShowAssignmentModal(true);
+                  }
+                  break;
+                case 'export_equipment':
+                  handleExport();
+                  break;
+                default:
+                  console.log('Acción:', actionId);
+              }
+            }}
+          />
         </div>
 
-        {/* ===== BÚSQUEDA Y FILTROS ===== */}
-        <DashboardCard>
-          <div className="space-y-4">
-            {/* Búsqueda principal */}
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
-                <DashboardTextInput
-                  id="search"
-                  name="search"
-                  placeholder="Buscar por código, marca, modelo, serie..."
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  icon={<MagnifyingGlassIcon className="h-4 w-4" />}
-                  className="mb-0"
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <DashboardButton
-                  variant="outline"
-                  onClick={() => setShowFilters(!showFilters)}
-                  leftIcon={<FunnelIcon className="h-4 w-4" />}
-                  className={showFilters ? 'bg-blue-50 border-blue-300' : ''}
-                >
-                  Filtros
-                </DashboardButton>
-
-                <div className="flex border border-gray-300 rounded-lg">
-                  <DashboardButton
-                    variant={viewMode === 'table' ? 'primary' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('table')}
-                    className="rounded-r-none border-r-0"
-                  >
-                    <TableCellsIcon className="h-4 w-4" />
-                  </DashboardButton>
-                  <DashboardButton
-                    variant={viewMode === 'cards' ? 'primary' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('cards')}
-                    className="rounded-l-none"
-                  >
-                    <Squares2X2Icon className="h-4 w-4" />
-                  </DashboardButton>
-                </div>
-              </div>
-            </div>
-
-            {/* Filtros expandidos */}
-            {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
-                <DashboardSelect
-                  id="category-filter"
-                  name="category"
-                  label="Categoría"
-                  value={categoryFilter}
-                  onChange={(e) => handleFilterChange('category', e.target.value)}
-                  options={categoryOptions}
-                  className="mb-0"
-                  loading={isLoadingCommon}
-                />
-
-                <DashboardSelect
-                  id="state-filter"
-                  name="state"
-                  label="Estado"
-                  value={stateFilter}
-                  onChange={(e) => handleFilterChange('state', e.target.value)}
-                  options={stateOptions}
-                  className="mb-0"
-                  loading={isLoadingCommon}
-                />
-
-                <DashboardSelect
-                  id="location-filter"
-                  name="location"
-                  label="Ubicación"
-                  value={locationFilter}
-                  onChange={(e) => handleFilterChange('location', e.target.value)}
-                  options={locationOptions}
-                  className="mb-0"
-                  loading={isLoadingCommon}
-                />
-
-                <DashboardSelect
-                  id="assignment-filter"
-                  name="assignment"
-                  label="Asignación"
-                  value={assignmentFilter}
-                  onChange={(e) => handleFilterChange('assignment', e.target.value)}
-                  options={assignmentOptions}
-                  className="mb-0"
-                />
-              </div>
-            )}
-          </div>
-        </DashboardCard>
-
-        {/* ===== TABLA DE EQUIPOS ===== */}
-        <DashboardDataTable
-          columns={columns}
-          data={equipment}
-          keyExtractor={(item) => item.id.toString()}
+        {/* Lista principal de equipos */}
+        <EquipmentList
+          equipment={equipment}
+          totalCount={totalCount}
           isLoading={isLoading}
-          pagination={pagination}
-          renderActions={renderActions}
-          actionColumn={true}
-          selectable={true}
-          selectedItems={selectedEquipment}
-          onSelectionChange={handleSelectionChange}
-          emptyMessage="No se encontraron equipos que coincidan con los criterios de búsqueda"
-          hover={true}
-          striped={true}
+          error={error}
+          
+          // Configuración de vista
+          defaultViewMode="table"
+          showFilters={true}
+          showBulkActions={true}
+          
+          // Paginación
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          
+          // Filtros
+          searchValue={searchValue}
+          onSearchChange={handleSearch}
+          filters={activeFilters}
+          onFiltersChange={handleFiltersChange}
+          
+          // Datos para filtros
+          categories={categoryOptions}
+          locations={locationOptions}
+          states={stateOptions}
+          
+          // Selección
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          
+          // Acciones
+          onEquipmentView={handleViewEquipment}
+          onEquipmentEdit={handleEditEquipment}
+          onEquipmentDelete={handleDeleteEquipment}
+          onEquipmentAssign={handleAssignEquipment}
+          onEquipmentUnassign={handleUnassignEquipment}
+          onEquipmentQrCode={handleQrCodeEquipment}
+          onBulkAction={handleBulkAction}
+          onExport={handleExport}
+          onRefresh={refresh}
         />
 
-        {/* Info de selección */}
-        {selectedEquipment.size > 0 && (
-          <DashboardCard>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">
-                {selectedEquipment.size} equipo(s) seleccionado(s)
-              </span>
-              
-              <div className="flex gap-2">
-                <DashboardButton
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedEquipment(new Set())}
-                >
-                  Limpiar selección
-                </DashboardButton>
-                
-                <DashboardButton
-                  variant="outline"
-                  size="sm"
-                  disabled={selectedEquipment.size === 0}
-                  onClick={() => {
-                    // TODO: Implementar acciones en lote
-                    console.log('Acciones en lote para:', Array.from(selectedEquipment));
-                  }}
-                >
-                  Acciones en lote
-                </DashboardButton>
-              </div>
-            </div>
-          </DashboardCard>
+        {/* Modal de formulario */}
+        {showCreateForm && (
+          <EquipmentForm
+            initialData={editingEquipment}
+            isEditing={!!editingEquipment}
+            isLoading={isLoading}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            
+            // Opciones para selects
+            categories={categories.map(cat => ({ value: cat.id.toString(), label: cat.name }))}
+            states={equipmentStates.map(state => ({ value: state.id.toString(), label: state.name }))}
+            locations={locations.map(loc => ({ value: loc.id.toString(), label: loc.name }))}
+            suppliers={suppliers.map(sup => ({ value: sup.id.toString(), label: sup.name }))}
+            
+            // Configuración
+            showLabDetails={true}
+            autoGenerateCode={true}
+          />
         )}
+
+        {/* Modal de asignación */}
+        <AssignmentModal
+          isOpen={showAssignmentModal}
+          onClose={handleAssignmentClose}
+          equipment={selectedEquipment}
+          mode={selectedEquipment ? 'single' : 'bulk'}
+          onSuccess={handleAssignmentSuccess}
+          onError={(error) => console.error('Error en asignación:', error)}
+        />
       </div>
     </DashboardLayout>
   );
