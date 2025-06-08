@@ -77,8 +77,13 @@ const SupplyForm: React.FC<SupplyFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Hooks
-  const { createSupply, updateSupply } = useSuppliesList();
+  // Hooks - ARREGLADO para usar la nueva interfaz
+  const { 
+    createSupply, 
+    updateSupply,
+    isSubmitting: isSupplySubmitting // Usar el estado del hook
+  } = useSuppliesList();
+  
   const { 
     categories, 
     locations, 
@@ -97,12 +102,15 @@ const SupplyForm: React.FC<SupplyFormProps> = ({
       label: cat.name 
     }));
 
-  const locationOptions = locations
-    .filter(loc => loc.is_active)
-    .map(loc => ({ 
-      value: loc.id.toString(), 
-      label: loc.name 
-    }));
+  const locationOptions = [
+    { value: '', label: 'Sin ubicación específica' }, // Opción vacía
+    ...locations
+      .filter(loc => loc.is_active)
+      .map(loc => ({ 
+        value: loc.id.toString(), 
+        label: loc.name 
+      }))
+  ];
 
   // Cargar datos cuando se abre en modo edición
   useEffect(() => {
@@ -203,7 +211,7 @@ const SupplyForm: React.FC<SupplyFormProps> = ({
     setFormData(prev => ({ ...prev, is_active: checked }));
   };
 
-  // Enviar formulario
+  // Enviar formulario - ARREGLADO para usar la nueva interfaz
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -239,14 +247,20 @@ const SupplyForm: React.FC<SupplyFormProps> = ({
         result = await createSupply(submitData as SupplyCreateRequest);
       }
 
-      if (result) {
+      // ARREGLADO: Verificar la estructura de respuesta del hook
+      if (result.success && result.data) {
         setSubmitSuccess(true);
         
         // Mostrar mensaje de éxito por un momento
         setTimeout(() => {
-          onSuccess?.(result);
+          onSuccess?.(result.data!);
           onClose();
         }, 1500);
+      } else {
+        // Manejar error desde el hook
+        const errorMessage = result.error || 'Error al guardar el suministro';
+        setErrors({ general: errorMessage });
+        onError?.(errorMessage);
       }
 
     } catch (error) {
@@ -270,6 +284,9 @@ const SupplyForm: React.FC<SupplyFormProps> = ({
   };
 
   const stockStatus = getStockStatus();
+
+  // ARREGLADO: Usar el estado correcto para loading
+  const isFormSubmitting = isSubmitting || isSupplySubmitting;
 
   return (
     <DashboardModal
@@ -296,7 +313,7 @@ const SupplyForm: React.FC<SupplyFormProps> = ({
             <DashboardButton
               variant="outline"
               onClick={onClose}
-              disabled={isSubmitting}
+              disabled={isFormSubmitting}
             >
               Cancelar
             </DashboardButton>
@@ -304,8 +321,8 @@ const SupplyForm: React.FC<SupplyFormProps> = ({
             <DashboardButton
               variant="primary"
               onClick={handleSubmit}
-              loading={isSubmitting}
-              disabled={isSubmitting || submitSuccess}
+              loading={isFormSubmitting}
+              disabled={isFormSubmitting || submitSuccess}
               leftIcon={<CheckIcon className="h-4 w-4" />}
             >
               {isEditing ? 'Actualizar' : 'Crear'} Suministro

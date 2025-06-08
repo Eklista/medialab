@@ -64,13 +64,13 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({
   const [muteAlerts, setMuteAlerts] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  // Hooks
+  // ARREGLADO: Usar correctamente el hook actualizado
   const { 
     lowStockSupplies, 
     isLoading, 
     error, 
     refreshLowStock 
-  } = useSuppliesList();
+  } = useSuppliesList({ autoFetch: true });
 
   const { activeTabId, createTab } = useDashboardTabs('all');
 
@@ -214,6 +214,16 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({
   const handleAcknowledgeAll = () => {
     const visibleAlertIds = filteredAlerts.map(alert => alert.id);
     setAcknowledgedAlerts(prev => new Set([...prev, ...visibleAlertIds]));
+  };
+
+  // ARREGLADO: Manejar el refresh con manejo de errores
+  const handleRefresh = async () => {
+    try {
+      await refreshLowStock();
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Error al actualizar alertas:', err);
+    }
   };
 
   // Configuración de columnas para la tabla
@@ -419,8 +429,9 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({
           <DashboardButton
             variant="text"
             size="sm"
-            onClick={refreshLowStock}
+            onClick={handleRefresh}
             leftIcon={<ArrowPathIcon className="h-4 w-4" />}
+            disabled={isLoading}
           >
             Actualizar
           </DashboardButton>
@@ -471,7 +482,7 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({
       className={className}
       loading={isLoading}
       error={error}
-      onRetry={refreshLowStock}
+      onRetry={handleRefresh}
       headerAction={
         <div className="flex items-center gap-3">
           {/* Control de silenciar alertas */}
@@ -493,7 +504,7 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({
           <DashboardButton
             variant="outline"
             size="sm"
-            onClick={refreshLowStock}
+            onClick={handleRefresh}
             leftIcon={<ArrowPathIcon className="h-4 w-4" />}
             disabled={isLoading}
           >

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon, 
@@ -22,6 +22,7 @@ import DashboardTabs, { useDashboardTabs } from '../../components/ui/DashboardTa
 
 // Importar hooks y servicios
 import { useSuppliesList, useInventoryCommon } from '../../../../services/inventory/hooks';
+import { useSearchDebounce } from '../../../../hooks/useDebounce';
 import type { SupplyWithDetails, StockStatus } from '../../../../services/inventory/types';
 
 interface SuppliesListProps {
@@ -42,11 +43,19 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
   className = ''
 }) => {
   // Estados locales
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(25);
+
+  // Hook de búsqueda con debounce optimizado
+  const { 
+    value: searchTerm, 
+    setValue: setSearchTerm, 
+    debouncedValue: debouncedSearchTerm,
+    isPending: isSearchPending,
+    clear: clearSearch
+  } = useSearchDebounce('', 500); // 500ms de delay para búsquedas
 
   // Hooks
   const { activeTabId, createTab } = useDashboardTabs('all');
@@ -61,7 +70,8 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
     searchSupplies
   } = useSuppliesList({ 
     skip: (currentPage - 1) * pageSize, 
-    limit: pageSize 
+    limit: pageSize,
+    autoFetch: true
   });
 
   const {
@@ -69,6 +79,35 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
     locations,
     isLoading: isLoadingCommon
   } = useInventoryCommon();
+
+  // Efecto para búsqueda automática con debounce
+  useEffect(() => {
+    const performSearch = async () => {
+      // Si hay término de búsqueda (mínimo 2 caracteres) o filtros activos
+      if (debouncedSearchTerm.trim().length >= 2 || selectedCategory || selectedLocation) {
+        try {
+          await searchSupplies({
+            q: debouncedSearchTerm.trim() || undefined,
+            category_id: selectedCategory ? parseInt(selectedCategory) : undefined,
+            location_id: selectedLocation ? parseInt(selectedLocation) : undefined,
+            low_stock_only: activeTabId === 'low_stock',
+            out_of_stock_only: activeTabId === 'out_of_stock',
+            limit: pageSize,
+            cursor: 0
+          });
+          // Resetear página cuando se hace búsqueda
+          setCurrentPage(1);
+        } catch (error) {
+          console.error('Error en búsqueda automática:', error);
+        }
+      } else if (debouncedSearchTerm.trim().length === 0 && !selectedCategory && !selectedLocation) {
+        // Si no hay filtros ni búsqueda, mostrar todos
+        refresh();
+      }
+    };
+
+    performSearch();
+  }, [debouncedSearchTerm, selectedCategory, selectedLocation, activeTabId, pageSize, searchSupplies, refresh]);
 
   // Filtrar datos según la pestaña activa
   const filteredSupplies = React.useMemo(() => {
@@ -104,7 +143,7 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
   const columns = [
     {
       header: 'Código',
-      accessor: 'codigo' as keyof SupplyWithDetails,
+      accessor: ((supply: SupplyWithDetails) => supply.codigo || '-') as any,
       width: '120px',
       sortable: true
     },
@@ -162,25 +201,23 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
     }
   ];
 
-  // Función de búsqueda
-  const handleSearch = async () => {
-    if (searchTerm.trim()) {
-      try {
-        await searchSupplies({
-          q: searchTerm,
-          category_id: selectedCategory ? parseInt(selectedCategory) : undefined,
-          location_id: selectedLocation ? parseInt(selectedLocation) : undefined,
-          low_stock_only: activeTabId === 'low_stock',
-          limit: pageSize,
-          cursor: 0
-        });
-      } catch (error) {
-        console.error('Error en búsqueda:', error);
-      }
-    } else {
-      refresh();
+  // Función de búsqueda manual (para el botón)
+  const handleManualSearch = useCallback(async () => {
+    try {
+      await searchSupplies({
+        q: searchTerm.trim() || undefined,
+        category_id: selectedCategory ? parseInt(selectedCategory) : undefined,
+        location_id: selectedLocation ? parseInt(selectedLocation) : undefined,
+        low_stock_only: activeTabId === 'low_stock',
+        out_of_stock_only: activeTabId === 'out_of_stock',
+        limit: pageSize,
+        cursor: 0
+      });
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Error en búsqueda manual:', error);
     }
-  };
+  }, [searchTerm, selectedCategory, selectedLocation, activeTabId, pageSize, searchSupplies]);
 
   // Función para crear movimiento rápido
   const handleQuickMovement = async (supply: SupplyWithDetails) => {
@@ -188,6 +225,24 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
       onCreateMovement(supply);
     }
   };
+
+  // Manejar refresh
+  const handleRefresh = useCallback(async () => {
+    try {
+      await refresh();
+    } catch (error) {
+      console.error('Error al actualizar:', error);
+    }
+  }, [refresh]);
+
+  // Función para limpiar todos los filtros
+  const handleClearAllFilters = useCallback(() => {
+    clearSearch();
+    setSelectedCategory('');
+    setSelectedLocation('');
+    setCurrentPage(1);
+    refresh();
+  }, [clearSearch, refresh]);
 
   // Renderizar acciones personalizadas
   const renderActions = (supply: SupplyWithDetails) => (
@@ -268,14 +323,19 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
   const categoryOptions = [
     { value: '', label: 'Todas las categorías' },
     ...categories
-      .filter(cat => !cat.is_equipment)
+      .filter(cat => !cat.is_equipment && cat.is_active)
       .map(cat => ({ value: cat.id.toString(), label: cat.name }))
   ];
 
   const locationOptions = [
     { value: '', label: 'Todas las ubicaciones' },
-    ...locations.map(loc => ({ value: loc.id.toString(), label: loc.name }))
+    ...locations
+      .filter(loc => loc.is_active)
+      .map(loc => ({ value: loc.id.toString(), label: loc.name }))
   ];
+
+  // Determinar si hay filtros activos
+  const hasActiveFilters = searchTerm.trim() || selectedCategory || selectedLocation;
 
   return (
     <div className={className}>
@@ -287,9 +347,10 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
             <DashboardButton
               variant="outline"
               size="sm"
-              onClick={refresh}
+              onClick={handleRefresh}
               leftIcon={<ArrowPathIcon className="h-4 w-4" />}
               disabled={isLoading}
+              loading={isLoading}
             >
               Actualizar
             </DashboardButton>
@@ -308,7 +369,7 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
         }
         loading={isLoading && !supplies.length}
         error={error}
-        onRetry={refresh}
+        onRetry={handleRefresh}
       >
         {/* Pestañas */}
         <div className="mb-6">
@@ -330,6 +391,14 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               icon={<MagnifyingGlassIcon className="h-5 w-5" />}
               className="mb-0"
+              helperText={
+                searchTerm.trim().length > 0 && searchTerm.trim().length < 2
+                  ? "Mínimo 2 caracteres para buscar"
+                  : "Búsqueda automática mientras escribes"
+              }
+              loading={isSearchPending}
+              clearable
+              onClear={clearSearch}
             />
           </div>
           
@@ -356,18 +425,84 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
           />
         </div>
 
-        {/* Botón de búsqueda */}
-        <div className="mb-6">
+        {/* Controles de búsqueda y filtros */}
+        <div className="mb-6 flex items-center gap-3">
           <DashboardButton
             variant="outline"
-            onClick={handleSearch}
+            onClick={handleManualSearch}
             leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
             disabled={isLoading}
             loading={isLoading}
           >
-            Buscar
+            Buscar Ahora
           </DashboardButton>
+
+          {/* Mostrar filtros activos */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Filtros activos:</span>
+              {searchTerm.trim() && (
+                <Badge variant="secondary" size="sm">
+                  Búsqueda: "{searchTerm.trim()}"
+                </Badge>
+              )}
+              {selectedCategory && (
+                <Badge variant="secondary" size="sm">
+                  {categories.find(c => c.id.toString() === selectedCategory)?.name}
+                </Badge>
+              )}
+              {selectedLocation && (
+                <Badge variant="secondary" size="sm">
+                  {locations.find(l => l.id.toString() === selectedLocation)?.name}
+                </Badge>
+              )}
+              <DashboardButton
+                variant="text"
+                size="sm"
+                onClick={handleClearAllFilters}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Limpiar Todo
+              </DashboardButton>
+            </div>
+          )}
+
+          {/* Indicador de búsqueda pendiente */}
+          {isSearchPending && (
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              Buscando...
+            </div>
+          )}
         </div>
+
+        {/* Información de resultados */}
+        {!isLoading && (
+          <div className="mb-4 text-sm text-gray-600">
+            {activeTabId === 'low_stock' && (
+              <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+                <span>
+                  Mostrando {filteredSupplies.length} suministros con stock bajo o crítico
+                </span>
+              </div>
+            )}
+            {activeTabId === 'out_of_stock' && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+                <span>
+                  Mostrando {filteredSupplies.length} suministros sin stock
+                </span>
+              </div>
+            )}
+            {activeTabId === 'all' && (
+              <span>
+                Mostrando {filteredSupplies.length} de {totalCount} suministros
+                {hasActiveFilters && " (filtrados)"}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Tabla de datos */}
         <DashboardDataTable
@@ -376,11 +511,13 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
           keyExtractor={(supply) => supply.id.toString()}
           isLoading={isLoading}
           emptyMessage={
-            activeTabId === 'low_stock' 
-              ? "No hay suministros con stock bajo" 
-              : activeTabId === 'out_of_stock'
-              ? "No hay suministros sin stock"
-              : "No se encontraron suministros"
+            hasActiveFilters ? 
+              `No se encontraron suministros que coincidan con los filtros aplicados` :
+              activeTabId === 'low_stock' ? 
+                "No hay suministros con stock bajo" : 
+                activeTabId === 'out_of_stock' ?
+                  "No hay suministros sin stock" :
+                  "No se encontraron suministros"
           }
           actionColumn={Boolean(onViewSupply || onEditSupply || onDeleteSupply || onCreateMovement)}
           renderActions={renderActions}
@@ -394,6 +531,19 @@ const SuppliesList: React.FC<SuppliesListProps> = ({
           hover
           striped
         />
+
+        {/* Información adicional en modo de stock bajo */}
+        {activeTabId === 'low_stock' && lowStockSupplies.length > 0 && (
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">Acciones Recomendadas</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• Revisar los niveles mínimos de stock configurados</li>
+              <li>• Crear movimientos de entrada para reabastecer</li>
+              <li>• Contactar proveedores para nuevos pedidos</li>
+              <li>• Considerar ajustar las alertas de stock mínimo</li>
+            </ul>
+          </div>
+        )}
       </DashboardCard>
     </div>
   );

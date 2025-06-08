@@ -1,4 +1,4 @@
-// frontend/src/services/inventory/suppliesService.ts
+// frontend/src/services/inventory/suppliesService.ts - REFINADO Y CONSISTENTE
 
 import { SuppliesService as SuppliesApiService } from './inventoryApi';
 import { handleApiError } from '../api';
@@ -14,6 +14,7 @@ import type {
 
 /**
  * Servicio de suministros con manejo de errores y transformación de datos
+ * Consistente con EquipmentService
  */
 export class SuppliesService {
   
@@ -58,6 +59,11 @@ export class SuppliesService {
    */
   static async search(params: SupplySearchParams) {
     try {
+      // Validar query si se proporciona
+      if (params.q && params.q.trim().length > 0 && params.q.trim().length < 2) {
+        throw new Error('La búsqueda debe tener al menos 2 caracteres');
+      }
+
       const results = await SuppliesApiService.searchSupplies(params);
       
       return {
@@ -125,10 +131,10 @@ export class SuppliesService {
       if (!data.category_id) {
         throw new Error('La categoría es requerida');
       }
-      if (data.stock_actual && data.stock_actual < 0) {
+      if (data.stock_actual !== undefined && data.stock_actual < 0) {
         throw new Error('El stock actual no puede ser negativo');
       }
-      if (data.stock_minimo && data.stock_minimo < 0) {
+      if (data.stock_minimo !== undefined && data.stock_minimo < 0) {
         throw new Error('El stock mínimo no puede ser negativo');
       }
 
@@ -137,7 +143,7 @@ export class SuppliesService {
       return {
         success: true,
         data: supply,
-        message: `Suministro ${supply.nombre_producto} creado exitosamente`
+        message: `Suministro "${supply.nombre_producto}" creado exitosamente`
       };
     } catch (error) {
       const errorMessage = handleApiError(error);
@@ -165,7 +171,7 @@ export class SuppliesService {
       return {
         success: true,
         data: supply,
-        message: `Suministro ${supply.nombre_producto} actualizado exitosamente`
+        message: `Suministro "${supply.nombre_producto}" actualizado exitosamente`
       };
     } catch (error) {
       const errorMessage = handleApiError(error);
@@ -360,8 +366,6 @@ export class SuppliesService {
 
     for (const update of updates) {
       try {
-        // Esto requeriría un endpoint específico en el backend
-        // Por ahora simulamos con una actualización individual
         await this.update(update.supplyId, {
           stock_actual: update.newStock
         });
@@ -431,6 +435,8 @@ export class SuppliesService {
     }
   }
 
+  // ===== UTILIDADES ESTÁTICAS =====
+
   /**
    * Calcula el estado de stock basado en valores
    */
@@ -479,6 +485,74 @@ export class SuppliesService {
       color: this.getStockStatusColor(status),
       percentage: Math.round(percentage)
     };
+  }
+
+  /**
+   * Valida datos de suministro antes de enviar
+   */
+  static validateSupplyData(data: any): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!data.nombre_producto?.trim()) {
+      errors.push('Nombre del producto es requerido');
+    }
+    if (!data.category_id) {
+      errors.push('Categoría es requerida');
+    }
+    if (data.stock_actual !== undefined && data.stock_actual < 0) {
+      errors.push('Stock actual no puede ser negativo');
+    }
+    if (data.stock_minimo !== undefined && data.stock_minimo < 0) {
+      errors.push('Stock mínimo no puede ser negativo');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Valida datos de movimiento de stock
+   */
+  static validateMovementData(data: any): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!data.supply_id) {
+      errors.push('Suministro es requerido');
+    }
+    if (!data.movement_type_id) {
+      errors.push('Tipo de movimiento es requerido');
+    }
+    if (!data.cantidad || data.cantidad <= 0) {
+      errors.push('Cantidad debe ser mayor a 0');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Convierte suministros a formato de exportación
+   */
+  static formatForExport(supplies: SupplyWithDetails[]): any[] {
+    return supplies.map(supply => ({
+      'ID': supply.id,
+      'Código': supply.codigo || '',
+      'Nombre del Producto': supply.nombre_producto,
+      'Presentación': supply.presentacion || '',
+      'Descripción': supply.descripcion || '',
+      'Categoría': supply.category?.name || '',
+      'Ubicación': supply.location?.name || '',
+      'Stock Actual': supply.stock_actual,
+      'Stock Mínimo': supply.stock_minimo,
+      'Estado del Stock': this.formatStockInfo(supply.stock_actual, supply.stock_minimo).statusText,
+      'Activo': supply.is_active ? 'Sí' : 'No',
+      'Observaciones': supply.observaciones || '',
+      'Fecha de Creación': new Date(supply.created_at).toLocaleDateString('es-GT')
+    }));
   }
 }
 

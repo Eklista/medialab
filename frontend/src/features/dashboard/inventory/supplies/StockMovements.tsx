@@ -27,6 +27,7 @@ import type {
   SupplyWithDetails, 
   SupplyMovementWithDetails
 } from '../../../../services/inventory/types';
+
 interface StockMovementsProps {
   supply?: SupplyWithDetails | null; // Si se pasa, es para un suministro específico
   onClose?: () => void;
@@ -57,8 +58,6 @@ const StockMovements: React.FC<StockMovementsProps> = ({
 }) => {
   // Estados
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [selectedSupply, setSelectedSupply] = useState<SupplyWithDetails | null>(supply);
   const [movements, setMovements] = useState<SupplyMovementWithDetails[]>([]);
 
@@ -75,8 +74,14 @@ const StockMovements: React.FC<StockMovementsProps> = ({
 
   const [errors, setErrors] = useState<MovementFormErrors>({});
 
-  // Hooks
-  const { supplies, createMovement } = useSuppliesList();
+  // ARREGLADO: Usar correctamente los hooks actualizados
+  const { 
+    supplies, 
+    createMovement,
+    isSubmitting: isMovementSubmitting,
+    error: movementError
+  } = useSuppliesList({ autoFetch: true });
+  
   const { movementTypes } = useInventoryCommon();
   const { activeTabId, createTab } = useDashboardTabs('all');
 
@@ -221,11 +226,10 @@ const StockMovements: React.FC<StockMovementsProps> = ({
     }
   };
 
-  // Enviar formulario
+  // ARREGLADO: Enviar formulario usando el hook actualizado
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    setIsSubmitting(true);
     setErrors({});
 
     try {
@@ -239,12 +243,11 @@ const StockMovements: React.FC<StockMovementsProps> = ({
         observaciones: formData.observaciones || undefined
       };
 
-      await createMovement(movementData);
+      const result = await createMovement(movementData);
       
-      setSubmitSuccess(true);
-      
-      // Resetear formulario después de éxito
-      setTimeout(() => {
+      // ARREGLADO: Verificar la estructura de respuesta del hook
+      if (result.success) {
+        // Resetear formulario después de éxito
         setFormData({
           supply_id: supply?.id.toString() || '',
           movement_type_id: '',
@@ -255,14 +258,20 @@ const StockMovements: React.FC<StockMovementsProps> = ({
           observaciones: ''
         });
         setShowCreateForm(false);
-        setSubmitSuccess(false);
-      }, 1500);
+        
+        // Simular actualización de movimientos (en producción se recargarían del backend)
+        if (selectedSupply) {
+          // Aquí harías un refresh de los movimientos reales
+          console.log('Movimiento creado exitosamente:', result.data);
+        }
+      } else {
+        const errorMessage = result.error || 'Error al crear el movimiento';
+        setErrors({ general: errorMessage });
+      }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al crear el movimiento';
       setErrors({ general: errorMessage });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -480,14 +489,13 @@ const StockMovements: React.FC<StockMovementsProps> = ({
         onClose={() => setShowCreateForm(false)}
         title="Crear Nuevo Movimiento"
         size="lg"
-        error={errors.general}
-        success={submitSuccess ? "Movimiento creado exitosamente" : null}
+        error={errors.general || movementError}
         footer={
           <div className="flex justify-end gap-3">
             <DashboardButton
               variant="outline"
               onClick={() => setShowCreateForm(false)}
-              disabled={isSubmitting}
+              disabled={isMovementSubmitting}
             >
               Cancelar
             </DashboardButton>
@@ -495,8 +503,8 @@ const StockMovements: React.FC<StockMovementsProps> = ({
             <DashboardButton
               variant="primary"
               onClick={handleSubmit}
-              loading={isSubmitting}
-              disabled={isSubmitting || submitSuccess}
+              loading={isMovementSubmitting}
+              disabled={isMovementSubmitting}
               leftIcon={<CheckIcon className="h-4 w-4" />}
             >
               Crear Movimiento

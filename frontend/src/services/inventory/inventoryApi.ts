@@ -1,4 +1,4 @@
-// frontend/src/services/inventory/inventoryApi.ts
+// frontend/src/services/inventory/inventoryApi.ts - ACTUALIZACIÓN COMPLETA
 
 import apiClient, { createCacheKey, requestDeduplicator } from '../api';
 import type {
@@ -11,7 +11,11 @@ import type {
   EquipmentState,
   MovementType,
   CategoryCreateRequest,
+  CategoryUpdateRequest,
   LocationCreateRequest,
+  LocationUpdateRequest,
+  SupplierCreateRequest,
+  SupplierUpdateRequest,
   // Equipment types
   EquipmentWithDetails,
   EquipmentCreateRequest,
@@ -283,8 +287,10 @@ class InventorySearchService {
   }
 }
 
-// ===== COMMON DATA SERVICE =====
+// ===== COMMON DATA SERVICE - ACTUALIZADO CON CRUD COMPLETO =====
 class InventoryCommonService {
+  // ===== CATEGORÍAS =====
+  
   /**
    * Obtiene categorías
    */
@@ -306,6 +312,24 @@ class InventoryCommonService {
     const response = await apiClient.post(`${API_BASE}/common/categories`, data);
     return response.data;
   }
+
+  /**
+   * Actualiza una categoría existente
+   */
+  static async updateCategory(id: number, data: CategoryUpdateRequest): Promise<InventoryCategory> {
+    const response = await apiClient.patch(`${API_BASE}/common/categories/${id}`, data);
+    return response.data;
+  }
+
+  /**
+   * Elimina una categoría
+   */
+  static async deleteCategory(id: number): Promise<{ message: string }> {
+    const response = await apiClient.delete(`${API_BASE}/common/categories/${id}`);
+    return response.data;
+  }
+
+  // ===== UBICACIONES =====
 
   /**
    * Obtiene ubicaciones
@@ -330,6 +354,24 @@ class InventoryCommonService {
   }
 
   /**
+   * Actualiza una ubicación existente
+   */
+  static async updateLocation(id: number, data: LocationUpdateRequest): Promise<InventoryLocation> {
+    const response = await apiClient.patch(`${API_BASE}/common/locations/${id}`, data);
+    return response.data;
+  }
+
+  /**
+   * Elimina una ubicación
+   */
+  static async deleteLocation(id: number): Promise<{ message: string }> {
+    const response = await apiClient.delete(`${API_BASE}/common/locations/${id}`);
+    return response.data;
+  }
+
+  // ===== PROVEEDORES =====
+
+  /**
    * Obtiene proveedores
    */
   static async getSuppliers(): Promise<Supplier[]> {
@@ -340,6 +382,32 @@ class InventoryCommonService {
       return response.data;
     });
   }
+
+  /**
+   * Crea un nuevo proveedor
+   */
+  static async createSupplier(data: SupplierCreateRequest): Promise<Supplier> {
+    const response = await apiClient.post(`${API_BASE}/common/suppliers`, data);
+    return response.data;
+  }
+
+  /**
+   * Actualiza un proveedor existente
+   */
+  static async updateSupplier(id: number, data: SupplierUpdateRequest): Promise<Supplier> {
+    const response = await apiClient.patch(`${API_BASE}/common/suppliers/${id}`, data);
+    return response.data;
+  }
+
+  /**
+   * Elimina un proveedor
+   */
+  static async deleteSupplier(id: number): Promise<{ message: string }> {
+    const response = await apiClient.delete(`${API_BASE}/common/suppliers/${id}`);
+    return response.data;
+  }
+
+  // ===== ESTADOS DE EQUIPOS (SOLO READ - NO SE PERMITEN MODIFICACIONES DESDE UI) =====
 
   /**
    * Obtiene estados de equipos
@@ -355,6 +423,8 @@ class InventoryCommonService {
     });
   }
 
+  // ===== TIPOS DE MOVIMIENTO (SOLO READ - NO SE PERMITEN MODIFICACIONES DESDE UI) =====
+
   /**
    * Obtiene tipos de movimiento
    */
@@ -367,10 +437,6 @@ class InventoryCommonService {
     });
   }
 }
-
-// frontend/src/services/inventory/inventoryApi.ts - ACTUALIZACIÓN
-
-// Agregar al final del archivo, antes del export:
 
 // ===== ACTIVITIES SERVICE =====
 class InventoryActivitiesService {
@@ -437,24 +503,24 @@ class InventoryActivitiesService {
   }
 }
 
-// ===== API PRINCIPAL CONSOLIDADA - ACTUALIZADA =====
+// ===== API PRINCIPAL CONSOLIDADA =====
 export const inventoryApi = {
   dashboard: InventoryDashboardService,
   equipment: EquipmentService,
   supplies: SuppliesService,
   search: InventorySearchService,
   common: InventoryCommonService,
-  activities: InventoryActivitiesService  // 🆕 NUEVO
+  activities: InventoryActivitiesService
 };
 
-// Export individual services para flexibilidad - ACTUALIZADO
+// Export individual services para flexibilidad
 export {
   InventoryDashboardService,
   EquipmentService,
   SuppliesService,
   InventorySearchService,
   InventoryCommonService,
-  InventoryActivitiesService  // 🆕 NUEVO
+  InventoryActivitiesService
 };
 
 // Export default para uso simple
