@@ -1,65 +1,118 @@
-// src/components/ui/VideoCard.tsx
-import React from 'react';
-import { PlayIcon, EyeIcon, ClockIcon } from '@heroicons/react/24/solid';
+// src/components/ui/VideoCard.tsx - VERSION CONECTADA CON SERVICIOS
+import React, { useState, useCallback } from 'react';
+import { PlayIcon, ClockIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid';
+import { VideosService, type Video } from '../../services/content';
 
-interface VideoData {
-  id: string;
-  title: string;
-  description?: string;
-  thumbnail: string;
-  duration?: string;
-  views?: number;
-  category: string;
-  faculty?: string;
-  publishedAt: string;
-}
+// ==================== INTERFACES ====================
 
 interface VideoCardProps {
-  id: string;
-  title: string;
-  description?: string;
-  thumbnail: string;
-  duration?: string;
-  views?: number;
-  category: string;
-  faculty?: string;
-  publishedAt: string;
-  onClick?: () => void;
+  video: Video; // Usar el tipo Video de tus servicios
+  onClick?: (video: Video) => void;
+  onEdit?: (video: Video) => void;
+  onDelete?: (video: Video) => void;
+  onSetMain?: (video: Video) => void;
   size?: 'sm' | 'md' | 'lg';
   layout?: 'vertical' | 'horizontal';
+  showActions?: boolean;
+  showStatus?: boolean;
+  isAdmin?: boolean;
 }
 
-export const VideoCard: React.FC<VideoCardProps> = ({
-  title,
-  description,
-  thumbnail,
-  duration,
-  views,
-  category,
-  faculty,
-  publishedAt,
-  onClick,
-  size = 'md',
-  layout = 'vertical'
-}) => {
-  const formatViews = (views?: number) => {
-    if (!views) return '';
-    if (views > 1000000) return `${(views / 1000000).toFixed(1)}M`;
-    if (views > 1000) return `${(views / 1000).toFixed(1)}K`;
-    return views.toString();
-  };
+// ==================== UTILIDADES ====================
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) return 'hace 1 día';
-    if (diffDays < 7) return `hace ${diffDays} días`;
-    if (diffDays < 30) return `hace ${Math.ceil(diffDays / 7)} semanas`;
-    return `hace ${Math.ceil(diffDays / 30)} meses`;
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 1) return 'hace 1 día';
+  if (diffDays < 7) return `hace ${diffDays} días`;
+  if (diffDays < 30) return `hace ${Math.ceil(diffDays / 7)} semanas`;
+  return `hace ${Math.ceil(diffDays / 30)} meses`;
+};
+
+const getStatusColor = (status: string) => {
+  const colors = {
+    'completed': 'bg-green-500',
+    'processing': 'bg-blue-500',
+    'pending': 'bg-yellow-500',
+    'error': 'bg-red-500',
+    'cancelled': 'bg-gray-500'
   };
+  return colors[status as keyof typeof colors] || 'bg-gray-500';
+};
+
+const getStatusLabel = (status: string) => {
+  const labels = {
+    'completed': 'Completado',
+    'processing': 'Procesando',
+    'pending': 'Pendiente',
+    'error': 'Error',
+    'cancelled': 'Cancelado'
+  };
+  return labels[status as keyof typeof labels] || status;
+};
+
+// ==================== COMPONENTE PRINCIPAL ====================
+
+export const VideoCard: React.FC<VideoCardProps> = ({
+  video,
+  onClick,
+  onEdit,
+  onDelete,
+  onSetMain,
+  size = 'md',
+  layout = 'vertical',
+  showActions = false,
+  showStatus = false,
+  isAdmin = false
+}) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSettingMain, setIsSettingMain] = useState(false);
+
+  // ==================== HANDLERS ====================
+
+  const handleClick = useCallback(() => {
+    onClick?.(video);
+  }, [onClick, video]);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.(video);
+  }, [onEdit, video]);
+
+  const handleDelete = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('¿Estás seguro de que quieres eliminar este video?')) return;
+
+    setIsDeleting(true);
+    try {
+      await VideosService.deleteVideo(video.id);
+      onDelete?.(video);
+    } catch (error) {
+      console.error('Error eliminando video:', error);
+      alert('Error al eliminar el video');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [video, onDelete]);
+
+  const handleSetMain = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSettingMain(true);
+    try {
+      await VideosService.setMainVideo(video.content_id, video.id);
+      onSetMain?.(video);
+    } catch (error) {
+      console.error('Error estableciendo video principal:', error);
+      alert('Error al establecer como video principal');
+    } finally {
+      setIsSettingMain(false);
+    }
+  }, [video, onSetMain]);
+
+  // ==================== ESTILOS RESPONSIVOS ====================
 
   const sizes = {
     sm: {
@@ -88,21 +141,28 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   const currentSize = sizes[size];
   const isVertical = layout === 'vertical';
 
+  // ==================== RENDER ====================
+
   return (
     <div 
       className={`
         ${currentSize.container} cursor-pointer group transition-all duration-200 
         hover:scale-105 hover:shadow-lg bg-white rounded-lg overflow-hidden
+        ${isDeleting ? 'opacity-50 pointer-events-none' : ''}
+        ${video.is_main ? 'ring-2 ring-blue-500' : ''}
       `}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className={`flex ${isVertical ? 'flex-col' : 'flex-row gap-3'}`}>
-        {/* Thumbnail */}
+        {/* ==================== THUMBNAIL ==================== */}
         <div className={`relative ${currentSize.image} flex-shrink-0 overflow-hidden ${isVertical ? 'w-full' : ''}`}>
           <img 
-            src={thumbnail} 
-            alt={title}
+            src={video.thumbnail_url || '/placeholder-video.jpg'} 
+            alt={video.video_id || 'Video thumbnail'}
             className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/placeholder-video.jpg';
+            }}
           />
           
           {/* Play overlay */}
@@ -111,75 +171,144 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           </div>
           
           {/* Duration badge */}
-          {duration && (
+          {video.duration_formatted && (
             <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs font-medium">
-              {duration}
+              {video.duration_formatted}
             </div>
           )}
           
-          {/* Category badge */}
-          <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
-            {category}
-          </div>
+          {/* Video Type badge */}
+          {video.video_type && (
+            <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
+              {video.video_type.display_name}
+            </div>
+          )}
+
+          {/* Main Video badge */}
+          {video.is_main && (
+            <div className="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-bold">
+              PRINCIPAL
+            </div>
+          )}
+
+          {/* Processing Status */}
+          {showStatus && (
+            <div className={`absolute bottom-2 left-2 ${getStatusColor(video.processing_status)} text-white px-2 py-1 rounded text-xs font-medium`}>
+              {getStatusLabel(video.processing_status)}
+            </div>
+          )}
+
+          {/* Actions Overlay */}
+          {showActions && isAdmin && (
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+              <button
+                onClick={handleEdit}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
+                title="Editar video"
+              >
+                <PencilIcon className="h-4 w-4" />
+              </button>
+              
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="bg-red-500 hover:bg-red-600 text-white p-1 rounded disabled:opacity-50"
+                title="Eliminar video"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
         
-        {/* Content */}
+        {/* ==================== CONTENT ==================== */}
         <div className={`${isVertical ? 'p-4' : 'flex-1 py-2'} space-y-2`}>
+          {/* Video ID/Title */}
           <h3 className={`${currentSize.title} text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors`}>
-            {title}
+            {video.video_id || `Video ${video.id.substring(0, 8)}`}
           </h3>
           
-          {description && (
+          {/* Original filename como descripción */}
+          {video.original_filename && (
             <p className={`${currentSize.description} text-gray-600 line-clamp-2`}>
-              {description}
+              {video.original_filename}
             </p>
           )}
           
-          {/* Faculty */}
-          {faculty && (
+          {/* Storage Provider */}
+          {video.storage_provider && (
             <p className={`${currentSize.meta} text-blue-600 font-medium`}>
-              {faculty}
+              {video.storage_provider.display_name}
             </p>
           )}
           
           {/* Meta info */}
           <div className={`flex items-center gap-3 ${currentSize.meta} text-gray-500`}>
-            {views && (
+            {/* File Size */}
+            {video.file_size && (
               <div className="flex items-center gap-1">
-                <EyeIcon className="h-4 w-4" />
-                <span>{formatViews(views)} vistas</span>
+                <span>{formatFileSize(video.file_size)}</span>
               </div>
             )}
             
+            {/* Created Date */}
             <div className="flex items-center gap-1">
               <ClockIcon className="h-4 w-4" />
-              <span>{formatDate(publishedAt)}</span>
+              <span>{formatDate(video.created_at)}</span>
             </div>
+
+            {/* Dimensions */}
+            {video.width && video.height && (
+              <span>{video.width}x{video.height}</span>
+            )}
           </div>
+
+          {/* Admin Actions */}
+          {showActions && isAdmin && !video.is_main && (
+            <div className="pt-2">
+              <button
+                onClick={handleSetMain}
+                disabled={isSettingMain}
+                className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded disabled:opacity-50"
+              >
+                {isSettingMain ? 'Estableciendo...' : 'Hacer Principal'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// Grid component for video cards
+// ==================== UTILIDAD PARA FORMATEAR TAMAÑOS ====================
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// ==================== VIDEO GRID CONECTADO ====================
+
 interface VideoGridProps {
-  videos: Array<{
-    id: string;
-    title: string;
-    description?: string;
-    thumbnail: string;
-    duration?: string;
-    views?: number;
-    category: string;
-    faculty?: string;
-    publishedAt: string;
-  }>;
+  videos: Video[];
+  contentId?: string;
   columns?: 1 | 2 | 3 | 4 | 5 | 6;
   gap?: 'sm' | 'md' | 'lg' | 'xl';
-  onVideoClick?: (video: VideoData) => void;
+  onVideoClick?: (video: Video) => void;
+  onVideoEdit?: (video: Video) => void;
+  onVideoDelete?: (video: Video) => void;
+  onVideoSetMain?: (video: Video) => void;
   loading?: boolean;
   emptyMessage?: string;
+  showActions?: boolean;
+  showStatus?: boolean;
+  isAdmin?: boolean;
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
@@ -187,8 +316,14 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   columns = 3,
   gap = 'md',
   onVideoClick,
+  onVideoEdit,
+  onVideoDelete,
+  onVideoSetMain,
   loading = false,
-  emptyMessage = 'No hay videos disponibles'
+  emptyMessage = 'No hay videos disponibles',
+  showActions = false,
+  showStatus = false,
+  isAdmin = false
 }) => {
   const gridCols = {
     1: 'grid-cols-1',
@@ -239,8 +374,14 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
       {videos.map((video) => (
         <VideoCard
           key={video.id}
-          {...video}
-          onClick={() => onVideoClick?.(video)}
+          video={video}
+          onClick={onVideoClick}
+          onEdit={onVideoEdit}
+          onDelete={onVideoDelete}
+          onSetMain={onVideoSetMain}
+          showActions={showActions}
+          showStatus={showStatus}
+          isAdmin={isAdmin}
         />
       ))}
     </div>

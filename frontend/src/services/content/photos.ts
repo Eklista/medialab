@@ -1,454 +1,7 @@
-// frontend/src/services/content/categories.ts
+// frontend/src/services/content/photos.ts
 import apiClient, { handleApiError, createCacheKey, requestDeduplicator } from '../api';
 
-export interface ContentCategory {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ContentCategoryCreate {
-  name: string;
-  slug: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  sort_order?: number;
-  is_active?: boolean;
-}
-
-export interface ContentCategoryUpdate {
-  name?: string;
-  slug?: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  sort_order?: number;
-  is_active?: boolean;
-}
-
-export interface CategoriesResponse {
-  success: boolean;
-  message: string;
-  data: {
-    categories: ContentCategory[];
-    total: number;
-    skip: number;
-    limit: number;
-    search?: string;
-  };
-}
-
-export interface CategoryResponse {
-  success: boolean;
-  message: string;
-  data: ContentCategory;
-}
-
-export class CategoriesService {
-  private static readonly BASE_URL = '/content/categories';
-
-  // ==================== CRUD BÁSICO ====================
-
-  static async getCategories(params?: {
-    skip?: number;
-    limit?: number;
-    active_only?: boolean;
-    search?: string;
-  }): Promise<CategoriesResponse> {
-    try {
-      const cacheKey = createCacheKey(`${this.BASE_URL}/list`, params);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(this.BASE_URL, { params });
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async getCategoryById(id: number): Promise<CategoryResponse> {
-    try {
-      const cacheKey = createCacheKey(`${this.BASE_URL}/${id}`);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(`${this.BASE_URL}/${id}`);
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async getCategoryBySlug(slug: string): Promise<CategoryResponse> {
-    try {
-      const cacheKey = createCacheKey(`${this.BASE_URL}/slug/${slug}`);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(`${this.BASE_URL}/slug/${slug}`);
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async createCategory(data: ContentCategoryCreate): Promise<CategoryResponse> {
-    try {
-      const response = await apiClient.post(this.BASE_URL, data);
-      
-      // Limpiar cache después de crear
-      requestDeduplicator.clear();
-      
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async updateCategory(id: number, data: ContentCategoryUpdate): Promise<CategoryResponse> {
-    try {
-      const response = await apiClient.put(`${this.BASE_URL}/${id}`, data);
-      
-      // Limpiar cache después de actualizar
-      requestDeduplicator.clear();
-      
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async deleteCategory(id: number): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await apiClient.delete(`${this.BASE_URL}/${id}`);
-      
-      // Limpiar cache después de eliminar
-      requestDeduplicator.clear();
-      
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  // ==================== OPERACIONES ESPECÍFICAS ====================
-
-  static async assignToDepart‌ment(departmentId: number, categoryId: number): Promise<any> {
-    try {
-      const response = await apiClient.post(
-        `${this.BASE_URL}/departments/${departmentId}/assign/${categoryId}`
-      );
-      
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async removeFromDepartment(departmentId: number, categoryId: number): Promise<any> {
-    try {
-      const response = await apiClient.delete(
-        `${this.BASE_URL}/departments/${departmentId}/remove/${categoryId}`
-      );
-      
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async getDepartmentsWithCategories(): Promise<any> {
-    try {
-      const cacheKey = createCacheKey(`${this.BASE_URL}/departments/with-categories`);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(`${this.BASE_URL}/departments/with-categories`);
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  // ==================== ENDPOINTS PÚBLICOS ====================
-
-  static async getPublicCategories(params?: {
-    skip?: number;
-    limit?: number;
-    search?: string;
-  }): Promise<CategoriesResponse> {
-    try {
-      const cacheKey = createCacheKey('/public/content/categories', params);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get('/public/content/categories', { params });
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async getPublicCategoryBySlug(slug: string): Promise<CategoryResponse> {
-    try {
-      const cacheKey = createCacheKey(`/public/content/categories/${slug}`);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(`/public/content/categories/${slug}`);
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-}
-
-// ==================================================================================
-// frontend/src/services/content/videoTypes.ts
-
-export interface VideoType {
-  id: number;
-  name: string;
-  display_name: string;
-  description?: string;
-  icon?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface VideoTypeCreate {
-  name: string;
-  display_name: string;
-  description?: string;
-  icon?: string;
-  is_active?: boolean;
-}
-
-export interface VideoTypeUpdate {
-  name?: string;
-  display_name?: string;
-  description?: string;
-  icon?: string;
-  is_active?: boolean;
-}
-
-export interface StorageProvider {
-  id: number;
-  name: string;
-  display_name: string;
-  video_type_id: number;
-  is_active: boolean;
-  config?: Record<string, any>;
-  max_file_size?: number;
-  supported_formats?: string[];
-  api_endpoint?: string;
-  created_at: string;
-  updated_at: string;
-  video_type?: VideoType;
-}
-
-export interface StorageProviderCreate {
-  name: string;
-  display_name: string;
-  video_type_id: number;
-  is_active?: boolean;
-  config?: Record<string, any>;
-  max_file_size?: number;
-  supported_formats?: string[];
-  api_endpoint?: string;
-}
-
-export interface StorageProviderUpdate {
-  name?: string;
-  display_name?: string;
-  video_type_id?: number;
-  is_active?: boolean;
-  config?: Record<string, any>;
-  max_file_size?: number;
-  supported_formats?: string[];
-  api_endpoint?: string;
-}
-
-export class VideoTypesService {
-  private static readonly BASE_URL = '/content/video-types';
-
-  // ==================== VIDEO TYPES ====================
-
-  static async getVideoTypes(params?: {
-    skip?: number;
-    limit?: number;
-    active_only?: boolean;
-    search?: string;
-  }): Promise<any> {
-    try {
-      const cacheKey = createCacheKey(`${this.BASE_URL}/list`, params);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(`${this.BASE_URL}/`, { params });
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async getVideoTypeById(id: number): Promise<any> {
-    try {
-      const cacheKey = createCacheKey(`${this.BASE_URL}/${id}`);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(`${this.BASE_URL}/${id}`);
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async createVideoType(data: VideoTypeCreate): Promise<any> {
-    try {
-      const response = await apiClient.post(`${this.BASE_URL}/`, data);
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async updateVideoType(id: number, data: VideoTypeUpdate): Promise<any> {
-    try {
-      const response = await apiClient.put(`${this.BASE_URL}/${id}`, data);
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async deleteVideoType(id: number): Promise<any> {
-    try {
-      const response = await apiClient.delete(`${this.BASE_URL}/${id}`);
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  // ==================== STORAGE PROVIDERS ====================
-
-  static async getStorageProviders(params?: {
-    skip?: number;
-    limit?: number;
-    active_only?: boolean;
-    video_type_id?: number;
-    search?: string;
-  }): Promise<any> {
-    try {
-      const cacheKey = createCacheKey('/content/storage-providers', params);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get('/content/storage-providers/', { params });
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async getStorageProviderById(id: number): Promise<any> {
-    try {
-      const cacheKey = createCacheKey(`/content/storage-providers/${id}`);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get(`/content/storage-providers/${id}`);
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async createStorageProvider(data: StorageProviderCreate): Promise<any> {
-    try {
-      const response = await apiClient.post('/content/storage-providers/', data);
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async updateStorageProvider(id: number, data: StorageProviderUpdate): Promise<any> {
-    try {
-      const response = await apiClient.put(`/content/storage-providers/${id}`, data);
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async deleteStorageProvider(id: number): Promise<any> {
-    try {
-      const response = await apiClient.delete(`/content/storage-providers/${id}`);
-      requestDeduplicator.clear();
-      return response.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  // ==================== ENDPOINTS PÚBLICOS ====================
-
-  static async getPublicVideoTypes(params?: {
-    skip?: number;
-    limit?: number;
-  }): Promise<any> {
-    try {
-      const cacheKey = createCacheKey('/public/content/video-types', params);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get('/public/content/video-types', { params });
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-
-  static async getPublicStorageProviders(params?: {
-    skip?: number;
-    limit?: number;
-    video_type_id?: number;
-  }): Promise<any> {
-    try {
-      const cacheKey = createCacheKey('/public/content/storage-providers', params);
-      
-      return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get('/public/content/storage-providers', { params });
-        return response.data;
-      });
-    } catch (error) {
-      throw new Error(handleApiError(error));
-    }
-  }
-}
-
-// ==================================================================================
-// frontend/src/services/content/photos.ts
+// ==================== INTERFACES ====================
 
 export interface Photo {
   id: string;
@@ -468,6 +21,7 @@ export interface Photo {
   is_cover: boolean;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
 }
 
 export interface PhotoCreate {
@@ -511,6 +65,7 @@ export interface GalleryData {
 export interface UploadStatus {
   task_id: string;
   status: 'processing' | 'completed' | 'error';
+  files_count: number;
   photos_count: number;
   photos: Array<{
     id: string;
@@ -519,8 +74,35 @@ export interface UploadStatus {
   }>;
 }
 
+export interface PhotosResponse {
+  success: boolean;
+  message: string;
+  data: {
+    photos: Photo[];
+    total: number;
+    skip: number;
+    limit: number;
+    content_id?: string;
+  };
+}
+
+export interface PhotoResponse {
+  success: boolean;
+  message: string;
+  data: Photo;
+}
+
+export interface GalleryResponse {
+  success: boolean;
+  message: string;
+  data: GalleryData;
+}
+
+// ==================== SERVICE CLASS ====================
+
 export class PhotosService {
   private static readonly BASE_URL = '/content/photos';
+  private static readonly PUBLIC_URL = '/public/content/photos';
 
   // ==================== CRUD BÁSICO ====================
 
@@ -528,7 +110,7 @@ export class PhotosService {
     skip?: number;
     limit?: number;
     content_id?: string;
-  }): Promise<any> {
+  }): Promise<PhotosResponse> {
     try {
       const cacheKey = createCacheKey(`${this.BASE_URL}/list`, params);
       
@@ -541,7 +123,7 @@ export class PhotosService {
     }
   }
 
-  static async getPhotoById(id: string): Promise<any> {
+  static async getPhotoById(id: string): Promise<PhotoResponse> {
     try {
       const cacheKey = createCacheKey(`${this.BASE_URL}/${id}`);
       
@@ -554,7 +136,7 @@ export class PhotosService {
     }
   }
 
-  static async createPhoto(data: PhotoCreate): Promise<any> {
+  static async createPhoto(data: PhotoCreate): Promise<PhotoResponse> {
     try {
       const response = await apiClient.post(this.BASE_URL, data);
       requestDeduplicator.clear();
@@ -564,7 +146,7 @@ export class PhotosService {
     }
   }
 
-  static async updatePhoto(id: string, data: PhotoUpdate): Promise<any> {
+  static async updatePhoto(id: string, data: PhotoUpdate): Promise<PhotoResponse> {
     try {
       const response = await apiClient.put(`${this.BASE_URL}/${id}`, data);
       requestDeduplicator.clear();
@@ -574,7 +156,7 @@ export class PhotosService {
     }
   }
 
-  static async deletePhoto(id: string): Promise<any> {
+  static async deletePhoto(id: string): Promise<{ success: boolean; message: string }> {
     try {
       const response = await apiClient.delete(`${this.BASE_URL}/${id}`);
       requestDeduplicator.clear();
@@ -590,8 +172,32 @@ export class PhotosService {
     files: File[],
     contentId: string,
     onProgress?: (progress: number) => void
-  ): Promise<any> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      task_id: string;
+      files_count: number;
+      status: string;
+    };
+  }> {
     try {
+      if (files.length === 0) {
+        throw new Error('No se han seleccionado archivos');
+      }
+
+      if (files.length > 50) {
+        throw new Error('Máximo 50 archivos por lote');
+      }
+
+      // Validar tipos de archivo
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      const invalidFiles = files.filter(file => !validTypes.includes(file.type));
+      
+      if (invalidFiles.length > 0) {
+        throw new Error(`Archivos con formato inválido: ${invalidFiles.map(f => f.name).join(', ')}`);
+      }
+
       const formData = new FormData();
       
       // Agregar archivos
@@ -633,22 +239,29 @@ export class PhotosService {
 
   // ==================== OPERACIONES DE GALERÍA ====================
 
-  static async getGallery(contentId: string): Promise<GalleryData> {
+  static async getGallery(contentId: string): Promise<GalleryResponse> {
     try {
       const cacheKey = createCacheKey(`${this.BASE_URL}/gallery/${contentId}`);
       
       return requestDeduplicator.deduplicate(cacheKey, async () => {
         const response = await apiClient.get(`${this.BASE_URL}/gallery/${contentId}`);
-        return response.data.data;
+        return response.data;
       });
     } catch (error) {
       throw new Error(handleApiError(error));
     }
   }
 
-  static async reorderPhotos(contentId: string, photoOrders: Array<{photo_id: string, sort_order: number}>): Promise<any> {
+  static async setCoverPhoto(contentId: string, photoId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      content_id: string;
+      photo_id: string;
+    };
+  }> {
     try {
-      const response = await apiClient.post(`${this.BASE_URL}/gallery/${contentId}/reorder`, photoOrders);
+      const response = await apiClient.post(`${this.BASE_URL}/content/${contentId}/set-cover/${photoId}`);
       requestDeduplicator.clear();
       return response.data;
     } catch (error) {
@@ -656,9 +269,33 @@ export class PhotosService {
     }
   }
 
-  static async generateThumbnail(photoId: string, size: number = 300): Promise<any> {
+  static async toggleFeatured(photoId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { photo_id: string };
+  }> {
     try {
-      const response = await apiClient.post(`${this.BASE_URL}/${photoId}/generate-thumbnail?size=${size}`);
+      const response = await apiClient.post(`${this.BASE_URL}/${photoId}/toggle-featured`);
+      requestDeduplicator.clear();
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  static async reorderPhotos(
+    contentId: string, 
+    photoOrders: Array<{ photo_id: string; sort_order: number }>
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      content_id: string;
+      reordered_count: number;
+    };
+  }> {
+    try {
+      const response = await apiClient.post(`${this.BASE_URL}/content/${contentId}/reorder`, photoOrders);
       requestDeduplicator.clear();
       return response.data;
     } catch (error) {
@@ -668,13 +305,13 @@ export class PhotosService {
 
   // ==================== ENDPOINTS PÚBLICOS ====================
 
-  static async getPublicGallery(contentId: string): Promise<GalleryData> {
+  static async getPublicGallery(contentId: string): Promise<GalleryResponse> {
     try {
       const cacheKey = createCacheKey(`/public/content/${contentId}/gallery`);
       
       return requestDeduplicator.deduplicate(cacheKey, async () => {
         const response = await apiClient.get(`/public/content/${contentId}/gallery`);
-        return response.data.data;
+        return response.data;
       });
     } catch (error) {
       throw new Error(handleApiError(error));
@@ -686,16 +323,244 @@ export class PhotosService {
     limit?: number;
     content_id?: string;
     featured_only?: boolean;
-  }): Promise<any> {
+  }): Promise<PhotosResponse> {
     try {
-      const cacheKey = createCacheKey('/public/content/photos', params);
+      const cacheKey = createCacheKey(this.PUBLIC_URL, params);
       
       return requestDeduplicator.deduplicate(cacheKey, async () => {
-        const response = await apiClient.get('/public/content/photos', { params });
+        const response = await apiClient.get(this.PUBLIC_URL, { params });
         return response.data;
       });
     } catch (error) {
       throw new Error(handleApiError(error));
     }
+  }
+
+  static async getPublicPhotosByContent(
+    contentId: string,
+    params?: {
+      skip?: number;
+      limit?: number;
+      featured_only?: boolean;
+    }
+  ): Promise<PhotosResponse> {
+    try {
+      const cacheKey = createCacheKey(`/public/content/${contentId}/photos`, params);
+      
+      return requestDeduplicator.deduplicate(cacheKey, async () => {
+        const response = await apiClient.get(`/public/content/${contentId}/photos`, { params });
+        return response.data;
+      });
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  static async getPublicPhotoById(id: string): Promise<PhotoResponse> {
+    try {
+      const cacheKey = createCacheKey(`${this.PUBLIC_URL}/${id}`);
+      
+      return requestDeduplicator.deduplicate(cacheKey, async () => {
+        const response = await apiClient.get(`${this.PUBLIC_URL}/${id}`);
+        return response.data;
+      });
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  // ==================== OPERACIONES BATCH ====================
+
+  static async bulkUpdatePhotos(updates: Array<{
+    id: string;
+    data: PhotoUpdate;
+  }>): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      updated: number;
+      failed: number;
+      results: PhotoResponse[];
+    };
+  }> {
+    try {
+      const promises = updates.map(({ id, data }) =>
+        this.updatePhoto(id, data).catch(error => ({ error: error.message, id }))
+      );
+      
+      const results = await Promise.all(promises);
+      
+      const successful = results.filter(result => !('error' in result)) as PhotoResponse[];
+      const failed = results.filter(result => 'error' in result);
+      
+      return {
+        success: true,
+        message: `Actualización batch completada: ${successful.length} exitosas, ${failed.length} fallidas`,
+        data: {
+          updated: successful.length,
+          failed: failed.length,
+          results: successful
+        }
+      };
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  static async bulkDeletePhotos(photoIds: string[]): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      deleted: number;
+      failed: number;
+    };
+  }> {
+    try {
+      const promises = photoIds.map(id =>
+        this.deletePhoto(id).catch(error => ({ error: error.message, id }))
+      );
+      
+      const results = await Promise.all(promises);
+      
+      const successful = results.filter(result => !('error' in result));
+      const failed = results.filter(result => 'error' in result);
+      
+      return {
+        success: true,
+        message: `Eliminación batch completada: ${successful.length} exitosas, ${failed.length} fallidas`,
+        data: {
+          deleted: successful.length,
+          failed: failed.length
+        }
+      };
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  // ==================== ESTADÍSTICAS Y ADMIN ====================
+
+  static async getPhotosStats(): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      total_photos: number;
+      featured_photos: number;
+      cover_photos: number;
+      total_size_bytes: number;
+      average_width: number;
+      average_height: number;
+    };
+  }> {
+    try {
+      const cacheKey = createCacheKey(`${this.BASE_URL}/admin/stats`);
+      
+      return requestDeduplicator.deduplicate(cacheKey, async () => {
+        const response = await apiClient.get(`${this.BASE_URL}/admin/stats`);
+        return response.data;
+      });
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  static async cleanupOrphanedPhotos(daysOld: number = 30): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      cleaned_count: number;
+      days_old: number;
+    };
+  }> {
+    try {
+      const response = await apiClient.post(`${this.BASE_URL}/admin/cleanup-orphaned?days_old=${daysOld}`);
+      requestDeduplicator.clear();
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  // ==================== UTILIDADES ====================
+
+  static validatePhotoData(data: PhotoCreate | PhotoUpdate): string[] {
+    const errors: string[] = [];
+    
+    if ('photo_url' in data && data.photo_url) {
+      try {
+        new URL(data.photo_url);
+      } catch {
+        errors.push('La URL de la foto no es válida');
+      }
+    }
+    
+    if ('file_size' in data && data.file_size !== undefined) {
+      if (data.file_size < 0) {
+        errors.push('El tamaño del archivo no puede ser negativo');
+      }
+      if (data.file_size > 50 * 1024 * 1024) { // 50MB
+        errors.push('El archivo es demasiado grande (máximo 50MB)');
+      }
+    }
+    
+    if ('width' in data && data.width !== undefined && data.width < 0) {
+      errors.push('El ancho no puede ser negativo');
+    }
+    
+    if ('height' in data && data.height !== undefined && data.height < 0) {
+      errors.push('El alto no puede ser negativo');
+    }
+    
+    if ('sort_order' in data && data.sort_order !== undefined && data.sort_order < 0) {
+      errors.push('El orden no puede ser negativo');
+    }
+    
+    return errors;
+  }
+
+  static formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  static generateOptimizedSizes(width: number, height: number): {
+    thumbnail: { width: number; height: number };
+    medium: { width: number; height: number };
+    large: { width: number; height: number };
+  } {
+    const aspectRatio = width / height;
+    
+    return {
+      thumbnail: {
+        width: Math.min(300, width),
+        height: Math.min(300, height)
+      },
+      medium: {
+        width: Math.min(800, width),
+        height: Math.min(Math.round(800 / aspectRatio), height)
+      },
+      large: {
+        width: Math.min(1200, width),
+        height: Math.min(Math.round(1200 / aspectRatio), height)
+      }
+    };
+  }
+
+  // ==================== CACHE MANAGEMENT ====================
+
+  static clearCache(): void {
+    requestDeduplicator.clear();
+  }
+
+  static getCacheStats(): {
+    pendingCount: number;
+    pendingKeys: string[];
+  } {
+    return requestDeduplicator.getStats();
   }
 }
