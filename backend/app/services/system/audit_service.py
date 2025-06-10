@@ -1,4 +1,4 @@
-# app/services/common/audit_service.py
+# app/services/system/audit_service.py
 from typing import Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -80,6 +80,49 @@ class AuditService:
         return log_entry
     
     @staticmethod
+    def log_action(
+        db: Session,
+        action: str,
+        entity_type: str,
+        entity_id: Any,
+        user_id: int,
+        old_values: Optional[Dict[str, Any]] = None,
+        new_values: Optional[Dict[str, Any]] = None,
+        details: Optional[str] = None
+    ) -> bool:
+        """
+        Método de compatibilidad para los servicios de contenido
+        Wrapper del método log_activity existente
+        """
+        try:
+            # Crear objeto simulado para compatibilidad
+            entity_mock = type('Entity', (), {
+                '__tablename__': entity_type,
+                'id': entity_id
+            })()
+            
+            # Usar el método log_activity existente
+            AuditService.log_activity(
+                db=db,
+                action=action,
+                entity=entity_mock,
+                user_id=user_id,
+                old_values=old_values,
+                new_values=new_values,
+                details=details,
+                category='content',  # Categoría específica para contenido
+                importance=2  # Importancia media para operaciones de contenido
+            )
+            
+            return True
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error registrando auditoría: {e}")
+            return False
+    
+    @staticmethod
     def log_status_change(
         db: Session,
         entity_type: str,
@@ -116,7 +159,6 @@ class AuditService:
             user_id=user_id,
             old_values={'status_id': old_status_id, 'level': old_level},
             new_values={'status_id': new_status_id, 'level': new_level},
-            action_type='status_change',
             importance=3  # Mayor importancia para cambios de estado
         )
     

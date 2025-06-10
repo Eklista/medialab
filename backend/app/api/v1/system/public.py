@@ -235,3 +235,92 @@ def get_public_online_users(
             "error": str(e),
             "source": "public_endpoint"
         }
+
+# Importar los endpoints públicos de contenido
+try:
+    from app.api.v1.content.public import router as content_public_router
+    CONTENT_PUBLIC_AVAILABLE = True
+    logger.info("✅ Endpoints públicos de contenido importados correctamente")
+except ImportError as e:
+    CONTENT_PUBLIC_AVAILABLE = False
+    logger.warning(f"⚠️ Endpoints públicos de contenido no disponibles: {e}")
+
+# Incluir los endpoints públicos de contenido si están disponibles
+if CONTENT_PUBLIC_AVAILABLE:
+    router.include_router(
+        content_public_router,
+        prefix="/content",
+        tags=["public-content"]
+    )
+    logger.info("✅ Endpoints públicos de contenido incluidos en /public/content/")
+
+@router.get("/content/info", tags=["public-content"])
+def get_public_content_info():
+    """
+    📋 Información sobre endpoints públicos de contenido disponibles
+    """
+    if not CONTENT_PUBLIC_AVAILABLE:
+        return {
+            "available": False,
+            "message": "Endpoints públicos de contenido no disponibles",
+            "suggestion": "Verificar que el módulo de contenido esté instalado correctamente",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    return {
+        "available": True,
+        "message": "Endpoints públicos de contenido disponibles",
+        "base_url": "/api/v1/public/content",
+        "endpoints": {
+            "categories": {
+                "description": "Categorías de contenido públicas",
+                "list": "GET /categories - Lista de categorías activas",
+                "by_slug": "GET /categories/{slug} - Categoría por slug",
+                "departments": "GET /departments-categories - Departamentos con categorías"
+            },
+            "photos": {
+                "description": "Fotos y galerías públicas",
+                "list": "GET /photos - Lista de fotos públicas",
+                "by_content": "GET /{content_id}/photos - Fotos de un contenido",
+                "gallery": "GET /{content_id}/gallery - Galería completa",
+                "by_id": "GET /photos/{photo_id} - Foto específica"
+            },
+            "videos": {
+                "description": "Videos públicos procesados",
+                "list": "GET /videos - Lista de videos públicos",
+                "by_content": "GET /{content_id}/videos - Videos de un contenido",
+                "main_video": "GET /{content_id}/main-video - Video principal",
+                "by_id": "GET /videos/{video_id} - Video específico"
+            },
+            "metadata": {
+                "description": "Información de configuración pública",
+                "video_types": "GET /video-types - Tipos de video disponibles",
+                "storage_providers": "GET /storage-providers - Proveedores configurados"
+            }
+        },
+        "features": [
+            "Categorías organizacionales públicas",
+            "Galerías de fotos con thumbnails automáticos",
+            "Videos públicos de YouTube, Vimeo y locales",
+            "Metadatos de configuración del sistema",
+            "Estructura departamental pública",
+            "Sin requerimiento de autenticación",
+            "Respuestas optimizadas para frontend"
+        ],
+        "usage_notes": {
+            "authentication": "No requerida para ningún endpoint público",
+            "rate_limiting": "Aplicado según configuración global del sistema",
+            "caching": "Recomendado implementar caché en frontend",
+            "formats": "Todas las respuestas en formato JSON",
+            "pagination": "Soportado con parámetros skip y limit",
+            "filters": "Disponibles según endpoint específico"
+        },
+        "examples": {
+            "get_categories": "/api/v1/public/content/categories?skip=0&limit=10",
+            "get_gallery": "/api/v1/public/content/graduacion-2024/gallery",
+            "get_main_video": "/api/v1/public/content/ceremonia-grados/main-video"
+        },
+        "timestamp": datetime.utcnow().isoformat(),
+        "success": True,
+        "source": "public_content_info"
+    }

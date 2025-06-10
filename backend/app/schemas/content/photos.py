@@ -1,6 +1,6 @@
 # app/schemas/content/photos.py
-from pydantic import BaseModel, Field, validator, HttpUrl
-from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator, HttpUrl
+from typing import Optional, List, Dict
 from datetime import datetime
 
 class PhotoBase(BaseModel):
@@ -27,13 +27,15 @@ class PhotoBase(BaseModel):
     is_featured: bool = Field(False, description="Si es foto destacada")
     is_cover: bool = Field(False, description="Si es foto de portada")
 
-    @validator('photo_url')
+    @field_validator('photo_url')
+    @classmethod
     def validate_photo_url(cls, v):
         if not v:
             raise ValueError('URL de la foto es requerida')
         return v
 
-    @validator('mime_type')
+    @field_validator('mime_type')
+    @classmethod
     def validate_mime_type(cls, v):
         if v and not v.startswith('image/'):
             raise ValueError('Tipo MIME debe ser de imagen')
@@ -64,7 +66,8 @@ class PhotoUpdate(BaseModel):
     is_featured: Optional[bool] = None
     is_cover: Optional[bool] = None
 
-    @validator('mime_type')
+    @field_validator('mime_type')
+    @classmethod
     def validate_mime_type(cls, v):
         if v and not v.startswith('image/'):
             raise ValueError('Tipo MIME debe ser de imagen')
@@ -127,7 +130,8 @@ class PhotoCreateFromUrl(BaseModel):
     is_cover: bool = Field(False)
     sort_order: int = Field(0)
 
-    @validator('photo_url')
+    @field_validator('photo_url')
+    @classmethod
     def validate_photo_url(cls, v):
         # Validar que sea una URL de imagen válida
         if not any(v.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']):

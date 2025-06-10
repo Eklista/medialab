@@ -1,5 +1,5 @@
 # app/schemas/content/video_types.py
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -10,7 +10,8 @@ class VideoTypeBase(BaseModel):
     icon: Optional[str] = Field(None, max_length=50, description="CSS icon class")
     is_active: bool = Field(True, description="Si el tipo está activo")
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if not v.replace('_', '').replace('-', '').isalnum():
             raise ValueError('Name debe contener solo letras, números, guiones y guiones bajos')
@@ -26,7 +27,8 @@ class VideoTypeUpdate(BaseModel):
     icon: Optional[str] = Field(None, max_length=50)
     is_active: Optional[bool] = None
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if v and not v.replace('_', '').replace('-', '').isalnum():
             raise ValueError('Name debe contener solo letras, números, guiones y guiones bajos')
@@ -61,7 +63,8 @@ class StorageProviderBase(BaseModel):
     supported_formats: Optional[List[str]] = Field(None, description="Formatos soportados")
     api_endpoint: Optional[str] = Field(None, max_length=255, description="Endpoint de API")
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if not v.replace('_', '').replace('-', '').isalnum():
             raise ValueError('Name debe contener solo letras, números, guiones y guiones bajos')
@@ -80,7 +83,8 @@ class StorageProviderUpdate(BaseModel):
     supported_formats: Optional[List[str]] = None
     api_endpoint: Optional[str] = Field(None, max_length=255)
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if v and not v.replace('_', '').replace('-', '').isalnum():
             raise ValueError('Name debe contener solo letras, números, guiones y guiones bajos')

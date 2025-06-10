@@ -1,7 +1,7 @@
 # app/api/v1/content/videos.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from app.database import get_db
 from app.api.deps import get_current_user

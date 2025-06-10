@@ -35,7 +35,7 @@ from app.services.common.metadata_service import MetadataService
 from app.services.common.workflow_service import WorkflowService
 
 # Servicios de auditoría
-from app.services.audits.audit_service import AuditService
+from app.services.system.audit_service import AuditService
 
 # Servicios para solicitudes y eventos
 from app.services.requests.request_service import RequestService

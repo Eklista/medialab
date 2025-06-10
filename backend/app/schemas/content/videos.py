@@ -1,6 +1,6 @@
 # app/schemas/content/videos.py
-from pydantic import BaseModel, Field, validator, HttpUrl
-from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator, HttpUrl
+from typing import Optional, List, Dict
 from datetime import datetime
 from decimal import Decimal
 
@@ -38,20 +38,23 @@ class VideoBase(BaseModel):
     is_main: bool = Field(False, description="Si es el video principal (para graduaciones)")
     sort_order: int = Field(0, description="Orden de visualización")
 
-    @validator('video_url')
+    @field_validator('video_url')
+    @classmethod
     def validate_video_url(cls, v):
         if not v:
             raise ValueError('URL del video es requerida')
         return v
 
-    @validator('processing_status')
+    @field_validator('processing_status')
+    @classmethod
     def validate_processing_status(cls, v):
         allowed_statuses = ['pending', 'processing', 'completed', 'error', 'cancelled']
         if v not in allowed_statuses:
             raise ValueError(f'Estado debe ser uno de: {", ".join(allowed_statuses)}')
         return v
 
-    @validator('duration_formatted')
+    @field_validator('duration_formatted')
+    @classmethod
     def validate_duration_format(cls, v):
         if v and not v.count(':') in [1, 2]:  # MM:SS o HH:MM:SS
             raise ValueError('Formato de duración debe ser MM:SS o HH:MM:SS')
@@ -92,7 +95,8 @@ class VideoUpdate(BaseModel):
     is_main: Optional[bool] = None
     sort_order: Optional[int] = None
 
-    @validator('processing_status')
+    @field_validator('processing_status')
+    @classmethod
     def validate_processing_status(cls, v):
         if v:
             allowed_statuses = ['pending', 'processing', 'completed', 'error', 'cancelled']
@@ -148,7 +152,8 @@ class VideoCreateFromYouTube(BaseModel):
     is_main: bool = Field(False)
     sort_order: int = Field(0)
 
-    @validator('youtube_url')
+    @field_validator('youtube_url')
+    @classmethod
     def validate_youtube_url(cls, v):
         youtube_patterns = [
             r'youtube\.com\/watch\?v=',
@@ -167,7 +172,8 @@ class VideoCreateFromVimeo(BaseModel):
     is_main: bool = Field(False)
     sort_order: int = Field(0)
 
-    @validator('vimeo_url')
+    @field_validator('vimeo_url')
+    @classmethod
     def validate_vimeo_url(cls, v):
         import re
         if not re.search(r'vimeo\.com\/\d+', v):

@@ -1,6 +1,6 @@
 # app/utils/image_utils.py
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from PIL import Image
 import logging
 

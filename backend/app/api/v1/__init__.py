@@ -11,6 +11,14 @@ from app.api.v1.templates import templates_router
 from app.api.v1.communication import communication_router
 from app.api.v1.system import system_router
 
+# Contenido multimedia
+try:
+    from app.api.v1.content import content_router
+    CONTENT_AVAILABLE = True
+except ImportError as e:
+    CONTENT_AVAILABLE = False
+    print(f"⚠️  Módulo content no disponible: {e}")
+
 # Inventario
 try:
     from app.api.v1.inventory import inventory_router
@@ -61,6 +69,17 @@ api_router.include_router(templates_router)
 # Esto mantiene: /smtp-config/
 api_router.include_router(communication_router)
 
+# ✅ CONTENT - Sistema completo de gestión de contenido multimedia
+if CONTENT_AVAILABLE:
+    api_router.include_router(
+        content_router,
+        prefix="/content", 
+        tags=["content"]
+    )
+    print("✅ Módulo de contenido cargado exitosamente")
+else:
+    print("⚠️ Módulo de contenido no disponible")
+
 # ✅ INVENTORY - Sistema completo de gestión de inventario
 if INVENTORY_AVAILABLE:
     api_router.include_router(
@@ -93,13 +112,16 @@ else:
 
 # Información del API (actualizada)
 API_VERSION = "1.0.0"
-API_DESCRIPTION = "MediaLab API - Sistema modular con autenticación segura e inventario"
+API_DESCRIPTION = "MediaLab API - Sistema modular con autenticación segura, inventario y contenido multimedia"
 
 # Lista de todos los módulos incluidos (actualizada)
 INCLUDED_MODULES = [
     "health", "auth", "users", "organization", "security", 
     "templates", "communication"
 ]
+
+if CONTENT_AVAILABLE:
+    INCLUDED_MODULES.append("content")
 
 if INVENTORY_AVAILABLE:
     INCLUDED_MODULES.append("inventory")
@@ -126,6 +148,7 @@ def get_api_info():
         admin_status = "Solo Redis admin disponible"
     
     inventory_status = "Disponible" if INVENTORY_AVAILABLE else "No disponible"
+    content_status = "Disponible" if CONTENT_AVAILABLE else "No disponible"
     
     return {
         "api": "MediaLab API",
@@ -138,6 +161,7 @@ def get_api_info():
         },
         "admin": admin_status,
         "inventory": inventory_status,
+        "content": content_status,
         "endpoints": {
             "auth": "Autenticación con cookies httpOnly y sistema híbrido de blacklist",
             "users": "Gestión de usuarios del sistema",
@@ -149,11 +173,25 @@ def get_api_info():
             "service-templates": "Plantillas de servicios",
             "email-templates": "Plantillas de correo electrónico",
             "smtp-config": "Configuración SMTP",
+            "content": "Sistema completo de gestión de contenido multimedia",
             "inventory": "Sistema completo de gestión de inventario (equipos y suministros)",
             "public": "Endpoints públicos",
             "admin": "Administración avanzada del sistema (si está disponible)",
             "health": "Monitoreo de salud del sistema"
         },
+        "content_features": [
+            "Gestión de categorías de contenido",
+            "Administración de fotos y galerías",
+            "Gestión de videos multimedia", 
+            "Soporte para YouTube y Vimeo",
+            "Tipos de video configurables",
+            "Proveedores de almacenamiento",
+            "Procesamiento automático",
+            "Thumbnails y variantes",
+            "Búsqueda unificada",
+            "Endpoints públicos",
+            "Auditoría completa"
+        ] if CONTENT_AVAILABLE else ["No disponible"],
         "inventory_features": [
             "Gestión de equipos y suministros",
             "Dashboard con métricas en tiempo real",
@@ -190,6 +228,7 @@ def get_api_diagnostics():
         "admin_available": ADMIN_AVAILABLE,
         "redis_admin_available": REDIS_ADMIN_AVAILABLE,
         "inventory_available": INVENTORY_AVAILABLE,
+        "content_available": CONTENT_AVAILABLE,
         "security_status": "enhanced"
     }
     
@@ -207,6 +246,28 @@ def get_api_diagnostics():
         }
     except ImportError:
         diagnostics["security_config"] = "No disponible"
+    
+    # Verificar estado del contenido
+    if CONTENT_AVAILABLE:
+        try:
+            # Verificar que los modelos de contenido estén disponibles
+            from app.models.content.categories import ContentCategory
+            from app.models.content.photos import Photo
+            from app.models.content.videos import Video
+            diagnostics["content_status"] = {
+                "models_loaded": True,
+                "categories_model": "OK",
+                "photos_model": "OK",
+                "videos_model": "OK",
+                "endpoints_available": True
+            }
+        except ImportError as e:
+            diagnostics["content_status"] = {
+                "models_loaded": False,
+                "error": str(e)
+            }
+    else:
+        diagnostics["content_status"] = "Not available"
     
     # Verificar estado del inventario
     if INVENTORY_AVAILABLE:
@@ -229,6 +290,104 @@ def get_api_diagnostics():
         diagnostics["inventory_status"] = "Not available"
     
     return diagnostics
+
+# Endpoint específico para el estado del contenido
+@api_router.get("/content-status", tags=["api-info"])
+def get_content_status():
+    """
+    Estado específico del módulo de contenido
+    """
+    if not CONTENT_AVAILABLE:
+        return {
+            "available": False,
+            "reason": "Module not imported",
+            "suggestion": "Verify content module files exist and dependencies are met"
+        }
+    
+    try:
+        # Verificar componentes del contenido
+        components_status = {}
+        
+        # Verificar modelos
+        try:
+            from app.models.content.categories import ContentCategory
+            from app.models.content.photos import Photo
+            from app.models.content.videos import Video
+            from app.models.content.video_types import VideoType, StorageProvider
+            components_status["models"] = "OK"
+        except ImportError as e:
+            components_status["models"] = f"ERROR: {str(e)}"
+        
+        # Verificar schemas
+        try:
+            from app.schemas.content.categories import ContentCategoryCreate
+            from app.schemas.content.photos import PhotoCreate
+            from app.schemas.content.videos import VideoCreate
+            components_status["schemas"] = "OK"
+        except ImportError as e:
+            components_status["schemas"] = f"ERROR: {str(e)}"
+        
+        # Verificar servicios
+        try:
+            from app.services.content.category_service import ContentCategoryService
+            from app.services.content.photo_service import PhotoService
+            from app.services.content.video_service import VideoService
+            components_status["services"] = "OK"
+        except ImportError as e:
+            components_status["services"] = f"ERROR: {str(e)}"
+        
+        # Verificar controladores
+        try:
+            from app.controllers.content.category_controller import ContentCategoryController
+            from app.controllers.content.photo_controller import PhotoController
+            from app.controllers.content.video_controller import VideoController
+            components_status["controllers"] = "OK"
+        except ImportError as e:
+            components_status["controllers"] = f"ERROR: {str(e)}"
+        
+        # Verificar repositorios
+        try:
+            from app.repositories.content.category_repository import ContentCategoryRepository
+            from app.repositories.content.photo_repository import PhotoRepository
+            from app.repositories.content.video_repository import VideoRepository
+            components_status["repositories"] = "OK"
+        except ImportError as e:
+            components_status["repositories"] = f"ERROR: {str(e)}"
+        
+        return {
+            "available": True,
+            "status": "operational",
+            "components": components_status,
+            "endpoints": {
+                "categories": "/api/v1/content/categories/",
+                "photos": "/api/v1/content/photos/",
+                "videos": "/api/v1/content/videos/",
+                "video_types": "/api/v1/content/video-types/",
+                "storage_providers": "/api/v1/content/storage-providers/",
+                "public_categories": "/api/v1/public/content/categories",
+                "public_photos": "/api/v1/public/content/photos",
+                "public_videos": "/api/v1/public/content/videos"
+            },
+            "features": [
+                "Content categories management",
+                "Photo galleries with variants",
+                "Video management (YouTube, Vimeo, Local)",
+                "Storage providers configuration",
+                "Public content endpoints",
+                "Advanced search capabilities",
+                "Complete audit trail",
+                "Bulk operations support",
+                "Automatic thumbnail generation",
+                "Video processing status tracking"
+            ]
+        }
+        
+    except Exception as e:
+        return {
+            "available": True,
+            "status": "error",
+            "error": str(e)
+        }
 
 # Endpoint específico para el estado del inventario
 @api_router.get("/inventory-status", tags=["api-info"])
@@ -318,7 +477,9 @@ def get_inventory_status():
         }
 
 print(f"🚀 MediaLab API v{API_VERSION} inicializado con {len(INCLUDED_MODULES)} módulos")
+if CONTENT_AVAILABLE:
+    print(f"📸 Módulo de contenido disponible en: /api/v1/content/")
 if INVENTORY_AVAILABLE:
     print(f"📦 Módulo de inventario disponible en: /api/v1/inventory/")
 else:
-    print(f"⚠️ Módulo de inventario no disponible")
+    print(f"⚠️ Algunos módulos no están disponibles")

@@ -1,5 +1,5 @@
 # app/schemas/content/categories.py
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -8,11 +8,12 @@ class ContentCategoryBase(BaseModel):
     slug: str = Field(..., min_length=1, max_length=100, description="Slug único para URLs")
     description: Optional[str] = Field(None, description="Descripción de la categoría")
     icon: Optional[str] = Field(None, max_length=50, description="CSS icon class")
-    color: Optional[str] = Field(None, regex=r'^#[0-9A-Fa-f]{6}$', description="Color hex (#FFFFFF)")
+    color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$', description="Color hex (#FFFFFF)")
     sort_order: int = Field(0, description="Orden de visualización")
     is_active: bool = Field(True, description="Si la categoría está activa")
 
-    @validator('slug')
+    @field_validator('slug')
+    @classmethod
     def validate_slug(cls, v):
         if not v.replace('-', '').replace('_', '').isalnum():
             raise ValueError('Slug debe contener solo letras, números, guiones y guiones bajos')
@@ -26,11 +27,12 @@ class ContentCategoryUpdate(BaseModel):
     slug: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     icon: Optional[str] = Field(None, max_length=50)
-    color: Optional[str] = Field(None, regex=r'^#[0-9A-Fa-f]{6}$')
+    color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$')
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
 
-    @validator('slug')
+    @field_validator('slug')
+    @classmethod
     def validate_slug(cls, v):
         if v and not v.replace('-', '').replace('_', '').isalnum():
             raise ValueError('Slug debe contener solo letras, números, guiones y guiones bajos')
