@@ -3,6 +3,7 @@
 export { default as TasksPanel } from './TasksPanel';
 export { default as NotificationsPanel } from './NotificationsPanel';
 export { default as OnlineUsersPanel } from './OnlineUsersPanel';
+export { default as CalendarPanel } from './CalendarPanel';
 
 // Types
 export type { 

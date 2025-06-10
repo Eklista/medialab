@@ -1,3 +1,5 @@
+# backend/app/api/v1/organization/departments.py
+from app.controllers.organization.department_controller import DepartmentController
 from typing import List, Any, Optional
 from fastapi import APIRouter, Depends, Query, status, Path, Body
 from sqlalchemy.orm import Session
@@ -26,16 +28,9 @@ def read_departments(
 ) -> Any:
     """
     Obtiene lista de departamentos (requiere permiso department_view)
-    Puede filtrar por tipo de departamento con el parámetro type_id
+    ✅ REFACTORIZADO: Usa DepartmentController
     """
-    try:
-        if type_id:
-            departments = DepartmentService.get_departments_by_type(db=db, type_id=type_id, skip=skip, limit=limit)
-        else:
-            departments = DepartmentService.get_departments_with_type(db=db, skip=skip, limit=limit)
-        return departments
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "departamentos")
+    return DepartmentController.get_departments_list(db, skip, limit, type_id, current_user)
 
 @router.post("/", response_model=DepartmentInDB)
 def create_department(
@@ -45,12 +40,9 @@ def create_department(
 ) -> Any:
     """
     Crea un nuevo departamento (requiere permiso department_create)
+    ✅ REFACTORIZADO: Usa DepartmentController
     """
-    try:
-        department = DepartmentService.create_department(db=db, department_data=department_in.dict())
-        return department
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "crear", "departamento")
+    return DepartmentController.create_department(db, department_in, current_user)
 
 @router.get("/{department_id}", response_model=DepartmentWithType)
 def read_department(
@@ -60,12 +52,9 @@ def read_department(
 ) -> Any:
     """
     Obtiene un departamento específico por ID (requiere permiso department_view)
+    ✅ REFACTORIZADO: Usa DepartmentController
     """
-    try:
-        department = DepartmentService.get_department_by_id_with_type(db=db, department_id=department_id)
-        return department
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "departamento")
+    return DepartmentController.get_department_by_id(db, department_id, current_user)
 
 @router.patch("/{department_id}", response_model=DepartmentInDB)
 def update_department(
@@ -76,16 +65,9 @@ def update_department(
 ) -> Any:
     """
     Actualiza un departamento existente (requiere permiso department_edit)
+    ✅ REFACTORIZADO: Usa DepartmentController
     """
-    try:
-        department = DepartmentService.update_department(
-            db=db,
-            department_id=department_id,
-            department_data=department_in.dict(exclude_unset=True)
-        )
-        return department
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "actualizar", "departamento")
+    return DepartmentController.update_department(db, department_id, department_in, current_user)
 
 @router.delete("/{department_id}", response_model=DepartmentInDB)
 def delete_department(
@@ -95,9 +77,6 @@ def delete_department(
 ) -> Any:
     """
     Elimina un departamento (requiere permiso department_delete)
+    ✅ REFACTORIZADO: Usa DepartmentController
     """
-    try:
-        department = DepartmentService.delete_department(db=db, department_id=department_id)
-        return department
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "eliminar", "departamento")
+    return DepartmentController.delete_department(db, department_id, current_user)

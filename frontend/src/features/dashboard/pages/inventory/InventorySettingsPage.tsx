@@ -1,8 +1,9 @@
-// frontend/src/features/dashboard/pages/inventory/InventorySettingsPage.tsx
+// frontend/src/features/dashboard/pages/inventory/InventorySettingsPage.tsx - CON INVENTORY LAYOUT
 
 import React, { useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import InventoryLayout from '../../components/layout/InventoryLayout';
 import DashboardCard from '../../components/ui/DashboardCard';
 import DashboardButton from '../../components/ui/DashboardButton';
 import DashboardTabs, { DashboardTabPanel, useDashboardTabs } from '../../components/ui/DashboardTabs';
@@ -14,9 +15,8 @@ import Switch from '../../components/ui/Switch';
 import Badge from '../../components/ui/Badge';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
-// Icons - solo los que se usan
+// Icons
 import { 
-  Cog6ToothIcon,
   TagIcon,
   MapPinIcon,
   BuildingStorefrontIcon,
@@ -28,10 +28,16 @@ import {
   CheckIcon
 } from '@heroicons/react/24/outline';
 
-// Hooks y tipos
+// ✅ USAR SERVICIOS REALES
 import { useInventoryCommon } from '../../../../services/inventory';
 import type { 
-  InventoryCategory
+  InventoryCategory,
+  CategoryCreateRequest,
+  CategoryUpdateRequest,
+  LocationCreateRequest,
+  LocationUpdateRequest,
+  SupplierCreateRequest,
+  SupplierUpdateRequest
 } from '../../../../services/inventory/types';
 
 interface FormData {
@@ -62,7 +68,6 @@ const InventorySettingsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'category' | 'location' | 'supplier' | 'state' | 'movement'>('category');
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   // Estados del formulario
@@ -78,70 +83,34 @@ const InventorySettingsPage: React.FC = () => {
     searchParams.get('tab') || 'categories'
   );
 
-  // Hooks de datos
+  // ✅ USAR HOOK REAL CON TODOS LOS SERVICIOS CRUD
   const {
+    // Datos
     categories,
     locations,
     suppliers,
     equipmentStates,
     movementTypes,
+    
+    // Estados
     isLoading,
+    isSubmitting,
     error,
-    refresh
+    
+    // Métodos de actualización
+    refresh,
+    
+    // ✅ MÉTODOS CRUD REALES - YA NO SIMULADOS
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    createLocation,
+    updateLocation,
+    deleteLocation,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier
   } = useInventoryCommon();
-
-  // ✅ Funciones simuladas para CRUD hasta que estén implementadas en el backend
-  const createCategory = useCallback(async (data: any) => {
-    console.log('Crear categoría:', data);
-    // Simular delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { id: Date.now(), ...data };
-  }, []);
-
-  const updateCategory = useCallback(async (id: number, data: any) => {
-    console.log('Actualizar categoría:', id, data);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { id, ...data };
-  }, []);
-
-  const deleteCategory = useCallback(async (id: number) => {
-    console.log('Eliminar categoría:', id);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }, []);
-
-  const createLocation = useCallback(async (data: any) => {
-    console.log('Crear ubicación:', data);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { id: Date.now(), ...data };
-  }, []);
-
-  const updateLocation = useCallback(async (id: number, data: any) => {
-    console.log('Actualizar ubicación:', id, data);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { id, ...data };
-  }, []);
-
-  const deleteLocation = useCallback(async (id: number) => {
-    console.log('Eliminar ubicación:', id);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }, []);
-
-  const createSupplier = useCallback(async (data: any) => {
-    console.log('Crear proveedor:', data);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { id: Date.now(), ...data };
-  }, []);
-
-  const updateSupplier = useCallback(async (id: number, data: any) => {
-    console.log('Actualizar proveedor:', id, data);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { id, ...data };
-  }, []);
-
-  const deleteSupplier = useCallback(async (id: number) => {
-    console.log('Eliminar proveedor:', id);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }, []);
 
   // Configurar pestañas
   const tabs = [
@@ -209,7 +178,6 @@ const InventorySettingsPage: React.FC = () => {
     setShowModal(false);
     setEditingItem(null);
     setSubmitSuccess(false);
-    setIsSubmitting(false);
   }, []);
 
   // Validación
@@ -238,10 +206,10 @@ const InventorySettingsPage: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: checked }));
   };
 
+  // ✅ USAR SERVICIOS REALES PARA SUBMIT
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    setIsSubmitting(true);
     setErrors({});
 
     try {
@@ -277,78 +245,91 @@ const InventorySettingsPage: React.FC = () => {
       let result;
       
       if (editingItem) {
-        // Actualizar existente
+        // ✅ ACTUALIZAR USANDO SERVICIOS REALES
         switch (modalType) {
           case 'category':
-            result = await updateCategory(editingItem.id, submitData);
+            result = await updateCategory(editingItem.id, submitData as CategoryUpdateRequest);
             break;
           case 'location':
-            result = await updateLocation(editingItem.id, submitData);
+            result = await updateLocation(editingItem.id, submitData as LocationUpdateRequest);
             break;
           case 'supplier':
-            result = await updateSupplier(editingItem.id, submitData);
+            result = await updateSupplier(editingItem.id, submitData as SupplierUpdateRequest);
             break;
           default:
             throw new Error('Tipo no implementado para actualización');
         }
       } else {
-        // Crear nuevo
+        // ✅ CREAR USANDO SERVICIOS REALES
         switch (modalType) {
           case 'category':
-            result = await createCategory(submitData);
+            result = await createCategory(submitData as CategoryCreateRequest);
             break;
           case 'location':
-            result = await createLocation(submitData);
+            result = await createLocation(submitData as LocationCreateRequest);
             break;
           case 'supplier':
-            result = await createSupplier(submitData);
+            result = await createSupplier(submitData as SupplierCreateRequest);
             break;
           default:
             throw new Error('Tipo no implementado para creación');
         }
       }
 
-      if (result) {
+      // ✅ MANEJAR RESPUESTA REAL DEL SERVICIO
+      if (result.success) {
         setSubmitSuccess(true);
         setTimeout(() => {
           closeModal();
-          refresh();
+          // No necesitamos refresh manual, el hook ya maneja la actualización
         }, 1500);
+      } else {
+        // Si el servicio devuelve success: false
+        setErrors({ general: result.error || 'Error al guardar' });
       }
 
     } catch (error) {
+      // Error de excepción
       const errorMessage = error instanceof Error ? error.message : 'Error al guardar';
       setErrors({ general: errorMessage });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  // Handlers de eliminación
+  // ✅ USAR SERVICIOS REALES PARA DELETE
   const handleDelete = useCallback(async (type: typeof modalType, item: any) => {
     if (!window.confirm(`¿Estás seguro de eliminar "${item.name}"?`)) {
       return;
     }
 
     try {
+      let result;
+      
       switch (type) {
         case 'category':
-          await deleteCategory(item.id);
+          result = await deleteCategory(item.id);
           break;
         case 'location':
-          await deleteLocation(item.id);
+          result = await deleteLocation(item.id);
           break;
         case 'supplier':
-          await deleteSupplier(item.id);
+          result = await deleteSupplier(item.id);
           break;
         default:
           throw new Error('Tipo no implementado para eliminación');
       }
-      refresh();
+
+      // ✅ MANEJAR RESPUESTA REAL
+      if (!result.success) {
+        console.error('Error eliminando item:', result.error);
+        // Podrías mostrar un toast o modal de error aquí
+      }
+      // No necesitamos refresh manual, el hook ya maneja la actualización
+      
     } catch (error) {
       console.error('Error eliminando item:', error);
+      // Podrías mostrar un toast o modal de error aquí
     }
-  }, [deleteCategory, deleteLocation, deleteSupplier, refresh]);
+  }, [deleteCategory, deleteLocation, deleteSupplier]);
 
   // Columnas para las tablas
   const getCategoriesColumns = () => [
@@ -377,6 +358,69 @@ const InventorySettingsPage: React.FC = () => {
       accessor: (item: InventoryCategory) => (
         <Badge variant={item.is_active ? 'success' : 'secondary'} size="sm">
           {item.is_active ? 'Activa' : 'Inactiva'}
+        </Badge>
+      ),
+      width: '100px'
+    }
+  ];
+
+  const getLocationsColumns = () => [
+    {
+      header: 'Nombre',
+      accessor: (item: any) => (
+        <div>
+          <div className="font-medium text-gray-900">{item.name}</div>
+          {item.description && (
+            <div className="text-sm text-gray-500">{item.description}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Tipo',
+      accessor: (item: any) => (
+        <Badge variant={item.is_external ? 'warning' : 'primary'} size="sm">
+          {item.is_external ? 'Externa' : 'Interna'}
+        </Badge>
+      ),
+      width: '120px'
+    },
+    {
+      header: 'Estado',
+      accessor: (item: any) => (
+        <Badge variant={item.is_active ? 'success' : 'secondary'} size="sm">
+          {item.is_active ? 'Activa' : 'Inactiva'}
+        </Badge>
+      ),
+      width: '100px'
+    }
+  ];
+
+  const getSuppliersColumns = () => [
+    {
+      header: 'Información',
+      accessor: (item: any) => (
+        <div>
+          <div className="font-medium text-gray-900">{item.name}</div>
+          {item.contact_person && (
+            <div className="text-sm text-gray-500">Contacto: {item.contact_person}</div>
+          )}
+          {item.email && (
+            <div className="text-sm text-gray-500">{item.email}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Teléfono',
+      accessor: (item: any) => item.phone || '-',
+      width: '120px'
+    },
+    {
+      header: 'Estado',
+      accessor: (item: any) => (
+        <Badge variant={item.is_active ? 'success' : 'secondary'} size="sm">
+          {item.is_active ? 'Activo' : 'Inactivo'}
         </Badge>
       ),
       width: '100px'
@@ -425,289 +469,366 @@ const InventorySettingsPage: React.FC = () => {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Cog6ToothIcon className="h-6 w-6 text-gray-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Configuración de Inventario</h1>
-          </div>
-          
+        <InventoryLayout>
           <ApiErrorHandler 
             error={error} 
             onRetry={refresh} 
             resourceName="la configuración de inventario"
           />
-        </div>
+        </InventoryLayout>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Cog6ToothIcon className="h-6 w-6 text-gray-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Configuración de Inventario</h1>
+      <InventoryLayout 
+        title="Configuración de Inventario" 
+        subtitle="Gestión de categorías, ubicaciones, proveedores y configuraciones del sistema"
+      >
+        <div className="space-y-6">
+          {/* Header con botón de actualizar */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600">
+                Configura y administra los elementos base del sistema de inventario
+              </p>
             </div>
-            <p className="text-gray-600">
-              Gestión de categorías, ubicaciones, proveedores y configuraciones del sistema
-            </p>
+
+            <DashboardButton
+              onClick={refresh}
+              variant="outline"
+              leftIcon={<ArrowPathIcon className="h-4 w-4" />}
+              loading={isLoading}
+            >
+              Actualizar
+            </DashboardButton>
           </div>
 
-          <DashboardButton
-            onClick={refresh}
-            variant="outline"
-            leftIcon={<ArrowPathIcon className="h-4 w-4" />}
-            loading={isLoading}
-          >
-            Actualizar
-          </DashboardButton>
-        </div>
+          {/* Contenido principal */}
+          <DashboardCard>
+            {/* Pestañas */}
+            <div className="mb-6">
+              <DashboardTabs
+                tabs={tabs}
+                variant="underline"
+                isLoading={isLoading}
+              />
+            </div>
 
-        {/* Contenido principal */}
-        <DashboardCard>
-          {/* Pestañas */}
-          <div className="mb-6">
-            <DashboardTabs
-              tabs={tabs}
-              variant="underline"
-              isLoading={isLoading}
-            />
-          </div>
+            {/* Panel de Categorías */}
+            <DashboardTabPanel tabId="categories" isActive={activeTabId === 'categories'}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Categorías de Inventario</h3>
+                  <DashboardButton
+                    onClick={() => openCreateModal('category')}
+                    leftIcon={<PlusIcon className="h-4 w-4" />}
+                  >
+                    Nueva Categoría
+                  </DashboardButton>
+                </div>
 
-          {/* Panel de Categorías */}
-          <DashboardTabPanel tabId="categories" isActive={activeTabId === 'categories'}>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Categorías de Inventario</h3>
+                <DashboardDataTable
+                  columns={getCategoriesColumns()}
+                  data={categories}
+                  keyExtractor={(item) => item.id.toString()}
+                  isLoading={isLoading}
+                  emptyMessage="No hay categorías configuradas"
+                  actionColumn={true}
+                  renderActions={(item) => renderActions('category', item)}
+                  hover
+                  striped
+                />
+              </div>
+            </DashboardTabPanel>
+
+            {/* Panel de Ubicaciones */}
+            <DashboardTabPanel tabId="locations" isActive={activeTabId === 'locations'}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Ubicaciones</h3>
+                  <DashboardButton
+                    onClick={() => openCreateModal('location')}
+                    leftIcon={<PlusIcon className="h-4 w-4" />}
+                  >
+                    Nueva Ubicación
+                  </DashboardButton>
+                </div>
+
+                <DashboardDataTable
+                  columns={getLocationsColumns()}
+                  data={locations}
+                  keyExtractor={(item) => item.id.toString()}
+                  isLoading={isLoading}
+                  emptyMessage="No hay ubicaciones configuradas"
+                  actionColumn={true}
+                  renderActions={(item) => renderActions('location', item)}
+                  hover
+                  striped
+                />
+              </div>
+            </DashboardTabPanel>
+
+            {/* Panel de Proveedores */}
+            <DashboardTabPanel tabId="suppliers" isActive={activeTabId === 'suppliers'}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Proveedores</h3>
+                  <DashboardButton
+                    onClick={() => openCreateModal('supplier')}
+                    leftIcon={<PlusIcon className="h-4 w-4" />}
+                  >
+                    Nuevo Proveedor
+                  </DashboardButton>
+                </div>
+
+                <DashboardDataTable
+                  columns={getSuppliersColumns()}
+                  data={suppliers}
+                  keyExtractor={(item) => item.id.toString()}
+                  isLoading={isLoading}
+                  emptyMessage="No hay proveedores configurados"
+                  actionColumn={true}
+                  renderActions={(item) => renderActions('supplier', item)}
+                  hover
+                  striped
+                />
+              </div>
+            </DashboardTabPanel>
+
+            {/* Panel de Estados (solo lectura) */}
+            <DashboardTabPanel tabId="states" isActive={activeTabId === 'states'}>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Estados de Equipos</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {equipmentStates.map((state) => (
+                    <div key={state.id} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div 
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: state.color }}
+                        />
+                        <h4 className="font-medium text-gray-900">{state.name}</h4>
+                      </div>
+                      {state.description && (
+                        <p className="text-sm text-gray-600 mb-2">{state.description}</p>
+                      )}
+                      <div className="text-xs text-gray-500">
+                        {state.is_operational ? 'Operativo' : 'No operativo'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </DashboardTabPanel>
+
+            {/* Panel de Tipos de Movimiento (solo lectura) */}
+            <DashboardTabPanel tabId="movements" isActive={activeTabId === 'movements'}>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Tipos de Movimiento</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {movementTypes.map((movement) => (
+                    <div key={movement.id} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`p-2 rounded-full ${
+                          movement.affects_stock > 0 ? 'bg-green-100 text-green-600' :
+                          movement.affects_stock < 0 ? 'bg-red-100 text-red-600' :
+                          'bg-yellow-100 text-yellow-600'
+                        }`}>
+                          {movement.affects_stock > 0 ? '+' :
+                           movement.affects_stock < 0 ? '-' : '±'}
+                        </div>
+                        <h4 className="font-medium text-gray-900">{movement.name}</h4>
+                      </div>
+                      {movement.description && (
+                        <p className="text-sm text-gray-600 mb-2">{movement.description}</p>
+                      )}
+                      <div className="text-xs text-gray-500">
+                        Afecta stock: {movement.affects_stock > 0 ? 'Incrementa' : 
+                                     movement.affects_stock < 0 ? 'Reduce' : 'No afecta'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </DashboardTabPanel>
+          </DashboardCard>
+
+          {/* Modal de formulario */}
+          <DashboardModal
+            isOpen={showModal}
+            onClose={closeModal}
+            title={getModalTitle()}
+            size="lg"
+            error={errors.general}
+            success={submitSuccess ? 'Guardado exitosamente' : null}
+            footer={
+              <div className="flex justify-end gap-3">
                 <DashboardButton
-                  onClick={() => openCreateModal('category')}
-                  leftIcon={<PlusIcon className="h-4 w-4" />}
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={isSubmitting}
                 >
-                  Nueva Categoría
+                  Cancelar
+                </DashboardButton>
+                
+                <DashboardButton
+                  variant="primary"
+                  onClick={handleSubmit}
+                  loading={isSubmitting}
+                  disabled={isSubmitting || submitSuccess}
+                  leftIcon={<CheckIcon className="h-4 w-4" />}
+                >
+                  {editingItem ? 'Actualizar' : 'Crear'}
                 </DashboardButton>
               </div>
+            }
+          >
+            <div className="space-y-6">
+              {/* Campos básicos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <DashboardTextInput
+                  id="name"
+                  name="name"
+                  label="Nombre"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Nombre descriptivo"
+                  required
+                  error={errors.name}
+                  maxLength={100}
+                />
 
-              <DashboardDataTable
-                columns={getCategoriesColumns()}
-                data={categories}
-                keyExtractor={(item) => item.id.toString()}
-                isLoading={isLoading}
-                emptyMessage="No hay categorías configuradas"
-                actionColumn={true}
-                renderActions={(item) => renderActions('category', item)}
-                hover
-                striped
-              />
-            </div>
-          </DashboardTabPanel>
-
-          {/* Panel de Tipos de Movimiento (solo lectura por ahora) */}
-          <DashboardTabPanel tabId="movements" isActive={activeTabId === 'movements'}>
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Tipos de Movimiento</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {movementTypes.map((movement) => (
-                  <div key={movement.id} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`p-2 rounded-full ${
-                        movement.affects_stock > 0 ? 'bg-green-100 text-green-600' :
-                        movement.affects_stock < 0 ? 'bg-red-100 text-red-600' :
-                        'bg-yellow-100 text-yellow-600'
-                      }`}>
-                        {movement.affects_stock > 0 ? '+' :
-                         movement.affects_stock < 0 ? '-' : '±'}
-                      </div>
-                      <h4 className="font-medium text-gray-900">{movement.name}</h4>
-                    </div>
-                    {movement.description && (
-                      <p className="text-sm text-gray-600 mb-2">{movement.description}</p>
-                    )}
-                    <div className="text-xs text-gray-500">
-                      Afecta stock: {movement.affects_stock > 0 ? 'Incrementa' : 
-                                   movement.affects_stock < 0 ? 'Reduce' : 'No afecta'}
-                    </div>
-                  </div>
-                ))}
+                <div className="flex items-center justify-center">
+                  <Switch
+                    checked={formData.is_active}
+                    onChange={(checked) => handleSwitchChange('is_active', checked)}
+                    size="md"
+                    variant={formData.is_active ? 'success' : 'default'}
+                    onLabel="Activo"
+                    offLabel="Inactivo"
+                  />
+                </div>
               </div>
-            </div>
-          </DashboardTabPanel>
-        </DashboardCard>
 
-        {/* Modal de formulario */}
-        <DashboardModal
-          isOpen={showModal}
-          onClose={closeModal}
-          title={getModalTitle()}
-          size="lg"
-          error={errors.general}
-          success={submitSuccess ? 'Guardado exitosamente' : null}
-          footer={
-            <div className="flex justify-end gap-3">
-              <DashboardButton
-                variant="outline"
-                onClick={closeModal}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </DashboardButton>
-              
-              <DashboardButton
-                variant="primary"
-                onClick={handleSubmit}
-                loading={isSubmitting}
-                disabled={isSubmitting || submitSuccess}
-                leftIcon={<CheckIcon className="h-4 w-4" />}
-              >
-                {editingItem ? 'Actualizar' : 'Crear'}
-              </DashboardButton>
-            </div>
-          }
-        >
-          <div className="space-y-6">
-            {/* Campos básicos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DashboardTextInput
-                id="name"
-                name="name"
-                label="Nombre"
-                value={formData.name}
+              <DashboardTextArea
+                id="description"
+                name="description"
+                label="Descripción"
+                value={formData.description}
                 onChange={handleInputChange}
-                placeholder="Nombre descriptivo"
-                required
-                error={errors.name}
-                maxLength={100}
+                placeholder="Descripción opcional"
+                rows={3}
+                maxLength={500}
+                showCharCount
               />
 
-              <div className="flex items-center justify-center">
-                <Switch
-                  checked={formData.is_active}
-                  onChange={(checked) => handleSwitchChange('is_active', checked)}
-                  size="md"
-                  variant={formData.is_active ? 'success' : 'default'} // ✅ Usar variant válido
-                  onLabel="Activo"
-                  offLabel="Inactivo"
-                />
-              </div>
+              {/* Campos específicos por tipo */}
+              {modalType === 'category' && (
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Configuración de Categoría</h4>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="categoryType"
+                        checked={!formData.is_equipment}
+                        onChange={() => handleSwitchChange('is_equipment', false)}
+                        className="form-radio text-blue-600"
+                      />
+                      <span>Para Suministros</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="categoryType"
+                        checked={formData.is_equipment === true}
+                        onChange={() => handleSwitchChange('is_equipment', true)}
+                        className="form-radio text-blue-600"
+                      />
+                      <span>Para Equipos</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {modalType === 'location' && (
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Tipo de Ubicación</h4>
+                  <Switch
+                    checked={formData.is_external === true}
+                    onChange={(checked) => handleSwitchChange('is_external', checked)}
+                    size="md"
+                    variant={formData.is_external ? 'warning' : 'default'}
+                    onLabel="Ubicación Externa"
+                    offLabel="Ubicación Interna"
+                  />
+                  <p className="text-sm text-gray-500 mt-2">
+                    {formData.is_external 
+                      ? 'Ubicación fuera de las instalaciones principales'
+                      : 'Ubicación dentro de las instalaciones'
+                    }
+                  </p>
+                </div>
+              )}
+
+              {modalType === 'supplier' && (
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Información de Contacto</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <DashboardTextInput
+                      id="contact_person"
+                      name="contact_person"
+                      label="Persona de Contacto"
+                      value={formData.contact_person || ''}
+                      onChange={handleInputChange}
+                      placeholder="Nombre del contacto"
+                      maxLength={100}
+                    />
+
+                    <DashboardTextInput
+                      id="phone"
+                      name="phone"
+                      label="Teléfono"
+                      value={formData.phone || ''}
+                      onChange={handleInputChange}
+                      placeholder="Número de teléfono"
+                      maxLength={20}
+                    />
+
+                    <DashboardTextInput
+                      id="email"
+                      name="email"
+                      label="Email"
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={handleInputChange}
+                      placeholder="correo@proveedor.com"
+                      maxLength={100}
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <DashboardTextArea
+                      id="address"
+                      name="address"
+                      label="Dirección"
+                      value={formData.address || ''}
+                      onChange={handleInputChange}
+                      placeholder="Dirección completa del proveedor"
+                      rows={2}
+                      maxLength={500}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-
-            <DashboardTextArea
-              id="description"
-              name="description"
-              label="Descripción"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Descripción opcional"
-              rows={3}
-              maxLength={500}
-              showCharCount
-            />
-
-            {/* Campos específicos por tipo */}
-            {modalType === 'category' && (
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="font-medium text-gray-900 mb-3">Configuración de Categoría</h4>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="categoryType"
-                      checked={!formData.is_equipment}
-                      onChange={() => handleSwitchChange('is_equipment', false)}
-                      className="form-radio text-blue-600"
-                    />
-                    <span>Para Suministros</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="categoryType"
-                      checked={formData.is_equipment === true}
-                      onChange={() => handleSwitchChange('is_equipment', true)}
-                      className="form-radio text-blue-600"
-                    />
-                    <span>Para Equipos</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {modalType === 'location' && (
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="font-medium text-gray-900 mb-3">Tipo de Ubicación</h4>
-                <Switch
-                  checked={formData.is_external === true}
-                  onChange={(checked) => handleSwitchChange('is_external', checked)}
-                  size="md"
-                  variant={formData.is_external ? 'warning' : 'default'} // ✅ Usar variant válido
-                  onLabel="Ubicación Externa"
-                  offLabel="Ubicación Interna"
-                />
-                <p className="text-sm text-gray-500 mt-2">
-                  {formData.is_external 
-                    ? 'Ubicación fuera de las instalaciones principales'
-                    : 'Ubicación dentro de las instalaciones'
-                  }
-                </p>
-              </div>
-            )}
-
-            {modalType === 'supplier' && (
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="font-medium text-gray-900 mb-3">Información de Contacto</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <DashboardTextInput
-                    id="contact_person"
-                    name="contact_person"
-                    label="Persona de Contacto"
-                    value={formData.contact_person || ''}
-                    onChange={handleInputChange}
-                    placeholder="Nombre del contacto"
-                    maxLength={100}
-                  />
-
-                  <DashboardTextInput
-                    id="phone"
-                    name="phone"
-                    label="Teléfono"
-                    value={formData.phone || ''}
-                    onChange={handleInputChange}
-                    placeholder="Número de teléfono"
-                    maxLength={20}
-                  />
-
-                  <DashboardTextInput
-                    id="email"
-                    name="email"
-                    label="Email"
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={handleInputChange}
-                    placeholder="correo@proveedor.com"
-                    maxLength={100}
-                  />
-                </div>
-
-                <div className="mt-4">
-                  <DashboardTextArea
-                    id="address"
-                    name="address"
-                    label="Dirección"
-                    value={formData.address || ''}
-                    onChange={handleInputChange}
-                    placeholder="Dirección completa del proveedor"
-                    rows={2}
-                    maxLength={500}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </DashboardModal>
-      </div>
+          </DashboardModal>
+        </div>
+      </InventoryLayout>
     </DashboardLayout>
   );
 };

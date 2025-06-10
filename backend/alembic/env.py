@@ -79,7 +79,13 @@ from app.models.inventory.equipment import Equipment, EquipmentLab
 from app.models.inventory.supplies import Supply, SupplyMovement
 from app.models.inventory.assignments import ComponentAssignment
 
-
+# Modelos de contenido multimedia
+from app.models.content.enums import ContentType, ContentStatus
+from app.models.content.video_types import VideoType, StorageProvider
+from app.models.content.categories import ContentCategory, DepartmentCategory
+from app.models.content.content import Content
+from app.models.content.videos import Video
+from app.models.content.photos import Photo
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

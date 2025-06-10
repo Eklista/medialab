@@ -36,4 +36,4 @@ export interface PanelProps {
   className?: string;
 }
 
-export type RightSidebarSection = 'tasks' | 'notifications' | 'online-users' | null;
+export type RightSidebarSection = 'tasks' | 'notifications' | 'online-users' | 'calendar' | null;

@@ -1,8 +1,8 @@
-"""feat: Token Blacklist model
+"""initial with content
 
-Revision ID: 233adf249bdf
+Revision ID: a55feb863d68
 Revises: 
-Create Date: 2025-05-23 17:12:23.477711
+Create Date: 2025-06-09 20:44:00.038401
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '233adf249bdf'
+revision = 'a55feb863d68'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -63,6 +63,23 @@ def upgrade():
     with op.batch_alter_table('areas', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_areas_id'), ['id'], unique=False)
 
+    op.create_table('content_categories',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('slug', sa.String(length=100), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('icon', sa.String(length=50), nullable=True),
+    sa.Column('color', sa.String(length=7), nullable=True),
+    sa.Column('sort_order', sa.Integer(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_content_categories')),
+    sa.UniqueConstraint('slug', name=op.f('uq_content_categories_slug'))
+    )
+    with op.batch_alter_table('content_categories', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_content_categories_id'), ['id'], unique=False)
+
     op.create_table('department_types',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=50), nullable=False),
@@ -91,6 +108,65 @@ def upgrade():
     )
     with op.batch_alter_table('email_templates', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_email_templates_id'), ['id'], unique=False)
+
+    op.create_table('equipment_states',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=50), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('color', sa.String(length=20), nullable=False),
+    sa.Column('is_operational', sa.Boolean(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_equipment_states')),
+    sa.UniqueConstraint('name', name=op.f('uq_equipment_states_name'))
+    )
+    with op.batch_alter_table('equipment_states', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_equipment_states_id'), ['id'], unique=False)
+
+    op.create_table('inventory_categories',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('is_equipment', sa.Boolean(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_inventory_categories')),
+    sa.UniqueConstraint('name', name=op.f('uq_inventory_categories_name'))
+    )
+    with op.batch_alter_table('inventory_categories', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_inventory_categories_id'), ['id'], unique=False)
+
+    op.create_table('inventory_locations',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('is_external', sa.Boolean(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_inventory_locations')),
+    sa.UniqueConstraint('name', name=op.f('uq_inventory_locations_name'))
+    )
+    with op.batch_alter_table('inventory_locations', schema=None) as batch_op:
+        batch_op.create_index('idx_inventory_location_active', ['is_active'], unique=False)
+        batch_op.create_index('idx_inventory_location_external', ['is_external'], unique=False)
+        batch_op.create_index(batch_op.f('ix_inventory_locations_id'), ['id'], unique=False)
+
+    op.create_table('movement_types',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=50), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('affects_stock', sa.Integer(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_movement_types')),
+    sa.UniqueConstraint('name', name=op.f('uq_movement_types_name'))
+    )
+    with op.batch_alter_table('movement_types', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_movement_types_id'), ['id'], unique=False)
 
     op.create_table('notification_triggers',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -313,6 +389,21 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_users_id'), ['id'], unique=False)
         batch_op.create_index(batch_op.f('ix_users_username'), ['username'], unique=True)
 
+    op.create_table('video_types',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=50), nullable=False),
+    sa.Column('display_name', sa.String(length=100), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('icon', sa.String(length=50), nullable=True),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_video_types')),
+    sa.UniqueConstraint('name', name=op.f('uq_video_types_name'))
+    )
+    with op.batch_alter_table('video_types', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_video_types_id'), ['id'], unique=False)
+
     op.create_table('attachments',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('filename', sa.String(length=255), nullable=False),
@@ -341,6 +432,30 @@ def upgrade():
         batch_op.create_index('idx_attachments_mime', ['mime_type'], unique=False)
         batch_op.create_index('idx_attachments_uploader', ['uploaded_by'], unique=False)
         batch_op.create_index(batch_op.f('ix_attachments_id'), ['id'], unique=False)
+
+    op.create_table('component_assignments',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('category_id', sa.Integer(), nullable=False),
+    sa.Column('cantidad_asignada', sa.Integer(), nullable=False),
+    sa.Column('fecha_asignacion', sa.DateTime(), nullable=False),
+    sa.Column('fecha_actualizacion', sa.DateTime(), nullable=True),
+    sa.Column('observaciones', sa.Text(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['category_id'], ['inventory_categories.id'], name=op.f('fk_component_assignments_category_id_inventory_categories')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_component_assignments_created_by_id_users')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_component_assignments_updated_by_id_users')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_component_assignments_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_component_assignments')),
+    sa.UniqueConstraint('user_id', 'category_id', name='uix_user_category_assignment')
+    )
+    with op.batch_alter_table('component_assignments', schema=None) as batch_op:
+        batch_op.create_index('idx_component_assignment_category', ['category_id'], unique=False)
+        batch_op.create_index('idx_component_assignment_user', ['user_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_component_assignments_id'), ['id'], unique=False)
 
     op.create_table('departments',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -418,6 +533,25 @@ def upgrade():
         batch_op.create_index('idx_status_history_user', ['changed_by_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_status_history_id'), ['id'], unique=False)
 
+    op.create_table('storage_providers',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=50), nullable=False),
+    sa.Column('display_name', sa.String(length=100), nullable=False),
+    sa.Column('video_type_id', sa.Integer(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('config', sa.JSON(), nullable=True),
+    sa.Column('max_file_size', sa.BigInteger(), nullable=True),
+    sa.Column('supported_formats', sa.JSON(), nullable=True),
+    sa.Column('api_endpoint', sa.String(length=255), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['video_type_id'], ['video_types.id'], name=op.f('fk_storage_providers_video_type_id_video_types')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_storage_providers')),
+    sa.UniqueConstraint('name', name=op.f('uq_storage_providers_name'))
+    )
+    with op.batch_alter_table('storage_providers', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_storage_providers_id'), ['id'], unique=False)
+
     op.create_table('sub_services',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -430,6 +564,64 @@ def upgrade():
     )
     with op.batch_alter_table('sub_services', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_sub_services_id'), ['id'], unique=False)
+
+    op.create_table('suppliers',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('contact_person', sa.String(length=255), nullable=True),
+    sa.Column('phone', sa.String(length=50), nullable=True),
+    sa.Column('email', sa.String(length=255), nullable=True),
+    sa.Column('address', sa.Text(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('deleted_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_suppliers_created_by_id_users')),
+    sa.ForeignKeyConstraint(['deleted_by_id'], ['users.id'], name=op.f('fk_suppliers_deleted_by_id_users')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_suppliers_updated_by_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_suppliers')),
+    sa.UniqueConstraint('name', name=op.f('uq_suppliers_name'))
+    )
+    with op.batch_alter_table('suppliers', schema=None) as batch_op:
+        batch_op.create_index('idx_supplier_active', ['is_active'], unique=False)
+        batch_op.create_index(batch_op.f('ix_suppliers_id'), ['id'], unique=False)
+
+    op.create_table('supplies',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('category_id', sa.Integer(), nullable=False),
+    sa.Column('codigo', sa.String(length=100), nullable=True),
+    sa.Column('nombre_producto', sa.String(length=255), nullable=False),
+    sa.Column('presentacion', sa.String(length=100), nullable=True),
+    sa.Column('descripcion', sa.Text(), nullable=True),
+    sa.Column('stock_actual', sa.Integer(), nullable=True),
+    sa.Column('stock_minimo', sa.Integer(), nullable=True),
+    sa.Column('location_id', sa.Integer(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('observaciones', sa.Text(), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('deleted_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['category_id'], ['inventory_categories.id'], name=op.f('fk_supplies_category_id_inventory_categories')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_supplies_created_by_id_users')),
+    sa.ForeignKeyConstraint(['deleted_by_id'], ['users.id'], name=op.f('fk_supplies_deleted_by_id_users')),
+    sa.ForeignKeyConstraint(['location_id'], ['inventory_locations.id'], name=op.f('fk_supplies_location_id_inventory_locations')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_supplies_updated_by_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_supplies')),
+    sa.UniqueConstraint('codigo', name=op.f('uq_supplies_codigo'))
+    )
+    with op.batch_alter_table('supplies', schema=None) as batch_op:
+        batch_op.create_index('idx_supply_active', ['is_active'], unique=False)
+        batch_op.create_index('idx_supply_category', ['category_id'], unique=False)
+        batch_op.create_index('idx_supply_codigo', ['codigo'], unique=False)
+        batch_op.create_index('idx_supply_location', ['location_id'], unique=False)
+        batch_op.create_index('idx_supply_stock_minimo', ['stock_minimo'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplies_id'), ['id'], unique=False)
 
     op.create_table('tag_assignments',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -585,6 +777,103 @@ def upgrade():
         batch_op.create_index('idx_career_period', ['academic_period_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_careers_id'), ['id'], unique=False)
 
+    op.create_table('content',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('content_type', sa.Enum('VIDEO', 'GALLERY', 'GRADUATION', name='contenttype'), nullable=False),
+    sa.Column('status', sa.Enum('DRAFT', 'PUBLISHED', 'ARCHIVED', name='contentstatus'), nullable=True),
+    sa.Column('department_id', sa.Integer(), nullable=False),
+    sa.Column('category_id', sa.Integer(), nullable=False),
+    sa.Column('author_id', sa.Integer(), nullable=False),
+    sa.Column('published_at', sa.DateTime(), nullable=True),
+    sa.Column('views', sa.Integer(), nullable=True),
+    sa.Column('featured', sa.Boolean(), nullable=True),
+    sa.Column('slug', sa.String(length=255), nullable=True),
+    sa.Column('meta_description', sa.Text(), nullable=True),
+    sa.Column('tags', sa.String(length=500), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('deleted_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['author_id'], ['users.id'], name=op.f('fk_content_author_id_users')),
+    sa.ForeignKeyConstraint(['category_id'], ['content_categories.id'], name=op.f('fk_content_category_id_content_categories')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_content_created_by_id_users')),
+    sa.ForeignKeyConstraint(['deleted_by_id'], ['users.id'], name=op.f('fk_content_deleted_by_id_users')),
+    sa.ForeignKeyConstraint(['department_id'], ['departments.id'], name=op.f('fk_content_department_id_departments')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_content_updated_by_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_content')),
+    sa.UniqueConstraint('slug', name=op.f('uq_content_slug'))
+    )
+    with op.batch_alter_table('content', schema=None) as batch_op:
+        batch_op.create_index('idx_content_author', ['author_id'], unique=False)
+        batch_op.create_index('idx_content_category', ['category_id'], unique=False)
+        batch_op.create_index('idx_content_deleted', ['deleted_at'], unique=False)
+        batch_op.create_index('idx_content_department', ['department_id'], unique=False)
+        batch_op.create_index('idx_content_featured', ['featured'], unique=False)
+        batch_op.create_index('idx_content_published', ['published_at'], unique=False)
+        batch_op.create_index('idx_content_status', ['status'], unique=False)
+        batch_op.create_index('idx_content_type', ['content_type'], unique=False)
+
+    op.create_table('department_categories',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('department_id', sa.Integer(), nullable=False),
+    sa.Column('category_id', sa.Integer(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['category_id'], ['content_categories.id'], name=op.f('fk_department_categories_category_id_content_categories')),
+    sa.ForeignKeyConstraint(['department_id'], ['departments.id'], name=op.f('fk_department_categories_department_id_departments')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_department_categories')),
+    sa.UniqueConstraint('department_id', 'category_id', name='unique_dept_category')
+    )
+    with op.batch_alter_table('department_categories', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_department_categories_id'), ['id'], unique=False)
+
+    op.create_table('equipment',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('category_id', sa.Integer(), nullable=False),
+    sa.Column('codigo_ug', sa.String(length=100), nullable=True),
+    sa.Column('numero_serie', sa.String(length=255), nullable=True),
+    sa.Column('service_tag', sa.String(length=255), nullable=True),
+    sa.Column('marca', sa.String(length=100), nullable=True),
+    sa.Column('modelo', sa.String(length=100), nullable=True),
+    sa.Column('descripcion', sa.Text(), nullable=True),
+    sa.Column('state_id', sa.Integer(), nullable=False),
+    sa.Column('location_id', sa.Integer(), nullable=False),
+    sa.Column('assigned_user_id', sa.Integer(), nullable=True),
+    sa.Column('supplier_id', sa.Integer(), nullable=True),
+    sa.Column('fecha_entrega', sa.DateTime(), nullable=True),
+    sa.Column('numero_hoja_envio', sa.String(length=100), nullable=True),
+    sa.Column('observaciones', sa.Text(), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('deleted_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['assigned_user_id'], ['users.id'], name=op.f('fk_equipment_assigned_user_id_users')),
+    sa.ForeignKeyConstraint(['category_id'], ['inventory_categories.id'], name=op.f('fk_equipment_category_id_inventory_categories')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_equipment_created_by_id_users')),
+    sa.ForeignKeyConstraint(['deleted_by_id'], ['users.id'], name=op.f('fk_equipment_deleted_by_id_users')),
+    sa.ForeignKeyConstraint(['location_id'], ['inventory_locations.id'], name=op.f('fk_equipment_location_id_inventory_locations')),
+    sa.ForeignKeyConstraint(['state_id'], ['equipment_states.id'], name=op.f('fk_equipment_state_id_equipment_states')),
+    sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], name=op.f('fk_equipment_supplier_id_suppliers')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_equipment_updated_by_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_equipment'))
+    )
+    with op.batch_alter_table('equipment', schema=None) as batch_op:
+        batch_op.create_index('idx_equipment_assigned_user', ['assigned_user_id'], unique=False)
+        batch_op.create_index('idx_equipment_category', ['category_id'], unique=False)
+        batch_op.create_index('idx_equipment_codigo_ug', ['codigo_ug'], unique=False)
+        batch_op.create_index('idx_equipment_location', ['location_id'], unique=False)
+        batch_op.create_index('idx_equipment_service_tag', ['service_tag'], unique=False)
+        batch_op.create_index('idx_equipment_state', ['state_id'], unique=False)
+        batch_op.create_index('idx_equipment_supplier', ['supplier_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_equipment_id'), ['id'], unique=False)
+
     op.create_table('institutional_users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
@@ -629,6 +918,34 @@ def upgrade():
         batch_op.create_index('idx_professor_department', ['department_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_professors_id'), ['id'], unique=False)
 
+    op.create_table('supply_movements',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('supply_id', sa.Integer(), nullable=False),
+    sa.Column('movement_type_id', sa.Integer(), nullable=False),
+    sa.Column('cantidad', sa.Integer(), nullable=False),
+    sa.Column('numero_envio', sa.String(length=100), nullable=True),
+    sa.Column('fecha_movimiento', sa.DateTime(), nullable=False),
+    sa.Column('user_receives_id', sa.Integer(), nullable=True),
+    sa.Column('user_delivers_to_id', sa.Integer(), nullable=True),
+    sa.Column('observaciones', sa.Text(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_supply_movements_created_by_id_users')),
+    sa.ForeignKeyConstraint(['movement_type_id'], ['movement_types.id'], name=op.f('fk_supply_movements_movement_type_id_movement_types')),
+    sa.ForeignKeyConstraint(['supply_id'], ['supplies.id'], name=op.f('fk_supply_movements_supply_id_supplies')),
+    sa.ForeignKeyConstraint(['user_delivers_to_id'], ['users.id'], name=op.f('fk_supply_movements_user_delivers_to_id_users')),
+    sa.ForeignKeyConstraint(['user_receives_id'], ['users.id'], name=op.f('fk_supply_movements_user_receives_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_supply_movements'))
+    )
+    with op.batch_alter_table('supply_movements', schema=None) as batch_op:
+        batch_op.create_index('idx_supply_movement_date', ['fecha_movimiento'], unique=False)
+        batch_op.create_index('idx_supply_movement_delivers', ['user_delivers_to_id'], unique=False)
+        batch_op.create_index('idx_supply_movement_receives', ['user_receives_id'], unique=False)
+        batch_op.create_index('idx_supply_movement_supply', ['supply_id'], unique=False)
+        batch_op.create_index('idx_supply_movement_type', ['movement_type_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supply_movements_id'), ['id'], unique=False)
+
     op.create_table('template_subservices',
     sa.Column('template_id', sa.Integer(), nullable=False),
     sa.Column('subservice_id', sa.Integer(), nullable=False),
@@ -663,6 +980,38 @@ def upgrade():
         batch_op.create_index('idx_comments_entity', ['entity_type', 'entity_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_comments_id'), ['id'], unique=False)
 
+    op.create_table('equipment_lab',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('equipment_id', sa.Integer(), nullable=False),
+    sa.Column('numero_pc', sa.String(length=50), nullable=True),
+    sa.Column('procesador', sa.String(length=255), nullable=True),
+    sa.Column('memoria_ram', sa.String(length=100), nullable=True),
+    sa.Column('capacidad_hdd', sa.String(length=100), nullable=True),
+    sa.Column('monitor_serie', sa.String(length=255), nullable=True),
+    sa.Column('monitor_codigo_ug', sa.String(length=100), nullable=True),
+    sa.Column('supplier_id', sa.Integer(), nullable=True),
+    sa.Column('fecha_recepcion_sega', sa.DateTime(), nullable=True),
+    sa.Column('fecha_entrega_medialab', sa.DateTime(), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('deleted_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_equipment_lab_created_by_id_users')),
+    sa.ForeignKeyConstraint(['deleted_by_id'], ['users.id'], name=op.f('fk_equipment_lab_deleted_by_id_users')),
+    sa.ForeignKeyConstraint(['equipment_id'], ['equipment.id'], name=op.f('fk_equipment_lab_equipment_id_equipment')),
+    sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], name=op.f('fk_equipment_lab_supplier_id_suppliers')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_equipment_lab_updated_by_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_equipment_lab')),
+    sa.UniqueConstraint('equipment_id', name=op.f('uq_equipment_lab_equipment_id'))
+    )
+    with op.batch_alter_table('equipment_lab', schema=None) as batch_op:
+        batch_op.create_index('idx_equipment_lab_equipment', ['equipment_id'], unique=False)
+        batch_op.create_index('idx_equipment_lab_numero_pc', ['numero_pc'], unique=False)
+        batch_op.create_index('idx_equipment_lab_supplier', ['supplier_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_equipment_lab_id'), ['id'], unique=False)
+
     op.create_table('notifications',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -684,6 +1033,41 @@ def upgrade():
         batch_op.create_index('idx_notification_read', ['is_read'], unique=False)
         batch_op.create_index('idx_notification_user', ['user_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_notifications_id'), ['id'], unique=False)
+
+    op.create_table('photos',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('content_id', sa.String(length=36), nullable=False),
+    sa.Column('photo_url', sa.String(length=1000), nullable=False),
+    sa.Column('thumbnail_url', sa.String(length=1000), nullable=True),
+    sa.Column('medium_url', sa.String(length=1000), nullable=True),
+    sa.Column('original_filename', sa.String(length=255), nullable=True),
+    sa.Column('file_size', sa.BigInteger(), nullable=True),
+    sa.Column('mime_type', sa.String(length=100), nullable=True),
+    sa.Column('width', sa.Integer(), nullable=True),
+    sa.Column('height', sa.Integer(), nullable=True),
+    sa.Column('caption', sa.Text(), nullable=True),
+    sa.Column('alt_text', sa.String(length=255), nullable=True),
+    sa.Column('sort_order', sa.Integer(), nullable=True),
+    sa.Column('is_featured', sa.Boolean(), nullable=True),
+    sa.Column('is_cover', sa.Boolean(), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('deleted_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['content_id'], ['content.id'], name=op.f('fk_photos_content_id_content')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_photos_created_by_id_users')),
+    sa.ForeignKeyConstraint(['deleted_by_id'], ['users.id'], name=op.f('fk_photos_deleted_by_id_users')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_photos_updated_by_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_photos'))
+    )
+    with op.batch_alter_table('photos', schema=None) as batch_op:
+        batch_op.create_index('idx_photo_content', ['content_id'], unique=False)
+        batch_op.create_index('idx_photo_cover', ['is_cover'], unique=False)
+        batch_op.create_index('idx_photo_deleted', ['deleted_at'], unique=False)
+        batch_op.create_index('idx_photo_featured', ['is_featured'], unique=False)
+        batch_op.create_index('idx_photo_sort', ['sort_order'], unique=False)
 
     op.create_table('requests',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -709,6 +1093,50 @@ def upgrade():
         batch_op.create_index('idx_request_department', ['department_id'], unique=False)
         batch_op.create_index('idx_request_is_processed', ['is_processed'], unique=False)
         batch_op.create_index('idx_request_requester', ['requester_id'], unique=False)
+
+    op.create_table('videos',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('content_id', sa.String(length=36), nullable=False),
+    sa.Column('original_filename', sa.String(length=255), nullable=True),
+    sa.Column('file_size', sa.BigInteger(), nullable=True),
+    sa.Column('mime_type', sa.String(length=100), nullable=True),
+    sa.Column('video_type_id', sa.Integer(), nullable=False),
+    sa.Column('storage_provider_id', sa.Integer(), nullable=False),
+    sa.Column('video_url', sa.String(length=1000), nullable=False),
+    sa.Column('video_id', sa.String(length=255), nullable=True),
+    sa.Column('thumbnail_url', sa.String(length=1000), nullable=True),
+    sa.Column('duration_seconds', sa.Integer(), nullable=True),
+    sa.Column('duration_formatted', sa.String(length=20), nullable=True),
+    sa.Column('width', sa.Integer(), nullable=True),
+    sa.Column('height', sa.Integer(), nullable=True),
+    sa.Column('fps', sa.DECIMAL(precision=5, scale=2), nullable=True),
+    sa.Column('bitrate', sa.Integer(), nullable=True),
+    sa.Column('is_processed', sa.Boolean(), nullable=True),
+    sa.Column('processing_status', sa.String(length=50), nullable=True),
+    sa.Column('error_message', sa.Text(), nullable=True),
+    sa.Column('is_main', sa.Boolean(), nullable=True),
+    sa.Column('sort_order', sa.Integer(), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('deleted_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('updated_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['content_id'], ['content.id'], name=op.f('fk_videos_content_id_content')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_videos_created_by_id_users')),
+    sa.ForeignKeyConstraint(['deleted_by_id'], ['users.id'], name=op.f('fk_videos_deleted_by_id_users')),
+    sa.ForeignKeyConstraint(['storage_provider_id'], ['storage_providers.id'], name=op.f('fk_videos_storage_provider_id_storage_providers')),
+    sa.ForeignKeyConstraint(['updated_by_id'], ['users.id'], name=op.f('fk_videos_updated_by_id_users')),
+    sa.ForeignKeyConstraint(['video_type_id'], ['video_types.id'], name=op.f('fk_videos_video_type_id_video_types')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_videos'))
+    )
+    with op.batch_alter_table('videos', schema=None) as batch_op:
+        batch_op.create_index('idx_video_content', ['content_id'], unique=False)
+        batch_op.create_index('idx_video_deleted', ['deleted_at'], unique=False)
+        batch_op.create_index('idx_video_main', ['is_main'], unique=False)
+        batch_op.create_index('idx_video_provider', ['storage_provider_id'], unique=False)
+        batch_op.create_index('idx_video_status', ['processing_status'], unique=False)
+        batch_op.create_index('idx_video_type', ['video_type_id'], unique=False)
 
     op.create_table('course_requests',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -1214,6 +1642,15 @@ def downgrade():
         batch_op.drop_index('idx_course_request_faculty')
 
     op.drop_table('course_requests')
+    with op.batch_alter_table('videos', schema=None) as batch_op:
+        batch_op.drop_index('idx_video_type')
+        batch_op.drop_index('idx_video_status')
+        batch_op.drop_index('idx_video_provider')
+        batch_op.drop_index('idx_video_main')
+        batch_op.drop_index('idx_video_deleted')
+        batch_op.drop_index('idx_video_content')
+
+    op.drop_table('videos')
     with op.batch_alter_table('requests', schema=None) as batch_op:
         batch_op.drop_index('idx_request_requester')
         batch_op.drop_index('idx_request_is_processed')
@@ -1221,6 +1658,14 @@ def downgrade():
         batch_op.drop_index('idx_request_activity_type')
 
     op.drop_table('requests')
+    with op.batch_alter_table('photos', schema=None) as batch_op:
+        batch_op.drop_index('idx_photo_sort')
+        batch_op.drop_index('idx_photo_featured')
+        batch_op.drop_index('idx_photo_deleted')
+        batch_op.drop_index('idx_photo_cover')
+        batch_op.drop_index('idx_photo_content')
+
+    op.drop_table('photos')
     with op.batch_alter_table('notifications', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_notifications_id'))
         batch_op.drop_index('idx_notification_user')
@@ -1228,6 +1673,13 @@ def downgrade():
         batch_op.drop_index('idx_notification_importance')
 
     op.drop_table('notifications')
+    with op.batch_alter_table('equipment_lab', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_equipment_lab_id'))
+        batch_op.drop_index('idx_equipment_lab_supplier')
+        batch_op.drop_index('idx_equipment_lab_numero_pc')
+        batch_op.drop_index('idx_equipment_lab_equipment')
+
+    op.drop_table('equipment_lab')
     with op.batch_alter_table('comments', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_comments_id'))
         batch_op.drop_index('idx_comments_entity')
@@ -1235,6 +1687,15 @@ def downgrade():
 
     op.drop_table('comments')
     op.drop_table('template_subservices')
+    with op.batch_alter_table('supply_movements', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_supply_movements_id'))
+        batch_op.drop_index('idx_supply_movement_type')
+        batch_op.drop_index('idx_supply_movement_supply')
+        batch_op.drop_index('idx_supply_movement_receives')
+        batch_op.drop_index('idx_supply_movement_delivers')
+        batch_op.drop_index('idx_supply_movement_date')
+
+    op.drop_table('supply_movements')
     with op.batch_alter_table('professors', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_professors_id'))
         batch_op.drop_index('idx_professor_department')
@@ -1248,6 +1709,32 @@ def downgrade():
         batch_op.drop_index('idx_institutional_user_department')
 
     op.drop_table('institutional_users')
+    with op.batch_alter_table('equipment', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_equipment_id'))
+        batch_op.drop_index('idx_equipment_supplier')
+        batch_op.drop_index('idx_equipment_state')
+        batch_op.drop_index('idx_equipment_service_tag')
+        batch_op.drop_index('idx_equipment_location')
+        batch_op.drop_index('idx_equipment_codigo_ug')
+        batch_op.drop_index('idx_equipment_category')
+        batch_op.drop_index('idx_equipment_assigned_user')
+
+    op.drop_table('equipment')
+    with op.batch_alter_table('department_categories', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_department_categories_id'))
+
+    op.drop_table('department_categories')
+    with op.batch_alter_table('content', schema=None) as batch_op:
+        batch_op.drop_index('idx_content_type')
+        batch_op.drop_index('idx_content_status')
+        batch_op.drop_index('idx_content_published')
+        batch_op.drop_index('idx_content_featured')
+        batch_op.drop_index('idx_content_department')
+        batch_op.drop_index('idx_content_deleted')
+        batch_op.drop_index('idx_content_category')
+        batch_op.drop_index('idx_content_author')
+
+    op.drop_table('content')
     with op.batch_alter_table('careers', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_careers_id'))
         batch_op.drop_index('idx_career_period')
@@ -1296,10 +1783,28 @@ def downgrade():
         batch_op.drop_index('idx_tag_assignment_entity')
 
     op.drop_table('tag_assignments')
+    with op.batch_alter_table('supplies', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_supplies_id'))
+        batch_op.drop_index('idx_supply_stock_minimo')
+        batch_op.drop_index('idx_supply_location')
+        batch_op.drop_index('idx_supply_codigo')
+        batch_op.drop_index('idx_supply_category')
+        batch_op.drop_index('idx_supply_active')
+
+    op.drop_table('supplies')
+    with op.batch_alter_table('suppliers', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_suppliers_id'))
+        batch_op.drop_index('idx_supplier_active')
+
+    op.drop_table('suppliers')
     with op.batch_alter_table('sub_services', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_sub_services_id'))
 
     op.drop_table('sub_services')
+    with op.batch_alter_table('storage_providers', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_storage_providers_id'))
+
+    op.drop_table('storage_providers')
     with op.batch_alter_table('status_history', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_status_history_id'))
         batch_op.drop_index('idx_status_history_user')
@@ -1322,6 +1827,12 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_departments_id'))
 
     op.drop_table('departments')
+    with op.batch_alter_table('component_assignments', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_component_assignments_id'))
+        batch_op.drop_index('idx_component_assignment_user')
+        batch_op.drop_index('idx_component_assignment_category')
+
+    op.drop_table('component_assignments')
     with op.batch_alter_table('attachments', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_attachments_id'))
         batch_op.drop_index('idx_attachments_uploader')
@@ -1329,6 +1840,10 @@ def downgrade():
         batch_op.drop_index('idx_attachments_entity')
 
     op.drop_table('attachments')
+    with op.batch_alter_table('video_types', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_video_types_id'))
+
+    op.drop_table('video_types')
     with op.batch_alter_table('users', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_users_username'))
         batch_op.drop_index(batch_op.f('ix_users_id'))
@@ -1399,6 +1914,24 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_notification_triggers_id'))
 
     op.drop_table('notification_triggers')
+    with op.batch_alter_table('movement_types', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_movement_types_id'))
+
+    op.drop_table('movement_types')
+    with op.batch_alter_table('inventory_locations', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_inventory_locations_id'))
+        batch_op.drop_index('idx_inventory_location_external')
+        batch_op.drop_index('idx_inventory_location_active')
+
+    op.drop_table('inventory_locations')
+    with op.batch_alter_table('inventory_categories', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_inventory_categories_id'))
+
+    op.drop_table('inventory_categories')
+    with op.batch_alter_table('equipment_states', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_equipment_states_id'))
+
+    op.drop_table('equipment_states')
     with op.batch_alter_table('email_templates', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_email_templates_id'))
 
@@ -1407,6 +1940,10 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_department_types_id'))
 
     op.drop_table('department_types')
+    with op.batch_alter_table('content_categories', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_content_categories_id'))
+
+    op.drop_table('content_categories')
     with op.batch_alter_table('areas', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_areas_id'))
 

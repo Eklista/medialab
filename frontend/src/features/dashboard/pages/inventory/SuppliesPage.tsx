@@ -1,28 +1,29 @@
-// frontend/src/features/dashboard/pages/inventory/SuppliesPage.tsx
+// frontend/src/features/dashboard/pages/inventory/SuppliesPage.tsx - CON INVENTORY LAYOUT
 
 import React, { useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import InventoryLayout from '../../components/layout/InventoryLayout';
 import DashboardCard from '../../components/ui/DashboardCard';
-import DashboardTabs, { useDashboardTabs } from '../../components/ui/DashboardTabs';
-import Badge from '../../components/ui/Badge'; // ✅ Agregar import faltante
+import DashboardTabs, { DashboardTabPanel, useDashboardTabs } from '../../components/ui/DashboardTabs';
+import Badge from '../../components/ui/Badge';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
-// Importar componentes específicos de suministros
+// ✅ IMPORTAR COMPONENTES REALES DE SUMINISTROS
 import SuppliesList from '../../inventory/supplies/SuppliesList';
 import SupplyForm from '../../inventory/supplies/SupplyForm';
 import StockMovements from '../../inventory/supplies/StockMovements';
 import LowStockAlert from '../../inventory/supplies/LowStockAlert';
 import QuickActions from '../../inventory/common/QuickActions';
 
-// Icons - solo los que se usan
+// Icons
 import { 
   CubeIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
-// Hooks
+// ✅ USAR SERVICIOS REALES
 import { useSuppliesList } from '../../../../services/inventory';
 import type { SupplyWithDetails } from '../../../../services/inventory/types';
 
@@ -30,7 +31,7 @@ const SuppliesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  // Estados de modales
+  // Estados de modales y componentes
   const [showSupplyForm, setShowSupplyForm] = useState(false);
   const [showMovements, setShowMovements] = useState(false);
   const [selectedSupply, setSelectedSupply] = useState<SupplyWithDetails | null>(null);
@@ -41,20 +42,15 @@ const SuppliesPage: React.FC = () => {
     searchParams.get('tab') || 'list'
   );
 
-  // Hooks de datos - ✅ Solo usar las variables que realmente se necesitan
+  // ✅ HOOK REAL - Ya no simulado
   const {
-    supplies,
     lowStockSupplies,
     isLoading,
     error,
-    refresh,
-    deleteSupply
+    refresh
   } = useSuppliesList();
 
-  // ✅ Remover destructuring de useInventoryCommon si no se usa
-  // const { categories, locations } = useInventoryCommon();
-
-  // Handlers principales
+  // ===== HANDLERS PRINCIPALES =====
   const handleCreateSupply = useCallback(() => {
     setEditingSupply(null);
     setShowSupplyForm(true);
@@ -69,23 +65,19 @@ const SuppliesPage: React.FC = () => {
     navigate(`/dashboard/inventory/supplies/${supply.id}`);
   }, [navigate]);
 
-  const handleDeleteSupply = useCallback(async (supply: SupplyWithDetails) => {
-    if (window.confirm(`¿Estás seguro de eliminar el suministro "${supply.nombre_producto}"?`)) {
-      try {
-        await deleteSupply(supply.id);
-      } catch (error) {
-        console.error('Error eliminando suministro:', error);
-      }
-    }
-  }, [deleteSupply]);
+  const handleDeleteSupply = useCallback((supply: SupplyWithDetails) => {
+    // El componente SuppliesList maneja la eliminación internamente
+    console.log('Eliminar suministro:', supply.id);
+  }, []);
 
   const handleCreateMovement = useCallback((supply: SupplyWithDetails) => {
     setSelectedSupply(supply);
     setShowMovements(true);
   }, []);
 
-  // Handlers de formulario
-  const handleFormSuccess = useCallback(() => { // ✅ Remover parámetro no usado
+  // ===== HANDLERS DE FORMULARIOS =====
+  const handleFormSuccess = useCallback((supply: SupplyWithDetails) => {
+    console.log('Suministro guardado exitosamente:', supply);
     setShowSupplyForm(false);
     setEditingSupply(null);
     refresh();
@@ -100,14 +92,14 @@ const SuppliesPage: React.FC = () => {
     setEditingSupply(null);
   }, []);
 
-  // Handlers de movimientos
+  // ===== HANDLERS DE MOVIMIENTOS =====
   const handleMovementsClose = useCallback(() => {
     setShowMovements(false);
     setSelectedSupply(null);
     refresh(); // Refrescar datos después de crear movimientos
   }, [refresh]);
 
-  // Handlers de acciones rápidas
+  // ===== HANDLERS DE ACCIONES RÁPIDAS =====
   const handleQuickAction = useCallback((actionId: string) => {
     switch (actionId) {
       case 'add_supply':
@@ -136,10 +128,9 @@ const SuppliesPage: React.FC = () => {
     }
   }, [handleCreateSupply, navigate]);
 
-  // Configurar pestañas
+  // ===== CONFIGURAR PESTAÑAS =====
   const tabs = [
     createTab('list', 'Lista de Suministros', { 
-      count: supplies.length,
       icon: <CubeIcon className="h-4 w-4" />
     }),
     createTab('alerts', 'Alertas de Stock', { 
@@ -150,116 +141,114 @@ const SuppliesPage: React.FC = () => {
       ) : undefined
     }),
     createTab('movements', 'Movimientos', { 
-      count: 0, // Se puede obtener del backend si es necesario
       icon: <ArrowPathIcon className="h-4 w-4" />
     })
   ];
 
-  // Manejo de errores
+  // ===== MANEJO DE ERRORES =====
   if (error) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-2 mb-2">
-            <CubeIcon className="h-6 w-6 text-green-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Gestión de Suministros</h1>
-          </div>
-          
+        <InventoryLayout>
           <ApiErrorHandler 
             error={error} 
             onRetry={refresh} 
             resourceName="la lista de suministros"
           />
-        </div>
+        </InventoryLayout>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <CubeIcon className="h-6 w-6 text-green-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Gestión de Suministros</h1>
+      <InventoryLayout 
+        title="Gestión de Suministros" 
+        subtitle="Control de inventario y administración de stock"
+      >
+        <div className="space-y-6">
+          {/* Header con acciones rápidas */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-gray-600">
+                Administra stock, movimientos y alertas de suministros del inventario
+              </p>
             </div>
-            <p className="text-gray-600">
-              Control de inventario y administración de stock
-            </p>
+
+            <QuickActions
+              type="supplies"
+              layout="horizontal"
+              showTitle={false}
+              alertCounts={{
+                lowStock: lowStockSupplies.length,
+                damaged: 0, // Los suministros no tienen concepto de "dañado" como los equipos
+                unassigned: 0
+              }}
+              onCustomAction={handleQuickAction}
+            />
           </div>
 
-          {/* Acciones rápidas en el header */}
-          <QuickActions
-            type="supplies"
-            layout="horizontal"
-            showTitle={false}
-            alertCounts={{
-              lowStock: lowStockSupplies.length,
-              damaged: 0, // Los suministros no tienen concepto de "dañado" como los equipos
-              unassigned: 0
-            }}
-            onCustomAction={handleQuickAction}
+          {/* Contenido principal por pestañas */}
+          <DashboardCard>
+            {/* Pestañas */}
+            <div className="mb-6">
+              <DashboardTabs
+                tabs={tabs}
+                variant="underline"
+                isLoading={isLoading}
+              />
+            </div>
+
+            {/* ✅ USAR COMPONENTES REALES */}
+            
+            {/* Panel: Lista de Suministros */}
+            <DashboardTabPanel tabId="list" isActive={activeTabId === 'list'}>
+              <SuppliesList
+                onCreateSupply={handleCreateSupply}
+                onEditSupply={handleEditSupply}
+                onViewSupply={handleViewSupply}
+                onDeleteSupply={handleDeleteSupply}
+                onCreateMovement={handleCreateMovement}
+              />
+            </DashboardTabPanel>
+
+            {/* Panel: Alertas de Stock Bajo */}
+            <DashboardTabPanel tabId="alerts" isActive={activeTabId === 'alerts'}>
+              <LowStockAlert
+                onViewSupply={handleViewSupply}
+                onCreateMovement={handleCreateMovement}
+                autoRefresh={true}
+                refreshInterval={300000} // 5 minutos
+              />
+            </DashboardTabPanel>
+
+            {/* Panel: Movimientos */}
+            <DashboardTabPanel tabId="movements" isActive={activeTabId === 'movements'}>
+              <StockMovements
+                supply={selectedSupply}
+                onClose={() => setSelectedSupply(null)}
+              />
+            </DashboardTabPanel>
+          </DashboardCard>
+
+          {/* ✅ USAR COMPONENTE REAL DE FORMULARIO */}
+          <SupplyForm
+            isOpen={showSupplyForm}
+            onClose={handleFormClose}
+            supply={editingSupply}
+            onSuccess={handleFormSuccess}
+            onError={handleFormError}
           />
-        </div>
 
-        {/* Contenido principal por pestañas */}
-        <DashboardCard>
-          {/* Pestañas */}
-          <div className="mb-6">
-            <DashboardTabs
-              tabs={tabs}
-              variant="underline"
-              isLoading={isLoading}
-            />
-          </div>
-
-          {/* Contenido según la pestaña activa */}
-          {activeTabId === 'list' && (
-            <SuppliesList
-              onCreateSupply={handleCreateSupply}
-              onEditSupply={handleEditSupply}
-              onViewSupply={handleViewSupply}
-              onDeleteSupply={handleDeleteSupply}
-              onCreateMovement={handleCreateMovement}
-            />
-          )}
-
-          {activeTabId === 'alerts' && (
-            <LowStockAlert
-              onViewSupply={handleViewSupply}
-              onCreateMovement={handleCreateMovement}
-              autoRefresh={true}
-              refreshInterval={300000} // 5 minutos
-            />
-          )}
-
-          {activeTabId === 'movements' && (
+          {/* ✅ USAR COMPONENTE REAL DE MOVIMIENTOS */}
+          {showMovements && (
             <StockMovements
               supply={selectedSupply}
-              onClose={() => setSelectedSupply(null)}
+              onClose={handleMovementsClose}
             />
           )}
-        </DashboardCard>
-
-        {/* Modal de formulario de suministro */}
-        <SupplyForm
-          isOpen={showSupplyForm}
-          onClose={handleFormClose}
-          supply={editingSupply}
-          onSuccess={handleFormSuccess}
-          onError={handleFormError}
-        />
-
-        {/* Modal/Componente de movimientos */}
-        {showMovements && (
-          <StockMovements
-            supply={selectedSupply}
-            onClose={handleMovementsClose}
-          />
-        )}
-      </div>
+        </div>
+      </InventoryLayout>
     </DashboardLayout>
   );
 };

@@ -1,4 +1,4 @@
-// src/features/dashboard/components/layout/DashboardLayout.tsx - ACTUALIZADO
+// src/features/dashboard/components/layout/DashboardLayout.tsx - CON CALENDAR
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
@@ -11,7 +11,8 @@ import {
   XMarkIcon, 
   ClipboardDocumentListIcon, 
   BellIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import { useLocation } from 'react-router-dom';
 import { RightSidebarSection } from '../rightSidebar';
@@ -30,7 +31,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   // Estados para móvil
   const [mobileLeftSidebarOpen, setMobileLeftSidebarOpen] = useState(false);
   const [mobileRightSidebarOpen, setMobileRightSidebarOpen] = useState(false);
-  const [mobilePanelSection, setMobilePanelSection] = useState<RightSidebarSection>('tasks');
+  const [mobilePanelSection, setMobilePanelSection] = useState<RightSidebarSection>('calendar'); // Default calendar
   const location = useLocation();
   
   useEffect(() => {
@@ -135,7 +136,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       <div className="flex flex-col flex-1 overflow-hidden lg:p-3 md:p-2 p-1 lg:pb-3 md:pb-2 pb-1">
         <div className="flex flex-col flex-1 bg-[var(--color-bg-main)] lg:rounded-xl md:rounded-lg rounded-md shadow-lg overflow-hidden lg:mb-0 md:mb-12 mb-10">
           <Navbar />
-          <main className="flex-1 overflow-y-auto bg-[var(--color-bg-main)] lg:p-6 md:p-4 p-3 lg:pt-4 md:pt-3 pt-2 pb-14 sm:pb-3">
+          <main className="flex-1 overflow-y-auto bg-zinc-50 lg:p-6 md:p-4 p-3 lg:pt-4 md:pt-3 pt-2 pb-14 sm:pb-3">
             {children}
           </main>
         </div>
@@ -175,7 +176,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <span className="w-2 h-2 bg-[var(--color-accent-1)] rounded-full mt-1"></span>
             </button>
 
-            {/* 🆕 Nuevo botón para usuarios online */}
             <button 
               onClick={() => handleRightSidebarItemClick('online-users')}
               className={`w-full flex flex-col items-center p-3 rounded-lg transition-all duration-200 group ${
@@ -187,6 +187,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             >
               <UserGroupIcon className="h-6 w-6" />
               <span className="w-2 h-2 bg-green-500 rounded-full mt-1"></span>
+            </button>
+
+            {/* 🆕 Nuevo botón para calendario */}
+            <button 
+              onClick={() => handleRightSidebarItemClick('calendar')}
+              className={`w-full flex flex-col items-center p-3 rounded-lg transition-all duration-200 group ${
+                rightSidebarSection === 'calendar' 
+                  ? 'bg-white/10 text-[var(--color-accent-1)]' 
+                  : 'hover:bg-white/10 text-white/70 hover:text-white'
+              }`}
+              title="Mi Agenda"
+            >
+              <CalendarDaysIcon className="h-6 w-6" />
+              <span className="w-2 h-2 bg-blue-500 rounded-full mt-1"></span>
             </button>
           </div>
         </div>
@@ -221,8 +235,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </button>
           </div>
           
-          {/* Tabs para cambiar sección - 🆕 Agregado usuarios online */}
+          {/* Tabs para cambiar sección - 🆕 Agregado calendario */}
           <div className="flex bg-white/10 rounded-lg p-1 text-xs">
+            <button 
+              onClick={() => handleMobilePanelSectionChange('calendar')}
+              className={`flex-1 py-2 px-2 rounded-md font-medium transition-all duration-200 ${
+                mobilePanelSection === 'calendar' 
+                  ? 'bg-[var(--color-accent-1)] text-[var(--color-text-main)]' 
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Agenda
+            </button>
             <button 
               onClick={() => handleMobilePanelSectionChange('tasks')}
               className={`flex-1 py-2 px-2 rounded-md font-medium transition-all duration-200 ${

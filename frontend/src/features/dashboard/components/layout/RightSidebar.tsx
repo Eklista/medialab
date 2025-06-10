@@ -1,4 +1,4 @@
-// frontend/src/features/dashboard/components/layout/RightSidebar.tsx - REFACTORIZADO
+// frontend/src/features/dashboard/components/layout/RightSidebar.tsx - CON CALENDAR
 
 import React from 'react';
 import { 
@@ -11,6 +11,7 @@ import {
   TasksPanel, 
   NotificationsPanel, 
   OnlineUsersPanel,
+  CalendarPanel,
   RightSidebarSection 
 } from '../rightSidebar';
 
@@ -36,6 +37,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
       case 'online-users':
         return <OnlineUsersPanel />;
       
+      case 'calendar':
+        return <CalendarPanel />;
+      
       default:
         return (
           <div className="flex-1 flex items-center justify-center">
@@ -56,6 +60,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
       case 'tasks': return 'Mis Tareas';
       case 'notifications': return 'Actividad Reciente';
       case 'online-users': return 'Usuarios Online';
+      case 'calendar': return 'Mi Agenda';
       default: return 'Panel de Control';
     }
   };

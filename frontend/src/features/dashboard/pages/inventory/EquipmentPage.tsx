@@ -1,8 +1,9 @@
-// frontend/src/features/dashboard/pages/inventory/EquipmentPage.tsx - OPTIMIZADO
+// frontend/src/features/dashboard/pages/inventory/EquipmentPage.tsx - CON INVENTORY LAYOUT
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import InventoryLayout from '../../components/layout/InventoryLayout';
 import ApiErrorHandler from '../../../../components/common/ApiErrorHandler';
 
 // Importar los componentes de inventario
@@ -10,9 +11,6 @@ import EquipmentList from '../../inventory/equipment/EquipmentList';
 import EquipmentForm from '../../inventory/equipment/EquipmentForm';
 import AssignmentModal from '../../inventory/equipment/AssignmentModal';
 import QuickActions from '../../inventory/common/QuickActions';
-
-// Icons
-import { ComputerDesktopIcon } from '@heroicons/react/24/outline';
 
 // Hooks
 import { useEquipmentList, useInventoryCommon } from '../../../../services/inventory';
@@ -109,7 +107,6 @@ const EquipmentPage: React.FC = () => {
   }, [updateURL]);
 
   const handleFiltersChange = useCallback((filters: Record<string, any>) => {
-    // Asegurar que tenemos todos los campos requeridos
     const newFilters = {
       category_id: filters.category_id || '',
       state_id: filters.state_id || '',
@@ -253,12 +250,11 @@ const EquipmentPage: React.FC = () => {
   }, [handleCreateEquipment, selectedIds.length, handleExport]);
 
   // ===== DATOS PARA COMPONENTES =====
-  // Convertir a formato esperado por EquipmentList (sin transformaciones complejas)
   const filterOptions = useMemo(() => ({
     categories: categories.map(cat => ({
       value: cat.id.toString(),
       label: cat.name,
-      count: 0 // El backend podría proporcionar esto
+      count: 0
     })),
     locations: locations.map(loc => ({
       value: loc.id.toString(),
@@ -283,125 +279,120 @@ const EquipmentPage: React.FC = () => {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-2 mb-2">
-            <ComputerDesktopIcon className="h-6 w-6 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Gestión de Equipos</h1>
-          </div>
-          
+        <InventoryLayout>
           <ApiErrorHandler 
             error={error} 
             onRetry={refresh} 
             resourceName="la lista de equipos"
           />
-        </div>
+        </InventoryLayout>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <ComputerDesktopIcon className="h-6 w-6 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Gestión de Equipos</h1>
+      <InventoryLayout 
+        title="Gestión de Equipos" 
+        subtitle="Control y administración de equipos tecnológicos"
+      >
+        <div className="space-y-6">
+          {/* Header con acciones rápidas */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-gray-600">
+                Administra equipos, asignaciones y mantenimiento del parque tecnológico
+              </p>
             </div>
-            <p className="text-gray-600">
-              Control y administración de equipos tecnológicos
-            </p>
+
+            <QuickActions
+              type="equipment"
+              layout="horizontal"
+              showTitle={false}
+              alertCounts={{
+                damaged: equipment.filter(eq => !eq.state?.is_operational).length,
+                unassigned: equipment.filter(eq => !eq.assigned_user).length
+              }}
+              onCustomAction={handleQuickAction}
+            />
           </div>
 
-          {/* Acciones rápidas en el header */}
-          <QuickActions
-            type="equipment"
-            layout="horizontal"
-            showTitle={false}
-            alertCounts={{
-              damaged: equipment.filter(eq => !eq.state?.is_operational).length,
-              unassigned: equipment.filter(eq => !eq.assigned_user).length
-            }}
-            onCustomAction={handleQuickAction}
+          {/* Lista principal de equipos */}
+          <EquipmentList
+            equipment={equipment}
+            totalCount={totalCount}
+            isLoading={isLoading}
+            error={error}
+            
+            // Configuración de vista
+            defaultViewMode="table"
+            showFilters={true}
+            showBulkActions={true}
+            
+            // Paginación
+            currentPage={urlParams.page}
+            itemsPerPage={urlParams.limit}
+            onPageChange={handlePageChange}
+            
+            // Filtros
+            searchValue={searchValue}
+            onSearchChange={handleSearch}
+            filters={activeFilters}
+            onFiltersChange={handleFiltersChange}
+            
+            // Datos para filtros
+            categories={filterOptions.categories}
+            locations={filterOptions.locations}
+            states={filterOptions.states}
+            
+            // Selección
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            
+            // Acciones
+            onEquipmentView={handleViewEquipment}
+            onEquipmentEdit={handleEditEquipment}
+            onEquipmentDelete={handleDeleteEquipment}
+            onEquipmentAssign={handleAssignEquipment}
+            onEquipmentUnassign={handleUnassignEquipment}
+            onEquipmentQrCode={handleQrCodeEquipment}
+            onBulkAction={handleBulkAction}
+            onExport={handleExport}
+            onRefresh={refresh}
+          />
+
+          {/* Modal de formulario */}
+          {showCreateForm && (
+            <EquipmentForm
+              initialData={editingEquipment || undefined}
+              isEditing={!!editingEquipment}
+              isLoading={isLoading}
+              onSubmit={handleFormSubmit}
+              onCancel={handleFormCancel}
+              
+              // Opciones para selects
+              categories={formOptions.categories}
+              states={formOptions.states}
+              locations={formOptions.locations}
+              suppliers={formOptions.suppliers}
+              
+              // Configuración
+              showLabDetails={true}
+              autoGenerateCode={true}
+            />
+          )}
+
+          {/* Modal de asignación */}
+          <AssignmentModal
+            isOpen={showAssignmentModal}
+            onClose={handleAssignmentClose}
+            equipment={selectedEquipment}
+            mode={selectedEquipment ? 'single' : 'bulk'}
+            onSuccess={handleAssignmentSuccess}
+            onError={(error) => console.error('Error en asignación:', error)}
           />
         </div>
-
-        {/* Lista principal de equipos */}
-        <EquipmentList
-          equipment={equipment}
-          totalCount={totalCount}
-          isLoading={isLoading}
-          error={error}
-          
-          // Configuración de vista
-          defaultViewMode="table"
-          showFilters={true}
-          showBulkActions={true}
-          
-          // Paginación
-          currentPage={urlParams.page}
-          itemsPerPage={urlParams.limit}
-          onPageChange={handlePageChange}
-          
-          // Filtros
-          searchValue={searchValue}
-          onSearchChange={handleSearch}
-          filters={activeFilters}
-          onFiltersChange={handleFiltersChange}
-          
-          // Datos para filtros
-          categories={filterOptions.categories}
-          locations={filterOptions.locations}
-          states={filterOptions.states}
-          
-          // Selección
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          
-          // Acciones
-          onEquipmentView={handleViewEquipment}
-          onEquipmentEdit={handleEditEquipment}
-          onEquipmentDelete={handleDeleteEquipment}
-          onEquipmentAssign={handleAssignEquipment}
-          onEquipmentUnassign={handleUnassignEquipment}
-          onEquipmentQrCode={handleQrCodeEquipment}
-          onBulkAction={handleBulkAction}
-          onExport={handleExport}
-          onRefresh={refresh}
-        />
-
-        {/* Modal de formulario */}
-        {showCreateForm && (
-          <EquipmentForm
-            initialData={editingEquipment || undefined}
-            isEditing={!!editingEquipment}
-            isLoading={isLoading}
-            onSubmit={handleFormSubmit}
-            onCancel={handleFormCancel}
-            
-            // Opciones para selects
-            categories={formOptions.categories}
-            states={formOptions.states}
-            locations={formOptions.locations}
-            suppliers={formOptions.suppliers}
-            
-            // Configuración
-            showLabDetails={true}
-            autoGenerateCode={true}
-          />
-        )}
-
-        {/* Modal de asignación */}
-        <AssignmentModal
-          isOpen={showAssignmentModal}
-          onClose={handleAssignmentClose}
-          equipment={selectedEquipment}
-          mode={selectedEquipment ? 'single' : 'bulk'}
-          onSuccess={handleAssignmentSuccess}
-          onError={(error) => console.error('Error en asignación:', error)}
-        />
-      </div>
+      </InventoryLayout>
     </DashboardLayout>
   );
 };

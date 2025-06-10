@@ -1,3 +1,5 @@
+# backend/app/api/v1/organization/services.py
+from app.controllers.organization.service_controller import ServiceController
 from typing import List, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Path, Body
 from sqlalchemy.orm import Session
@@ -34,11 +36,7 @@ def read_services(
     """
     Obtiene lista de servicios con sus sub-servicios (requiere permiso service_view)
     """
-    try:
-        services = ServiceService.get_services(db=db, skip=skip, limit=limit)
-        return services
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "servicios")
+    return ServiceController.get_services_list(db, skip, limit, current_user)
 
 @router.post("/", response_model=ServiceWithSubServices)
 def create_service(
@@ -49,19 +47,7 @@ def create_service(
     """
     Crea un nuevo servicio con sus sub-servicios (requiere permiso service_create)
     """
-    try:
-        # Separar datos del servicio y sub-servicios
-        sub_services_data = [sub.dict() for sub in service_in.sub_services] if service_in.sub_services else []
-        service_data = service_in.dict(exclude={"sub_services"})
-        
-        service = ServiceService.create_service(
-            db=db,
-            service_data=service_data,
-            sub_services_data=sub_services_data
-        )
-        return service
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "crear", "servicio")
+    return ServiceController.create_service_with_subservices(db, service_in, current_user)
 
 @router.get("/{service_id}", response_model=ServiceWithSubServices)
 def read_service(
@@ -72,11 +58,7 @@ def read_service(
     """
     Obtiene un servicio específico por ID (requiere permiso service_view)
     """
-    try:
-        service = ServiceService.get_service_by_id(db=db, service_id=service_id)
-        return service
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "obtener", "servicio")
+    return ServiceController.get_service_by_id(db, service_id, current_user)
 
 @router.patch("/{service_id}", response_model=ServiceWithSubServices)
 def update_service(
@@ -88,15 +70,7 @@ def update_service(
     """
     Actualiza un servicio existente (requiere permiso service_edit)
     """
-    try:
-        service = ServiceService.update_service(
-            db=db,
-            service_id=service_id,
-            service_data=service_in.dict(exclude_unset=True)
-        )
-        return service
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "actualizar", "servicio")
+    return ServiceController.update_service(db, service_id, service_in, current_user)
 
 @router.delete("/{service_id}", response_model=ServiceInDB)
 def delete_service(
@@ -107,13 +81,9 @@ def delete_service(
     """
     Elimina un servicio y sus sub-servicios (requiere permiso service_delete)
     """
-    try:
-        service = ServiceService.delete_service(db=db, service_id=service_id)
-        return service
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "eliminar", "servicio")
+    return ServiceController.delete_service(db, service_id, current_user)
 
-# Endpoints para sub-servicios
+# Sub-servicios
 @router.post("/{service_id}/sub-services", response_model=SubServiceInDB)
 def add_sub_service(
     service_id: int = Path(..., title="ID del servicio"),
@@ -124,15 +94,7 @@ def add_sub_service(
     """
     Añade un sub-servicio a un servicio existente (requiere permiso service_edit)
     """
-    try:
-        sub_service = ServiceService.add_sub_service(
-            db=db,
-            service_id=service_id,
-            sub_service_data=sub_service_in.dict()
-        )
-        return sub_service
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "crear", "sub-servicio")
+    return ServiceController.add_sub_service(db, service_id, sub_service_in, current_user)
 
 @router.patch("/sub-services/{sub_service_id}", response_model=SubServiceInDB)
 def update_sub_service(
@@ -144,15 +106,7 @@ def update_sub_service(
     """
     Actualiza un sub-servicio existente (requiere permiso service_edit)
     """
-    try:
-        sub_service = ServiceService.update_sub_service(
-            db=db,
-            sub_service_id=sub_service_id,
-            sub_service_data=sub_service_in.dict(exclude_unset=True)
-        )
-        return sub_service
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "actualizar", "sub-servicio")
+    return ServiceController.update_sub_service(db, sub_service_id, sub_service_in, current_user)
 
 @router.delete("/sub-services/{sub_service_id}")
 def delete_sub_service(
@@ -163,8 +117,4 @@ def delete_sub_service(
     """
     Elimina un sub-servicio (requiere permiso service_edit)
     """
-    try:
-        ServiceService.delete_sub_service(db=db, sub_service_id=sub_service_id)
-        return {"message": "Sub-servicio eliminado exitosamente"}
-    except SQLAlchemyError as e:
-        raise ErrorHandler.handle_db_error(e, "eliminar", "sub-servicio")
+    return ServiceController.delete_sub_service(db, sub_service_id, current_user)
