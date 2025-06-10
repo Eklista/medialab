@@ -2,6 +2,7 @@
 import os
 from typing import Optional, List
 from pydantic_settings import BaseSettings
+from pathlib import Path
 
 # Detectar si estamos en Docker
 def is_running_in_docker() -> bool:
@@ -103,6 +104,17 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = "V0rt3x2025*"
     EMAILS_FROM_EMAIL: str = "medialab@byblnk.com"
     EMAILS_FROM_NAME: str = "MediaLab Sistema"
+
+    # ===== CONFIGURACIÓN DE UPLOADS =====
+    # Directorios de uploads (externos al backend)
+    UPLOAD_BASE_DIR: str = "../uploads"
+    UPLOAD_PHOTOS_DIR: str = "../uploads/photos"
+    UPLOAD_VIDEOS_DIR: str = "../uploads/videos"
+    UPLOAD_TEMP_DIR: str = "../uploads/temp"
+    
+    # URLs para servir archivos estáticos
+    STATIC_FILES_URL: str = "http://localhost:8000/static"
+    STATIC_FILES_URL_PROD: str = "https://medialab.eklista.com/static"
     
     # ===== CONFIGURACIÓN DE FRONTEND =====
     VITE_API_URL: str = "http://localhost:8000/api/v1"
@@ -121,6 +133,48 @@ class Settings(BaseSettings):
     # ===== CONFIGURACIÓN DE DOCKER COMPOSE =====
     COMPOSE_PROFILES: str = "dev"
     BACKEND_VOLUME_SOURCE: str = "./backend"
+
+    @property
+    def upload_base_path(self) -> Path:
+        """Ruta absoluta al directorio de uploads"""
+        from pathlib import Path
+        return Path(__file__).parent.parent.parent / self.UPLOAD_BASE_DIR
+    
+    @property
+    def upload_photos_path(self) -> Path:
+        """Ruta absoluta al directorio de fotos"""
+        from pathlib import Path
+        return Path(__file__).parent.parent.parent / self.UPLOAD_PHOTOS_DIR
+    
+    @property
+    def upload_videos_path(self) -> Path:
+        """Ruta absoluta al directorio de videos"""
+        from pathlib import Path
+        return Path(__file__).parent.parent.parent / self.UPLOAD_VIDEOS_DIR
+    
+    @property
+    def current_static_url(self) -> str:
+        """URL base según entorno"""
+        return self.STATIC_FILES_URL_PROD if self.is_production() else self.STATIC_FILES_URL
+    
+    def ensure_upload_dirs(self):
+        """Crear directorios de upload si no existen"""
+        dirs = [
+            self.upload_photos_path / "original",
+            self.upload_photos_path / "thumbnail", 
+            self.upload_photos_path / "medium",
+            self.upload_photos_path / "large",
+            self.upload_photos_path / "temp",
+            self.upload_videos_path / "local",
+            self.upload_videos_path / "thumbnails",
+            Path(self.UPLOAD_TEMP_DIR)
+        ]
+        
+        for dir_path in dirs:
+            dir_path.mkdir(parents=True, exist_ok=True)
+            
+        if self.DEBUG:
+            print(f"📁 Directorios de upload creados: {self.upload_base_path}")
     
     @property
     def CORS_ORIGINS_LIST(self) -> List[str]:
@@ -292,14 +346,14 @@ FRONTEND_PORT = settings.FRONTEND_PORT
 # Seguridad mejorada
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
-ALLOWED_ALGORITHMS = settings.ALLOWED_ALGORITHMS  # 🔥 NUEVO
+ALLOWED_ALGORITHMS = settings.ALLOWED_ALGORITHMS
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 # JWT mejorado
 JWT_ISSUER = settings.JWT_ISSUER
 JWT_AUDIENCE = settings.JWT_AUDIENCE
-ENABLE_JWE_ENCRYPTION = settings.ENABLE_JWE_ENCRYPTION  # 🔥 NUEVO
+ENABLE_JWE_ENCRYPTION = settings.ENABLE_JWE_ENCRYPTION
 
 # Tokens
 TOKEN_BLACKLIST_ENABLED = settings.TOKEN_BLACKLIST_ENABLED
@@ -332,7 +386,7 @@ COOKIE_SAMESITE = settings.COOKIE_SAMESITE
 COOKIE_DOMAIN = settings.COOKIE_DOMAIN
 
 # CORS
-CORS_ORIGINS = settings.CORS_ORIGINS_LIST  # Usar la lista procesada
+CORS_ORIGINS = settings.CORS_ORIGINS_LIST
 CORS_CREDENTIALS = settings.CORS_CREDENTIALS
 
 # Email
@@ -363,6 +417,14 @@ START_SERVER = settings.START_SERVER
 COMPOSE_PROFILES = settings.COMPOSE_PROFILES
 BACKEND_VOLUME_SOURCE = settings.BACKEND_VOLUME_SOURCE
 
+# 🆕 Uploads (NUEVO)
+UPLOAD_BASE_DIR = settings.UPLOAD_BASE_DIR
+UPLOAD_PHOTOS_DIR = settings.UPLOAD_PHOTOS_DIR  
+UPLOAD_VIDEOS_DIR = settings.UPLOAD_VIDEOS_DIR
+UPLOAD_TEMP_DIR = settings.UPLOAD_TEMP_DIR
+STATIC_FILES_URL = settings.STATIC_FILES_URL
+STATIC_FILES_URL_PROD = settings.STATIC_FILES_URL_PROD
+
 # ===== CONFIGURACIONES DERIVADAS =====
 # Determinar si estamos en producción
 IS_PRODUCTION = ENVIRONMENT == "production"
@@ -376,6 +438,7 @@ API_DESCRIPTION = "API para el sistema MediaLab de gestión de proyectos y servi
 
 # Configuración de logging
 LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
+
 
 # 🔥 NUEVAS FUNCIONES DE VALIDACIÓN
 def validate_jwt_config() -> bool:
@@ -538,6 +601,10 @@ __all__ = [
     'settings', 'PROJECT_NAME', 'VERSION', 'ENVIRONMENT', 'DEBUG',
     'SECRET_KEY', 'ALGORITHM', 'ALLOWED_ALGORITHMS', 'JWT_ISSUER', 'JWT_AUDIENCE',
     'DATABASE_URL', 'REDIS_URL', 'CORS_ORIGINS',
+    
+    # Uploads
+    'UPLOAD_BASE_DIR', 'UPLOAD_PHOTOS_DIR', 'UPLOAD_VIDEOS_DIR', 'UPLOAD_TEMP_DIR',
+    'STATIC_FILES_URL', 'STATIC_FILES_URL_PROD',
     
     # Funciones de utilidad
     'validate_jwt_config', 'get_security_summary', 'run_configuration_diagnostics',

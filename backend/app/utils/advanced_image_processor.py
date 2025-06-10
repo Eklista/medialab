@@ -1,4 +1,4 @@
-# app/utils/advanced_image_processor.py
+# app/utils/advanced_image_processor.py - VERSIÓN CORREGIDA
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageOps
 import logging
 from pathlib import Path
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +34,36 @@ class AdvancedImageProcessor:
         'original': 95
     }
     
-    def __init__(self, upload_dir: str = "static/uploads/photos"):
-        self.upload_dir = Path(upload_dir)
-        self.upload_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, upload_dir: Optional[str] = None):
+        """Inicializar processor con directorio configurado"""
+        # Usar directorio configurado o el default
+        if upload_dir:
+            self.upload_dir = Path(upload_dir)
+        else:
+            self.upload_dir = settings.upload_photos_path
         
-        # Crear subdirectorios por tamaño
+        # Asegurar que existen los directorios
+        settings.ensure_upload_dirs()
+        
+        # Crear subdirectorios por tamaño si no existen
         for size_name in self.SIZE_CONFIG.keys():
             (self.upload_dir / size_name).mkdir(exist_ok=True)
         (self.upload_dir / "original").mkdir(exist_ok=True)
+        
+        logger.info(f"📁 ImageProcessor usando: {self.upload_dir}")
+    
+    def get_url_for_file(self, file_path: str, size: str = "medium") -> str:
+        """
+        Convertir ruta de archivo a URL pública
+        """
+        try:
+            # Convertir ruta absoluta a relativa desde uploads
+            rel_path = Path(file_path).relative_to(settings.upload_base_path)
+            return f"{settings.current_static_url}/uploads/{rel_path}"
+        except ValueError:
+            # Fallback si no puede convertir
+            filename = Path(file_path).name
+            return f"{settings.current_static_url}/uploads/photos/{size}/{filename}"
 
     def process_single_image(
         self, 
@@ -70,7 +93,8 @@ class AdvancedImageProcessor:
                 # Generar nombre de archivo si no se proporciona
                 if not output_filename:
                     base_name = Path(image_path).stem
-                    output_filename = f"{base_name}_{int(asyncio.get_event_loop().time())}"
+                    import time
+                    output_filename = f"{base_name}_{int(time.time())}"
                 
                 variants = {}
                 

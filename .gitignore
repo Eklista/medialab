@@ -87,3 +87,8 @@ certbot/
 # otros
 /mysql-init
 backend/nohup.out
+uploads/
+!uploads/.gitkeep
+!uploads/*/.gitkeep
+uploads/**/*
+!uploads/**/.gitkeep

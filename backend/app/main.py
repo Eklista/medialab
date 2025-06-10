@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Importaciones de configuración
 from app.config.settings import CORS_ORIGINS, ENVIRONMENT, REDIS_ENABLED
+from app.config.settings import settings
 
 # ===== IMPORTACIONES WEBSOCKET CORREGIDAS =====
 try:
@@ -183,6 +184,9 @@ async def lifespan(app: FastAPI):
     
     logger.info("👋 MediaLab API cerrada correctamente")
 
+# Crear directorios de uploads al inicio
+settings.ensure_upload_dirs()
+
 # Crear aplicación con lifespan
 app = FastAPI(
     title="MediaLab API",
@@ -306,10 +310,19 @@ uploads_dir = static_dir / "uploads" / "users"
 uploads_dir.mkdir(parents=True, exist_ok=True)
 
 # Montar directorio estático para servir archivos
+app.mount(
+    "/static/uploads", 
+    StaticFiles(directory=str(settings.upload_base_path)), 
+    name="uploads"
+)
+
+# Mantener el directorio static interno para otros archivos
+static_dir = Path("static")
+static_dir.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-logger.info(f"📁 Archivos estáticos configurados en: {static_dir.absolute()}")
-logger.info(f"📁 Directorio de uploads: {uploads_dir.absolute()}")
+logger.info(f"📁 Uploads externos en: {settings.upload_base_path}")
+logger.info(f"📁 Static interno en: {static_dir.absolute()}")
 
 # ===== ROUTERS =====
 

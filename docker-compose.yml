@@ -59,6 +59,7 @@ services:
     volumes:
       - backend_data:/app/data
       - backend_logs:/app/logs
+      - uploads_data:/uploads
     env_file:
       - ${ENV_FILE:-.env.dev}
     depends_on:
@@ -87,6 +88,7 @@ services:
       - ./backend/app:/app/app:ro
       - backend_data:/app/data
       - backend_logs:/app/logs
+      - uploads_data:/uploads
     env_file:
       - ${ENV_FILE:-.env.dev}
     depends_on:
@@ -175,6 +177,7 @@ services:
       - ./ssl:/etc/nginx/ssl:ro
       - ./certbot:/var/www/certbot:ro
       - nginx_logs:/var/log/nginx
+      - uploads_data:/var/www/uploads:ro
     depends_on:
       - backend
       - frontend-prod
@@ -208,6 +211,8 @@ volumes:
   backend_logs:
     driver: local
   nginx_logs:
+    driver: local
+  uploads_data:
     driver: local
 
 networks:
