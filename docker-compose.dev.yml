@@ -1,0 +1,54 @@
+# Simple compose to test just the frontends
+# Run with: docker-compose -f docker-compose.dev.yml up
+
+services:
+  # React Portal Frontend
+  frontend-portal:
+    build: 
+      context: ./frontend-portal
+      dockerfile: Dockerfile
+      target: development
+    container_name: react_portal_dev
+    restart: unless-stopped
+    ports:
+      - "${PORTAL_DEV_PORT}:3000"
+    volumes:
+      - ./frontend-portal:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+      - VITE_WP_URL=http://localhost/wp-json/wp/v2
+
+  # React Dashboard Frontend
+  frontend-dashboard:
+    build: 
+      context: ./frontend-dashboard
+      dockerfile: Dockerfile
+      target: development
+    container_name: react_dashboard_dev
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_DEV_PORT}:3000"
+    volumes:
+      - ./frontend-dashboard:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+      - VITE_WP_URL=http://localhost/wp-json/wp/v2
+
+  # React God Mode Frontend
+  frontend-godmode:
+    build: 
+      context: ./frontend-godmode
+      dockerfile: Dockerfile
+      target: development
+    container_name: react_godmode_dev
+    restart: unless-stopped
+    ports:
+      - "${GODMODE_DEV_PORT}:3000"
+    volumes:
+      - ./frontend-godmode:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+      - VITE_WP_URL=http://localhost/wp-json/wp/v2
