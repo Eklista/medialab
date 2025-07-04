@@ -36,7 +36,7 @@ description: Tablas del módulo de inventario
 | monitor | VARCHAR | Monitor |
 | serial_number | VARCHAR | Número de serie |
 | location | VARCHAR | Ubicación |
-| status | ENUM | Estado del equipo |
+| status_id | UUID | ID del estado |
 | observations | TEXT | Observaciones |
 | is_active | BOOLEAN | Estado activo |
 | created_at | TIMESTAMP | Fecha de creación |
@@ -45,6 +45,7 @@ description: Tablas del módulo de inventario
 ### Relaciones
 - **inventory_type_id** → inventory_types.id
 - **assigned_to_user_id** → users.id
+- **status_id** → status_options.id
 
 ## supplies
 
@@ -88,9 +89,10 @@ description: Tablas del módulo de inventario
 | equipment_id | UUID | ID del equipo |
 | reserved_from | TIMESTAMP | Reservado desde |
 | reserved_to | TIMESTAMP | Reservado hasta |
-| status | ENUM | Estado de la reserva |
+| status_id | UUID | ID del estado |
 | created_at | TIMESTAMP | Fecha de creación |
 
 ### Relaciones
 - **task_id** → tasks.id
 - **equipment_id** → equipment.id
+- **status_id** → status_options.id
