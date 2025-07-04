@@ -15,87 +15,88 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, Trash2, Video, AlertTriangle } from "lucide-react";
-import type { ServiceType } from "@/types/forms";
+import { MoreHorizontal, Edit, Trash2, Video } from "lucide-react";
+import type { Service } from "@/types/forms";
 
-const mockServiceTypes: ServiceType[] = [
+const mockServices: Service[] = [
   {
     id: "1",
-    name: "Transmisión",
-    description: "Servicios de transmisión en vivo y circuito cerrado",
-    icon: "video",
+    name: "Transmisión en Vivo",
+    description: "Transmisión en tiempo real con múltiples cámaras",
+    serviceTypeId: "1",
+    serviceType: {
+      id: "1",
+      name: "Transmisión",
+      description: "Servicios de transmisión",
+      isActive: true,
+      hasRequirements: true,
+      criticalRequirements: [
+        "Conexión a internet estable mínimo 50 Mbps de subida",
+        "Equipo de transmisión profesional"
+      ],
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: "2025-01-01T00:00:00Z"
+    },
     isActive: true,
-    hasRequirements: true,
-    criticalRequirements: [
-      "Conexión a internet estable mínimo 50 Mbps de subida",
-      "Equipo de transmisión profesional"
-    ],
+    requirements: "Conexión a internet estable, iluminación adecuada",
     createdAt: "2025-01-01T00:00:00Z",
     updatedAt: "2025-01-01T00:00:00Z"
   }
 ];
 
-interface ServiceTypesTableProps {
-  onEdit: (serviceType: ServiceType) => void;
+interface ServicesTableProps {
+  onEdit: (service: Service) => void;
   onDelete: (id: string) => void;
 }
 
-export default function ServiceTypesTable({ onEdit, onDelete }: ServiceTypesTableProps) {
-  const [serviceTypes] = useState<ServiceType[]>(mockServiceTypes);
+export default function ServicesTable({ onEdit, onDelete }: ServicesTableProps) {
+  const [services] = useState<Service[]>(mockServices);
 
   return (
     <div className="rounded-md border border-zinc-700">
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-700">
-            <TableHead className="text-zinc-300 font-poppins">Nombre</TableHead>
-            <TableHead className="text-zinc-300 font-poppins">Descripción</TableHead>
+            <TableHead className="text-zinc-300 font-poppins">Servicio</TableHead>
+            <TableHead className="text-zinc-300 font-poppins">Tipo</TableHead>
             <TableHead className="text-zinc-300 font-poppins">Estado</TableHead>
-            <TableHead className="text-zinc-300 font-poppins">Fecha Creación</TableHead>
             <TableHead className="text-zinc-300 font-poppins text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {serviceTypes.map((serviceType) => (
-            <TableRow key={serviceType.id} className="border-zinc-700 hover:bg-zinc-800/50">
-              <TableCell className="font-medium text-zinc-100 font-poppins">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-zinc-700/50 rounded-lg">
+          {services.map((service) => (
+            <TableRow key={service.id} className="border-zinc-700 hover:bg-zinc-800/50">
+              <TableCell className="font-poppins">
+                <div className="space-y-1">
+                  <div className="font-medium text-zinc-100 flex items-center gap-2">
                     <Video className="h-4 w-4 text-zinc-400" />
+                    {service.name}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span>{serviceType.name}</span>
-                    {serviceType.hasRequirements && (
-                      <div title="Tiene requerimientos críticos">
-                        <AlertTriangle className="h-3 w-3 text-orange-500" />
-                      </div>
-                    )}
+                  <div className="text-sm text-zinc-400 max-w-xs truncate">
+                    {service.description || "Sin descripción"}
                   </div>
+                  {service.requirements && (
+                    <div className="text-xs text-zinc-500 max-w-xs truncate">
+                      Req: {service.requirements}
+                    </div>
+                  )}
                 </div>
               </TableCell>
-              <TableCell className="text-zinc-400 font-poppins max-w-xs">
-                <div className="truncate">
-                  {serviceType.description || "Sin descripción"}
-                </div>
-                {serviceType.hasRequirements && (
-                  <div className="text-xs text-orange-400 mt-1">
-                    {serviceType.criticalRequirements.length} requerimientos críticos
-                  </div>
-                )}
+              <TableCell>
+                <Badge variant="secondary" className="bg-zinc-700 text-zinc-300 border-zinc-600 font-poppins">
+                  {service.serviceType?.name}
+                </Badge>
               </TableCell>
               <TableCell>
                 <Badge 
-                  variant={serviceType.isActive ? "default" : "secondary"}
-                  className={serviceType.isActive 
+                  variant={service.isActive ? "default" : "secondary"}
+                  className={service.isActive 
                     ? "bg-green-900/50 text-green-400 border-green-800 font-poppins" 
                     : "bg-zinc-700 text-zinc-400 border-zinc-600 font-poppins"
                   }
                 >
-                  {serviceType.isActive ? "Activo" : "Inactivo"}
+                  {service.isActive ? "Activo" : "Inactivo"}
                 </Badge>
-              </TableCell>
-              <TableCell className="text-zinc-400 font-poppins">
-                {new Date(serviceType.createdAt).toLocaleDateString('es-ES')}
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
@@ -106,14 +107,14 @@ export default function ServiceTypesTable({ onEdit, onDelete }: ServiceTypesTabl
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-zinc-800 border-zinc-700">
                     <DropdownMenuItem 
-                      onClick={() => onEdit(serviceType)}
+                      onClick={() => onEdit(service)}
                       className="text-zinc-300 hover:bg-zinc-700 focus:bg-zinc-700 font-poppins"
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Editar
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      onClick={() => onDelete(serviceType.id)}
+                      onClick={() => onDelete(service.id)}
                       className="text-red-400 hover:bg-zinc-700 focus:bg-zinc-700 font-poppins"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />

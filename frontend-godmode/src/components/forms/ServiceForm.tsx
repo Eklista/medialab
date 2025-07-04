@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Video, FileText } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Video, FileText, AlertTriangle, CheckCircle } from "lucide-react";
 import type { Service, ServiceFormData, ServiceType } from "@/types/forms";
 
 const mockServiceTypes: ServiceType[] = [
@@ -20,6 +28,13 @@ const mockServiceTypes: ServiceType[] = [
     description: "Servicios de transmisión en vivo y circuito cerrado",
     icon: "video",
     isActive: true,
+    hasRequirements: true,
+    criticalRequirements: [
+      "Conexión a internet estable mínimo 50 Mbps de subida",
+      "Equipo de transmisión profesional",
+      "Micrófono de calidad profesional",
+      "Iluminación adecuada para transmisión"
+    ],
     createdAt: "2025-01-01T00:00:00Z",
     updatedAt: "2025-01-01T00:00:00Z"
   }
@@ -38,6 +53,9 @@ export default function ServiceForm({
   onCancel, 
   isLoading = false 
 }: ServiceFormProps) {
+  const [showRequirementsModal, setShowRequirementsModal] = useState(false);
+  const [selectedServiceRequirements, setSelectedServiceRequirements] = useState<string[]>([]);
+
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ServiceFormData>({
     defaultValues: {
       name: service?.name || "",
@@ -51,6 +69,17 @@ export default function ServiceForm({
   const isActive = watch("isActive");
   const serviceTypeId = watch("serviceTypeId");
   const selectedServiceType = mockServiceTypes.find(type => type.id === serviceTypeId);
+
+  // Función para manejar el cambio de tipo de servicio
+  const handleServiceTypeChange = (value: string) => {
+    setValue("serviceTypeId", value);
+    
+    const serviceType = mockServiceTypes.find(type => type.id === value);
+    if (serviceType && serviceType.hasRequirements && serviceType.criticalRequirements.length > 0) {
+      setSelectedServiceRequirements(serviceType.criticalRequirements);
+      setShowRequirementsModal(true);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -85,7 +114,7 @@ export default function ServiceForm({
               </Label>
               <Select 
                 value={serviceTypeId} 
-                onValueChange={(value) => setValue("serviceTypeId", value)}
+                onValueChange={handleServiceTypeChange}
               >
                 <SelectTrigger className="bg-zinc-800 border-zinc-600 text-zinc-100 focus:border-zinc-400 focus:ring-zinc-400/20 h-11 font-poppins">
                   <SelectValue>
@@ -93,6 +122,9 @@ export default function ServiceForm({
                       <div className="flex items-center gap-2">
                         <Video className="h-4 w-4" />
                         <span>{selectedServiceType.name}</span>
+                        {selectedServiceType.hasRequirements && (
+                          <AlertTriangle className="h-3 w-3 text-orange-500" />
+                        )}
                       </div>
                     ) : (
                       <span className="text-zinc-500">Selecciona un tipo de servicio</span>
@@ -109,6 +141,9 @@ export default function ServiceForm({
                       <div className="flex items-center gap-2">
                         <Video className="h-4 w-4" />
                         <span>{type.name}</span>
+                        {type.hasRequirements && (
+                          <AlertTriangle className="h-3 w-3 text-orange-500" />
+                        )}
                       </div>
                     </SelectItem>
                   ))}
@@ -195,6 +230,53 @@ export default function ServiceForm({
             </p>
           </div>
         </div>
+
+        {/* Modal de Requerimientos Críticos */}
+        <Dialog open={showRequirementsModal} onOpenChange={setShowRequirementsModal}>
+          <DialogContent className="bg-zinc-900 border-zinc-700 max-w-lg">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="flex items-center gap-2 text-zinc-100 font-sora">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Requerimientos Críticos
+              </DialogTitle>
+              <DialogDescription className="text-zinc-400 font-poppins">
+                Este tipo de servicio requiere equipos y condiciones específicas para funcionar correctamente.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                <h4 className="text-zinc-200 font-poppins font-medium mb-3">
+                  Requerimientos obligatorios:
+                </h4>
+                <ul className="space-y-2">
+                  {selectedServiceRequirements.map((requirement, index) => (
+                    <li key={index} className="flex items-start gap-2 text-sm text-zinc-300 font-poppins">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>{requirement}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-3">
+                <p className="text-yellow-400 text-sm font-poppins">
+                  💡 <strong>Importante:</strong> Estos requerimientos aparecerán automáticamente al cliente cuando seleccione este tipo de servicio.
+                </p>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowRequirementsModal(false)}
+                  className="border-zinc-600 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 font-poppins"
+                >
+                  Entendido
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Botones de Acción */}
         <div className="flex justify-end gap-3 pt-6 border-t border-zinc-700">
