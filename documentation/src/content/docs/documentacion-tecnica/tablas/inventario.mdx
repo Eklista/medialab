@@ -1,0 +1,41 @@
+---
+title: Tablas - Inventario
+description: Tablas del módulo de inventario
+---
+
+## productos
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | int | Identificador único |
+| nombre | varchar(200) | Nombre del producto |
+| descripcion | text | Descripción detallada |
+| precio | decimal(10,2) | Precio del producto |
+| stock | int | Cantidad disponible |
+| categoria_id | int | ID de la categoría |
+| created_at | timestamp | Fecha de creación |
+| updated_at | timestamp | Fecha de modificación |
+| active | boolean | Estado del producto |
+
+## categorias
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | int | Identificador único |
+| nombre | varchar(100) | Nombre de la categoría |
+| descripcion | text | Descripción de la categoría |
+| parent_id | int | ID de categoría padre |
+| created_at | timestamp | Fecha de creación |
+| active | boolean | Estado de la categoría |
+
+## movimientos_inventario
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | int | Identificador único |
+| producto_id | int | ID del producto |
+| tipo | enum('entrada','salida') | Tipo de movimiento |
+| cantidad | int | Cantidad del movimiento |
+| motivo | varchar(200) | Motivo del movimiento |
+| usuario_id | int | ID del usuario responsable |
+| created_at | timestamp | Fecha del movimiento |

@@ -24,18 +24,18 @@ export default function CreateModal({
 }: CreateModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-700 text-zinc-100 max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="space-y-3">
-          <DialogTitle className="text-xl font-sora text-zinc-100">
+      <DialogContent className="bg-zinc-900 border-zinc-700 text-zinc-100 max-w-[90vw] lg:max-w-6xl max-h-[90vh] overflow-y-auto p-8">
+        <DialogHeader className="space-y-4 pb-6">
+          <DialogTitle className="text-2xl font-sora text-zinc-100">
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription className="text-zinc-400 font-poppins">
+            <DialogDescription className="text-zinc-400 font-poppins text-base">
               {description}
             </DialogDescription>
           )}
         </DialogHeader>
-        <div className="mt-6">
+        <div className="mt-2">
           {children}
         </div>
       </DialogContent>

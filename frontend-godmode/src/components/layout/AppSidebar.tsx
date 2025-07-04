@@ -1,10 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -19,6 +19,9 @@ import {
   Video,
   LogOut,
   Crown,
+  ChevronDown,
+  ChevronRight,
+  List
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -40,10 +43,7 @@ const menuItems = [
     title: "Inventario",
     icon: Camera,
     items: [
-      { title: "Tipo de equipo", url: "/equipment/types" },
-      { title: "Equipo", url: "/equipment/units" },
-      { title: "Locaciones", url: "/equipment/locations" },
-      { title: "Proveeduria", url: "#" },
+      { title: "Equipo", url: "/equipment/types" },
     ],
   },
   {
@@ -55,21 +55,57 @@ const menuItems = [
     ],
   },
   {
+    title: "Crud Config",
+    icon: List,
+    items: [
+      { title: "Status", url: "/crud/workflows" },
+      { title: "Unidades Academicas", url: "/crud/academic-units" },
+      { title: "Locaciones", url: "/crud/locations" },
+
+    ],
+  },
+  {
     title: "Settings",
     icon: Settings,
     items: [
       { title: "Configuración de APP", url: "/config/app" },
       { title: "Configuración SMTP", url: "/config/smtp" },
-      { title: "Workflows", url: "/config/workflows" },
+      { title: "Integraciones", url: "/config/integrations" },
+      { title: "API Keys", url: "/config/api-keys" },
+      { title: "Logs del Sistema", url: "/config/logs" },
+      { title: "Auditoría", url: "/config/audit" },
+      { title: "Documentación", url: "/config/docs" },
+    ],
+  },
+  {
+    title: "Información",
+    icon: Settings,
+    items: [
+      { title: "Logs del Sistema", url: "/info/logs" },
+      { title: "Auditoría", url: "/info/audit" },
+      { title: "Documentación", url: "/info/docs" },
     ],
   },
 ];
 
 export default function AppSidebar() {
   const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['Servicios']);
 
   const isActiveRoute = (url: string) => {
     return location.pathname === url;
+  };
+
+  const toggleMenu = (menuTitle: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(menuTitle) 
+        ? prev.filter(title => title !== menuTitle)
+        : [...prev, menuTitle]
+    );
+  };
+
+  const isMenuExpanded = (menuTitle: string) => {
+    return expandedMenus.includes(menuTitle);
   };
 
 
@@ -94,7 +130,7 @@ export default function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-zinc-900 p-1 overflow-y-auto">
+      <SidebarContent className="bg-zinc-900 p-2 overflow-y-auto">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
@@ -104,39 +140,54 @@ export default function AppSidebar() {
                     <SidebarMenuButton 
                       asChild
                       isActive={isActiveRoute(item.url!)}
-                      className="text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/70 data-[active=true]:bg-gradient-to-r data-[active=true]:from-zinc-700 data-[active=true]:to-zinc-800 data-[active=true]:text-zinc-100 font-poppins rounded-lg h-9 transition-all duration-200"
+                      className="text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/70 data-[active=true]:bg-gradient-to-r data-[active=true]:from-zinc-700 data-[active=true]:to-zinc-800 data-[active=true]:text-zinc-100 font-poppins rounded-lg h-10 px-3 transition-all duration-200"
                     >
                       <Link to={item.url!}>
                         <item.icon className="h-4 w-4" />
-                        <span className="font-medium">{item.title}</span>
+                        <span className="font-medium text-sm">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   ) : (
-                    <SidebarGroup className="mt-2">
-                      <SidebarGroupLabel className="flex items-center gap-2 text-xs font-semibold text-zinc-400 font-sora mb-1 px-2">
-                        <div className="p-1 bg-zinc-800 rounded-sm">
-                          <item.icon className="h-3 w-3" />
+                    <div className="space-y-1">
+                      <SidebarMenuButton 
+                        onClick={() => toggleMenu(item.title)}
+                        className="w-full text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/70 font-poppins rounded-lg h-10 px-3 transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-3">
+                            <item.icon className="h-4 w-4" />
+                            <span className="font-medium text-sm">{item.title}</span>
+                          </div>
+                          {isMenuExpanded(item.title) ? (
+                            <ChevronDown className="h-4 w-4 text-zinc-400" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-zinc-400" />
+                          )}
                         </div>
-                        {item.title}
-                      </SidebarGroupLabel>
-                      <SidebarGroupContent>
-                        <SidebarMenu className="space-y-0.5 ml-1">
-                          {item.items.map((subItem) => (
-                            <SidebarMenuItem key={subItem.title}>
-                              <SidebarMenuButton 
-                                asChild
-                                isActive={isActiveRoute(subItem.url)}
-                                className="ml-4 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 data-[active=true]:bg-zinc-700/70 data-[active=true]:text-zinc-100 font-poppins rounded-md h-8 transition-all duration-200 relative before:absolute before:left-[-8px] before:top-1/2 before:w-1 before:h-px before:bg-zinc-600 before:transform before:-translate-y-1/2"
-                              >
-                                <Link to={subItem.url}>
-                                  <span className="text-xs">{subItem.title}</span>
-                                </Link>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          ))}
-                        </SidebarMenu>
-                      </SidebarGroupContent>
-                    </SidebarGroup>
+                      </SidebarMenuButton>
+                      
+                      {isMenuExpanded(item.title) && (
+                        <SidebarGroup className="ml-3">
+                          <SidebarGroupContent>
+                            <SidebarMenu className="space-y-0.5">
+                              {item.items.map((subItem) => (
+                                <SidebarMenuItem key={subItem.title}>
+                                  <SidebarMenuButton 
+                                    asChild
+                                    isActive={isActiveRoute(subItem.url)}
+                                    className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 data-[active=true]:bg-zinc-700/70 data-[active=true]:text-zinc-100 font-poppins rounded-md h-9 px-3 transition-all duration-200 relative before:absolute before:left-[-12px] before:top-1/2 before:w-2 before:h-px before:bg-zinc-600 before:transform before:-translate-y-1/2"
+                                  >
+                                    <Link to={subItem.url}>
+                                      <span className="text-sm font-medium">{subItem.title}</span>
+                                    </Link>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              ))}
+                            </SidebarMenu>
+                          </SidebarGroupContent>
+                        </SidebarGroup>
+                      )}
+                    </div>
                   )}
                 </SidebarMenuItem>
               ))}

@@ -10,68 +10,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Video, FileText } from "lucide-react";
-import type { Service, ServiceFormData, ServiceType } from "@/types/forms";
+import { Video } from "lucide-react";
+import type { ServiceType, ServiceTypeFormData } from "@/types/forms";
 
-const mockServiceTypes: ServiceType[] = [
-  {
-    id: "1",
-    name: "Transmisión",
-    description: "Servicios de transmisión en vivo y circuito cerrado",
-    icon: "video",
-    isActive: true,
-    createdAt: "2025-01-01T00:00:00Z",
-    updatedAt: "2025-01-01T00:00:00Z"
-  }
-];
-
-interface ServiceFormProps {
-  service?: Service;
-  onSubmit: (data: ServiceFormData) => void;
+interface ServiceTypeFormProps {
+  serviceType?: ServiceType;
+  onSubmit: (data: ServiceTypeFormData) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
-export default function ServiceForm({ 
-  service, 
+export default function ServiceTypeForm({ 
+  serviceType, 
   onSubmit, 
   onCancel, 
   isLoading = false 
-}: ServiceFormProps) {
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ServiceFormData>({
+}: ServiceTypeFormProps) {
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ServiceTypeFormData>({
     defaultValues: {
-      name: service?.name || "",
-      description: service?.description || "",
-      serviceTypeId: service?.serviceTypeId || "",
-      isActive: service?.isActive ?? true,
-      requirements: service?.requirements || "",
+      name: serviceType?.name || "",
+      description: serviceType?.description || "",
+      icon: serviceType?.icon || "video",
+      isActive: serviceType?.isActive ?? true,
     }
   });
 
   const isActive = watch("isActive");
-  const serviceTypeId = watch("serviceTypeId");
-  const selectedServiceType = mockServiceTypes.find(type => type.id === serviceTypeId);
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         
         {/* Información Básica */}
-        <div className="bg-zinc-800/30 rounded-lg p-6 border border-zinc-700/50">
-          <h3 className="text-lg font-sora font-semibold text-zinc-100 mb-6 flex items-center gap-2">
-            <Video className="h-5 w-5 text-zinc-400" />
-            Información Básica
+        <div className="bg-zinc-800/30 rounded-lg p-8 border border-zinc-700/50">
+          <h3 className="text-xl font-sora font-semibold text-zinc-100 mb-8 flex items-center gap-3">
+            <Video className="h-6 w-6 text-zinc-400" />
+            Información del Tipo de Servicio
           </h3>
           
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="name" className="text-zinc-200 font-poppins font-medium">
-                Nombre del Servicio *
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <Label htmlFor="name" className="text-zinc-200 font-poppins font-medium text-base">
+                Nombre del Tipo *
               </Label>
               <Input
                 id="name"
-                placeholder="ej. Transmisión en Vivo"
-                className="bg-zinc-800 border-zinc-600 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:ring-zinc-400/20 h-11 font-poppins"
+                placeholder="ej. Transmisión, Producción, Audio"
+                className="bg-zinc-700/50 border-zinc-600 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:ring-zinc-400/20 h-12 text-base font-poppins"
                 {...register("name", { required: "El nombre es requerido" })}
               />
               {errors.name && (
@@ -79,76 +64,24 @@ export default function ServiceForm({
               )}
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="serviceTypeId" className="text-zinc-200 font-poppins font-medium">
-                Tipo de Servicio *
-              </Label>
-              <Select 
-                value={serviceTypeId} 
-                onValueChange={(value) => setValue("serviceTypeId", value)}
-              >
-                <SelectTrigger className="bg-zinc-800 border-zinc-600 text-zinc-100 focus:border-zinc-400 focus:ring-zinc-400/20 h-11 font-poppins">
-                  <SelectValue>
-                    {selectedServiceType ? (
-                      <div className="flex items-center gap-2">
-                        <Video className="h-4 w-4" />
-                        <span>{selectedServiceType.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-zinc-500">Selecciona un tipo de servicio</span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-600 font-poppins">
-                  {mockServiceTypes.map((type) => (
-                    <SelectItem 
-                      key={type.id} 
-                      value={type.id}
-                      className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Video className="h-4 w-4" />
-                        <span>{type.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.serviceTypeId && (
-                <p className="text-red-400 text-sm font-poppins">{errors.serviceTypeId.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="description" className="text-zinc-200 font-poppins font-medium">
-                Descripción
-              </Label>
-              <Textarea
-                id="description"
-                placeholder="Describe el servicio y sus características principales..."
-                className="bg-zinc-800 border-zinc-600 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:ring-zinc-400/20 min-h-[100px] font-poppins"
-                {...register("description")}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-zinc-200 font-poppins font-medium">
+            <div className="space-y-4">
+              <Label className="text-zinc-200 font-poppins font-medium text-base">
                 Estado
               </Label>
               <Select 
                 value={isActive ? "true" : "false"} 
                 onValueChange={(value) => setValue("isActive", value === "true")}
               >
-                <SelectTrigger className="bg-zinc-800 border-zinc-600 text-zinc-100 focus:border-zinc-400 focus:ring-zinc-400/20 h-11 font-poppins">
+                <SelectTrigger className="bg-zinc-700/50 border-zinc-600 text-zinc-100 focus:border-zinc-400 focus:ring-zinc-400/20 h-12 text-base font-poppins">
                   <SelectValue>
                     {isActive ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                         <span>Activo</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-zinc-500 rounded-full"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-zinc-500 rounded-full"></div>
                         <span>Inactivo</span>
                       </div>
                     )}
@@ -156,14 +89,14 @@ export default function ServiceForm({
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-600 font-poppins">
                   <SelectItem value="true" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                       <span>Activo</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="false" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-zinc-500 rounded-full"></div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-zinc-500 rounded-full"></div>
                       <span>Inactivo</span>
                     </div>
                   </SelectItem>
@@ -171,47 +104,36 @@ export default function ServiceForm({
               </Select>
             </div>
           </div>
-        </div>
 
-        {/* Requerimientos */}
-        <div className="bg-zinc-800/30 rounded-lg p-6 border border-zinc-700/50">
-          <h3 className="text-lg font-sora font-semibold text-zinc-100 mb-6 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-zinc-400" />
-            Requerimientos
-          </h3>
-          
-          <div className="space-y-3">
-            <Label htmlFor="requirements" className="text-zinc-200 font-poppins font-medium">
-              Equipos y Condiciones Necesarias
+          <div className="mt-8 space-y-4">
+            <Label htmlFor="description" className="text-zinc-200 font-poppins font-medium text-base">
+              Descripción
             </Label>
             <Textarea
-              id="requirements"
-              placeholder="Describe los equipos, espacios o condiciones necesarias para este servicio..."
-              className="bg-zinc-800 border-zinc-600 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:ring-zinc-400/20 min-h-[120px] font-poppins"
-              {...register("requirements")}
+              id="description"
+              placeholder="Describe el tipo de servicio y sus características principales..."
+              className="bg-zinc-700/50 border-zinc-600 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:ring-zinc-400/20 min-h-[120px] text-base font-poppins resize-none"
+              {...register("description")}
             />
-            <p className="text-xs text-zinc-500 font-poppins">
-              Ejemplo: Conexión a internet estable, espacio amplio, iluminación adecuada, etc.
-            </p>
           </div>
         </div>
 
         {/* Botones de Acción */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-zinc-700">
+        <div className="flex justify-end gap-4 pt-6 border-t border-zinc-700">
           <Button 
             type="button" 
             variant="outline" 
             onClick={onCancel}
-            className="border-zinc-600 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 font-poppins"
+            className="border-zinc-600 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 font-poppins px-6 h-12"
           >
             Cancelar
           </Button>
           <Button 
             type="submit" 
             disabled={isLoading}
-            className="bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-poppins"
+            className="bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-poppins px-8 h-12"
           >
-            {isLoading ? "Guardando..." : service ? "Actualizar" : "Crear"}
+            {isLoading ? "Guardando..." : serviceType ? "Actualizar" : "Crear"}
           </Button>
         </div>
       </form>

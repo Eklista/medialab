@@ -1,0 +1,28 @@
+---
+title: Documentación Medialab
+description: Documentación interna y recursos para desarrolladores
+template: splash
+hero:
+  tagline: Bienvenido a la documentación interna de Medialab
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: Ver Documentación
+      link: /documentacion-tecnica/
+      icon: right-arrow
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Recursos disponibles
+
+<CardGrid stagger>
+	<Card title="Tablas de datos" icon="open-book">
+		Consulta todas las tablas y estructuras de datos del sistema.
+		[Ver tablas →](/documentacion-tecnica/tablas/)
+	</Card>
+	<Card title="Documentación técnica" icon="document">
+		Información técnica y especificaciones para desarrolladores.
+		[Próximamente...]
+	</Card>
+</CardGrid>

@@ -15,7 +15,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, Trash2, Video, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Video } from "lucide-react";
 import type { ServiceType } from "@/types/forms";
 
 const mockServiceTypes: ServiceType[] = [
@@ -25,11 +25,24 @@ const mockServiceTypes: ServiceType[] = [
     description: "Servicios de transmisión en vivo y circuito cerrado",
     icon: "video",
     isActive: true,
-    hasRequirements: true,
-    criticalRequirements: [
-      "Conexión a internet estable mínimo 50 Mbps de subida",
-      "Equipo de transmisión profesional"
-    ],
+    createdAt: "2025-01-01T00:00:00Z",
+    updatedAt: "2025-01-01T00:00:00Z"
+  },
+  {
+    id: "2",
+    name: "Producción",
+    description: "Servicios de producción audiovisual y multimedia",
+    icon: "video",
+    isActive: true,
+    createdAt: "2025-01-01T00:00:00Z",
+    updatedAt: "2025-01-01T00:00:00Z"
+  },
+  {
+    id: "3",
+    name: "Audio",
+    description: "Servicios especializados en grabación y producción de audio",
+    icon: "video",
+    isActive: false,
     createdAt: "2025-01-01T00:00:00Z",
     updatedAt: "2025-01-01T00:00:00Z"
   }
@@ -48,7 +61,7 @@ export default function ServiceTypesTable({ onEdit, onDelete }: ServiceTypesTabl
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-700">
-            <TableHead className="text-zinc-300 font-poppins">Nombre</TableHead>
+            <TableHead className="text-zinc-300 font-poppins">Tipo de Servicio</TableHead>
             <TableHead className="text-zinc-300 font-poppins">Descripción</TableHead>
             <TableHead className="text-zinc-300 font-poppins">Estado</TableHead>
             <TableHead className="text-zinc-300 font-poppins">Fecha Creación</TableHead>
@@ -63,25 +76,13 @@ export default function ServiceTypesTable({ onEdit, onDelete }: ServiceTypesTabl
                   <div className="p-2 bg-zinc-700/50 rounded-lg">
                     <Video className="h-4 w-4 text-zinc-400" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span>{serviceType.name}</span>
-                    {serviceType.hasRequirements && (
-                      <div title="Tiene requerimientos críticos">
-                        <AlertTriangle className="h-3 w-3 text-orange-500" />
-                      </div>
-                    )}
-                  </div>
+                  <span>{serviceType.name}</span>
                 </div>
               </TableCell>
-              <TableCell className="text-zinc-400 font-poppins max-w-xs">
+              <TableCell className="text-zinc-400 font-poppins max-w-md">
                 <div className="truncate">
                   {serviceType.description || "Sin descripción"}
                 </div>
-                {serviceType.hasRequirements && (
-                  <div className="text-xs text-orange-400 mt-1">
-                    {serviceType.criticalRequirements.length} requerimientos críticos
-                  </div>
-                )}
               </TableCell>
               <TableCell>
                 <Badge 

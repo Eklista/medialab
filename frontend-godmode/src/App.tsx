@@ -6,7 +6,6 @@ import Dashboard from './views/dashboard/Dashboard';
 import ServiceTypes from './views/services/ServiceTypes';
 import Services from './views/services/Services';
 import EquipmentTypes from './views/equipment/EquipmentTypes';
-import Equipment from './views/equipment/Equipment';
 import Locations from './views/equipment/Locations';
 import Users from './views/users/Users';
 import Roles from './views/users/Roles';
@@ -32,8 +31,6 @@ function App() {
 
         {/* Equipment */}
         <Route path="/equipment/types" element={<EquipmentTypes />} />
-        <Route path="/equipment/units" element={<Equipment />} />
-        <Route path="/equipment/locations" element={<Locations />} />
 
         {/* Users */}
         <Route path="/users/users" element={<Users />} />
@@ -42,7 +39,10 @@ function App() {
         {/* Config */}
         <Route path="/config/app" element={<AppSettings />} />
         <Route path="/config/smtp" element={<SMTPConfig />} />
-        <Route path="/config/workflows" element={<WorkflowConfig />} />
+
+        {/* CRUD Config */}
+        <Route path="/crud/workflows" element={<WorkflowConfig />} />
+        <Route path="/crud/locations" element={<Locations />} />
 
         {/* Fallback dentro del layout */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
