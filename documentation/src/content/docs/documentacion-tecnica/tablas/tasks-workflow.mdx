@@ -1,0 +1,101 @@
+---
+title: Tablas - Tasks & Workflow
+description: Tablas del módulo de tareas y flujo de trabajo
+---
+
+# Tasks & Workflow
+
+## tasks
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| project_id | UUID | ID del proyecto |
+| podcast_episode_id | UUID | ID del episodio de podcast |
+| class_id | UUID | ID de la clase |
+| service_type_id | UUID | ID del tipo de servicio |
+| status_id | UUID | ID del estado |
+| priority_id | UUID | ID de la prioridad |
+| name | VARCHAR | Nombre de la tarea |
+| description | TEXT | Descripción de la tarea |
+| delivery_date | DATE | Fecha de entrega |
+| observations | TEXT | Observaciones |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **project_id** → projects.id
+- **podcast_episode_id** → podcast_episodes.id
+- **class_id** → classes.id
+- **service_type_id** → service_types.id
+- **status_id** → status_options.id
+- **priority_id** → priority_options.id
+
+## task_assignments
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| task_id | UUID | ID de la tarea |
+| user_id | UUID | ID del usuario asignado |
+| role_id | UUID | ID del rol |
+| status | ENUM | Estado de la asignación |
+| assigned_at | TIMESTAMP | Fecha de asignación |
+| completed_at | TIMESTAMP | Fecha de completado |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **task_id** → tasks.id
+- **user_id** → users.id
+- **role_id** → employee_roles.id
+
+## task_approvals
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| task_id | UUID | ID de la tarea |
+| level | INTEGER | Nivel de aprobación |
+| status | ENUM | Estado de la aprobación |
+| reviewer_id | UUID | ID del revisor |
+| feedback | TEXT | Comentarios del revisor |
+| reviewed_at | TIMESTAMP | Fecha de revisión |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **task_id** → tasks.id
+- **reviewer_id** → users.id
+
+## deliverables
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| task_id | UUID | ID de la tarea |
+| name | VARCHAR | Nombre del entregable |
+| type | ENUM | Tipo de entregable |
+| url | VARCHAR | URL del entregable |
+| file_path | VARCHAR | Ruta del archivo |
+| status | ENUM | Estado del entregable |
+| delivered_at | TIMESTAMP | Fecha de entrega |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **task_id** → tasks.id
+
+## task_links
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| task_id | UUID | ID de la tarea |
+| link_platform_id | UUID | ID de la plataforma |
+| url | TEXT | URL del enlace |
+| title | VARCHAR | Título del enlace |
+| status | ENUM | Estado del enlace |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **task_id** → tasks.id
+- **link_platform_id** → link_platforms.id

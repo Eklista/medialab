@@ -1,0 +1,71 @@
+---
+title: Tablas - University Structure
+description: Tablas del módulo de estructura universitaria
+---
+
+# University Structure
+
+## units
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| unit_type_id | UUID | ID del tipo de unidad |
+| parent_unit_id | UUID | ID de la unidad padre |
+| name | VARCHAR | Nombre de la unidad |
+| abbreviation | VARCHAR | Abreviatura |
+| dean_director | VARCHAR | Decano o director |
+| extension | VARCHAR | Extensión telefónica |
+| email | VARCHAR | Correo electrónico |
+| location | VARCHAR | Ubicación física |
+| description | TEXT | Descripción de la unidad |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **unit_type_id** → unit_types.id
+- **parent_unit_id** → units.id
+
+## unit_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| hierarchy_level | INTEGER | Nivel jerárquico |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## professors
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| name | VARCHAR | Nombre completo |
+| title | VARCHAR | Título académico |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## professor_units
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| professor_id | UUID | ID del profesor |
+| unit_id | UUID | ID de la unidad |
+| role_in_unit | VARCHAR | Rol en la unidad |
+| start_date | DATE | Fecha de inicio |
+| end_date | DATE | Fecha de finalización |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **professor_id** → professors.id
+- **unit_id** → units.id

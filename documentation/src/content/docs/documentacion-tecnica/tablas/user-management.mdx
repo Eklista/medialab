@@ -1,0 +1,73 @@
+---
+title: Tablas - User Management
+description: Tablas del módulo de gestión de usuarios
+---
+
+# User Management
+
+## users
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| name | VARCHAR | Nombre completo del usuario |
+| email | VARCHAR | Correo electrónico único |
+| password_hash | VARCHAR | Contraseña hasheada |
+| user_type_id | UUID | ID del tipo de usuario |
+| unit_id | UUID | ID de la unidad asignada |
+| employee_role_id | UUID | ID del rol de empleado |
+| employee_code | VARCHAR | Código de empleado |
+| position | VARCHAR | Cargo o posición |
+| is_internal | BOOLEAN | Usuario interno o externo |
+| specialties | JSONB | Especialidades del usuario |
+| phone | VARCHAR | Número de teléfono |
+| avatar_url | VARCHAR | URL del avatar |
+| hire_date | DATE | Fecha de contratación |
+| last_login | TIMESTAMP | Último acceso |
+| is_active | BOOLEAN | Estado del usuario |
+| email_verified | BOOLEAN | Email verificado |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_type_id** → user_types.id
+- **unit_id** → units.id
+- **employee_role_id** → employee_roles.id
+
+## user_devices
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario |
+| device_name | VARCHAR | Nombre del dispositivo |
+| device_type | ENUM | Tipo de dispositivo |
+| browser | VARCHAR | Navegador utilizado |
+| os | VARCHAR | Sistema operativo |
+| ip_address | INET | Dirección IP |
+| user_agent | TEXT | Información del navegador |
+| device_fingerprint | VARCHAR | Huella digital del dispositivo |
+| is_trusted | BOOLEAN | Dispositivo confiable |
+| last_used_at | TIMESTAMP | Último uso |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+
+## ip_blocks
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| ip_address | INET | Dirección IP bloqueada |
+| reason | VARCHAR | Razón del bloqueo |
+| blocked_by_user_id | UUID | ID del usuario que bloqueó |
+| blocked_at | TIMESTAMP | Fecha de bloqueo |
+| expires_at | TIMESTAMP | Fecha de expiración |
+| is_permanent | BOOLEAN | Bloqueo permanente |
+| attempts_count | INTEGER | Cantidad de intentos |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **blocked_by_user_id** → users.id

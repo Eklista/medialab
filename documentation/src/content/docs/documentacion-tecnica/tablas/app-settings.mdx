@@ -1,0 +1,139 @@
+---
+title: Tablas - App Settings
+description: Tablas del módulo de configuración de la aplicación
+---
+
+# App Settings
+
+## configurations
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| key | VARCHAR | Clave de configuración única |
+| value | TEXT | Valor de configuración |
+| type | ENUM | Tipo de valor |
+| is_encrypted | BOOLEAN | Valor encriptado |
+| description | TEXT | Descripción de la configuración |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## user_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del tipo |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| dashboard_type | ENUM | Tipo de dashboard |
+| permissions | JSONB | Permisos asignados |
+| is_active | BOOLEAN | Estado del tipo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## employee_roles (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del rol |
+| name | VARCHAR | Nombre del rol |
+| description | TEXT | Descripción del rol |
+| color | VARCHAR | Color representativo |
+| is_active | BOOLEAN | Estado del rol |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## link_platforms (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único de la plataforma |
+| name | VARCHAR | Nombre de la plataforma |
+| domain_pattern | VARCHAR | Patrón de dominio |
+| url_validation_regex | TEXT | Regex de validación |
+| icon | VARCHAR | Icono representativo |
+| color | VARCHAR | Color representativo |
+| is_active | BOOLEAN | Estado de la plataforma |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## status_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del tipo |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## status_options (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| status_type_id | UUID | ID del tipo de estado |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre del estado |
+| level | INTEGER | Nivel del estado |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| is_active | BOOLEAN | Estado activo |
+| sort_order | INTEGER | Orden de visualización |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **status_type_id** → status_types.id
+
+## priority_options (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre de la prioridad |
+| level | INTEGER | Nivel de prioridad |
+| color | VARCHAR | Color representativo |
+| is_active | BOOLEAN | Estado activo |
+| sort_order | INTEGER | Orden de visualización |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## service_categories (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre de la categoría |
+| description | TEXT | Descripción de la categoría |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| sort_order | INTEGER | Orden de visualización |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## service_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| category_id | UUID | ID de la categoría |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| sort_order | INTEGER | Orden de visualización |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **category_id** → service_categories.id

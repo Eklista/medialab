@@ -1,0 +1,96 @@
+---
+title: Tablas - Inventory
+description: Tablas del módulo de inventario
+---
+
+# Inventory
+
+## inventory_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## equipment
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| inventory_type_id | UUID | ID del tipo de inventario |
+| assigned_to_user_id | UUID | ID del usuario asignado |
+| equipment_number | INTEGER | Número de equipo |
+| name | VARCHAR | Nombre del equipo |
+| service_tag | VARCHAR | Etiqueta de servicio |
+| ug_code | VARCHAR | Código UG |
+| processor | VARCHAR | Procesador |
+| ram_memory | VARCHAR | Memoria RAM |
+| hdd_capacity | VARCHAR | Capacidad de disco |
+| monitor | VARCHAR | Monitor |
+| serial_number | VARCHAR | Número de serie |
+| location | VARCHAR | Ubicación |
+| status | ENUM | Estado del equipo |
+| observations | TEXT | Observaciones |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **inventory_type_id** → inventory_types.id
+- **assigned_to_user_id** → users.id
+
+## supplies
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| supply_number | INTEGER | Número de suministro |
+| shipment_number | VARCHAR | Número de envío |
+| received_date | DATE | Fecha de recepción |
+| received_by | VARCHAR | Recibido por |
+| received_quantity | INTEGER | Cantidad recibida |
+| product_name | VARCHAR | Nombre del producto |
+| presentation | VARCHAR | Presentación |
+| current_stock | INTEGER | Stock actual |
+| observations | TEXT | Observaciones |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## supply_deliveries
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| supply_id | UUID | ID del suministro |
+| delivered_to | VARCHAR | Entregado a |
+| quantity_delivered | INTEGER | Cantidad entregada |
+| delivery_date | DATE | Fecha de entrega |
+| notes | TEXT | Notas |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **supply_id** → supplies.id
+
+## task_equipment
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| task_id | UUID | ID de la tarea |
+| equipment_id | UUID | ID del equipo |
+| reserved_from | TIMESTAMP | Reservado desde |
+| reserved_to | TIMESTAMP | Reservado hasta |
+| status | ENUM | Estado de la reserva |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **task_id** → tasks.id
+- **equipment_id** → equipment.id

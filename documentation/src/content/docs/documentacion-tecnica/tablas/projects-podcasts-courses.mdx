@@ -1,0 +1,156 @@
+---
+title: Tablas - Projects, Podcasts y Courses
+description: Tablas de proyectos, podcasts y cursos
+---
+
+# Projects (General)
+
+## projects
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| project_type_id | UUID | ID del tipo de proyecto |
+| name | VARCHAR | Nombre del proyecto |
+| description | TEXT | Descripción del proyecto |
+| client_id | UUID | ID del cliente |
+| unit_id | UUID | ID de la unidad |
+| status_id | UUID | ID del estado |
+| priority_id | UUID | ID de la prioridad |
+| request_date | DATE | Fecha de solicitud |
+| start_date | DATE | Fecha de inicio |
+| end_date | DATE | Fecha de finalización |
+| observations | TEXT | Observaciones |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **project_type_id** → project_types.id
+- **client_id** → users.id
+- **unit_id** → units.id
+- **status_id** → status_options.id
+- **priority_id** → priority_options.id
+
+## project_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+## project_units
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| project_id | UUID | ID del proyecto |
+| unit_id | UUID | ID de la unidad |
+| role_in_project | VARCHAR | Rol en el proyecto |
+| is_primary | BOOLEAN | Unidad principal |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **project_id** → projects.id
+- **unit_id** → units.id
+
+# Podcasts
+
+## podcasts
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| project_id | UUID | ID del proyecto |
+| name | VARCHAR | Nombre del podcast |
+| description | TEXT | Descripción del podcast |
+| hosts | JSONB | Información de los hosts |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **project_id** → projects.id
+
+## podcast_episodes
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| podcast_id | UUID | ID del podcast |
+| title | VARCHAR | Título del episodio |
+| description | TEXT | Descripción del episodio |
+| episode_number | INTEGER | Número de episodio |
+| season_number | INTEGER | Número de temporada |
+| release_date | DATE | Fecha de lanzamiento |
+| status_id | UUID | ID del estado |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **podcast_id** → podcasts.id
+- **status_id** → status_options.id
+
+# Courses
+
+## careers
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| unit_id | UUID | ID de la unidad |
+| name | VARCHAR | Nombre de la carrera |
+| code | VARCHAR | Código único |
+| description | TEXT | Descripción de la carrera |
+| duration_type | ENUM | Tipo de duración |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **unit_id** → units.id
+
+## courses
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| project_id | UUID | ID del proyecto |
+| career_id | UUID | ID de la carrera |
+| professor_id | UUID | ID del profesor |
+| name | VARCHAR | Nombre del curso |
+| code | VARCHAR | Código único |
+| description | TEXT | Descripción del curso |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **project_id** → projects.id
+- **career_id** → careers.id
+- **professor_id** → professors.id
+
+## classes
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| course_id | UUID | ID del curso |
+| class_number | INTEGER | Número de clase |
+| class_date | DATE | Fecha de la clase |
+| cameraman_id | UUID | ID del camarógrafo |
+| editor_id | UUID | ID del editor |
+| needs_streaming | BOOLEAN | Requiere streaming |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **course_id** → courses.id
+- **cameraman_id** → users.id
+- **editor_id** → users.id
