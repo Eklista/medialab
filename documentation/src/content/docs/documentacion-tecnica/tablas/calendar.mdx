@@ -1,0 +1,243 @@
+---
+title: Tablas - Calendar
+description: Sistema de calendario y eventos del sistema
+---
+
+# Calendar
+
+## event_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del tipo |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| is_system_generated | BOOLEAN | Generado automáticamente por el sistema |
+| is_active | BOOLEAN | Tipo activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Tipos de eventos:
+
+#### **Eventos del sistema (generados automáticamente):**
+- **PROJECT_DEADLINE** → Fecha límite de proyecto
+- **TASK_DEADLINE** → Fecha límite de tarea
+- **PROJECT_START** → Inicio de proyecto
+- **EQUIPMENT_DUE** → Devolución de equipo
+
+#### **Eventos manuales (creados por usuarios):**
+- **MEETING** → Reunión de equipo
+- **RECORDING** → Sesión de grabación
+- **CLIENT_MEETING** → Reunión con cliente
+- **MAINTENANCE** → Mantenimiento de equipo
+- **TRAINING** → Capacitación/entrenamiento
+- **PRESENTATION** → Presentación de proyecto
+- **REVIEW** → Sesión de revisión
+- **OTHER** → Otro tipo de evento
+
+## calendar_events
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| event_type_id | UUID | ID del tipo de evento |
+| title | VARCHAR | Título del evento |
+| description | TEXT | Descripción del evento |
+| start_date | TIMESTAMP | Fecha y hora de inicio |
+| end_date | TIMESTAMP | Fecha y hora de fin |
+| all_day | BOOLEAN | Evento de todo el día |
+| location | VARCHAR | Ubicación del evento |
+| created_by_user_id | UUID | ID del usuario creador |
+| related_entity_type | VARCHAR | Tipo de entidad relacionada |
+| related_entity_id | UUID | ID de la entidad relacionada |
+| is_system_generated | BOOLEAN | Generado automáticamente |
+| visibility | ENUM | Visibilidad del evento |
+| status | ENUM | Estado del evento |
+| reminder_minutes | INTEGER | Minutos antes para recordatorio |
+| recurrence_rule | JSONB | Regla de recurrencia |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **event_type_id** → event_types.id
+- **created_by_user_id** → users.id
+
+### Estados de evento:
+- **SCHEDULED** → Programado
+- **IN_PROGRESS** → En progreso
+- **COMPLETED** → Completado
+- **CANCELLED** → Cancelado
+- **POSTPONED** → Pospuesto
+
+### Visibilidad:
+- **PUBLIC** → Visible para todos
+- **TEAM** → Visible para miembros del equipo
+- **PROJECT** → Visible para miembros del proyecto
+- **PRIVATE** → Solo visible para el creador
+
+### Ejemplos de recurrence_rule:
+```json
+{
+  "frequency": "WEEKLY",
+  "interval": 1,
+  "days_of_week": ["MONDAY", "WEDNESDAY"],
+  "end_date": "2024-12-31"
+}
+```
+
+## event_attendees
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| event_id | UUID | ID del evento |
+| user_id | UUID | ID del usuario |
+| attendance_status | ENUM | Estado de asistencia |
+| role | ENUM | Rol en el evento |
+| is_required | BOOLEAN | Asistencia requerida |
+| invited_at | TIMESTAMP | Fecha de invitación |
+| responded_at | TIMESTAMP | Fecha de respuesta |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **event_id** → calendar_events.id
+- **user_id** → users.id
+
+### Estados de asistencia:
+- **PENDING** → Pendiente de respuesta
+- **ACCEPTED** → Aceptó asistir
+- **DECLINED** → Declinó asistir
+- **TENTATIVE** → Tal vez asista
+- **NO_RESPONSE** → Sin respuesta
+
+### Roles en evento:
+- **ORGANIZER** → Organizador
+- **PRESENTER** → Presentador
+- **PARTICIPANT** → Participante
+- **OBSERVER** → Observador
+- **TECHNICAL_SUPPORT** → Soporte técnico
+
+## event_resources
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| event_id | UUID | ID del evento |
+| resource_type | ENUM | Tipo de recurso |
+| resource_id | UUID | ID del recurso |
+| quantity_needed | INTEGER | Cantidad necesaria |
+| status | ENUM | Estado de la reserva |
+| notes | TEXT | Notas adicionales |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **event_id** → calendar_events.id
+- **resource_id** → equipment.id (cuando resource_type = 'EQUIPMENT')
+- **resource_id** → units.id (cuando resource_type = 'ROOM')
+
+### Tipos de recurso:
+- **EQUIPMENT** → Equipo de inventario
+- **ROOM** → Sala o espacio físico
+- **VEHICLE** → Vehículo de transporte
+
+### Estados de reserva:
+- **REQUESTED** → Solicitado
+- **CONFIRMED** → Confirmado
+- **DENIED** → Denegado
+- **CANCELLED** → Cancelado
+
+## recurring_events
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| parent_event_id | UUID | ID del evento padre |
+| recurrence_id | VARCHAR | Identificador de la serie |
+| occurrence_date | DATE | Fecha de esta ocurrencia |
+| is_exception | BOOLEAN | Es una excepción a la regla |
+| exception_reason | TEXT | Razón de la excepción |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **parent_event_id** → calendar_events.id
+
+## calendar_views
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario |
+| view_name | VARCHAR | Nombre de la vista |
+| view_type | ENUM | Tipo de vista |
+| filters | JSONB | Filtros aplicados |
+| color_settings | JSONB | Configuración de colores |
+| is_default | BOOLEAN | Vista por defecto |
+| is_shared | BOOLEAN | Vista compartida |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+
+### Tipos de vista:
+- **MONTH** → Vista mensual
+- **WEEK** → Vista semanal
+- **DAY** → Vista diaria
+- **AGENDA** → Vista de agenda
+- **TIMELINE** → Vista de línea de tiempo
+
+### Ejemplos de filtros:
+```json
+{
+  "event_types": ["MEETING", "RECORDING"],
+  "users": ["user_id_1", "user_id_2"],
+  "projects": ["project_id_1"],
+  "show_system_events": true,
+  "show_private_events": false
+}
+```
+
+## calendar_subscriptions
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario |
+| subscription_type | ENUM | Tipo de suscripción |
+| subscription_target_id | UUID | ID del objetivo |
+| is_active | BOOLEAN | Suscripción activa |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+- **subscription_target_id** → projects.id, units.id, users.id (según tipo)
+
+### Tipos de suscripción:
+- **PROJECT_CALENDAR** → Eventos de un proyecto específico
+- **TEAM_CALENDAR** → Eventos del equipo/unidad
+- **USER_CALENDAR** → Eventos de otro usuario
+- **EQUIPMENT_CALENDAR** → Calendario de uso de equipos
+
+## Eventos generados automáticamente
+
+### **Desde projects:**
+- Cuando `start_date` → Crear evento PROJECT_START
+- Cuando `end_date` → Crear evento PROJECT_DEADLINE
+
+### **Desde tasks:**
+- Cuando `delivery_date` → Crear evento TASK_DEADLINE
+
+### **Desde task_equipment:**
+- Cuando `reserved_to` → Crear evento EQUIPMENT_DUE
+
+### **Desde classes:**
+- Cuando `class_date` → Crear evento de grabación automáticamente
+
+### **Integración con notificaciones:**
+- Eventos próximos disparan notificaciones según `reminder_minutes`
+- Cambios en eventos notifican a attendees automáticamente

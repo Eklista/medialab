@@ -1,0 +1,236 @@
+---
+title: Tablas - Search
+description: Sistema de búsqueda y filtros del sistema
+---
+
+# Search
+
+## search_indexes
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| entity_type | ENUM | Tipo de entidad indexada |
+| entity_id | UUID | ID de la entidad |
+| title | VARCHAR | Título para búsqueda |
+| content | TEXT | Contenido indexado |
+| tags | JSONB | Tags asociados |
+| metadata | JSONB | Metadata adicional |
+| search_vector | TSVECTOR | Vector de búsqueda de PostgreSQL |
+| indexed_at | TIMESTAMP | Fecha de indexación |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Tipos de entidad indexados:
+- **PROJECT** → Proyectos
+- **TASK** → Tareas
+- **USER** → Usuarios
+- **REQUEST** → Solicitudes
+- **EQUIPMENT** → Equipos de inventario
+- **EVENT** → Eventos del calendario
+- **NOTIFICATION** → Notificaciones
+
+### Índices especiales:
+```sql
+CREATE INDEX idx_search_vector ON search_indexes USING GIN(search_vector);
+CREATE INDEX idx_search_entity ON search_indexes(entity_type, entity_id);
+CREATE INDEX idx_search_tags ON search_indexes USING GIN(tags);
+```
+
+## saved_searches
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario |
+| name | VARCHAR | Nombre de la búsqueda guardada |
+| search_query | VARCHAR | Consulta de búsqueda |
+| filters | JSONB | Filtros aplicados |
+| entity_types | JSONB | Tipos de entidad incluidos |
+| sort_by | VARCHAR | Campo de ordenamiento |
+| sort_direction | ENUM | Dirección de ordenamiento |
+| is_pinned | BOOLEAN | Búsqueda fijada |
+| usage_count | INTEGER | Veces que se ha usado |
+| last_used_at | TIMESTAMP | Última vez usada |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+
+### Ejemplos de filtros:
+```json
+{
+  "date_range": {
+    "field": "created_at",
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+  },
+  "status": ["EN_PROGRESO", "PENDIENTE"],
+  "assigned_to": ["user_id_1", "user_id_2"],
+  "project_type": ["PODCAST", "VIDEO"],
+  "priority": ["ALTA", "URGENTE"]
+}
+```
+
+## search_history
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario |
+| search_query | VARCHAR | Consulta realizada |
+| filters_applied | JSONB | Filtros que se aplicaron |
+| results_count | INTEGER | Cantidad de resultados |
+| clicked_result_id | UUID | ID del resultado clickeado |
+| clicked_result_type | ENUM | Tipo del resultado clickeado |
+| search_duration_ms | INTEGER | Tiempo de búsqueda en ms |
+| created_at | TIMESTAMP | Fecha de la búsqueda |
+
+### Relaciones
+- **user_id** → users.id
+
+## global_search_config
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| entity_type | ENUM | Tipo de entidad |
+| is_searchable | BOOLEAN | Entidad se puede buscar |
+| search_weight | DECIMAL | Peso en resultados |
+| indexed_fields | JSONB | Campos que se indexan |
+| display_template | JSONB | Template para mostrar resultados |
+| permission_required | VARCHAR | Permiso requerido para buscar |
+| is_active | BOOLEAN | Configuración activa |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Ejemplos de indexed_fields:
+```json
+{
+  "PROJECT": {
+    "primary": ["name", "description"],
+    "secondary": ["client_name", "observations"],
+    "metadata": ["project_type", "unit_name"]
+  },
+  "TASK": {
+    "primary": ["name", "description"],
+    "secondary": ["observations"],
+    "metadata": ["service_type", "status", "priority"]
+  }
+}
+```
+
+### Ejemplos de display_template:
+```json
+{
+  "PROJECT": {
+    "title_field": "name",
+    "subtitle_field": "client_name",
+    "description_field": "description",
+    "metadata_fields": ["project_type", "status", "start_date"],
+    "icon": "folder",
+    "route_pattern": "/projects/{id}"
+  }
+}
+```
+
+## search_suggestions
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| suggestion_text | VARCHAR | Texto de la sugerencia |
+| suggestion_type | ENUM | Tipo de sugerencia |
+| entity_type | ENUM | Tipo de entidad relacionada |
+| popularity_score | INTEGER | Puntuación de popularidad |
+| is_active | BOOLEAN | Sugerencia activa |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Tipos de sugerencia:
+- **AUTOCOMPLETE** → Autocompletado de texto
+- **FILTER_VALUE** → Valores para filtros
+- **ENTITY_NAME** → Nombres de entidades
+- **TAG** → Tags populares
+
+## search_analytics
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| date | DATE | Fecha de las métricas |
+| total_searches | INTEGER | Total de búsquedas |
+| unique_users | INTEGER | Usuarios únicos que buscaron |
+| avg_results_per_search | DECIMAL | Promedio de resultados |
+| top_queries | JSONB | Consultas más populares |
+| top_filters | JSONB | Filtros más usados |
+| zero_result_searches | INTEGER | Búsquedas sin resultados |
+| avg_search_time_ms | INTEGER | Tiempo promedio de búsqueda |
+| created_at | TIMESTAMP | Fecha de creación |
+
+## quick_filters
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| name | VARCHAR | Nombre del filtro |
+| description | TEXT | Descripción del filtro |
+| entity_types | JSONB | Tipos de entidad que aplica |
+| filter_config | JSONB | Configuración del filtro |
+| user_type_access | JSONB | Tipos de usuario que pueden usarlo |
+| sort_order | INTEGER | Orden de visualización |
+| is_active | BOOLEAN | Filtro activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Ejemplos de quick_filters:
+```json
+{
+  "name": "Mis Tareas Pendientes",
+  "entity_types": ["TASK"],
+  "filter_config": {
+    "assigned_to": "{current_user_id}",
+    "status": ["PENDIENTE", "EN_PROGRESO"]
+  },
+  "user_type_access": ["COLLABORATOR", "ADMIN", "SUPERADMIN"]
+}
+```
+
+```json
+{
+  "name": "Proyectos de Esta Semana",
+  "entity_types": ["PROJECT"],
+  "filter_config": {
+    "delivery_date": {
+      "range": "this_week"
+    },
+    "status": ["EN_PROGRESO", "REVISION"]
+  }
+}
+```
+
+```json
+{
+  "name": "Equipos Disponibles",
+  "entity_types": ["EQUIPMENT"],
+  "filter_config": {
+    "status": ["DISPONIBLE"],
+    "is_active": true
+  }
+}
+```
+
+## Triggers de indexación automática
+
+### **Eventos que actualizan el índice:**
+- Cuando se crea/modifica un proyecto → actualizar search_indexes
+- Cuando se crea/modifica una tarea → actualizar search_indexes  
+- Cuando se crea/modifica un usuario → actualizar search_indexes
+- Cuando se crea/modifica un equipo → actualizar search_indexes
+
+### **Mantenimiento del índice:**
+- Job nocturno para reindexar contenido modificado
+- Limpieza de índices de entidades eliminadas
+- Actualización de vectores de búsqueda
+- Regeneración de sugerencias populares

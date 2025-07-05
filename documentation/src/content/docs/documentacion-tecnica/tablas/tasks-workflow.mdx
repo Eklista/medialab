@@ -29,7 +29,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 - **podcast_episode_id** → podcast_episodes.id
 - **class_id** → classes.id
 - **service_type_id** → service_types.id
-- **status_id** → status_options.id
+- **status_id** → status_options.id (tipo TASKS)
 - **priority_id** → priority_options.id
 
 ## task_assignments
@@ -40,7 +40,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 | task_id | UUID | ID de la tarea |
 | user_id | UUID | ID del usuario asignado |
 | role_id | UUID | ID del rol |
-| status | ENUM | Estado de la asignación |
+| assignment_status_id | UUID | ID del estado de asignación |
 | assigned_at | TIMESTAMP | Fecha de asignación |
 | completed_at | TIMESTAMP | Fecha de completado |
 | created_at | TIMESTAMP | Fecha de creación |
@@ -49,6 +49,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 - **task_id** → tasks.id
 - **user_id** → users.id
 - **role_id** → employee_roles.id
+- **assignment_status_id** → status_options.id (tipo TASK_ASSIGNMENTS)
 
 ## task_approvals
 
@@ -57,7 +58,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 | id | UUID | Identificador único |
 | task_id | UUID | ID de la tarea |
 | level | INTEGER | Nivel de aprobación |
-| status | ENUM | Estado de la aprobación |
+| approval_status_id | UUID | ID del estado de aprobación |
 | reviewer_id | UUID | ID del revisor |
 | feedback | TEXT | Comentarios del revisor |
 | reviewed_at | TIMESTAMP | Fecha de revisión |
@@ -66,6 +67,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 ### Relaciones
 - **task_id** → tasks.id
 - **reviewer_id** → users.id
+- **approval_status_id** → status_options.id (tipo TASK_APPROVALS)
 
 ## deliverables
 
@@ -75,15 +77,16 @@ description: Tablas del módulo de tareas y flujo de trabajo
 | task_id | UUID | ID de la tarea |
 | name | VARCHAR | Nombre del entregable |
 | deliverable_type_id | UUID | ID del tipo de entregable |
+| deliverable_status_id | UUID | ID del estado del entregable |
 | url | VARCHAR | URL del entregable |
 | file_path | VARCHAR | Ruta del archivo |
-| status | ENUM | Estado del entregable |
 | delivered_at | TIMESTAMP | Fecha de entrega |
 | created_at | TIMESTAMP | Fecha de creación |
 
 ### Relaciones
 - **task_id** → tasks.id
 - **deliverable_type_id** → deliverable_types.id
+- **deliverable_status_id** → status_options.id (tipo DELIVERABLES)
 
 ## task_links
 
@@ -92,12 +95,13 @@ description: Tablas del módulo de tareas y flujo de trabajo
 | id | UUID | Identificador único |
 | task_id | UUID | ID de la tarea |
 | link_platform_id | UUID | ID de la plataforma |
+| link_status_id | UUID | ID del estado del enlace |
 | url | TEXT | URL del enlace |
 | title | VARCHAR | Título del enlace |
-| status | ENUM | Estado del enlace |
 | created_at | TIMESTAMP | Fecha de creación |
 | updated_at | TIMESTAMP | Fecha de modificación |
 
 ### Relaciones
 - **task_id** → tasks.id
 - **link_platform_id** → link_platforms.id
+- **link_status_id** → status_options.id (tipo TASK_LINKS)

@@ -14,8 +14,8 @@ El orden es importante debido a las dependencias entre tablas:
 1. **user_types** → 4 registros
 2. **employee_roles** → 6 registros
 3. **unit_types** → 5 registros
-4. **status_types** → 6 registros
-5. **status_options** → ~30 registros
+4. **status_types** → 13 registros
+5. **status_options** → ~180 registros
 6. **priority_options** → 5 registros
 7. **service_categories** → 5 registros
 8. **service_types** → ~15 registros
@@ -24,9 +24,297 @@ El orden es importante debido a las dependencias entre tablas:
 11. **project_types** → 5 registros
 12. **duration_types** → 5 registros
 13. **deliverable_types** → 6 registros
+14. **audit_log_types** → ~30 registros
+15. **audit_retention_policies** → ~15 registros
+16. **notification_channels** → 3 registros
+17. **notification_types** → ~25 registros
+18. **event_types** → ~12 registros
+19. **quick_filters** → ~8 registros
 
 ## 👥 user_types
 
+```
+
+## 🔍 quick_filters
+
+```python
+def seed_quick_filters(db: Session):
+    filters = [
+        {
+            "name": "Mis Tareas Pendientes",
+            "entity_types": ["TASK"],
+            "filter_config": {
+                "assigned_to": "{current_user_id}",
+                "status": ["PENDIENTE", "EN_PROGRESO"]
+            },
+            "user_type_access": ["COLLABORATOR", "ADMIN", "SUPERADMIN"]
+        },
+        {
+            "name": "Proyectos de Esta Semana", 
+            "entity_types": ["PROJECT"],
+            "filter_config": {
+                "delivery_date": {"range": "this_week"},
+                "status": ["EN_PROGRESO", "REVISION"]
+            },
+            "user_type_access": ["ADMIN", "SUPERADMIN"]
+        },
+        {
+            "name": "Equipos Disponibles",
+            "entity_types": ["EQUIPMENT"], 
+            "filter_config": {
+                "status": ["DISPONIBLE"],
+                "is_active": True
+            },
+            "user_type_access": ["COLLABORATOR", "ADMIN", "SUPERADMIN"]
+        },
+        {
+            "name": "Solicitudes Pendientes",
+            "entity_types": ["REQUEST"],
+            "filter_config": {
+                "status": ["ENVIADO", "EN_EVALUACION"]
+            },
+            "user_type_access": ["ADMIN", "SUPERADMIN"]
+        },
+        {
+            "name": "Eventos de Hoy",
+            "entity_types": ["EVENT"],
+            "filter_config": {
+                "start_date": {"range": "today"},
+                "status": ["SCHEDULED", "IN_PROGRESS"]
+            },
+            "user_type_access": ["COLLABORATOR", "ADMIN", "SUPERADMIN"]
+        },
+        {
+            "name": "Mis Proyectos",
+            "entity_types": ["PROJECT"],
+            "filter_config": {
+                "client_id": "{current_user_id}"
+            },
+            "user_type_access": ["CLIENT"]
+        },
+        {
+            "name": "Tareas Vencidas",
+            "entity_types": ["TASK"],
+            "filter_config": {
+                "delivery_date": {"range": "overdue"},
+                "status": ["PENDIENTE", "EN_PROGRESO"]
+            },
+            "user_type_access": ["ADMIN", "SUPERADMIN"]
+        },
+        {
+            "name": "Notificaciones No Leídas",
+            "entity_types": ["NOTIFICATION"],
+            "filter_config": {
+                "user_id": "{current_user_id}",
+                "read_at": None
+            },
+            "user_type_access": ["CLIENT", "COLLABORATOR", "ADMIN", "SUPERADMIN"]
+        }
+    ]
+```
+
+## 📅 event_types
+
+```python
+def seed_event_types(db: Session):
+    # Eventos generados automáticamente por el sistema
+    system_events = [
+        {"code": "PROJECT_DEADLINE", "name": "Fecha Límite de Proyecto", "color": "#ef4444", "icon": "calendar-x", "is_system_generated": True},
+        {"code": "TASK_DEADLINE", "name": "Fecha Límite de Tarea", "color": "#f59e0b", "icon": "clock", "is_system_generated": True},
+        {"code": "PROJECT_START", "name": "Inicio de Proyecto", "color": "#22c55e", "icon": "play", "is_system_generated": True},
+        {"code": "EQUIPMENT_DUE", "name": "Devolución de Equipo", "color": "#8b5cf6", "icon": "package", "is_system_generated": True}
+    ]
+    
+    # Eventos creados manualmente por usuarios
+    manual_events = [
+        {"code": "MEETING", "name": "Reunión", "color": "#3b82f6", "icon": "users", "is_system_generated": False},
+        {"code": "RECORDING", "name": "Sesión de Grabación", "color": "#ef4444", "icon": "video", "is_system_generated": False},
+        {"code": "CLIENT_MEETING", "name": "Reunión con Cliente", "color": "#06b6d4", "icon": "user-check", "is_system_generated": False},
+        {"code": "MAINTENANCE", "name": "Mantenimiento", "color": "#6b7280", "icon": "tool", "is_system_generated": False},
+        {"code": "TRAINING", "name": "Capacitación", "color": "#10b981", "icon": "book-open", "is_system_generated": False},
+        {"code": "PRESENTATION", "name": "Presentación", "color": "#f97316", "icon": "presentation", "is_system_generated": False},
+        {"code": "REVIEW", "name": "Sesión de Revisión", "color": "#8b5cf6", "icon": "eye", "is_system_generated": False},
+        {"code": "OTHER", "name": "Otro", "color": "#6b7280", "icon": "calendar", "is_system_generated": False}
+    ]
+```
+
+## 🔔 notification_channels
+
+```python
+def seed_notification_channels(db: Session):
+    channels = [
+        {
+            "code": "EMAIL", 
+            "name": "Correo Electrónico",
+            "description": "Notificaciones vía email",
+            "configuration": {
+                "smtp_enabled": True,
+                "max_retries": 3,
+                "retry_interval": 300
+            }
+        },
+        {
+            "code": "IN_APP", 
+            "name": "En la Aplicación",
+            "description": "Notificaciones dentro del sistema",
+            "configuration": {
+                "show_popup": True,
+                "auto_mark_read": False,
+                "max_notifications": 50
+            }
+        },
+        {
+            "code": "WEBHOOK", 
+            "name": "Webhook",
+            "description": "Integraciones externas (Slack, Teams)",
+            "configuration": {
+                "timeout_seconds": 30,
+                "max_retries": 2,
+                "verify_ssl": True
+            }
+        }
+    ]
+```
+
+## 📬 notification_types
+
+```python
+def seed_notification_types(db: Session):
+    # Notificaciones de Tareas
+    task_notifications = [
+        {"code": "TASK_ASSIGNED", "name": "Tarea Asignada", "priority_level": 2, "category": "TASKS"},
+        {"code": "TASK_STATUS_CHANGED", "name": "Estado de Tarea Cambiado", "priority_level": 1, "category": "TASKS"},
+        {"code": "TASK_DEADLINE_APPROACHING", "name": "Deadline Próximo", "priority_level": 3, "category": "TASKS"},
+        {"code": "TASK_OVERDUE", "name": "Tarea Vencida", "priority_level": 4, "category": "TASKS"},
+        {"code": "TASK_COMPLETED", "name": "Tarea Completada", "priority_level": 1, "category": "TASKS"},
+        {"code": "TASK_REJECTED", "name": "Entregable Rechazado", "priority_level": 3, "category": "TASKS"},
+        {"code": "TASK_APPROVED", "name": "Entregable Aprobado", "priority_level": 2, "category": "TASKS"}
+    ]
+    
+    # Notificaciones de Proyectos
+    project_notifications = [
+        {"code": "PROJECT_CREATED", "name": "Proyecto Creado", "priority_level": 2, "category": "PROJECTS"},
+        {"code": "PROJECT_ASSIGNED", "name": "Asignado a Proyecto", "priority_level": 3, "category": "PROJECTS"},
+        {"code": "PROJECT_STATUS_CHANGED", "name": "Estado de Proyecto Cambiado", "priority_level": 2, "category": "PROJECTS"},
+        {"code": "PROJECT_COMPLETED", "name": "Proyecto Completado", "priority_level": 2, "category": "PROJECTS"},
+        {"code": "PROJECT_DEADLINE_APPROACHING", "name": "Deadline de Proyecto Próximo", "priority_level": 3, "category": "PROJECTS"}
+    ]
+    
+    # Notificaciones de Solicitudes
+    request_notifications = [
+        {"code": "REQUEST_RECEIVED", "name": "Nueva Solicitud Recibida", "priority_level": 3, "category": "REQUESTS"},
+        {"code": "REQUEST_STATUS_CHANGED", "name": "Estado de Solicitud Cambiado", "priority_level": 2, "category": "REQUESTS"},
+        {"code": "REQUEST_APPROVED", "name": "Solicitud Aprobada", "priority_level": 2, "category": "REQUESTS"},
+        {"code": "REQUEST_REJECTED", "name": "Solicitud Rechazada", "priority_level": 3, "category": "REQUESTS"},
+        {"code": "REQUEST_MORE_INFO", "name": "Información Adicional Requerida", "priority_level": 3, "category": "REQUESTS"}
+    ]
+    
+    # Notificaciones de Sistema
+    system_notifications = [
+        {"code": "ACCOUNT_CREATED", "name": "Cuenta Creada", "priority_level": 2, "category": "SYSTEM"},
+        {"code": "PASSWORD_CHANGED", "name": "Contraseña Cambiada", "priority_level": 3, "category": "SYSTEM"},
+        {"code": "LOGIN_FROM_NEW_DEVICE", "name": "Login desde Nuevo Dispositivo", "priority_level": 4, "category": "SYSTEM"},
+        {"code": "ACCOUNT_LOCKED", "name": "Cuenta Bloqueada", "priority_level": 5, "category": "SYSTEM"}
+    ]
+    
+    # Notificaciones de Inventario
+    inventory_notifications = [
+        {"code": "EQUIPMENT_ASSIGNED", "name": "Equipo Asignado", "priority_level": 2, "category": "INVENTORY"},
+        {"code": "EQUIPMENT_DUE", "name": "Equipo por Devolver", "priority_level": 3, "category": "INVENTORY"},
+        {"code": "EQUIPMENT_OVERDUE", "name": "Equipo Vencido", "priority_level": 4, "category": "INVENTORY"}
+    ]
+```
+
+## 📊 audit_log_types
+
+```python
+def seed_audit_log_types(db: Session):
+    # Gestión de Usuarios
+    user_actions = [
+        {"code": "USER_LOGIN", "name": "Inicio de Sesión", "severity_level": 1, "color": "#22c55e"},
+        {"code": "USER_LOGOUT", "name": "Cierre de Sesión", "severity_level": 1, "color": "#6b7280"},
+        {"code": "USER_CREATED", "name": "Usuario Creado", "severity_level": 3, "color": "#3b82f6"},
+        {"code": "USER_UPDATED", "name": "Usuario Modificado", "severity_level": 2, "color": "#f59e0b"},
+        {"code": "USER_DEACTIVATED", "name": "Usuario Desactivado", "severity_level": 4, "color": "#ef4444"},
+        {"code": "USER_ROLE_CHANGED", "name": "Rol Modificado", "severity_level": 4, "color": "#8b5cf6"}
+    ]
+    
+    # Gestión de Proyectos
+    project_actions = [
+        {"code": "PROJECT_CREATED", "name": "Proyecto Creado", "severity_level": 2, "color": "#22c55e"},
+        {"code": "PROJECT_STATUS_CHANGED", "name": "Estado de Proyecto Cambiado", "severity_level": 2, "color": "#3b82f6"},
+        {"code": "PROJECT_ASSIGNED", "name": "Proyecto Asignado", "severity_level": 2, "color": "#f59e0b"},
+        {"code": "PROJECT_COMPLETED", "name": "Proyecto Completado", "severity_level": 2, "color": "#10b981"},
+        {"code": "PROJECT_DELETED", "name": "Proyecto Eliminado", "severity_level": 5, "color": "#dc2626"}
+    ]
+    
+    # Gestión de Tareas
+    task_actions = [
+        {"code": "TASK_CREATED", "name": "Tarea Creada", "severity_level": 1, "color": "#22c55e"},
+        {"code": "TASK_ASSIGNED", "name": "Tarea Asignada", "severity_level": 2, "color": "#3b82f6"},
+        {"code": "TASK_STATUS_CHANGED", "name": "Estado de Tarea Cambiado", "severity_level": 1, "color": "#f59e0b"},
+        {"code": "TASK_COMPLETED", "name": "Tarea Completada", "severity_level": 1, "color": "#10b981"}
+    ]
+    
+    # Gestión de Archivos
+    file_actions = [
+        {"code": "FILE_UPLOADED", "name": "Archivo Subido", "severity_level": 1, "color": "#22c55e"},
+        {"code": "FILE_DOWNLOADED", "name": "Archivo Descargado", "severity_level": 1, "color": "#3b82f6"},
+        {"code": "FILE_DELETED", "name": "Archivo Eliminado", "severity_level": 3, "color": "#ef4444"},
+        {"code": "FILE_SHARED", "name": "Archivo Compartido", "severity_level": 2, "color": "#f59e0b"}
+    ]
+    
+    # Gestión de Inventario
+    inventory_actions = [
+        {"code": "EQUIPMENT_ASSIGNED", "name": "Equipo Asignado", "severity_level": 2, "color": "#3b82f6"},
+        {"code": "EQUIPMENT_RETURNED", "name": "Equipo Devuelto", "severity_level": 2, "color": "#22c55e"},
+        {"code": "EQUIPMENT_STATUS_CHANGED", "name": "Estado de Equipo Cambiado", "severity_level": 2, "color": "#f59e0b"}
+    ]
+    
+    # Administración del Sistema
+    admin_actions = [
+        {"code": "CONFIG_CHANGED", "name": "Configuración Modificada", "severity_level": 4, "color": "#8b5cf6"},
+        {"code": "PERMISSION_GRANTED", "name": "Permiso Otorgado", "severity_level": 3, "color": "#22c55e"},
+        {"code": "PERMISSION_REVOKED", "name": "Permiso Revocado", "severity_level": 4, "color": "#ef4444"}
+    ]
+    
+    # Seguridad
+    security_actions = [
+        {"code": "LOGIN_FAILED", "name": "Intento de Login Fallido", "severity_level": 3, "color": "#f59e0b"},
+        {"code": "ACCOUNT_LOCKED", "name": "Cuenta Bloqueada", "severity_level": 4, "color": "#ef4444"},
+        {"code": "UNAUTHORIZED_ACCESS", "name": "Acceso No Autorizado", "severity_level": 5, "color": "#dc2626"},
+        {"code": "IP_BLOCKED", "name": "IP Bloqueada", "severity_level": 4, "color": "#ef4444"}
+    ]
+```
+
+## ⚙️ audit_retention_policies
+
+```python
+def seed_audit_retention_policies(db: Session):
+    retention_policies = [
+        # Seguridad - Retención larga
+        {"audit_log_type": "LOGIN_FAILED", "retention_days": 2555, "archive_after_days": 365},  # 7 años
+        {"audit_log_type": "UNAUTHORIZED_ACCESS", "retention_days": 2555, "archive_after_days": 365},
+        {"audit_log_type": "ACCOUNT_LOCKED", "retention_days": 1825, "archive_after_days": 365},  # 5 años
+        {"audit_log_type": "IP_BLOCKED", "retention_days": 1825, "archive_after_days": 365},
+        
+        # Administrativo - Retención media
+        {"audit_log_type": "USER_CREATED", "retention_days": 1095, "archive_after_days": 180},  # 3 años
+        {"audit_log_type": "USER_ROLE_CHANGED", "retention_days": 1095, "archive_after_days": 180},
+        {"audit_log_type": "CONFIG_CHANGED", "retention_days": 1095, "archive_after_days": 180},
+        {"audit_log_type": "PERMISSION_GRANTED", "retention_days": 1095, "archive_after_days": 180},
+        {"audit_log_type": "PERMISSION_REVOKED", "retention_days": 1095, "archive_after_days": 180},
+        
+        # Operacional - Retención corta
+        {"audit_log_type": "USER_LOGIN", "retention_days": 365, "archive_after_days": 90},  # 1 año
+        {"audit_log_type": "TASK_ASSIGNED", "retention_days": 365, "archive_after_days": 90},
+        {"audit_log_type": "FILE_UPLOADED", "retention_days": 365, "archive_after_days": 90},
+        {"audit_log_type": "EQUIPMENT_ASSIGNED", "retention_days": 365, "archive_after_days": 90},
+        
+        # Sistema - Retención muy corta
+        {"audit_log_type": "USER_LOGOUT", "retention_days": 180, "archive_after_days": 30},  # 6 meses
+        {"audit_log_type": "FILE_DOWNLOADED", "retention_days": 180, "archive_after_days": 30}
+    ]
 ```python
 def seed_user_types(db: Session):
     user_types = [
@@ -75,7 +363,14 @@ def seed_status_types(db: Session):
         {"code": "INVENTORY", "name": "Estados de Inventario"},
         {"code": "REQUESTS", "name": "Estados de Solicitudes"},
         {"code": "PODCASTS", "name": "Estados de Podcasts"},
-        {"code": "CLASSES", "name": "Estados de Clases"}
+        {"code": "CLASSES", "name": "Estados de Clases"},
+        {"code": "TASK_ASSIGNMENTS", "name": "Estados de Asignaciones"},
+        {"code": "TASK_APPROVALS", "name": "Estados de Aprobaciones"},
+        {"code": "DELIVERABLES", "name": "Estados de Entregables"},
+        {"code": "TASK_LINKS", "name": "Estados de Enlaces"},
+        {"code": "DEVICE_TYPES", "name": "Tipos de Dispositivo"},
+        {"code": "SUPPLIES", "name": "Estados de Suministros"},
+        {"code": "SUPPLY_DELIVERIES", "name": "Estados de Entregas"}
     ]
 ```
 
@@ -160,6 +455,89 @@ def seed_class_statuses(db: Session):
         {"code": "PROCESANDO", "name": "Procesando", "color": "#f59e0b"},
         {"code": "EDITADO", "name": "Editado", "color": "#22c55e"},
         {"code": "PUBLICADO", "name": "Publicado", "color": "#10b981"}
+    ]
+```
+
+### Estados de Asignaciones de Tareas
+```python
+def seed_task_assignment_statuses(db: Session):
+    assignment_statuses = [
+        {"code": "ASSIGNED", "name": "Asignado", "color": "#3b82f6"},
+        {"code": "ACCEPTED", "name": "Aceptado", "color": "#22c55e"},
+        {"code": "REJECTED", "name": "Rechazado", "color": "#ef4444"},
+        {"code": "IN_PROGRESS", "name": "En Progreso", "color": "#f59e0b"},
+        {"code": "COMPLETED", "name": "Completado", "color": "#10b981"}
+    ]
+```
+
+### Estados de Aprobaciones de Tareas
+```python
+def seed_task_approval_statuses(db: Session):
+    approval_statuses = [
+        {"code": "PENDING", "name": "Pendiente", "color": "#6b7280"},
+        {"code": "APPROVED", "name": "Aprobado", "color": "#22c55e"},
+        {"code": "REJECTED", "name": "Rechazado", "color": "#ef4444"},
+        {"code": "NEEDS_CHANGES", "name": "Necesita Cambios", "color": "#f59e0b"},
+        {"code": "RESUBMITTED", "name": "Re-enviado", "color": "#3b82f6"}
+    ]
+```
+
+### Estados de Entregables
+```python
+def seed_deliverable_statuses(db: Session):
+    deliverable_statuses = [
+        {"code": "DRAFT", "name": "Borrador", "color": "#6b7280"},
+        {"code": "SUBMITTED", "name": "Entregado", "color": "#3b82f6"},
+        {"code": "UNDER_REVIEW", "name": "En Revisión", "color": "#8b5cf6"},
+        {"code": "APPROVED", "name": "Aprobado", "color": "#22c55e"},
+        {"code": "REJECTED", "name": "Rechazado", "color": "#ef4444"},
+        {"code": "FINAL", "name": "Final", "color": "#10b981"}
+    ]
+```
+
+### Estados de Enlaces de Tareas
+```python
+def seed_task_link_statuses(db: Session):
+    link_statuses = [
+        {"code": "ACTIVE", "name": "Activo", "color": "#22c55e"},
+        {"code": "BROKEN", "name": "Roto", "color": "#ef4444"},
+        {"code": "PENDING", "name": "Pendiente Verificación", "color": "#f59e0b"},
+        {"code": "ARCHIVED", "name": "Archivado", "color": "#6b7280"}
+    ]
+```
+
+### Tipos de Dispositivo
+```python
+def seed_device_types(db: Session):
+    device_types = [
+        {"code": "DESKTOP", "name": "Escritorio", "color": "#3b82f6", "icon": "monitor"},
+        {"code": "LAPTOP", "name": "Laptop", "color": "#6b7280", "icon": "laptop"},
+        {"code": "MOBILE", "name": "Móvil", "color": "#22c55e", "icon": "smartphone"},
+        {"code": "TABLET", "name": "Tablet", "color": "#8b5cf6", "icon": "tablet"},
+        {"code": "UNKNOWN", "name": "Desconocido", "color": "#ef4444", "icon": "help-circle"}
+    ]
+```
+
+### Estados de Suministros
+```python
+def seed_supply_statuses(db: Session):
+    supply_statuses = [
+        {"code": "AVAILABLE", "name": "Disponible", "color": "#22c55e"},
+        {"code": "RESERVED", "name": "Reservado", "color": "#3b82f6"},
+        {"code": "CONSUMED", "name": "Consumido", "color": "#6b7280"},
+        {"code": "EXPIRED", "name": "Vencido", "color": "#f59e0b"},
+        {"code": "DAMAGED", "name": "Dañado", "color": "#ef4444"}
+    ]
+```
+
+### Estados de Entregas de Suministros
+```python
+def seed_supply_delivery_statuses(db: Session):
+    delivery_statuses = [
+        {"code": "PENDING", "name": "Pendiente", "color": "#6b7280"},
+        {"code": "DELIVERED", "name": "Entregado", "color": "#3b82f6"},
+        {"code": "RECEIVED", "name": "Recibido", "color": "#22c55e"},
+        {"code": "CANCELED", "name": "Cancelado", "color": "#ef4444"}
     ]
 ```
 
@@ -320,6 +698,12 @@ def run_all_seeders(db: Session):
     seed_project_types(db)
     seed_duration_types(db)
     seed_deliverable_types(db)
+    seed_audit_log_types(db)
+    seed_audit_retention_policies(db)
+    seed_notification_channels(db)
+    seed_notification_types(db)
+    seed_event_types(db)
+    seed_quick_filters(db)
     
     print("✅ Todos los seeders ejecutados correctamente")
 
@@ -332,8 +716,8 @@ async def startup_event():
 
 ## 📊 Resumen de Datos
 
-- **Total de registros**: ~120 aproximadamente
-- **Tablas críticas**: user_types, status_types, employee_roles
-- **Datos configurables**: Colores, iconos, extensiones de archivo
+- **Total de registros**: ~295 aproximadamente
+- **Tablas críticas**: user_types, status_types, employee_roles, audit_log_types, notification_types, event_types
+- **Datos configurables**: Colores, iconos, extensiones de archivo, políticas de auditoría, plantillas de notificación, tipos de eventos, filtros rápidos
 - **Dependencias**: Respetar orden de carga por FK
 - **Auto deploy**: Se ejecuta automáticamente al iniciar la aplicación

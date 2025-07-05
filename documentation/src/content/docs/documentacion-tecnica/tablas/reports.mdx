@@ -1,0 +1,299 @@
+---
+title: Tablas - Reports & Analytics
+description: Sistema de reportes y análisis del sistema
+---
+
+# Reports & Analytics
+
+## report_templates
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| name | VARCHAR | Nombre del reporte |
+| description | TEXT | Descripción del reporte |
+| category | ENUM | Categoría del reporte |
+| report_type | ENUM | Tipo de reporte |
+| data_sources | JSONB | Fuentes de datos |
+| query_config | JSONB | Configuración de consultas |
+| chart_config | JSONB | Configuración de gráficos |
+| filters | JSONB | Filtros disponibles |
+| schedule_options | JSONB | Opciones de programación |
+| access_roles | JSONB | Roles que pueden acceder |
+| is_active | BOOLEAN | Template activo |
+| created_by_user_id | UUID | ID del creador |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **created_by_user_id** → users.id
+
+### Categorías de reporte:
+- **PRODUCTIVITY** → Reportes de productividad
+- **PROJECTS** → Reportes de proyectos
+- **USERS** → Reportes de usuarios
+- **INVENTORY** → Reportes de inventario
+- **FINANCIAL** → Reportes financieros (tiempo/costo)
+- **QUALITY** → Reportes de calidad
+- **SYSTEM** → Reportes del sistema
+
+### Tipos de reporte:
+- **TABLE** → Tabla de datos
+- **CHART** → Gráfico
+- **DASHBOARD** → Dashboard con múltiples widgets
+- **EXPORT** → Reporte para exportar
+
+## generated_reports
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| template_id | UUID | ID del template usado |
+| name | VARCHAR | Nombre del reporte generado |
+| generated_by_user_id | UUID | ID del usuario que lo generó |
+| generation_type | ENUM | Tipo de generación |
+| parameters | JSONB | Parámetros usados |
+| date_range | JSONB | Rango de fechas |
+| status | ENUM | Estado de la generación |
+| file_path | VARCHAR | Ruta del archivo generado |
+| file_size | BIGINT | Tamaño del archivo |
+| generation_time_ms | INTEGER | Tiempo de generación |
+| expires_at | TIMESTAMP | Fecha de expiración |
+| download_count | INTEGER | Veces descargado |
+| last_downloaded_at | TIMESTAMP | Última descarga |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **template_id** → report_templates.id
+- **generated_by_user_id** → users.id
+
+### Tipos de generación:
+- **MANUAL** → Generado manualmente
+- **SCHEDULED** → Generado automáticamente
+- **API** → Generado vía API
+
+### Estados de generación:
+- **QUEUED** → En cola
+- **GENERATING** → Generando
+- **COMPLETED** → Completado
+- **FAILED** → Falló
+- **EXPIRED** → Expirado
+
+## scheduled_reports
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| template_id | UUID | ID del template |
+| name | VARCHAR | Nombre de la programación |
+| schedule_pattern | VARCHAR | Patrón de programación (cron) |
+| parameters | JSONB | Parámetros fijos |
+| recipients | JSONB | Destinatarios del reporte |
+| delivery_method | ENUM | Método de entrega |
+| is_active | BOOLEAN | Programación activa |
+| last_run_at | TIMESTAMP | Última ejecución |
+| next_run_at | TIMESTAMP | Próxima ejecución |
+| run_count | INTEGER | Veces ejecutado |
+| failure_count | INTEGER | Veces fallido |
+| created_by_user_id | UUID | ID del creador |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **template_id** → report_templates.id
+- **created_by_user_id** → users.id
+
+### Métodos de entrega:
+- **EMAIL** → Envío por email
+- **NOTIFICATION** → Notificación in-app
+- **WEBHOOK** → Envío vía webhook
+- **STORAGE** → Solo almacenar
+
+### Ejemplos de recipients:
+```json
+{
+  "users": ["user_id_1", "user_id_2"],
+  "roles": ["ADMIN", "SUPERADMIN"],
+  "emails": ["director@university.edu"]
+}
+```
+
+## dashboard_widgets
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| dashboard_id | UUID | ID del dashboard |
+| widget_type | ENUM | Tipo de widget |
+| title | VARCHAR | Título del widget |
+| data_source | JSONB | Configuración de datos |
+| visualization_config | JSONB | Configuración visual |
+| position_x | INTEGER | Posición X en el dashboard |
+| position_y | INTEGER | Posición Y en el dashboard |
+| width | INTEGER | Ancho del widget |
+| height | INTEGER | Alto del widget |
+| refresh_interval | INTEGER | Intervalo de actualización (segundos) |
+| is_visible | BOOLEAN | Widget visible |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **dashboard_id** → custom_dashboards.id
+
+### Tipos de widget:
+- **METRIC_CARD** → Tarjeta con métrica
+- **LINE_CHART** → Gráfico de líneas
+- **BAR_CHART** → Gráfico de barras
+- **PIE_CHART** → Gráfico de pastel
+- **TABLE** → Tabla de datos
+- **PROGRESS_BAR** → Barra de progreso
+- **CALENDAR** → Calendario pequeño
+- **LIST** → Lista de elementos
+
+## custom_dashboards
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del propietario |
+| name | VARCHAR | Nombre del dashboard |
+| description | TEXT | Descripción del dashboard |
+| layout_config | JSONB | Configuración del layout |
+| is_default | BOOLEAN | Dashboard por defecto |
+| is_shared | BOOLEAN | Dashboard compartido |
+| shared_with | JSONB | Con quién se comparte |
+| view_count | INTEGER | Veces visto |
+| last_viewed_at | TIMESTAMP | Última visualización |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+
+## kpi_definitions
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del KPI |
+| name | VARCHAR | Nombre del KPI |
+| description | TEXT | Descripción del KPI |
+| category | ENUM | Categoría del KPI |
+| calculation_method | JSONB | Método de cálculo |
+| target_value | DECIMAL | Valor objetivo |
+| unit | VARCHAR | Unidad de medida |
+| data_source | JSONB | Fuente de datos |
+| calculation_frequency | ENUM | Frecuencia de cálculo |
+| is_active | BOOLEAN | KPI activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Categorías de KPI:
+- **PRODUCTIVITY** → Productividad del equipo
+- **QUALITY** → Calidad del trabajo
+- **EFFICIENCY** → Eficiencia de procesos
+- **USAGE** → Uso de recursos
+- **SATISFACTION** → Satisfacción del cliente
+
+### Ejemplos de KPIs:
+```json
+{
+  "code": "TASKS_COMPLETED_PER_DAY",
+  "name": "Tareas Completadas por Día",
+  "calculation_method": {
+    "query": "SELECT COUNT(*) FROM tasks WHERE status = 'COMPLETADO' AND DATE(completed_at) = CURRENT_DATE",
+    "aggregation": "count"
+  },
+  "target_value": 15,
+  "unit": "tareas/día"
+}
+```
+
+## kpi_values
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| kpi_definition_id | UUID | ID de la definición del KPI |
+| date | DATE | Fecha del valor |
+| value | DECIMAL | Valor calculado |
+| target_value | DECIMAL | Valor objetivo para esa fecha |
+| variance | DECIMAL | Variación vs objetivo |
+| metadata | JSONB | Metadata adicional |
+| calculated_at | TIMESTAMP | Fecha de cálculo |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **kpi_definition_id** → kpi_definitions.id
+
+## analytics_events
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| event_type | ENUM | Tipo de evento analítico |
+| entity_type | VARCHAR | Tipo de entidad |
+| entity_id | UUID | ID de la entidad |
+| user_id | UUID | ID del usuario |
+| session_id | VARCHAR | ID de la sesión |
+| properties | JSONB | Propiedades del evento |
+| timestamp | TIMESTAMP | Timestamp del evento |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **user_id** → users.id
+
+### Tipos de eventos analíticos:
+- **PAGE_VIEW** → Vista de página
+- **FEATURE_USED** → Uso de funcionalidad
+- **REPORT_GENERATED** → Reporte generado
+- **SEARCH_PERFORMED** → Búsqueda realizada
+- **TASK_COMPLETED** → Tarea completada
+- **PROJECT_MILESTONE** → Hito de proyecto
+
+## Reportes predefinidos típicos
+
+### **Reporte de Productividad del Equipo:**
+```json
+{
+  "name": "Productividad Mensual por Colaborador",
+  "data_sources": ["tasks", "users", "audit_logs"],
+  "metrics": [
+    "tareas_completadas",
+    "tiempo_promedio_por_tarea", 
+    "proyectos_participados",
+    "ratio_entrega_a_tiempo"
+  ],
+  "grouping": ["user_id", "month"],
+  "filters": ["date_range", "user_type", "department"]
+}
+```
+
+### **Reporte de Estado de Proyectos:**
+```json
+{
+  "name": "Dashboard de Proyectos Activos",
+  "data_sources": ["projects", "tasks", "users"],
+  "metrics": [
+    "proyectos_por_estado",
+    "progreso_promedio",
+    "proyectos_en_riesgo",
+    "entregas_esta_semana"
+  ],
+  "visualizations": ["pie_chart", "progress_bars", "table"]
+}
+```
+
+### **Reporte de Uso de Inventario:**
+```json
+{
+  "name": "Utilización de Equipos",
+  "data_sources": ["equipment", "task_equipment", "users"],
+  "metrics": [
+    "horas_uso_por_equipo",
+    "equipos_mas_utilizados", 
+    "disponibilidad_promedio",
+    "mantenimientos_pendientes"
+  ]
+}
+```

@@ -14,6 +14,10 @@ export default defineConfig({
 				link: '/',
 				},
 				{
+				label: 'Documentación',
+				autogenerate: { directory: 'architecture-overview' },
+				},
+				{
 				label: 'Documentación Técnica',
 				autogenerate: { directory: 'documentacion-tecnica' },
 				},

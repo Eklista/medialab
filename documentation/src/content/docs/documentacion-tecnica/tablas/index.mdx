@@ -65,22 +65,73 @@ Gestión de inventario y equipos
 - **supply_deliveries** - Entregas de suministros
 - **task_equipment** - Equipos asignados a tareas
 
+### 📊 [Audit Logs](/documentacion-tecnica/tablas/audit-logs)
+Sistema de auditoría y logs del sistema
+- **audit_logs** - Registro de todas las acciones
+- **audit_log_types** - Tipos de acciones auditables
+- **audit_retention_policies** - Políticas de retención
+- **audit_alerts** - Alertas automáticas
+- **audit_statistics** - Estadísticas diarias
+
+### 🔔 [Notifications](/documentacion-tecnica/tablas/notifications)
+Sistema de notificaciones y comunicación
+- **notification_channels** - Canales de notificación
+- **notification_types** - Tipos de notificaciones
+- **notification_templates** - Plantillas de mensajes
+- **user_notification_preferences** - Preferencias de usuario
+- **notifications** - Notificaciones enviadas
+- **notification_schedules** - Programación automática
+- **notification_batches** - Envíos masivos
+- **notification_logs** - Logs de eventos
+
+### 📅 [Calendar](/documentacion-tecnica/tablas/calendar)
+Sistema de calendario y eventos
+- **event_types** - Tipos de eventos
+- **calendar_events** - Eventos del calendario
+- **event_attendees** - Asistentes a eventos
+- **event_resources** - Recursos reservados para eventos
+- **recurring_events** - Eventos recurrentes
+- **calendar_views** - Vistas personalizadas del calendario
+- **calendar_subscriptions** - Suscripciones a calendarios
+
+### 🔍 [Search](/documentacion-tecnica/tablas/search)
+Sistema de búsqueda y filtros
+- **search_indexes** - Índices de búsqueda
+- **saved_searches** - Búsquedas guardadas
+- **search_history** - Historial de búsquedas
+- **global_search_config** - Configuración de búsqueda
+- **search_suggestions** - Sugerencias automáticas
+- **search_analytics** - Analíticas de búsqueda
+- **quick_filters** - Filtros rápidos
+
+### 📊 [Reports & Analytics](/documentacion-tecnica/tablas/reports)
+Sistema de reportes y análisis
+- **report_templates** - Plantillas de reportes
+- **generated_reports** - Reportes generados
+- **scheduled_reports** - Reportes programados
+- **dashboard_widgets** - Widgets de dashboard
+- **custom_dashboards** - Dashboards personalizados
+- **kpi_definitions** - Definiciones de KPIs
+- **kpi_values** - Valores de KPIs
+- **analytics_events** - Eventos para análisis
+
 ## 🌱 Datos Iniciales
 
 ### [Seeders del Sistema](/documentacion-tecnica/flujos/seeders)
 Datos precargados necesarios para el funcionamiento:
 - **Orden de carga** - Secuencia correcta por dependencias
 - **Tipos de usuario** - Cliente, Colaborador, Admin, SuperAdmin
-- **Estados y opciones** - ~120 registros en total
+- **Estados y opciones** - ~180 registros en total
+- **Tipos de auditoría** - ~30 tipos de acciones auditables
 - **Configuraciones** - Colores, iconos, extensiones
 - **Script de ejecución** - Para auto deploy
 
 ## Resumen estadístico
 
-- **Total de módulos**: 7
-- **Total de tablas**: 36
-- **Tablas SEEDER**: 10
-- **Tablas principales**: 26
+- **Total de módulos**: 12
+- **Total de tablas**: 71
+- **Tablas SEEDER**: 16
+- **Tablas principales**: 55
 
 ## Convenciones
 
@@ -91,3 +142,23 @@ Datos precargados necesarios para el funcionamiento:
 - **JSONB**: Formato JSON binario
 - **ENUM**: Tipo enumerado
 - **INET**: Tipo de dirección IP
+
+## 🔄 **Política de Estados**
+
+### **Estados dinámicos (status_options):**
+Usar el sistema `status_types` + `status_options` para conceptos de **negocio** que:
+- ✅ Tienen flujo de trabajo complejo
+- ✅ Los usuarios finales ven y modifican
+- ✅ Necesitan colores/iconos configurables
+- ✅ Pueden evolucionar según necesidades
+
+**Ejemplos**: Estados de tareas, proyectos, solicitudes, inventario, asignaciones
+
+### **Estados técnicos (ENUM):**
+Usar ENUM para estados **técnicos del sistema** que:
+- ✅ Son estables (no cambian frecuentemente)
+- ✅ Son internos al sistema
+- ✅ Tienen pocas opciones (3-6 valores)
+- ✅ No requieren configuración visual
+
+**Ejemplos**: Estados de notificaciones (PENDING, SENT, READ), estados de eventos (SCHEDULED, COMPLETED), estados de procesamiento

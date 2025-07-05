@@ -80,8 +80,6 @@ Progreso = (Tareas APROBADO_CLIENTE + COMPLETADO) / Total de Tareas * 100
 
 ## 📝 Estados de Solicitudes (REQUESTS)
 
-Nueva tabla para manejar solicitudes antes de convertirse en proyectos.
-
 | Estado | Descripción | Acción |
 |--------|-------------|--------|
 | ENVIADO | Solicitud enviada | Estado inicial |
@@ -123,6 +121,75 @@ graph TD
 | EDITADO | Editado y listo | `#22c55e` |
 | PUBLICADO | Disponible en plataforma | `#10b981` |
 
+## ✅ Estados de Asignaciones (TASK_ASSIGNMENTS)
+
+| Estado | Descripción | Color |
+|--------|-------------|-------|
+| ASSIGNED | Asignado al colaborador | `#3b82f6` |
+| ACCEPTED | Aceptado por colaborador | `#22c55e` |
+| REJECTED | Rechazado por colaborador | `#ef4444` |
+| IN_PROGRESS | Colaborador trabajando | `#f59e0b` |
+| COMPLETED | Completado por colaborador | `#10b981` |
+
+## 🔍 Estados de Aprobaciones (TASK_APPROVALS)
+
+| Estado | Descripción | Color |
+|--------|-------------|-------|
+| PENDING | Pendiente de revisión | `#6b7280` |
+| APPROVED | Aprobado por revisor | `#22c55e` |
+| REJECTED | Rechazado por revisor | `#ef4444` |
+| NEEDS_CHANGES | Necesita modificaciones | `#f59e0b` |
+| RESUBMITTED | Re-enviado tras cambios | `#3b82f6` |
+
+## 📤 Estados de Entregables (DELIVERABLES)
+
+| Estado | Descripción | Color |
+|--------|-------------|-------|
+| DRAFT | Borrador en desarrollo | `#6b7280` |
+| SUBMITTED | Entregado para revisión | `#3b82f6` |
+| UNDER_REVIEW | En proceso de revisión | `#8b5cf6` |
+| APPROVED | Aprobado | `#22c55e` |
+| REJECTED | Rechazado | `#ef4444` |
+| FINAL | Versión final | `#10b981` |
+
+## 🔗 Estados de Enlaces (TASK_LINKS)
+
+| Estado | Descripción | Color |
+|--------|-------------|-------|
+| ACTIVE | Enlace activo y funcionando | `#22c55e` |
+| BROKEN | Enlace roto o no funciona | `#ef4444` |
+| PENDING | Pendiente de verificación | `#f59e0b` |
+| ARCHIVED | Archivado | `#6b7280` |
+
+## 📱 Tipos de Dispositivo (DEVICE_TYPES)
+
+| Tipo | Descripción | Color | Icono |
+|------|-------------|-------|-------|
+| DESKTOP | Computadora de escritorio | `#3b82f6` | monitor |
+| LAPTOP | Laptop | `#6b7280` | laptop |
+| MOBILE | Dispositivo móvil | `#22c55e` | smartphone |
+| TABLET | Tablet | `#8b5cf6` | tablet |
+| UNKNOWN | Dispositivo desconocido | `#ef4444` | help-circle |
+
+## 📦 Estados de Suministros (SUPPLIES)
+
+| Estado | Descripción | Color |
+|--------|-------------|-------|
+| AVAILABLE | Disponible en stock | `#22c55e` |
+| RESERVED | Reservado para entrega | `#3b82f6` |
+| CONSUMED | Consumido/agotado | `#6b7280` |
+| EXPIRED | Vencido | `#f59e0b` |
+| DAMAGED | Dañado | `#ef4444` |
+
+## 🚚 Estados de Entregas (SUPPLY_DELIVERIES)
+
+| Estado | Descripción | Color |
+|--------|-------------|-------|
+| PENDING | Entrega pendiente | `#6b7280` |
+| DELIVERED | Entregado | `#3b82f6` |
+| RECEIVED | Recibido por destinatario | `#22c55e` |
+| CANCELED | Entrega cancelada | `#ef4444` |
+
 ## ⚙️ Configuración en Base de Datos
 
 ### status_types requeridos:
@@ -132,6 +199,13 @@ graph TD
 - `REQUESTS` → Estados de solicitudes
 - `PODCASTS` → Estados de podcasts/episodios
 - `CLASSES` → Estados de clases
+- `TASK_ASSIGNMENTS` → Estados de asignaciones
+- `TASK_APPROVALS` → Estados de aprobaciones
+- `DELIVERABLES` → Estados de entregables
+- `TASK_LINKS` → Estados de enlaces
+- `DEVICE_TYPES` → Tipos de dispositivo
+- `SUPPLIES` → Estados de suministros
+- `SUPPLY_DELIVERIES` → Estados de entregas
 
 ### Campos importantes en status_options:
 - `level` → Nivel jerárquico (1, 2, 3)
@@ -146,3 +220,5 @@ graph TD
 3. **Estados de proyecto se calculan automáticamente**
 4. **Solicitudes aprobadas generan proyectos**
 5. **Inventario solo cambios manuales**
+6. **Estados de asignación siguen flujo específico**
+7. **Entregables pasan por revisión antes de aprobación**

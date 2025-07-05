@@ -1,0 +1,171 @@
+---
+title: Visión General del Sistema
+description: Arquitectura y propósito de Medialab
+---
+
+# Visión General del Sistema
+
+## 🎯 **¿Qué es Medialab?**
+
+Medialab es un sistema de gestión integral para departamentos de medios audiovisuales universitarios. Centraliza todo el flujo de trabajo desde que un cliente solicita un servicio hasta la entrega final del producto.
+
+### **Problema que resuelve:**
+- **Antes**: Gestión manual con hojas de cálculo, emails dispersos, seguimiento informal
+- **Después**: Sistema centralizado con workflow automatizado, trazabilidad completa y coordinación inteligente
+
+### **Casos de uso principales:**
+- Producción de podcasts institucionales
+- Grabación y edición de clases
+- Videos promocionales para facultades
+- Diseño gráfico para eventos
+- Documentales y contenido educativo
+
+## 🏗️ **Arquitectura del Sistema**
+
+### **Stack Tecnológico:**
+- **Backend**: FastAPI + Python
+- **Frontend**: React + TypeScript + Vite
+- **Base de Datos**: PostgreSQL
+- **Cache/Jobs**: Redis
+- **Deployment**: Servidor básico
+
+### **Principios de Diseño:**
+1. **Configuración > Código** - Todo configurable vía BD, mínimo hardcoding
+2. **Escalabilidad** - Diseñado para crecer
+3. **Mantenimiento mínimo** - Sistema que funciona en el tiempo
+4. **Flexibilidad** - Se adapta a estructura y procesos únicos
+
+## 📊 **Módulos del Sistema**
+
+### **🏛️ Core Universitario**
+| Módulo | Propósito | Tablas Clave |
+|--------|-----------|--------------|
+| **University Structure** | Facultades, escuelas, departamentos | units, professors |
+| **User Management** | 4 tipos de usuario con permisos específicos | users, user_types |
+| **App Settings** | Configuración maestra del sistema | configurations, *_types |
+
+### **📋 Gestión de Proyectos**
+| Módulo | Propósito | Tablas Clave |
+|--------|-----------|--------------|
+| **Requests** | Solicitudes previas a proyectos | requests |
+| **Projects** | Proyectos generales, podcasts, cursos | projects, podcasts, courses |
+| **Tasks & Workflow** | Flujo de trabajo con 3 niveles | tasks, task_assignments |
+
+### **🔧 Operaciones**
+| Módulo | Propósito | Tablas Clave |
+|--------|-----------|--------------|
+| **Inventory** | Equipos y suministros | equipment, supplies |
+| **Calendar** | Eventos automáticos y manuales | calendar_events |
+| **Notifications** | Comunicación automatizada | notifications |
+
+### **📊 Inteligencia**
+| Módulo | Propósito | Tablas Clave |
+|--------|-----------|--------------|
+| **Audit Logs** | Trazabilidad completa | audit_logs |
+| **Search** | Búsqueda unificada | search_indexes |
+| **Reports** | Análisis y KPIs | report_templates, kpi_definitions |
+
+## 🔄 **Flujo de Datos Principal**
+
+### **1. Solicitud (Cliente)**
+```
+Cliente → Solicitud → Admin evalúa → Proyecto creado
+```
+
+### **2. Planificación (Admin)**
+```
+Proyecto → Tareas creadas → Colaboradores asignados → Equipos reservados
+```
+
+### **3. Ejecución (Colaboradores)**
+```
+Tarea asignada → En progreso → Entregado → Revisión interna → Cliente revisa → Completado
+```
+
+### **4. Seguimiento (Sistema)**
+```
+Cada acción → Audit log → Notificaciones → Métricas actualizadas
+```
+
+## 🎭 **Tipos de Usuario**
+
+### **👤 Cliente (Externo)**
+- **Quién**: Profesores, decanos, personal administrativo
+- **Acceso**: Portal externo (`/portal/`)
+- **Función**: Solicitar servicios, revisar avances, aprobar entregables
+
+### **👨‍💼 Colaborador (Interno)**
+- **Quién**: Camarógrafos, editores, diseñadores
+- **Acceso**: Dashboard interno (`/dashboard/`)
+- **Función**: Ejecutar tareas, gestionar equipos, reportar avances
+
+### **🛡️ Admin (Gestión)**
+- **Quién**: Coordinadores, supervisores
+- **Acceso**: Dashboard interno (`/dashboard/`)
+- **Función**: Aprobar solicitudes, asignar tareas, supervisar proyectos
+
+### **👑 SuperAdmin (Control Total)**
+- **Quién**: Jefe de departamento, IT
+- **Acceso**: Godmode (`/godmode/`)
+- **Función**: Configuración del sistema, gestión de usuarios, reportes ejecutivos
+
+## ⚙️ **Características Técnicas Clave**
+
+### **Sistema de Estados Híbrido**
+- **Estados de negocio**: Dinámicos via `status_types` + `status_options`
+- **Estados técnicos**: ENUMs fijos para performance
+
+### **Configuración Dinámica**
+- **0 valores hardcodeados** - Todo configurable desde BD
+- **Colores, iconos, estados** - Personalizables sin código
+- **Tipos de servicio, roles** - Extensibles vía admin
+
+### **Auditoría Completa**
+- **Quién hizo qué** - Trazabilidad total de acciones
+- **Cuándo y desde dónde** - IP, dispositivo, timestamp
+- **Retención inteligente** - Políticas por tipo de evento
+
+### **Notificaciones Inteligentes**
+- **3 canales**: Email, In-app, Webhooks
+- **Personalizables**: Cada usuario elige cómo ser notificado
+- **Automatizadas**: Triggers basados en eventos del sistema
+
+
+## 🚀 **Estrategia de Implementación**
+
+### **Fase 1: MVP (3-4 meses)**
+- Core functionality: Users, Projects, Tasks, Inventory básico
+- Interface básica pero funcional
+- Notificaciones esenciales
+
+### **Fase 2: Optimización (2-3 meses)**
+- Dashboard analytics
+- Búsqueda avanzada
+- Reportes automáticos
+- Optimizaciones de UX
+
+### **Fase 3: Inteligencia (2-3 meses)**
+- Sistema de recomendaciones
+- Automatizaciones avanzadas
+- Integraciones externas
+- Métricas predictivas
+
+## 📊 **Métricas de Éxito**
+
+### **Operacionales**
+- Reducción 80% tiempo de coordinación
+- 0 solicitudes perdidas o olvidadas
+- 95% entregas a tiempo
+
+### **Técnicas**
+- 99% uptime del sistema
+- **Menos de 2 segundos tiempo de respuesta**
+- 0 pérdida de datos
+
+### **Usuarios**
+- 90%+ satisfacción de clientes
+- 80%+ adopción por colaboradores
+- Reducción 60% emails de coordinación
+
+------------------------------------------------
+Diseñado con ❤️ por Eklista

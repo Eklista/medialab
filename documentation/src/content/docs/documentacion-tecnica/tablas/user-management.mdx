@@ -41,7 +41,7 @@ description: Tablas del módulo de gestión de usuarios
 | id | UUID | Identificador único |
 | user_id | UUID | ID del usuario |
 | device_name | VARCHAR | Nombre del dispositivo |
-| device_type | ENUM | Tipo de dispositivo |
+| device_type_id | UUID | ID del tipo de dispositivo |
 | browser | VARCHAR | Navegador utilizado |
 | os | VARCHAR | Sistema operativo |
 | ip_address | INET | Dirección IP |
@@ -54,6 +54,7 @@ description: Tablas del módulo de gestión de usuarios
 
 ### Relaciones
 - **user_id** → users.id
+- **device_type_id** → status_options.id (tipo DEVICE_TYPES)
 
 ## ip_blocks
 

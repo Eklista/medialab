@@ -45,7 +45,7 @@ description: Tablas del módulo de inventario
 ### Relaciones
 - **inventory_type_id** → inventory_types.id
 - **assigned_to_user_id** → users.id
-- **status_id** → status_options.id
+- **status_id** → status_options.id (tipo INVENTORY)
 
 ## supplies
 
@@ -60,10 +60,14 @@ description: Tablas del módulo de inventario
 | product_name | VARCHAR | Nombre del producto |
 | presentation | VARCHAR | Presentación |
 | current_stock | INTEGER | Stock actual |
+| supply_status_id | UUID | ID del estado del suministro |
 | observations | TEXT | Observaciones |
 | is_active | BOOLEAN | Estado activo |
 | created_at | TIMESTAMP | Fecha de creación |
 | updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **supply_status_id** → status_options.id (tipo SUPPLIES)
 
 ## supply_deliveries
 
@@ -74,11 +78,13 @@ description: Tablas del módulo de inventario
 | delivered_to | VARCHAR | Entregado a |
 | quantity_delivered | INTEGER | Cantidad entregada |
 | delivery_date | DATE | Fecha de entrega |
+| delivery_status_id | UUID | ID del estado de entrega |
 | notes | TEXT | Notas |
 | created_at | TIMESTAMP | Fecha de creación |
 
 ### Relaciones
 - **supply_id** → supplies.id
+- **delivery_status_id** → status_options.id (tipo SUPPLY_DELIVERIES)
 
 ## task_equipment
 
@@ -95,4 +101,4 @@ description: Tablas del módulo de inventario
 ### Relaciones
 - **task_id** → tasks.id
 - **equipment_id** → equipment.id
-- **status_id** → status_options.id
+- **status_id** → status_options.id (tipo INVENTORY)

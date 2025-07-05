@@ -1,0 +1,218 @@
+---
+title: Tablas - Audit Logs
+description: Tablas del módulo de auditoría y logs del sistema
+---
+
+# Audit Logs
+
+## audit_logs
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario que realizó la acción |
+| table_name | VARCHAR | Nombre de la tabla afectada |
+| record_id | UUID | ID del registro afectado |
+| action | VARCHAR | Tipo de acción realizada |
+| old_values | JSONB | Valores anteriores del registro |
+| new_values | JSONB | Valores nuevos del registro |
+| ip_address | INET | Dirección IP del usuario |
+| user_agent | TEXT | Información del navegador |
+| device_fingerprint | VARCHAR | Huella digital del dispositivo |
+| session_id | VARCHAR | ID de la sesión |
+| endpoint | VARCHAR | Endpoint de la API utilizada |
+| http_method | VARCHAR | Método HTTP (GET, POST, PUT, DELETE) |
+| request_payload | JSONB | Datos enviados en la petición |
+| response_status | INTEGER | Código de respuesta HTTP |
+| execution_time_ms | INTEGER | Tiempo de ejecución en milisegundos |
+| error_message | TEXT | Mensaje de error si aplica |
+| context | JSONB | Contexto adicional de la acción |
+| created_at | TIMESTAMP | Fecha y hora de la acción |
+
+### Relaciones
+- **user_id** → users.id
+
+### Índices recomendados
+```sql
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_table_record ON audit_logs(table_name, record_id);
+CREATE INDEX idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX idx_audit_logs_ip_address ON audit_logs(ip_address);
+```
+
+## audit_log_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del tipo |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| severity_level | INTEGER | Nivel de severidad (1-5) |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Tipos de acciones auditables:
+
+#### **Gestión de Usuarios**
+- **USER_LOGIN** - Inicio de sesión
+- **USER_LOGOUT** - Cierre de sesión
+- **USER_CREATED** - Usuario creado
+- **USER_UPDATED** - Usuario modificado
+- **USER_DEACTIVATED** - Usuario desactivado
+- **USER_PASSWORD_CHANGED** - Cambio de contraseña
+- **USER_ROLE_CHANGED** - Cambio de rol/permisos
+
+#### **Gestión de Proyectos**
+- **PROJECT_CREATED** - Proyecto creado
+- **PROJECT_UPDATED** - Proyecto modificado
+- **PROJECT_STATUS_CHANGED** - Cambio de estado
+- **PROJECT_ASSIGNED** - Proyecto asignado
+- **PROJECT_COMPLETED** - Proyecto completado
+- **PROJECT_DELETED** - Proyecto eliminado
+
+#### **Gestión de Tareas**
+- **TASK_CREATED** - Tarea creada
+- **TASK_ASSIGNED** - Tarea asignada
+- **TASK_STATUS_CHANGED** - Cambio de estado
+- **TASK_PRIORITY_CHANGED** - Cambio de prioridad
+- **TASK_DEADLINE_CHANGED** - Cambio de fecha límite
+- **TASK_COMPLETED** - Tarea completada
+
+#### **Gestión de Archivos**
+- **FILE_UPLOADED** - Archivo subido
+- **FILE_DOWNLOADED** - Archivo descargado
+- **FILE_DELETED** - Archivo eliminado
+- **FILE_SHARED** - Archivo compartido
+- **FILE_VERSION_CREATED** - Nueva versión creada
+
+#### **Gestión de Inventario**
+- **EQUIPMENT_ASSIGNED** - Equipo asignado
+- **EQUIPMENT_RETURNED** - Equipo devuelto
+- **EQUIPMENT_RESERVED** - Equipo reservado
+- **EQUIPMENT_STATUS_CHANGED** - Cambio de estado
+- **SUPPLY_DELIVERED** - Suministro entregado
+
+#### **Administración del Sistema**
+- **CONFIG_CHANGED** - Configuración modificada
+- **PERMISSION_GRANTED** - Permiso otorgado
+- **PERMISSION_REVOKED** - Permiso revocado
+- **BACKUP_CREATED** - Respaldo creado
+- **SYSTEM_MAINTENANCE** - Mantenimiento del sistema
+
+#### **Seguridad**
+- **LOGIN_FAILED** - Intento de login fallido
+- **ACCOUNT_LOCKED** - Cuenta bloqueada
+- **UNAUTHORIZED_ACCESS** - Acceso no autorizado
+- **SUSPICIOUS_ACTIVITY** - Actividad sospechosa
+- **IP_BLOCKED** - IP bloqueada
+
+## audit_retention_policies (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| audit_log_type_id | UUID | ID del tipo de log |
+| retention_days | INTEGER | Días de retención |
+| archive_after_days | INTEGER | Días antes de archivar |
+| auto_delete | BOOLEAN | Eliminación automática |
+| compress_archive | BOOLEAN | Comprimir al archivar |
+| is_active | BOOLEAN | Política activa |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **audit_log_type_id** → audit_log_types.id
+
+### Políticas de retención por tipo:
+- **Seguridad** → 7 años (LOGIN_FAILED, UNAUTHORIZED_ACCESS)
+- **Administrativo** → 3 años (USER_CREATED, ROLE_CHANGED)
+- **Operacional** → 1 año (TASK_ASSIGNED, FILE_UPLOADED)
+- **Sistema** → 6 meses (CONFIG_CHANGED, MAINTENANCE)
+
+## audit_alerts
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| audit_log_type_id | UUID | ID del tipo de log |
+| condition_rules | JSONB | Reglas de activación |
+| alert_recipients | JSONB | Destinatarios de la alerta |
+| alert_channels | JSONB | Canales de notificación |
+| cooldown_minutes | INTEGER | Tiempo de espera entre alertas |
+| is_active | BOOLEAN | Alerta activa |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **audit_log_type_id** → audit_log_types.id
+
+### Ejemplos de alertas:
+```json
+{
+  "condition_rules": {
+    "action": "LOGIN_FAILED",
+    "count": 5,
+    "time_window_minutes": 30,
+    "same_ip": true
+  },
+  "alert_recipients": ["security@university.edu", "admin@medialab.edu"],
+  "alert_channels": ["email", "slack"],
+  "cooldown_minutes": 60
+}
+```
+
+## audit_statistics
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| date | DATE | Fecha de las estadísticas |
+| total_actions | INTEGER | Total de acciones del día |
+| unique_users | INTEGER | Usuarios únicos activos |
+| most_active_user_id | UUID | Usuario más activo |
+| most_common_action | VARCHAR | Acción más común |
+| peak_hour | INTEGER | Hora de mayor actividad |
+| error_count | INTEGER | Cantidad de errores |
+| suspicious_activities | INTEGER | Actividades sospechosas |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **most_active_user_id** → users.id
+
+## Configuración de Triggers
+
+### Tablas que requieren auditoría automática:
+- **users** → Cambios de perfil, roles, estado
+- **projects** → Estados, asignaciones, modificaciones
+- **tasks** → Estados, asignaciones, fechas límite
+- **equipment** → Asignaciones, estados, ubicaciones
+- **deliverables** → Subida, aprobación, rechazo
+- **configurations** → Cambios de configuración del sistema
+
+### Ejemplo de trigger:
+```sql
+CREATE OR REPLACE FUNCTION audit_trigger_function()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO audit_logs (
+        user_id, table_name, record_id, action, 
+        old_values, new_values, ip_address, created_at
+    ) VALUES (
+        current_setting('app.current_user_id')::UUID,
+        TG_TABLE_NAME,
+        COALESCE(NEW.id, OLD.id),
+        TG_OP,
+        CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE NULL END,
+        CASE WHEN TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN to_jsonb(NEW) ELSE NULL END,
+        current_setting('app.client_ip', true)::INET,
+        NOW()
+    );
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+```

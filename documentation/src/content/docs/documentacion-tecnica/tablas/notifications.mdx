@@ -1,0 +1,247 @@
+---
+title: Tablas - Notifications
+description: Sistema de notificaciones y comunicación del sistema
+---
+
+# Notifications
+
+## notification_channels (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del canal |
+| name | VARCHAR | Nombre del canal |
+| description | TEXT | Descripción del canal |
+| is_active | BOOLEAN | Canal activo |
+| configuration | JSONB | Configuración específica del canal |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Canales predefinidos:
+- **EMAIL** → Notificaciones por correo electrónico
+- **IN_APP** → Notificaciones dentro de la aplicación
+- **WEBHOOK** → Para integraciones externas (Slack, Teams)
+
+## notification_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único del tipo |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| default_channels | JSONB | Canales por defecto |
+| priority_level | INTEGER | Nivel de prioridad (1-5) |
+| category | VARCHAR | Categoría de la notificación |
+| is_active | BOOLEAN | Tipo activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Tipos por categoría:
+
+#### **TASKS (Tareas)**
+- **TASK_ASSIGNED** → "Te asignaron una nueva tarea"
+- **TASK_STATUS_CHANGED** → "El estado de tu tarea cambió"
+- **TASK_DEADLINE_APPROACHING** → "Tu tarea vence pronto"
+- **TASK_OVERDUE** → "Tu tarea está vencida"
+- **TASK_COMPLETED** → "Tarea completada"
+- **TASK_REJECTED** → "Tu entregable fue rechazado"
+- **TASK_APPROVED** → "Tu entregable fue aprobado"
+
+#### **PROJECTS (Proyectos)**
+- **PROJECT_CREATED** → "Nuevo proyecto creado"
+- **PROJECT_ASSIGNED** → "Te asignaron a un proyecto"
+- **PROJECT_STATUS_CHANGED** → "Estado del proyecto cambió"
+- **PROJECT_COMPLETED** → "Proyecto completado"
+- **PROJECT_DEADLINE_APPROACHING** → "Proyecto próximo a vencer"
+
+#### **REQUESTS (Solicitudes)**
+- **REQUEST_RECEIVED** → "Nueva solicitud recibida" (para admins)
+- **REQUEST_STATUS_CHANGED** → "Estado de tu solicitud cambió" (para cliente)
+- **REQUEST_APPROVED** → "Tu solicitud fue aprobada"
+- **REQUEST_REJECTED** → "Tu solicitud fue rechazada"
+- **REQUEST_MORE_INFO** → "Necesitamos más información"
+
+#### **SYSTEM (Sistema)**
+- **ACCOUNT_CREATED** → "Tu cuenta fue creada"
+- **PASSWORD_CHANGED** → "Tu contraseña fue cambiada"
+- **LOGIN_FROM_NEW_DEVICE** → "Nuevo dispositivo detectado"
+- **ACCOUNT_LOCKED** → "Tu cuenta fue bloqueada"
+
+#### **INVENTORY (Inventario)**
+- **EQUIPMENT_ASSIGNED** → "Te asignaron equipo"
+- **EQUIPMENT_DUE** → "Debes devolver equipo"
+- **EQUIPMENT_OVERDUE** → "Equipo vencido"
+
+## notification_templates
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| notification_type_id | UUID | ID del tipo de notificación |
+| channel_id | UUID | ID del canal |
+| subject_template | VARCHAR | Plantilla del asunto |
+| body_template | TEXT | Plantilla del cuerpo |
+| variables | JSONB | Variables disponibles |
+| language | VARCHAR | Idioma de la plantilla |
+| is_active | BOOLEAN | Plantilla activa |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **notification_type_id** → notification_types.id
+- **channel_id** → notification_channels.id
+
+### Ejemplo de plantilla:
+```json
+{
+  "subject_template": "Nueva tarea asignada: {task_name}",
+  "body_template": "Hola {user_name}, te asignaron la tarea '{task_name}' del proyecto '{project_name}'. Fecha límite: {delivery_date}. Ver detalles: {task_url}",
+  "variables": ["user_name", "task_name", "project_name", "delivery_date", "task_url"]
+}
+```
+
+## user_notification_preferences
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario |
+| notification_type_id | UUID | ID del tipo de notificación |
+| channel_id | UUID | ID del canal preferido |
+| is_enabled | BOOLEAN | Notificación habilitada |
+| frequency | ENUM | Frecuencia (INSTANT, DAILY, WEEKLY) |
+| quiet_hours_start | TIME | Inicio de horas silenciosas |
+| quiet_hours_end | TIME | Fin de horas silenciosas |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+- **notification_type_id** → notification_types.id
+- **channel_id** → notification_channels.id
+
+## notifications
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario destinatario |
+| notification_type_id | UUID | ID del tipo de notificación |
+| channel_id | UUID | ID del canal usado |
+| title | VARCHAR | Título de la notificación |
+| message | TEXT | Mensaje de la notificación |
+| data | JSONB | Datos adicionales de la notificación |
+| related_entity_type | VARCHAR | Tipo de entidad relacionada |
+| related_entity_id | UUID | ID de la entidad relacionada |
+| status | ENUM | Estado de la notificación |
+| read_at | TIMESTAMP | Fecha de lectura |
+| sent_at | TIMESTAMP | Fecha de envío |
+| failed_at | TIMESTAMP | Fecha de fallo |
+| failure_reason | TEXT | Razón del fallo |
+| retry_count | INTEGER | Intentos de reenvío |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+- **notification_type_id** → notification_types.id
+- **channel_id** → notification_channels.id
+
+### Estados de notificación:
+- **PENDING** → Pendiente de envío
+- **SENT** → Enviada exitosamente
+- **DELIVERED** → Entregada (para email)
+- **READ** → Leída por el usuario
+- **FAILED** → Falló el envío
+- **CANCELLED** → Cancelada
+
+## notification_schedules
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| notification_type_id | UUID | ID del tipo de notificación |
+| trigger_condition | JSONB | Condición que dispara la notificación |
+| schedule_type | ENUM | Tipo de programación |
+| schedule_value | JSONB | Valor de la programación |
+| is_active | BOOLEAN | Programación activa |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **notification_type_id** → notification_types.id
+
+### Tipos de programación:
+- **IMMEDIATE** → Envío inmediato
+- **DELAYED** → Envío con retraso (ej: 1 hora después)
+- **SCHEDULED** → Envío programado (ej: todos los lunes 9am)
+- **CONDITIONAL** → Envío basado en condiciones
+
+### Ejemplos de condiciones:
+```json
+{
+  "trigger_condition": {
+    "event": "task_deadline_approaching",
+    "time_before": "24_hours"
+  },
+  "schedule_value": {
+    "delay_hours": 0,
+    "retry_attempts": 3,
+    "retry_interval": 30
+  }
+}
+```
+
+## notification_batches
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| batch_type | ENUM | Tipo de lote |
+| user_id | UUID | ID del usuario (para lotes individuales) |
+| notification_type_id | UUID | ID del tipo de notificación |
+| total_recipients | INTEGER | Total de destinatarios |
+| sent_count | INTEGER | Cantidad enviadas |
+| failed_count | INTEGER | Cantidad fallidas |
+| status | ENUM | Estado del lote |
+| started_at | TIMESTAMP | Inicio del envío |
+| completed_at | TIMESTAMP | Fin del envío |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **user_id** → users.id
+- **notification_type_id** → notification_types.id
+
+### Estados de lote:
+- **QUEUED** → En cola para envío
+- **PROCESSING** → Enviando
+- **COMPLETED** → Completado
+- **FAILED** → Falló
+- **CANCELLED** → Cancelado
+
+## notification_logs
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| notification_id | UUID | ID de la notificación |
+| event_type | ENUM | Tipo de evento |
+| event_data | JSONB | Datos del evento |
+| timestamp | TIMESTAMP | Fecha del evento |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **notification_id** → notifications.id
+
+### Tipos de eventos:
+- **CREATED** → Notificación creada
+- **QUEUED** → Añadida a cola
+- **SENT** → Enviada
+- **DELIVERED** → Entregada
+- **OPENED** → Abierta (email)
+- **CLICKED** → Click en enlace
+- **FAILED** → Falló envío
+- **BOUNCED** → Rebotó (email)
+```
