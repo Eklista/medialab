@@ -19,6 +19,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 | name | VARCHAR | Nombre de la tarea |
 | description | TEXT | Descripción de la tarea |
 | delivery_date | DATE | Fecha de entrega |
+| current_level | INTEGER | Nivel actual en flujo (1, 2, 3) |
 | observations | TEXT | Observaciones |
 | created_at | TIMESTAMP | Fecha de creación |
 | updated_at | TIMESTAMP | Fecha de modificación |
@@ -73,7 +74,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 | id | UUID | Identificador único |
 | task_id | UUID | ID de la tarea |
 | name | VARCHAR | Nombre del entregable |
-| type | ENUM | Tipo de entregable |
+| deliverable_type_id | UUID | ID del tipo de entregable |
 | url | VARCHAR | URL del entregable |
 | file_path | VARCHAR | Ruta del archivo |
 | status | ENUM | Estado del entregable |
@@ -82,6 +83,7 @@ description: Tablas del módulo de tareas y flujo de trabajo
 
 ### Relaciones
 - **task_id** → tasks.id
+- **deliverable_type_id** → deliverable_types.id
 
 ## task_links
 

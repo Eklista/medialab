@@ -108,13 +108,14 @@ description: Tablas de proyectos, podcasts y cursos
 | name | VARCHAR | Nombre de la carrera |
 | code | VARCHAR | Código único |
 | description | TEXT | Descripción de la carrera |
-| duration_type | ENUM | Tipo de duración |
+| duration_type_id | UUID | ID del tipo de duración |
 | is_active | BOOLEAN | Estado activo |
 | created_at | TIMESTAMP | Fecha de creación |
 | updated_at | TIMESTAMP | Fecha de modificación |
 
 ### Relaciones
 - **unit_id** → units.id
+- **duration_type_id** → duration_types.id
 
 ## courses
 

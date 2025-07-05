@@ -148,3 +148,45 @@ description: Tablas del módulo de configuración de la aplicación
 
 ### Relaciones
 - **category_id** → service_categories.id
+
+## duration_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| months_duration | INTEGER | Duración en meses |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Ejemplos de datos:
+- **SEMESTRAL** → 6 meses
+- **ANUAL** → 12 meses
+- **TRIMESTRAL** → 3 meses
+- **CUATRIMESTRAL** → 4 meses
+
+## deliverable_types (SEEDER)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| code | VARCHAR | Código único |
+| name | VARCHAR | Nombre del tipo |
+| description | TEXT | Descripción del tipo |
+| file_extensions | JSONB | Extensiones permitidas |
+| color | VARCHAR | Color representativo |
+| icon | VARCHAR | Icono representativo |
+| is_active | BOOLEAN | Estado activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Ejemplos de datos:
+- **VIDEO** → ["mp4", "mov", "avi"] - Color: #ef4444
+- **AUDIO** → ["mp3", "wav", "m4a"] - Color: #8b5cf6
+- **IMAGEN** → ["jpg", "png", "svg"] - Color: #06b6d4
+- **DOCUMENTO** → ["pdf", "docx", "txt"] - Color: #22c55e
+- **DISENO** → ["psd", "ai", "fig"] - Color: #f59e0b
+- **CODIGO** → ["zip", "git"] - Color: #6b7280

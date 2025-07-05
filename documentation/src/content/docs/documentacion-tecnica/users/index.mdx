@@ -1,0 +1,130 @@
+---
+title: Usuarios
+description: Sistema de gestión de usuarios del sistema Medialab
+---
+
+# Usuarios
+
+Documentación completa del sistema de usuarios, roles y permisos de Medialab.
+
+## 👥 Gestión de Usuarios
+
+### [Usuarios y Permisos](/documentacion-tecnica/usuarios/permisos)
+Sistema completo de gestión de usuarios con 4 tipos principales:
+- **👤 Cliente** - Portal externo para solicitar servicios
+- **👨‍💼 Colaborador** - Dashboard interno para ejecutar tareas
+- **🛡️ Administrador** - Gestión de proyectos y equipos
+- **👑 Super Administrador** - Control total del sistema
+
+## 🔐 Sistema de Permisos
+
+### Matriz de Permisos por Módulo
+- **📝 Requests** - Creación y gestión de solicitudes
+- **📋 Projects** - Visualización y gestión de proyectos
+- **✅ Tasks** - Ejecución y aprobación de tareas
+- **📦 Inventory** - Acceso y gestión de inventario
+- **👥 Users** - Gestión de usuarios del sistema
+- **⚙️ System** - Configuraciones del sistema
+
+### Estructura de Permisos
+```json
+{
+  "CLIENT": {"portal": true, "create_requests": true},
+  "COLLABORATOR": {"dashboard": true, "execute_tasks": true},
+  "ADMIN": {"manage_projects": true, "assign_tasks": true},
+  "SUPERADMIN": {"full_access": true}
+}
+```
+
+## 🔄 Autenticación y Seguridad
+
+### Flujo de Login
+1. **Validación** de credenciales
+2. **Verificación** de usuario activo
+3. **Generación** de JWT token
+4. **Redirección** según tipo de usuario
+
+### Gestión de Dispositivos
+- **Registro automático** de nuevos dispositivos
+- **Dispositivos confiables** para login sin verificación
+- **Bloqueo de IP** por intentos fallidos
+
+### Rutas por Tipo de Usuario
+| Tipo | Ruta de Acceso |
+|------|----------------|
+| Cliente | `/portal/dashboard` |
+| Colaborador | `/dashboard/home` |
+| Admin | `/dashboard/admin` |
+| SuperAdmin | `/godmode/overview` |
+
+## 📊 Información de Usuario
+
+### Datos Base (Todos los tipos)
+- Información personal (nombre, email, teléfono)
+- Avatar y configuraciones
+- Estado y verificación de email
+
+### Datos Laborales (Solo internos)
+- Código de empleado y rol
+- Especialidades y habilidades
+- Unidad organizacional asignada
+- Fecha de contratación
+
+## 🔔 Sistema de Notificaciones
+
+### Por Tipo de Usuario
+- **Cliente**: Progreso de proyectos, aprobaciones pendientes
+- **Colaborador**: Tareas asignadas, cambios de estado
+- **Admin**: Solicitudes pendientes, reportes, alertas
+- **SuperAdmin**: Errores del sistema, cambios críticos
+
+## 📱 Especialidades por Rol
+
+### Roles Técnicos
+- **🎥 Camarógrafo** - Grabación, fotografía, streaming
+- **✂️ Editor** - Edición de video, audio, color grading
+- **🎨 Diseñador** - Diseño gráfico, UI/UX, branding
+- **⚙️ Técnico** - Soporte técnico, mantenimiento
+- **📋 Coordinador** - Gestión de proyectos, planificación
+- **🤝 Asistente** - Apoyo general, logística
+
+## 🔄 Estados de Usuario
+
+### Estados Generales
+| Estado | Descripción | Login |
+|--------|-------------|-------|
+| **Activo** | Usuario funcionando normalmente | ✅ |
+| **Inactivo** | Temporalmente deshabilitado | ❌ |
+| **Pendiente** | Email sin verificar | ⚠️ |
+| **Suspendido** | Violación de políticas | ❌ |
+
+### Estados Específicos para Colaboradores
+| Estado | Descripción | Login | Asignaciones |
+|--------|-------------|-------|--------------|
+| **Vacaciones** | Empleado en vacaciones | ✅ | Solo lectura |
+| **Licencia** | Licencia médica/personal | ❌ | Reasignables |
+| **Ex-empleado** | Ya no trabaja en el depto | ❌ | Solo historial |
+
+### Gestión de Ex-empleados
+- **Historial preservado** - No se pierde trazabilidad
+- **Login bloqueado** - Acceso completamente restringido  
+- **Equipos liberados** - Automáticamente des-asignados
+- **Tareas históricas** - Visibles como referencia
+
+## 🚀 Próximamente
+
+### Funcionalidades Avanzadas
+- **Autenticación 2FA** - Factor de autenticación adicional
+- **Single Sign-On (SSO)** - Integración con sistemas universitarios
+- **Audit Logs** - Registro de acciones por usuario
+- **Role-Based Access Control** - Permisos más granulares
+
+### Integraciones
+- **Active Directory** - Sincronización con sistemas universitarios
+- **API Tokens** - Acceso programático para servicios
+- **Webhooks** - Notificaciones automáticas de eventos
+
+### Reportes y Analytics
+- **Dashboard de Usuarios** - Métricas de uso y actividad
+- **Reportes de Acceso** - Análisis de patrones de login
+- **Gestión de Sesiones** - Control de sesiones activas

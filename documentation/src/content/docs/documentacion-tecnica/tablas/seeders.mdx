@@ -1,0 +1,339 @@
+---
+title: Tablas Seeders y Datos Iniciales
+description: Datos precargados necesarios para el funcionamiento del sistema
+---
+
+# Seeders y Datos Iniciales
+
+Datos que deben cargarse automáticamente al hacer deploy para que el sistema funcione correctamente.
+
+## 🔄 Orden de Carga
+
+El orden es importante debido a las dependencias entre tablas:
+
+1. **user_types** → 4 registros
+2. **employee_roles** → 6 registros
+3. **unit_types** → 5 registros
+4. **status_types** → 6 registros
+5. **status_options** → ~30 registros
+6. **priority_options** → 5 registros
+7. **service_categories** → 5 registros
+8. **service_types** → ~15 registros
+9. **link_platforms** → 6 registros
+10. **inventory_types** → 5 registros
+11. **project_types** → 5 registros
+12. **duration_types** → 5 registros
+13. **deliverable_types** → 6 registros
+
+## 👥 user_types
+
+```python
+def seed_user_types(db: Session):
+    user_types = [
+        {"code": "CLIENT", "name": "Cliente", "dashboard_type": "PORTAL"},
+        {"code": "COLLABORATOR", "name": "Colaborador", "dashboard_type": "DASHBOARD"},
+        {"code": "ADMIN", "name": "Administrador", "dashboard_type": "DASHBOARD"},
+        {"code": "SUPERADMIN", "name": "Super Administrador", "dashboard_type": "GODMODE"}
+    ]
+    # Lógica de inserción...
+```
+
+## 👔 employee_roles
+
+```python
+def seed_employee_roles(db: Session):
+    roles = [
+        {"code": "CAMAROGRAFO", "name": "Camarógrafo", "color": "#ef4444"},
+        {"code": "EDITOR", "name": "Editor", "color": "#3b82f6"},
+        {"code": "DISEÑADOR", "name": "Diseñador Gráfico", "color": "#f59e0b"},
+        {"code": "COORDINADOR", "name": "Coordinador", "color": "#22c55e"},
+        {"code": "TECNICO", "name": "Técnico", "color": "#8b5cf6"},
+        {"code": "ASISTENTE", "name": "Asistente", "color": "#6b7280"}
+    ]
+```
+
+## 🏛️ unit_types
+
+```python
+def seed_unit_types(db: Session):
+    unit_types = [
+        {"code": "UNIVERSIDAD", "name": "Universidad", "hierarchy_level": 1},
+        {"code": "FACULTAD", "name": "Facultad", "hierarchy_level": 2},
+        {"code": "ESCUELA", "name": "Escuela", "hierarchy_level": 3},
+        {"code": "DEPARTAMENTO", "name": "Departamento", "hierarchy_level": 4},
+        {"code": "INSTITUTO", "name": "Instituto", "hierarchy_level": 3}
+    ]
+```
+
+## 🔄 status_types
+
+```python
+def seed_status_types(db: Session):
+    status_types = [
+        {"code": "TASKS", "name": "Estados de Tareas"},
+        {"code": "PROJECTS", "name": "Estados de Proyectos"},
+        {"code": "INVENTORY", "name": "Estados de Inventario"},
+        {"code": "REQUESTS", "name": "Estados de Solicitudes"},
+        {"code": "PODCASTS", "name": "Estados de Podcasts"},
+        {"code": "CLASSES", "name": "Estados de Clases"}
+    ]
+```
+
+## ✅ status_options (Ejemplos por tipo)
+
+### Estados de Tareas
+```python
+def seed_task_statuses(db: Session):
+    task_statuses = [
+        # Nivel 1: Ejecución
+        {"code": "PENDIENTE", "name": "Pendiente", "level": 1, "color": "#6b7280"},
+        {"code": "EN_PROGRESO", "name": "En Progreso", "level": 1, "color": "#f59e0b"},
+        {"code": "ENTREGADO", "name": "Entregado", "level": 1, "color": "#3b82f6"},
+        # Nivel 2: Revisión
+        {"code": "EN_REVISION", "name": "En Revisión", "level": 2, "color": "#8b5cf6"},
+        {"code": "APROBADO", "name": "Aprobado", "level": 2, "color": "#22c55e"},
+        {"code": "RECHAZADO", "name": "Rechazado", "level": 2, "color": "#ef4444"},
+        # Nivel 3: Cliente
+        {"code": "REVISION_CLIENTE", "name": "Revisión Cliente", "level": 3, "color": "#06b6d4"},
+        {"code": "APROBADO_CLIENTE", "name": "Aprobado Cliente", "level": 3, "color": "#10b981"},
+        {"code": "COMPLETADO", "name": "Completado", "level": 1, "color": "#059669"}
+    ]
+```
+
+### Estados de Proyectos
+```python
+def seed_project_statuses(db: Session):
+    project_statuses = [
+        {"code": "SOLICITADO", "name": "Solicitado", "color": "#6b7280"},
+        {"code": "PLANIFICACION", "name": "Planificación", "color": "#f59e0b"},
+        {"code": "EN_PROGRESO", "name": "En Progreso", "color": "#3b82f6"},
+        {"code": "COMPLETADO", "name": "Completado", "color": "#22c55e"},
+        {"code": "EN_PAUSA", "name": "En Pausa", "color": "#f59e0b"},
+        {"code": "CANCELADO", "name": "Cancelado", "color": "#ef4444"}
+    ]
+```
+
+### Estados de Inventario
+```python
+def seed_inventory_statuses(db: Session):
+    inventory_statuses = [
+        {"code": "DISPONIBLE", "name": "Disponible", "color": "#22c55e"},
+        {"code": "EN_USO", "name": "En Uso", "color": "#f59e0b"},
+        {"code": "RESERVADO", "name": "Reservado", "color": "#3b82f6"},
+        {"code": "MANTENIMIENTO", "name": "Mantenimiento", "color": "#ef4444"},
+        {"code": "REPARACION", "name": "Reparación", "color": "#dc2626"},
+        {"code": "RETIRADO", "name": "Retirado", "color": "#6b7280"}
+    ]
+```
+
+### Estados de Solicitudes
+```python
+def seed_request_statuses(db: Session):
+    request_statuses = [
+        {"code": "ENVIADO", "name": "Enviado", "color": "#6b7280"},
+        {"code": "EN_EVALUACION", "name": "En Evaluación", "color": "#f59e0b"},
+        {"code": "APROBADO", "name": "Aprobado", "color": "#22c55e"},
+        {"code": "RECHAZADO", "name": "Rechazado", "color": "#ef4444"},
+        {"code": "MAS_INFORMACION", "name": "Más Información", "color": "#3b82f6"}
+    ]
+```
+
+### Estados de Podcasts
+```python
+def seed_podcast_statuses(db: Session):
+    podcast_statuses = [
+        {"code": "PLANIFICADO", "name": "Planificado", "color": "#6b7280"},
+        {"code": "GRABANDO", "name": "Grabando", "color": "#f59e0b"},
+        {"code": "EDITANDO", "name": "Editando", "color": "#3b82f6"},
+        {"code": "REVISION", "name": "Revisión", "color": "#8b5cf6"},
+        {"code": "LISTO", "name": "Listo", "color": "#22c55e"},
+        {"code": "PUBLICADO", "name": "Publicado", "color": "#10b981"}
+    ]
+```
+
+### Estados de Clases
+```python
+def seed_class_statuses(db: Session):
+    class_statuses = [
+        {"code": "PROGRAMADO", "name": "Programado", "color": "#6b7280"},
+        {"code": "GRABANDO", "name": "Grabando", "color": "#ef4444"},
+        {"code": "PROCESANDO", "name": "Procesando", "color": "#f59e0b"},
+        {"code": "EDITADO", "name": "Editado", "color": "#22c55e"},
+        {"code": "PUBLICADO", "name": "Publicado", "color": "#10b981"}
+    ]
+```
+
+## ⭐ priority_options
+
+```python
+def seed_priorities(db: Session):
+    priorities = [
+        {"code": "BAJA", "name": "Baja", "level": 1, "color": "#22c55e"},
+        {"code": "NORMAL", "name": "Normal", "level": 2, "color": "#3b82f6"},
+        {"code": "ALTA", "name": "Alta", "level": 3, "color": "#f59e0b"},
+        {"code": "URGENTE", "name": "Urgente", "level": 4, "color": "#ef4444"},
+        {"code": "CRITICA", "name": "Crítica", "level": 5, "color": "#dc2626"}
+    ]
+```
+
+## 🛠️ service_categories
+
+```python
+def seed_service_categories(db: Session):
+    categories = [
+        {"code": "AUDIOVISUAL", "name": "Audiovisual", "color": "#ef4444", "icon": "video"},
+        {"code": "DISENO", "name": "Diseño Gráfico", "color": "#f59e0b", "icon": "palette"},
+        {"code": "MULTIMEDIA", "name": "Multimedia", "color": "#3b82f6", "icon": "monitor"},
+        {"code": "EVENTOS", "name": "Eventos", "color": "#22c55e", "icon": "calendar"},
+        {"code": "EDUCATIVO", "name": "Educativo", "color": "#8b5cf6", "icon": "book"}
+    ]
+```
+
+## 🔧 service_types
+
+```python
+def seed_service_types(db: Session):
+    # Audiovisual
+    audiovisual_services = [
+        {"code": "VIDEO_PROMOCIONAL", "name": "Video Promocional", "color": "#ef4444"},
+        {"code": "PODCAST", "name": "Podcast", "color": "#dc2626"},
+        {"code": "GRABACION_CLASE", "name": "Grabación de Clase", "color": "#f87171"},
+        {"code": "DOCUMENTAL", "name": "Documental", "color": "#b91c1c"}
+    ]
+    
+    # Diseño
+    design_services = [
+        {"code": "FLYER", "name": "Flyer", "color": "#f59e0b"},
+        {"code": "BANNER", "name": "Banner", "color": "#fbbf24"},
+        {"code": "LOGO", "name": "Logo", "color": "#f97316"},
+        {"code": "INFOGRAFIA", "name": "Infografía", "color": "#fb923c"}
+    ]
+    
+    # Multimedia
+    multimedia_services = [
+        {"code": "PAGINA_WEB", "name": "Página Web", "color": "#3b82f6"},
+        {"code": "APP_MOVIL", "name": "App Móvil", "color": "#1d4ed8"},
+        {"code": "PRESENTACION", "name": "Presentación", "color": "#2563eb"}
+    ]
+    
+    # Eventos
+    event_services = [
+        {"code": "TRANSMISION_VIVO", "name": "Transmisión en Vivo", "color": "#22c55e"},
+        {"code": "COBERTURA_EVENTO", "name": "Cobertura de Evento", "color": "#16a34a"},
+        {"code": "FOTOGRAFIA", "name": "Fotografía", "color": "#15803d"}
+    ]
+    
+    # Educativo
+    educational_services = [
+        {"code": "CURSO_ONLINE", "name": "Curso Online", "color": "#8b5cf6"},
+        {"code": "TUTORIAL", "name": "Tutorial", "color": "#7c3aed"}
+    ]
+```
+
+## 🔗 link_platforms
+
+```python
+def seed_link_platforms(db: Session):
+    platforms = [
+        {"code": "YOUTUBE", "name": "YouTube", "domain_pattern": "youtube.com", "color": "#ef4444"},
+        {"code": "VIMEO", "name": "Vimeo", "domain_pattern": "vimeo.com", "color": "#1ab7ea"},
+        {"code": "DRIVE", "name": "Google Drive", "domain_pattern": "drive.google.com", "color": "#4285f4"},
+        {"code": "DROPBOX", "name": "Dropbox", "domain_pattern": "dropbox.com", "color": "#0061ff"},
+        {"code": "FIGMA", "name": "Figma", "domain_pattern": "figma.com", "color": "#f24e1e"},
+        {"code": "BEHANCE", "name": "Behance", "domain_pattern": "behance.net", "color": "#1769ff"}
+    ]
+```
+
+## 📦 inventory_types
+
+```python
+def seed_inventory_types(db: Session):
+    types = [
+        {"code": "CAMARA", "name": "Cámaras", "color": "#ef4444", "icon": "camera"},
+        {"code": "AUDIO", "name": "Audio", "color": "#8b5cf6", "icon": "mic"},
+        {"code": "ILUMINACION", "name": "Iluminación", "color": "#f59e0b", "icon": "lightbulb"},
+        {"code": "COMPUTADORA", "name": "Computadoras", "color": "#3b82f6", "icon": "monitor"},
+        {"code": "ACCESORIO", "name": "Accesorios", "color": "#6b7280", "icon": "tool"}
+    ]
+```
+
+## 📋 project_types
+
+```python
+def seed_project_types(db: Session):
+    types = [
+        {"code": "GENERAL", "name": "Proyecto General", "color": "#6b7280", "icon": "folder"},
+        {"code": "PODCAST", "name": "Proyecto Podcast", "color": "#8b5cf6", "icon": "mic"},
+        {"code": "CURSO", "name": "Proyecto Curso", "color": "#22c55e", "icon": "book"},
+        {"code": "EVENTO", "name": "Proyecto Evento", "color": "#f59e0b", "icon": "calendar"},
+        {"code": "PROMOCIONAL", "name": "Proyecto Promocional", "color": "#ef4444", "icon": "megaphone"}
+    ]
+```
+
+## ⏱️ duration_types
+
+```python
+def seed_duration_types(db: Session):
+    types = [
+        {"code": "TRIMESTRAL", "name": "Trimestral", "months_duration": 3},
+        {"code": "CUATRIMESTRAL", "name": "Cuatrimestral", "months_duration": 4},
+        {"code": "SEMESTRAL", "name": "Semestral", "months_duration": 6},
+        {"code": "ANUAL", "name": "Anual", "months_duration": 12},
+        {"code": "BIANUAL", "name": "Bianual", "months_duration": 24}
+    ]
+```
+
+## 📋 deliverable_types
+
+```python
+def seed_deliverable_types(db: Session):
+    types = [
+        {"code": "VIDEO", "name": "Video", "file_extensions": ["mp4", "mov", "avi"], "color": "#ef4444", "icon": "play"},
+        {"code": "AUDIO", "name": "Audio", "file_extensions": ["mp3", "wav", "m4a"], "color": "#8b5cf6", "icon": "volume-2"},
+        {"code": "IMAGEN", "name": "Imagen", "file_extensions": ["jpg", "png", "svg"], "color": "#06b6d4", "icon": "image"},
+        {"code": "DOCUMENTO", "name": "Documento", "file_extensions": ["pdf", "docx"], "color": "#22c55e", "icon": "file-text"},
+        {"code": "DISENO", "name": "Diseño", "file_extensions": ["psd", "ai", "fig"], "color": "#f59e0b", "icon": "palette"},
+        {"code": "CODIGO", "name": "Código", "file_extensions": ["zip", "git"], "color": "#6b7280", "icon": "code"}
+    ]
+```
+
+## 🚀 Script de Ejecución
+
+```python
+# database/seeders/__init__.py
+from sqlalchemy.orm import Session
+
+def run_all_seeders(db: Session):
+    """Ejecuta todos los seeders en orden"""
+    print("🌱 Iniciando seeders...")
+    
+    seed_user_types(db)
+    seed_employee_roles(db)
+    seed_unit_types(db)
+    seed_status_types(db)
+    seed_status_options(db)  # Incluye todos los tipos de estados
+    seed_priority_options(db)
+    seed_service_categories(db)
+    seed_service_types(db)
+    seed_link_platforms(db)
+    seed_inventory_types(db)
+    seed_project_types(db)
+    seed_duration_types(db)
+    seed_deliverable_types(db)
+    
+    print("✅ Todos los seeders ejecutados correctamente")
+
+# En main.py o startup
+@app.on_event("startup")
+async def startup_event():
+    db = next(get_db())
+    run_all_seeders(db)
+```
+
+## 📊 Resumen de Datos
+
+- **Total de registros**: ~120 aproximadamente
+- **Tablas críticas**: user_types, status_types, employee_roles
+- **Datos configurables**: Colores, iconos, extensiones de archivo
+- **Dependencias**: Respetar orden de carga por FK
+- **Auto deploy**: Se ejecuta automáticamente al iniciar la aplicación

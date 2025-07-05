@@ -19,7 +19,7 @@ medialab/
 
 ### Prerrequisitos
 - Docker & Docker Compose
-- Node.js 18+
+- Node.js 20+
 - Python 3.11+
 
 ### Instalación
