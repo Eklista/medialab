@@ -18,6 +18,34 @@ description: Tablas del módulo de configuración de la aplicación
 | created_at | TIMESTAMP | Fecha de creación |
 | updated_at | TIMESTAMP | Fecha de modificación |
 
+## configuration_history
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| configuration_id | UUID | ID de la configuración |
+| changed_by_user_id | UUID | ID del usuario que hizo el cambio |
+| old_value | TEXT | Valor anterior |
+| new_value | TEXT | Valor nuevo |
+| change_reason | TEXT | Razón del cambio |
+| change_type | ENUM | Tipo de cambio |
+| requires_restart | BOOLEAN | Requiere reinicio del sistema |
+| approved_by_user_id | UUID | ID del usuario que aprobó |
+| approved_at | TIMESTAMP | Fecha de aprobación |
+| rollback_available | BOOLEAN | Se puede hacer rollback |
+| created_at | TIMESTAMP | Fecha del cambio |
+
+### Relaciones
+- **configuration_id** → configurations.id
+- **changed_by_user_id** → users.id
+- **approved_by_user_id** → users.id
+
+### Tipos de cambio:
+- **UPDATE** → Actualización de valor
+- **DELETE** → Eliminación de configuración
+- **CREATE** → Creación de nueva configuración
+- **ROLLBACK** → Rollback a versión anterior
+
 ## user_types (SEEDER)
 
 | Campo | Tipo | Descripción |
@@ -190,3 +218,102 @@ description: Tablas del módulo de configuración de la aplicación
 - **DOCUMENTO** → ["pdf", "docx", "txt"] - Color: #22c55e
 - **DISENO** → ["psd", "ai", "fig"] - Color: #f59e0b
 - **CODIGO** → ["zip", "git"] - Color: #6b7280
+
+## project_templates
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| name | VARCHAR | Nombre del template |
+| description | TEXT | Descripción del template |
+| created_by_user_id | UUID | ID del usuario creador |
+| service_type_id | UUID | ID del tipo de servicio |
+| default_config | JSONB | Configuración por defecto |
+| variable_fields | JSONB | Campos que el usuario debe llenar |
+| assigned_users | JSONB | Usuarios que pueden usar este template |
+| is_active | BOOLEAN | Template activo |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **created_by_user_id** → users.id
+- **service_type_id** → service_types.id
+
+### Ejemplo de default_config:
+```json
+{
+  "duration_hours": 2,
+  "location": "Auditorio Principal",
+  "equipment_needed": ["CAMARA_1", "CAMARA_2"],
+  "default_assignees": {
+    "cameraman": "juan_garcia_id",
+    "tech_support": "ana_lopez_id"
+  }
+}
+```
+
+### Ejemplo de variable_fields:
+```json
+{
+  "required_fields": [
+    {"field": "event_date", "type": "date", "label": "Fecha del evento"},
+    {"field": "main_topic", "type": "text", "label": "Tema principal"}
+  ],
+  "optional_fields": [
+    {"field": "vip_guests", "type": "text", "label": "Invitados VIP"}
+  ]
+}
+```
+
+## podcast_episodes_draft
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario creador |
+| episode_number | INTEGER | Número del episodio |
+| guest_name | VARCHAR | Nombre del invitado |
+| topic | VARCHAR | Tema del episodio |
+| scheduled_date | DATE | Fecha programada |
+| notes | TEXT | Notas adicionales |
+| status | ENUM | Estado del borrador |
+| request_id | UUID | ID de la solicitud (cuando se envía) |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+- **request_id** → requests.id
+
+### Estados del borrador:
+- **DRAFT** → Borrador en edición
+- **READY** → Listo para enviar
+- **SUBMITTED** → Enviado como solicitud
+- **APPROVED** → Solicitud aprobada
+
+## course_classes_draft
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| user_id | UUID | ID del usuario creador |
+| course_name | VARCHAR | Nombre del curso |
+| class_number | INTEGER | Número de la clase |
+| class_title | VARCHAR | Título de la clase |
+| professor | VARCHAR | Profesor responsable |
+| scheduled_date | DATE | Fecha programada |
+| notes | TEXT | Notas adicionales |
+| status | ENUM | Estado del borrador |
+| request_id | UUID | ID de la solicitud (cuando se envía) |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **user_id** → users.id
+- **request_id** → requests.id
+
+### Estados del borrador:
+- **DRAFT** → Borrador en edición
+- **READY** → Listo para enviar
+- **SUBMITTED** → Enviado como solicitud
+- **APPROVED** → Solicitud aprobada

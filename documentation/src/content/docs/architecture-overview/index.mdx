@@ -27,13 +27,13 @@ Medialab es un sistema de gestión integral para departamentos de medios audiovi
 - **Frontend**: React + TypeScript + Vite
 - **Base de Datos**: PostgreSQL
 - **Cache/Jobs**: Redis
-- **Deployment**: Servidor básico
+- **Deployment**: Servidor básico universitario
 
 ### **Principios de Diseño:**
 1. **Configuración > Código** - Todo configurable vía BD, mínimo hardcoding
-2. **Escalabilidad** - Diseñado para crecer
-3. **Mantenimiento mínimo** - Sistema que funciona en el tiempo
-4. **Flexibilidad** - Se adapta a estructura y procesos únicos
+2. **Escalabilidad** - Diseñado para crecer de 50 a 500+ usuarios
+3. **Mantenimiento mínimo** - Sistema que funciona años sin cambios de código
+4. **Flexibilidad universitaria** - Se adapta a estructura y procesos únicos
 
 ## 📊 **Módulos del Sistema**
 
@@ -130,6 +130,22 @@ Cada acción → Audit log → Notificaciones → Métricas actualizadas
 - **Personalizables**: Cada usuario elige cómo ser notificado
 - **Automatizadas**: Triggers basados en eventos del sistema
 
+## 🎯 **Ventajas Competitivas**
+
+### **vs Sistemas Genéricos (Trello, Asana)**
+- ✅ **Específico para medios** - Entiende videos, podcasts, equipos
+- ✅ **Estructura universitaria** - Facultades, profesores, estudiantes
+- ✅ **Flujo de aprobación** - Cliente externo + revisión interna
+
+### **vs Sistemas Custom Anteriores**
+- ✅ **Mantenimiento mínimo** - Configuración vs código
+- ✅ **Escalabilidad** - De 50 a 500+ usuarios sin refactor
+- ✅ **Profesional** - Auditoría, reportes, notificaciones
+
+### **vs Software Comercial**
+- ✅ **Costo cero** - Sin licencias mensuales
+- ✅ **Control total** - Datos en servidores propios
+- ✅ **Adaptable** - Cambios según necesidades específicas
 
 ## 🚀 **Estrategia de Implementación**
 
@@ -159,7 +175,7 @@ Cada acción → Audit log → Notificaciones → Métricas actualizadas
 
 ### **Técnicas**
 - 99% uptime del sistema
-- **Menos de 2 segundos tiempo de respuesta**
+- **2 segundos tiempo de respuesta**
 - 0 pérdida de datos
 
 ### **Usuarios**
@@ -167,5 +183,55 @@ Cada acción → Audit log → Notificaciones → Métricas actualizadas
 - 80%+ adopción por colaboradores
 - Reducción 60% emails de coordinación
 
-------------------------------------------------
-Diseñado con ❤️ por Eklista
+## 🎯 **Visión a Futuro**
+
+**Año 1**: Sistema estable cubriendo 100% del workflow actual
+**Año 2**: Optimizaciones e integraciones con sistemas universitarios
+**Año 3**: Expansión a otros departamentos (comunicación, eventos)
+**Año 5**: Hub central de servicios audiovisuales universitarios
+
+## ⚠️ **Riesgos y Mitigaciones**
+
+### **📊 Crecimiento de Audit Logs**
+**Riesgo**: En 2-3 años los logs pueden alcanzar millones de registros impactando performance.
+**Mitigación**: 
+- Políticas de retención automáticas por tipo de evento
+- Particionado de tablas por fecha (PostgreSQL)
+- Archive automático a cold storage
+- Compresión y eliminación programada
+
+### **🗃️ Uso Intensivo de JSONB**
+**Riesgo**: Queries complejas en campos JSONB pueden ser lentas conforme crece la data.
+**Mitigación**:
+- Índices GIN en campos JSONB críticos
+- Campos calculados para queries frecuentes
+- Views materializadas para reportes complejos
+- Monitoreo de performance de queries
+
+### **⚙️ Configuraciones Críticas**
+**Riesgo**: Cambios erróneos en configuración del sistema pueden causar problemas serios.
+**Mitigación**:
+- Historial completo de cambios en `configuration_history`
+- Funcionalidad de rollback con un click
+- Confirmación obligatoria para cambios críticos
+- Backup automático antes de modificaciones importantes
+
+### **🔄 Notificaciones de Reasignación**
+**Riesgo**: Reasignaciones silenciosas pueden causar confusión y pérdida de contexto.
+**Mitigación**:
+- Notificaciones automáticas a todos los involucrados
+- Audit logs específicos para reasignaciones
+- Contexto del cambio (quién, por qué, cuándo)
+- Trail completo de asignaciones por tarea
+
+### **💾 Crecimiento de Base de Datos**
+**Riesgo**: Con 500+ usuarios y años de operación, la BD puede volverse muy grande.
+**Mitigación**:
+- Estrategia de archivado por módulos
+- Limpieza automática de datos temporales
+- Optimización de índices regularmente
+- Monitoreo de uso de espacio
+
+---
+
+*Diseñado con ❤️ por Eklista*

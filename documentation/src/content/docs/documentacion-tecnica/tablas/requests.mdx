@@ -22,6 +22,7 @@ description: Tablas del módulo de solicitudes
 | evaluated_by_user_id | UUID | ID del evaluador |
 | evaluated_at | TIMESTAMP | Fecha de evaluación |
 | converted_project_id | UUID | ID del proyecto creado |
+| template_id | UUID | ID del template usado (opcional) |
 | created_at | TIMESTAMP | Fecha de creación |
 | updated_at | TIMESTAMP | Fecha de modificación |
 
@@ -33,6 +34,7 @@ description: Tablas del módulo de solicitudes
 - **status_id** → status_options.id (tipo REQUESTS)
 - **evaluated_by_user_id** → users.id
 - **converted_project_id** → projects.id
+- **template_id** → project_templates.id
 
 ### Estados disponibles (REQUESTS):
 - **ENVIADO** → Solicitud enviada por cliente

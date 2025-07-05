@@ -183,6 +183,8 @@ def seed_notification_types(db: Session):
     # Notificaciones de Tareas
     task_notifications = [
         {"code": "TASK_ASSIGNED", "name": "Tarea Asignada", "priority_level": 2, "category": "TASKS"},
+        {"code": "TASK_REASSIGNED", "name": "Tarea Reasignada", "priority_level": 3, "category": "TASKS"},
+        {"code": "TASK_UNASSIGNED", "name": "Tarea Desasignada", "priority_level": 3, "category": "TASKS"},
         {"code": "TASK_STATUS_CHANGED", "name": "Estado de Tarea Cambiado", "priority_level": 1, "category": "TASKS"},
         {"code": "TASK_DEADLINE_APPROACHING", "name": "Deadline Próximo", "priority_level": 3, "category": "TASKS"},
         {"code": "TASK_OVERDUE", "name": "Tarea Vencida", "priority_level": 4, "category": "TASKS"},
@@ -214,7 +216,12 @@ def seed_notification_types(db: Session):
         {"code": "ACCOUNT_CREATED", "name": "Cuenta Creada", "priority_level": 2, "category": "SYSTEM"},
         {"code": "PASSWORD_CHANGED", "name": "Contraseña Cambiada", "priority_level": 3, "category": "SYSTEM"},
         {"code": "LOGIN_FROM_NEW_DEVICE", "name": "Login desde Nuevo Dispositivo", "priority_level": 4, "category": "SYSTEM"},
-        {"code": "ACCOUNT_LOCKED", "name": "Cuenta Bloqueada", "priority_level": 5, "category": "SYSTEM"}
+        {"code": "ACCOUNT_LOCKED", "name": "Cuenta Bloqueada", "priority_level": 5, "category": "SYSTEM"},
+        {"code": "CONFIGURATION_CHANGED", "name": "Configuración del Sistema Cambiada", "priority_level": 4, "category": "SYSTEM"},
+        {"code": "CONFIGURATION_ROLLBACK", "name": "Rollback de Configuración", "priority_level": 5, "category": "SYSTEM"},
+        {"code": "TEMPLATE_CREATED", "name": "Template Creado", "priority_level": 2, "category": "SYSTEM"},
+        {"code": "TEMPLATE_USED", "name": "Template Usado", "priority_level": 1, "category": "SYSTEM"},
+        {"code": "TEMPLATE_UPDATED", "name": "Template Actualizado", "priority_level": 2, "category": "SYSTEM"}
     ]
     
     # Notificaciones de Inventario
@@ -716,8 +723,8 @@ async def startup_event():
 
 ## 📊 Resumen de Datos
 
-- **Total de registros**: ~295 aproximadamente
+- **Total de registros**: ~310 aproximadamente
 - **Tablas críticas**: user_types, status_types, employee_roles, audit_log_types, notification_types, event_types
-- **Datos configurables**: Colores, iconos, extensiones de archivo, políticas de auditoría, plantillas de notificación, tipos de eventos, filtros rápidos
+- **Datos configurables**: Colores, iconos, extensiones de archivo, políticas de auditoría, plantillas de notificación, tipos de eventos, filtros rápidos, templates de proyectos
 - **Dependencias**: Respetar orden de carga por FK
 - **Auto deploy**: Se ejecuta automáticamente al iniciar la aplicación
