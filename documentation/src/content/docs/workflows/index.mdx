@@ -1,0 +1,110 @@
+---
+title: Workflows - Indice
+description: Flujos de trabajo y procesos del sistema Medialab
+---
+
+# Flujos de Trabajo
+
+Documentación de los procesos y flujos de trabajo del sistema Medialab.
+
+## 🔄 Flujos Principales
+
+### [Workflow Projects-Tasks](/documentacion-tecnica/workflows/workflow-projects-tasks)
+**✅ COMPLETO** - Flujo principal del sistema:
+- **Solicitud → Evaluación → Proyecto → Tareas → Entrega**
+- **3 Niveles de Aprobación** (Ejecución → Revisión → Cliente)
+- **Timeouts y Escalamiento Automático**
+- **Casos Edge y Flujos Especiales**
+- **Métricas y KPIs por Fase**
+- **Configuraciones Críticas del Flujo**
+
+### [Workflow Users](/documentacion-tecnica/workflows/workflow-users)
+**✅ COMPLETO** - Gestión completa de usuarios:
+- **Onboarding y Activación** de nuevos usuarios
+- **Cambio de Roles** (promociones y degradaciones)
+- **Desactivación Temporal y Permanente** (licencias, ex-empleados)
+- **Gestión de Dispositivos** y detección de actividad sospechosa
+- **Configuración de Notificaciones** por tipo de usuario
+- **Métricas de Performance** y escalamiento automático
+
+### [Workflow Inventory](/documentacion-tecnica/workflows/workflow-inventory)
+**✅ COMPLETO** - Gestión integral de inventario:
+- **Registro y Asignación** de equipos nuevos
+- **Reservas y Check-out/Check-in** para tareas específicas
+- **Mantenimiento Preventivo y Correctivo** automático
+- **Gestión de Suministros** (stock, entregas, alertas)
+- **Resolución de Conflictos** y emergencias
+- **Reportes en Tiempo Real** y KPIs operacionales
+
+### [Estados del Sistema](/documentacion-tecnica/flujos/estados)
+Sistema unificado de estados con niveles jerárquicos para todos los módulos:
+- **Estados de Tareas** - Flujo de 3 niveles (Ejecución → Revisión → Cliente)
+- **Estados de Proyectos** - Calculados automáticamente
+- **Estados de Inventario** - Gestión de equipos y suministros
+- **Estados de Solicitudes** - Proceso antes de convertir a proyecto
+- **Estados de Podcasts** - Flujo de producción audiovisual
+- **Estados de Clases** - Flujo de grabación y publicación
+
+## 🚀 Próximos Flujos Críticos
+
+### Sistema de Comentarios y Feedback
+- **Threading de Conversaciones** - Comentarios anidados por tarea/proyecto
+- **Feedback Obligatorio** - En rechazos y aprobaciones
+- **Notificaciones por Comentarios** - Menciones y respuestas
+- **Integración con Flujo de Aprobaciones** - Comentarios contextuales
+
+### Manejo de Conflictos y Concurrencia
+- **Resolución de Double-booking** - Estrategias automáticas y manuales
+- **Validaciones de Integridad** - Soft delete y preservación de historial
+- **Gestión de Ex-empleados** - Migración de responsabilidades
+- **Rollback de Configuraciones** - Sistema de backup y recovery
+
+### Permisos y Seguridad
+- **Matriz de Permisos** - Qué puede hacer cada tipo de usuario
+- **Flujo de Autenticación** - Login y rutas por rol
+- **Escalación de Problemas** - Cuando y cómo escalar
+
+### Integraciones y Automatizaciones
+- **API Workflows** - Procesos automatizados
+- **Sistema de Notificaciones** - Cuándo y a quién notificar
+- **Generación de Reportes** - Métricas automáticas y dashboards
+- **Jobs de Mantenimiento** - Limpieza de datos y archivado
+
+## 📋 Casos de Uso Documentados
+
+### Flujo Principal Completo ✅
+**Ejemplo**: Solicitud de video promocional
+1. **Cliente**: Envía solicitud con detalles del video
+2. **Admin**: Evalúa viabilidad y aprueba
+3. **Admin**: Crea tareas (guión, grabación, edición)
+4. **Colaboradores**: Ejecutan tareas en paralelo
+5. **Admin**: Revisa calidad técnica de entregables
+6. **Cliente**: Aprueba versión final
+7. **Sistema**: Marca proyecto como completado
+
+### Flujos Especiales ✅
+- **Reasignación de Tareas** - Por licencia, sobrecarga o especialidad
+- **Proyectos Urgentes** - Flujo acelerado con prioridad alta
+- **Proyectos Multi-fase** - Series de podcast, cursos completos
+- **Escalamiento Automático** - Por timeouts e inactividad
+
+## 🎯 Próximos Pasos
+
+### Fase 1 - Completar Flujos Críticos
+1. **Sistema de Comentarios** - Estructura y threading
+2. **Manejo de Conflictos** - Double-booking y resolución
+3. **Gestión de Ex-empleados** - Soft delete y preservación de historial
+
+### Fase 2 - Flujos Específicos  
+4. **Producción de Podcasts** - Desde idea hasta publicación
+5. **Grabación de Clases** - Coordinación de equipos y espacios
+6. **Gestión de Inventario** - Reservas, mantenimiento y reportes
+
+### Fase 3 - Optimizaciones
+7. **Métricas Avanzadas** - Predictive analytics y bottlenecks
+8. **Automatizaciones** - Reducir trabajo manual repetitivo
+9. **Integraciones** - Sistemas universitarios externos
+
+---
+
+*Documentación viva - Se actualiza conforme se implementan nuevas funcionalidades*

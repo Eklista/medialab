@@ -21,6 +21,10 @@ export default defineConfig({
 				label: 'Documentación Técnica',
 				autogenerate: { directory: 'documentacion-tecnica' },
 				},
+				{
+				label: 'Workflows',
+				autogenerate: { directory: 'workflows' },
+				},
 			],
 		}),
 	],

@@ -1,0 +1,235 @@
+---
+title: Tablas - Comments & Feedback
+description: Tablas del sistema de comentarios y feedback
+---
+
+# Comments & Feedback
+
+## comments
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| commentable_type | ENUM | Tipo de entidad ('TASK', 'PROJECT', 'REQUEST', 'DELIVERABLE') |
+| commentable_id | UUID | ID de la entidad comentada |
+| parent_comment_id | UUID | ID del comentario padre (para threading) |
+| user_id | UUID | ID del usuario que comenta |
+| content | TEXT | Contenido del comentario |
+| comment_type | ENUM | Tipo de comentario |
+| is_internal | BOOLEAN | Solo visible para equipo interno |
+| is_resolved | BOOLEAN | Comentario marcado como resuelto |
+| mentions | JSONB | IDs de usuarios mencionados [@usuario] |
+| attachments | JSONB | URLs de archivos adjuntos |
+| edited_at | TIMESTAMP | Fecha de última edición |
+| deleted_at | TIMESTAMP | Fecha de soft delete |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **parent_comment_id** → comments.id
+- **user_id** → users.id
+
+### Tipos de comentario (comment_type):
+- **GENERAL** → Comentario general
+- **FEEDBACK** → Feedback específico en revisiones
+- **APPROVAL** → Comentario de aprobación
+- **REJECTION** → Comentario de rechazo (obligatorio)
+- **SYSTEM** → Comentario automático del sistema
+
+### Tipos de entidad comentable (commentable_type):
+- **TASK** → Comentarios en tareas
+- **PROJECT** → Comentarios en proyectos
+- **REQUEST** → Comentarios en solicitudes
+- **DELIVERABLE** → Comentarios en entregables
+
+### Estructura de mentions (JSONB):
+```json
+{
+  "user_ids": ["uuid1", "uuid2"],
+  "notified_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### Estructura de attachments (JSONB):
+```json
+{
+  "files": [
+    {
+      "type": "image",
+      "filename": "screenshot.png",
+      "url": "https://storage.medialab/comments/abc123.png",
+      "size": 1024000,
+      "uploaded_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "type": "link",
+      "title": "Referencia de diseño",
+      "url": "https://dribbble.com/shots/example",
+      "preview_image": "https://cdn.dribbble.com/thumb.jpg"
+    }
+  ]
+}
+```
+
+### Índices recomendados:
+```sql
+CREATE INDEX idx_comments_commentable ON comments(commentable_type, commentable_id);
+CREATE INDEX idx_comments_parent ON comments(parent_comment_id);
+CREATE INDEX idx_comments_user ON comments(user_id);
+CREATE INDEX idx_comments_mentions ON comments USING GIN(mentions);
+CREATE INDEX idx_comments_active ON comments(commentable_type, commentable_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_comments_type ON comments(comment_type);
+```
+
+## comment_templates
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| name | VARCHAR | Nombre de la plantilla |
+| category | ENUM | Categoría del template |
+| comment_type | ENUM | Tipo de comentario al que aplica |
+| template_content | TEXT | Contenido de la plantilla |
+| variables | JSONB | Variables disponibles en la plantilla |
+| user_type_access | JSONB | Tipos de usuario que pueden usar la plantilla |
+| is_active | BOOLEAN | Plantilla activa |
+| created_by_user_id | UUID | ID del usuario creador |
+| created_at | TIMESTAMP | Fecha de creación |
+| updated_at | TIMESTAMP | Fecha de modificación |
+
+### Relaciones
+- **created_by_user_id** → users.id
+
+### Categorías de template:
+- **TECNICO** → Feedback técnico (calidad, formato, etc.)
+- **CONTENIDO** → Feedback de contenido
+- **APROBACION** → Templates de aprobación
+- **RECHAZO** → Templates de rechazo
+- **GENERAL** → Templates generales
+
+### Ejemplo de template_content:
+```text
+La calidad del video necesita mejoras en:
+- [ ] Resolución
+- [ ] Estabilización  
+- [ ] Iluminación
+- [ ] Audio
+
+Comentarios específicos:
+{comentario_personalizado}
+```
+
+### Estructura de variables (JSONB):
+```json
+{
+  "required_variables": ["comentario_personalizado"],
+  "optional_variables": ["fecha_limite", "recursos_adicionales"],
+  "placeholders": {
+    "comentario_personalizado": "Escribe comentarios específicos aquí",
+    "fecha_limite": "DD/MM/YYYY"
+  }
+}
+```
+
+## comment_reactions
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| comment_id | UUID | ID del comentario |
+| user_id | UUID | ID del usuario que reacciona |
+| reaction_type | ENUM | Tipo de reacción |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **comment_id** → comments.id
+- **user_id** → users.id
+
+### Tipos de reacción:
+- **LIKE** → 👍 Like
+- **HELPFUL** → ✅ Útil
+- **RESOLVED** → ✔️ Resuelto
+- **QUESTION** → ❓ Pregunta
+- **IMPORTANT** → ❗ Importante
+
+### Constraint único:
+```sql
+UNIQUE(comment_id, user_id) -- Un usuario solo puede reaccionar una vez por comentario
+```
+
+## comment_read_status
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | UUID | Identificador único |
+| comment_id | UUID | ID del comentario |
+| user_id | UUID | ID del usuario |
+| read_at | TIMESTAMP | Fecha de lectura |
+| created_at | TIMESTAMP | Fecha de creación |
+
+### Relaciones
+- **comment_id** → comments.id
+- **user_id** → users.id
+
+### Constraint único:
+```sql
+UNIQUE(comment_id, user_id) -- Tracking de lectura único por usuario/comentario
+```
+
+## Flujo de Threading
+
+### **Estructura jerárquica máxima**:
+```
+📝 Comentario principal (parent_comment_id = NULL)
+  ↳ 💬 Respuesta nivel 1 (parent_comment_id = principal.id)
+    ↳ 💬 Respuesta nivel 2 (parent_comment_id = respuesta1.id)
+      ↳ 💬 Respuesta nivel 3 (parent_comment_id = respuesta2.id) [MÁXIMO]
+```
+
+### **Query para obtener thread completo**:
+```sql
+WITH RECURSIVE comment_thread AS (
+    -- Comentario raíz
+    SELECT id, parent_comment_id, content, user_id, created_at, 0 as level
+    FROM comments 
+    WHERE id = ? AND deleted_at IS NULL
+    
+    UNION ALL
+    
+    -- Respuestas recursivas
+    SELECT c.id, c.parent_comment_id, c.content, c.user_id, c.created_at, ct.level + 1
+    FROM comments c
+    INNER JOIN comment_thread ct ON c.parent_comment_id = ct.id
+    WHERE c.deleted_at IS NULL AND ct.level < 3
+)
+SELECT * FROM comment_thread ORDER BY created_at ASC;
+```
+
+## Permisos por Entidad
+
+### **Matriz de permisos de comentarios**:
+
+| Entidad | Cliente | Colaborador | Admin | SuperAdmin |
+|---------|---------|-------------|-------|------------|
+| **TASK (propia)** | ✅ Ver/Comentar | ✅ Ver/Comentar | ✅ Ver/Comentar | ✅ Ver/Comentar |
+| **TASK (ajena)** | ❌ | ✅ Solo asignadas | ✅ Todas | ✅ Todas |
+| **PROJECT (propio)** | ✅ Ver/Comentar | ❌ | ✅ Ver/Comentar | ✅ Ver/Comentar |
+| **PROJECT (ajeno)** | ❌ | ✅ Solo asignados | ✅ Todos | ✅ Todos |
+| **REQUEST (propia)** | ✅ Ver/Comentar | ❌ | ✅ Ver/Comentar | ✅ Ver/Comentar |
+| **REQUEST (ajena)** | ❌ | ❌ | ✅ Todas | ✅ Todas |
+| **DELIVERABLE** | ✅ Solo sus proyectos | ✅ Solo sus tareas | ✅ Todos | ✅ Todos |
+
+### **Validación de permisos**:
+```sql
+-- Función para verificar si usuario puede comentar en una entidad
+CREATE OR REPLACE FUNCTION can_user_comment(
+    p_user_id UUID,
+    p_commentable_type VARCHAR,
+    p_commentable_id UUID
+) RETURNS BOOLEAN AS $$
+BEGIN
+    -- Lógica de validación según tipo de entidad y usuario
+    -- Implementar reglas específicas por cada caso
+END;
+$$ LANGUAGE plpgsql;
+```
