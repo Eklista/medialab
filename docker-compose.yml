@@ -5,6 +5,47 @@ version: '3.8'
 # Each frontend is independent and can be deployed/scaled separately
 
 services:
+  # PostgreSQL Database - Required for FastAPI backend
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: medialab_user
+      POSTGRES_PASSWORD: medialab_secure_password
+      POSTGRES_DB: medialab_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medialab_user -d medialab_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "5433:5432"  # For development access (avoiding conflict with local postgres)
+
+  # Redis Cache - Used by FastAPI for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redis_secure_password
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "6379:6379"  # For development access
+
   # WordPress Headless CMS - Serves main site content via REST API
   # Only depends on external database, fully independent service
   wordpress:
@@ -12,14 +53,14 @@ services:
     container_name: wordpress_cms
     restart: unless-stopped
     env_file:
-      - ./backend-cms/.env
+      - ./cms-wordpress/.env
     environment:
       # Override specific settings from root .env if needed
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_DEBUG', ${WP_DEBUG:-false});
         define('WP_DEBUG_LOG', ${WP_DEBUG_LOG:-false});
     volumes:
-      - ./backend-cms:/var/www/html
+      - ./cms-wordpress:/var/www/html
       - wp_uploads:/var/www/html/wp-content/uploads
     networks:
       - app-network
@@ -41,12 +82,20 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend-api/.env
+    # Expose API port only in development for Swagger UI and debugging
+    ports:
+      - "${API_EXPOSE_PORT:-}:8000"
     volumes:
       - ./backend-api:/app
       # Exclude node_modules and cache for performance
       - api_cache:/app/.cache
     networks:
       - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -170,8 +219,10 @@ services:
 # Named volumes for persistent data
 # Note: Database should be managed externally for production safety
 volumes:
-  wp_uploads:    # WordPress media files
-  api_cache:     # FastAPI cache and temporary files
+  postgres_data:    # PostgreSQL database files
+  redis_data:       # Redis persistence data
+  wp_uploads:       # WordPress media files
+  api_cache:        # FastAPI cache and temporary files
 
 # Custom network for service communication
 networks:
