@@ -14,7 +14,7 @@ from .status import StatusType, StatusOption, PriorityOption
 from .service import ServiceCategory, ServiceType, DurationType
 from .user_type import UserTypeSetting, DashboardType
 from .template import (
-    DeliverableType, ProjectTemplate, PodcastEpisodeDraft, CourseClassDraft,
+    DeliverableType, PodcastEpisodeDraft, CourseClassDraft,
     DraftStatus
 )
 
@@ -25,6 +25,6 @@ __all__ = [
     "StatusType", "StatusOption", "PriorityOption",
     "ServiceCategory", "ServiceType", "DurationType",
     "UserTypeSetting", "DashboardType",
-    "DeliverableType", "ProjectTemplate", "PodcastEpisodeDraft", "CourseClassDraft",
+    "DeliverableType", "PodcastEpisodeDraft", "CourseClassDraft",
     "DraftStatus"
 ]

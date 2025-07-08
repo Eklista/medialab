@@ -6,17 +6,15 @@ from sqlalchemy import Column, String, Text, DateTime, Integer
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class EmployeeRole(Base):
+class EmployeeRole(BaseModel):
     """
     Employee roles for internal users (COLLABORATOR, ADMIN, SUPERADMIN)
     SEEDER table
     """
     __tablename__ = "employee_roles"
-    
-    id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text)

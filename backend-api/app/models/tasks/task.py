@@ -6,15 +6,13 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 from .enums import TaskStatus, TaskPriority, TaskType
 
 
-class Task(Base):
+class Task(BaseModel):
     """Tareas del sistema"""
     __tablename__ = "tasks"
-    
-    id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     description = Column(Text)
     task_type = Column(Enum(TaskType), default=TaskType.OTHER)
@@ -36,15 +34,12 @@ class Task(Base):
     # Relaciones
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
     project = relationship("Project", back_populates="tasks")
-    
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="assigned_tasks")
-    
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     created_by = relationship("User", foreign_keys=[created_by_id], back_populates="created_tasks")
-    
     parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)  # Para subtareas
-    parent_task = relationship("Task", remote_side=[id], backref="subtasks", back_populates="subtasks")
+    parent_task = relationship("Task", remote_side=[id], back_populates="subtasks")
     
     # Relaciones con otros modelos
     task_comments = relationship("TaskComment", back_populates="task")

@@ -13,7 +13,6 @@ class TaskApproval(BaseModel):
     Modelo para aprobaciones de tareas en diferentes niveles.
     """
     __tablename__ = "task_approvals"
-    
     task_id = Column(String(36), ForeignKey("tasks.id"), nullable=False, index=True)
     level = Column(Integer, nullable=False)
     approval_status_id = Column(String(36), ForeignKey("status_options.id"), nullable=False, index=True)

@@ -14,11 +14,11 @@ from .maintenance_record import MaintenanceRecord
 from .inventory_reservation import InventoryReservation
 from .equipment import Equipment
 from .supply import Supply
-from .seeder import UnitType, InventoryType, SupplyDelivery
+from .seeder import InventoryType, SupplyDelivery
 
 
 __all__ = [
     "InventoryItemStatus", "InventoryCategory", "InventoryItem",
     "InventoryMovement", "MaintenanceRecord", "InventoryReservation",
-    "Equipment", "Supply", "UnitType", "InventoryType", "SupplyDelivery"
+    "Equipment", "Supply", "InventoryType", "SupplyDelivery"
 ]

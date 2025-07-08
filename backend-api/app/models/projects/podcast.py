@@ -8,19 +8,15 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class Podcast(Base):
+class Podcast(BaseModel):
     """
     Proyectos específicos para producción de podcasts
     Extiende la funcionalidad de Project para podcasts
     """
-    __tablename__ = "podcasts"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información del podcast
+    __tablename__ = "podcasts"    # Información del podcast
     podcast_title = Column(String(200), nullable=False)
     episode_number = Column(Integer)
     season_number = Column(Integer)
@@ -65,13 +61,13 @@ class Podcast(Base):
     thumbnail_image_path = Column(String(500))  # Imagen del episodio
     
     # Relación con el proyecto base
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)    project = relationship("Project", back_populates="podcasts")
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project = relationship("Project", back_populates="podcasts")
     
     # Relaciones adicionales
     episodes = relationship("CalendarView", back_populates="podcast")
     host_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     host = relationship("User", foreign_keys=[host_id], back_populates="hosted_podcasts")
-    
     producer_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     producer = relationship("User", foreign_keys=[producer_id], back_populates="produced_podcasts")
     

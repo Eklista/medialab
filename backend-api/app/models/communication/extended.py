@@ -6,16 +6,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class CommentReaction(Base):
+class CommentReaction(BaseModel):
     """
     Reacciones a comentarios
     Sistema de reacciones tipo "like", "dislike", emojis, etc.
     """
     __tablename__ = "comment_reactions"
-    
-    id = Column(Integer, primary_key=True, index=True)
     comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
@@ -28,7 +26,8 @@ class CommentReaction(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
-    comment = relationship("Comment", back_populates="reactions")    user = relationship("User", back_populates="comment_reactions")
+    comment = relationship("Comment", back_populates="reactions")
+    user = relationship("User", back_populates="comment_reactions")
     
     # Constraint único por usuario y comentario
     __table_args__ = (
@@ -38,14 +37,12 @@ class CommentReaction(Base):
     def __repr__(self):
         return f"<CommentReaction(comment_id={self.comment_id}, type='{self.reaction_type}')>"
 
-class CommentTemplate(Base):
+class CommentTemplate(BaseModel):
     """
     Plantillas de comentarios
     Plantillas predefinidas para respuestas rápidas
     """
     __tablename__ = "comment_templates"
-    
-    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     content = Column(Text, nullable=False)
     
@@ -75,14 +72,12 @@ class CommentTemplate(Base):
     def __repr__(self):
         return f"<CommentTemplate(name='{self.name}', category='{self.category}')>"
 
-class CommentReadStatus(Base):
+class CommentReadStatus(BaseModel):
     """
     Estado de lectura de comentarios
     Tracking de qué comentarios ha leído cada usuario
     """
     __tablename__ = "comment_read_status"
-    
-    id = Column(Integer, primary_key=True, index=True)
     comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
@@ -98,7 +93,8 @@ class CommentReadStatus(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relaciones    comment = relationship("Comment", back_populates="reactions")    user = relationship("User", back_populates="comment_reactions")
+    # Relaciones    comment = relationship("Comment", back_populates="reactions")
+    user = relationship("User", back_populates="comment_reactions")
     
     # Constraint único por usuario y comentario
     __table_args__ = (

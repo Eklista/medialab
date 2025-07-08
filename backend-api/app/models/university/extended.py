@@ -6,16 +6,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class Career(Base):
+class Career(BaseModel):
     """
     Carreras universitarias
     Programas académicos específicos de la universidad
     """
     __tablename__ = "careers"
-    
-    id = Column(Integer, primary_key=True, index=True)
     faculty_id = Column(Integer, ForeignKey("faculties.id"), nullable=False, index=True)
     
     # Información básica
@@ -49,22 +47,18 @@ class Career(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
-    faculty = relationship("Faculty", back_populates="careers")
+    unit = relationship("Unit", back_populates="careers")
     classes = relationship("Class", back_populates="career")
-    students = relationship("Student", back_populates="career")
     
     def __repr__(self):
         return f"<Career(name='{self.name}', code='{self.code}')>"
 
-class Class(Base):
-    id = Column(Integer, primary_key=True, index=True)
+class Class(BaseModel):
     """
     Clases específicas
     Clases individuales dentro de cursos y carreras
     """
     __tablename__ = "classes"
-    
-    id = Column(Integer, primary_key=True, index=True)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False, index=True)
     career_id = Column(Integer, ForeignKey("careers.id"), nullable=True, index=True)  # Puede ser específica de carrera
     
@@ -110,7 +104,8 @@ class Class(Base):
     
     # Relaciones
     course = relationship("Course", back_populates="classes")
-    career = relationship("Career", back_populates="classes")    instructor = relationship("User", back_populates="career_instructions")
+    career = relationship("Career", back_populates="classes")
+    instructor = relationship("User")
     
     def __repr__(self):
         return f"<Class(name='{self.name}', date='{self.scheduled_date}', type='{self.class_type}')>"

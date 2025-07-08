@@ -45,7 +45,7 @@ from .app_settings import (
     Configuration, ConfigurationHistory, StatusType, StatusOption, PriorityOption,
     ServiceCategory, ServiceType, DurationType,
     ConfigurationType, ChangeType, UserTypeSetting, DashboardType,
-    DeliverableType, ProjectTemplate, PodcastEpisodeDraft, CourseClassDraft, DraftStatus
+    DeliverableType, PodcastEpisodeDraft, CourseClassDraft, DraftStatus
 )
 
 # Otros submódulos (por implementar)
@@ -104,5 +104,5 @@ __all__ = [
     "Configuration", "ConfigurationHistory", "StatusType", "StatusOption", "PriorityOption",
     "ServiceCategory", "ServiceType", "DurationType",
     "ConfigurationType", "ChangeType", "UserTypeSetting", "DashboardType",
-    "DeliverableType", "ProjectTemplate", "PodcastEpisodeDraft", "CourseClassDraft", "DraftStatus",
+    "DeliverableType", "PodcastEpisodeDraft", "CourseClassDraft", "DraftStatus",
 ]

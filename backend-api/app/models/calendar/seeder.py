@@ -9,12 +9,10 @@ from ..base import BaseModel
 
 
 class EventType(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo SEEDER para tipos de eventos del calendario.
     """
     __tablename__ = "event_types"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -31,12 +29,10 @@ class EventType(BaseModel):
 
 
 class LinkPlatform(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo SEEDER para plataformas de enlaces.
     """
     __tablename__ = "link_platforms"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     domain_pattern = Column(String(255), nullable=True)

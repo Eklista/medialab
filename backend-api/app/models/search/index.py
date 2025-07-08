@@ -26,13 +26,12 @@ class SearchIndex(BaseModel):
     Modelo para índices de búsqueda del sistema.
     """
     __tablename__ = "search_indexes"
-    
     entity_type = Column(SQLEnum(EntityType), nullable=False, index=True)
     entity_id = Column(String(36), nullable=False, index=True)
     title = Column(String(500), nullable=False)
     content = Column(Text, nullable=True)
     tags = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    search_metadata = Column(JSON, nullable=True)
     search_vector = Column(TSVECTOR, nullable=True)
     indexed_at = Column(DateTime(timezone=True), nullable=False)
     

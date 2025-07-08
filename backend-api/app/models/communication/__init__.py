@@ -11,7 +11,7 @@ from .notification import (
     NotificationStatus, NotificationFrequency
 )
 from .comment import Comment, CommentableType, CommentType
-from .seeder import NotificationChannel, NotificationType, NotificationTemplate, NotificationChannelType
+from .seeder import NotificationChannel, NotificationType, NotificationTemplate
 from .extended import CommentReaction, CommentTemplate, CommentReadStatus
 from .advanced import NotificationBatch, NotificationLog, NotificationSchedule, ScheduledReport
 
@@ -20,7 +20,7 @@ __all__ = [
     "Notification", "UserNotificationPreference",
     "NotificationStatus", "NotificationFrequency",
     "Comment", "CommentableType", "CommentType",
-    "NotificationChannel", "NotificationType", "NotificationTemplate", "NotificationChannelType",
+    "NotificationChannel", "NotificationType", "NotificationTemplate",
     "CommentReaction", "CommentTemplate", "CommentReadStatus",
     "NotificationBatch", "NotificationLog", "NotificationSchedule", "ScheduledReport"
 ]

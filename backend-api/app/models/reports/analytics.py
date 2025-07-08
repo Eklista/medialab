@@ -7,16 +7,14 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class AnalyticsEvent(Base):
+class AnalyticsEvent(BaseModel):
     """
     Eventos de analytics
     Registro de eventos para análisis de uso del sistema
     """
     __tablename__ = "analytics_events"
-    
-    id = Column(Integer, primary_key=True, index=True)
     event_type = Column(String(100), nullable=False, index=True)
     event_category = Column(String(50), nullable=False, index=True)  # 'user_action', 'system', 'error', etc.
     
@@ -43,16 +41,12 @@ class AnalyticsEvent(Base):
     def __repr__(self):
         return f"<AnalyticsEvent(type='{self.event_type}', category='{self.event_category}')>"
 
-class SearchAnalytics(Base):
+class SearchAnalytics(BaseModel):
     """
     Analytics de búsqueda
     Métricas y análisis de las búsquedas realizadas en el sistema
     """
-    __tablename__ = "search_analytics"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información de la búsqueda
+    __tablename__ = "search_analytics"    # Información de la búsqueda
     search_query = Column(String(500), nullable=False, index=True)
     search_type = Column(String(50), index=True)  # 'global', 'projects', 'inventory', etc.
     results_count = Column(Integer, default=0)

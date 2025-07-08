@@ -5,17 +5,14 @@ Modelo de bloqueos de IP
 from sqlalchemy import Column, String, Text, DateTime, Boolean, Integer
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class IpBlock(Base):
+class IpBlock(BaseModel):
     """
     IP blocking for security purposes
     """
     __tablename__ = "ip_blocks"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
     ip_address = Column(String(45), nullable=False, index=True)  # IPv6 compatible
     ip_range = Column(String(100))  # CIDR notation for range blocks
     

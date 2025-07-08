@@ -21,7 +21,6 @@ class SavedSearch(BaseModel):
     Modelo para búsquedas guardadas por los usuarios.
     """
     __tablename__ = "saved_searches"
-    
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     search_query = Column(String(500), nullable=False)

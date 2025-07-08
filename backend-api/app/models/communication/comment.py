@@ -11,7 +11,6 @@ from enum import Enum
 
 
 class CommentableType(Enum):
-    id = Column(Integer, primary_key=True, index=True)
     """Tipos de entidad comentable."""
     TASK = "TASK"
     PROJECT = "PROJECT"
@@ -33,7 +32,6 @@ class Comment(BaseModel):
     Modelo para comentarios del sistema.
     """
     __tablename__ = "comments"
-    
     commentable_type = Column(SQLEnum(CommentableType), nullable=False, index=True)
     commentable_id = Column(String(36), nullable=False, index=True)
     parent_comment_id = Column(String(36), ForeignKey("comments.id"), nullable=True, index=True)
@@ -50,7 +48,8 @@ class Comment(BaseModel):
     # Relaciones
     child_comments = relationship("Comment", back_populates="parent_comment", remote_side="Comment.id")
     reactions = relationship("CommentReaction", back_populates="comment")
-    parent_comment = relationship("Comment", remote_side="Comment.id", back_populates="child_comments")    user = relationship("User", back_populates="comments")
+    parent_comment = relationship("Comment", remote_side="Comment.id", back_populates="child_comments")
+    user = relationship("User", back_populates="comments")
     replies = relationship("Comment", back_populates="parent_comment", cascade="all, delete-orphan")
     
     def __repr__(self):

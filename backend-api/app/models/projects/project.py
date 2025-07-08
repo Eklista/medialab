@@ -6,15 +6,13 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, Numeric, F
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 from .enums import ProjectStatus, ProjectPriority
 
 
-class Project(Base):
+class Project(BaseModel):
     """Proyectos principales"""
     __tablename__ = "projects"
-    
-    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     code = Column(String(20), unique=True, nullable=False)  # Código único del proyecto
     description = Column(Text)
@@ -37,7 +35,6 @@ class Project(Base):
     # Relaciones
     project_type_id = Column(Integer, ForeignKey("project_types.id"), nullable=True, index=True)
     project_type = relationship("ProjectType", back_populates="projects")
-    
     manager_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     manager = relationship("User", foreign_keys=[manager_id], back_populates="managed_projects")
     

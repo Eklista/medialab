@@ -6,16 +6,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class ProjectUnit(Base):
+class ProjectUnit(BaseModel):
     """
     Relación proyecto-unidades
     Tabla intermedia para asociar proyectos con unidades universitarias
     """
     __tablename__ = "project_units"
-    
-    id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
     unit_id = Column(Integer, ForeignKey("units.id"), nullable=False, index=True)
     
@@ -53,14 +51,12 @@ class ProjectUnit(Base):
     def __repr__(self):
         return f"<ProjectUnit(project_id={self.project_id}, unit_id={self.unit_id}, type='{self.relationship_type}')>"
 
-class TaskEquipment(Base):
+class TaskEquipment(BaseModel):
     """
     Relación tarea-equipos
     Equipos específicos asignados a tareas
     """
     __tablename__ = "task_equipments"
-    
-    id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
     equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=False, index=True)
     

@@ -7,18 +7,15 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class AuditLog(Base):
+class AuditLog(BaseModel):
     """
     Audit logs for tracking all user actions
     Critical for compliance and debugging
     """
     __tablename__ = "audit_logs"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     action = Column(String(100), nullable=False, index=True)
     resource = Column(String(100), index=True)

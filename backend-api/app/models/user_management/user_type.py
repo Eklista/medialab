@@ -7,17 +7,15 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class UserType(Base):
+class UserType(BaseModel):
     """
     User types: CLIENT, COLLABORATOR, ADMIN, SUPERADMIN
     SEEDER table - populated during initialization
     """
     __tablename__ = "user_types"
-    
-    id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text)

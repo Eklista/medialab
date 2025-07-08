@@ -22,7 +22,6 @@ class CalendarSubscription(BaseModel):
     Modelo para suscripciones de calendario.
     """
     __tablename__ = "calendar_subscriptions"
-    
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     subscription_type = Column(SQLEnum(SubscriptionType), nullable=False)
     subscription_target_id = Column(String(36), nullable=False, index=True)

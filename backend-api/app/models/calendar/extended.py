@@ -7,16 +7,14 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class CalendarView(Base):
+class CalendarView(BaseModel):
     """
     Vistas personalizadas de calendario
     Configuraciones de vista personalizadas por usuario
     """
     __tablename__ = "calendar_views"
-    
-    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
     # Configuración de la vista
@@ -48,14 +46,12 @@ class CalendarView(Base):
     def __repr__(self):
         return f"<CalendarView(name='{self.name}', type='{self.view_type}', user_id={self.user_id})>"
 
-class RecurringEvent(Base):
+class RecurringEvent(BaseModel):
     """
     Eventos recurrentes
     Configuración para eventos que se repiten según patrones
     """
     __tablename__ = "recurring_events"
-    
-    id = Column(Integer, primary_key=True, index=True)
     parent_event_id = Column(Integer, ForeignKey("calendar_events.id"), nullable=False, index=True)
     
     # Patrón de recurrencia
@@ -89,14 +85,12 @@ class RecurringEvent(Base):
     def __repr__(self):
         return f"<RecurringEvent(parent_id={self.parent_event_id}, type='{self.recurrence_type}')>"
 
-class PodcastEpisode(Base):
+class PodcastEpisode(BaseModel):
     """
     Episodios de podcast
     Episodios específicos dentro de una serie de podcast
     """
     __tablename__ = "podcast_episodes"
-    
-    id = Column(Integer, primary_key=True, index=True)
     podcast_id = Column(Integer, ForeignKey("podcasts.id"), nullable=False, index=True)
     
     # Información del episodio

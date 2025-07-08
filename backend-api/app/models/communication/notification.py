@@ -11,7 +11,6 @@ from enum import Enum
 
 
 class NotificationStatus(Enum):
-    id = Column(Integer, primary_key=True, index=True)
     """Estados de notificación."""
     QUEUED = "QUEUED"
     SENT = "SENT"
@@ -32,7 +31,6 @@ class Notification(BaseModel):
     Modelo para notificaciones del sistema.
     """
     __tablename__ = "notifications"
-    
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     notification_type_id = Column(String(36), ForeignKey("notification_types.id"), nullable=False, index=True)
     channel_id = Column(String(36), ForeignKey("notification_channels.id"), nullable=False, index=True)
@@ -48,7 +46,9 @@ class Notification(BaseModel):
     failure_reason = Column(Text, nullable=True)
     retry_count = Column(Integer, default=0, nullable=False)
     
-    # Relaciones    user = relationship("User", back_populates="notifications")    notification_type = relationship("NotificationType", back_populates="notifications")    channel = relationship("NotificationChannel", back_populates="notifications")
+    # Relaciones    user = relationship("User", back_populates="notifications")
+    notification_type = relationship("NotificationType", back_populates="notifications")
+    channel = relationship("NotificationChannel", back_populates="notifications")
     
     def __repr__(self):
         return f"<Notification(id={self.id}, user_id='{self.user_id}', title='{self.title[:50]}')>"
@@ -59,7 +59,6 @@ class UserNotificationPreference(BaseModel):
     Modelo para preferencias de notificación por usuario.
     """
     __tablename__ = "user_notification_preferences"
-    
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     notification_type_id = Column(String(36), ForeignKey("notification_types.id"), nullable=False, index=True)
     channel_id = Column(String(36), ForeignKey("notification_channels.id"), nullable=False, index=True)
@@ -68,7 +67,9 @@ class UserNotificationPreference(BaseModel):
     quiet_hours_start = Column(Time, nullable=True)
     quiet_hours_end = Column(Time, nullable=True)
     
-    # Relaciones    user = relationship("User", back_populates="notifications")    notification_type = relationship("NotificationType", back_populates="notifications")    channel = relationship("NotificationChannel", back_populates="notifications")
+    # Relaciones    user = relationship("User", back_populates="notifications")
+    notification_type = relationship("NotificationType", back_populates="notifications")
+    channel = relationship("NotificationChannel", back_populates="notifications")
     notification_batches = relationship("NotificationBatch", back_populates="notification")
     
     def __repr__(self):

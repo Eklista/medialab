@@ -5,19 +5,16 @@ Modelo de archivos adjuntos de solicitud
 from sqlalchemy import Column, String, Text, DateTime, Boolean, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class RequestAttachment(Base):
+class RequestAttachment(BaseModel):
     """
     File attachments for requests
     """
     __tablename__ = "request_attachments"
-    
-    id = Column(Integer, primary_key=True, index=True)
     request_id = Column(Integer, ForeignKey("requests.id"), nullable=False, index=True)
-    uploaded_by_user_id = Column(Integer, ForeignKey("users.id")
-    uploaded_by_user = relationship("User", back_populates="uploaded_attachments"), nullable=False, index=True)
+    uploaded_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
     # File info
     filename = Column(String(255), nullable=False)

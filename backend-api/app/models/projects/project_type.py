@@ -6,14 +6,12 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class ProjectType(Base):
+class ProjectType(BaseModel):
     """Tipos de proyecto"""
     __tablename__ = "project_types"
-    
-    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, unique=True)
     description = Column(Text)
     color = Column(String(7))  # Color hex

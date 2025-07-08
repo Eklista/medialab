@@ -7,18 +7,14 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class User(Base):
+class User(BaseModel):
     """
     Users table - all types of users in the system
     """
-    __tablename__ = "users"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Basic Info
+    __tablename__ = "users"    # Basic Info
     email = Column(String(255), unique=True, nullable=False, index=True)
     username = Column(String(100), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
@@ -107,7 +103,6 @@ class User(Base):
     task_assignment_assignments = relationship("TaskAssignment", back_populates="assigned_by")
     deliverable_types = relationship("DeliverableType", back_populates="user")
     audit_statistics = relationship("AuditStatistics", back_populates="most_active_user")
-
     created_calendar_events = relationship("CalendarEvent", back_populates="created_by_user")    
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', username='{self.username}')>"

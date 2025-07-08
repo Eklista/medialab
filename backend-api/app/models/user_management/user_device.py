@@ -7,17 +7,14 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class UserDevice(Base):
+class UserDevice(BaseModel):
     """
     User devices for tracking active logins and device management
     """
     __tablename__ = "user_devices"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     device_name = Column(String(200))  # User-assigned name
     device_type = Column(String(50))  # mobile, desktop, tablet, etc.

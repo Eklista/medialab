@@ -7,18 +7,14 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class GlobalSearchConfig(Base):
+class GlobalSearchConfig(BaseModel):
     """
     Configuración global de búsqueda
     Configuraciones del motor de búsqueda y indexación
     """
-    __tablename__ = "global_search_configs"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Configuración del índice
+    __tablename__ = "global_search_configs"    # Configuración del índice
     index_name = Column(String(100), nullable=False, unique=True)
     entity_type = Column(String(100), nullable=False)  # 'projects', 'tasks', 'users', etc.
     
@@ -47,14 +43,12 @@ class GlobalSearchConfig(Base):
     def __repr__(self):
         return f"<GlobalSearchConfig(index='{self.index_name}', entity='{self.entity_type}')>"
 
-class SearchHistory(Base):
+class SearchHistory(BaseModel):
     """
     Historial de búsquedas
     Registro del historial de búsquedas por usuario
     """
     __tablename__ = "search_histories"
-    
-    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
     # Términos de búsqueda
@@ -78,16 +72,12 @@ class SearchHistory(Base):
     def __repr__(self):
         return f"<SearchHistory(user_id={self.user_id}, query='{self.search_query}')>"
 
-class SearchSuggestion(Base):
+class SearchSuggestion(BaseModel):
     """
     Sugerencias de búsqueda
     Sugerencias automáticas basadas en contenido y búsquedas populares
     """
-    __tablename__ = "search_suggestions"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Término sugerido
+    __tablename__ = "search_suggestions"    # Término sugerido
     suggestion_text = Column(String(500), nullable=False, index=True)
     suggestion_type = Column(String(50), nullable=False)  # 'autocomplete', 'popular', 'related'
     
@@ -111,16 +101,12 @@ class SearchSuggestion(Base):
     def __repr__(self):
         return f"<SearchSuggestion(text='{self.suggestion_text}', type='{self.suggestion_type}')>"
 
-class QuickFilter(Base):
+class QuickFilter(BaseModel):
     """
     Filtros rápidos
     Filtros predefinidos para búsquedas comunes
     """
-    __tablename__ = "quick_filters"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información del filtro
+    __tablename__ = "quick_filters"    # Información del filtro
     name = Column(String(200), nullable=False)
     description = Column(Text)
     icon = Column(String(50))

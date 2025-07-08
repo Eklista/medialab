@@ -10,7 +10,6 @@ from enum import Enum
 
 
 class ConfigurationType(Enum):
-    id = Column(Integer, primary_key=True, index=True)
     """Tipos de configuración."""
     STRING = "STRING"
     INTEGER = "INTEGER"
@@ -33,7 +32,6 @@ class Configuration(BaseModel):
     Modelo para configuraciones del sistema.
     """
     __tablename__ = "configurations"
-    
     key = Column(String(255), nullable=False, unique=True, index=True)
     value = Column(Text, nullable=True)
     type = Column(SQLEnum(ConfigurationType), nullable=False)
@@ -52,7 +50,6 @@ class ConfigurationHistory(BaseModel):
     Modelo para historial de cambios de configuración.
     """
     __tablename__ = "configuration_histories"
-    
     configuration_id = Column(String(36), ForeignKey("configurations.id"), nullable=False, index=True)
     changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     old_value = Column(Text, nullable=True)

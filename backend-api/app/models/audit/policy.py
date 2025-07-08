@@ -10,12 +10,10 @@ from ..base import BaseModel
 
 
 class AuditLogType(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo para tipos de logs de auditoría.
     """
     __tablename__ = "audit_log_types"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -25,8 +23,8 @@ class AuditLogType(BaseModel):
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Relaciones
-    retention_policies = relationship("AuditRetentionPolicy", back_populates="audit_log_type", cascade="restrict")  # Previene eliminación accidental
-    alerts = relationship("AuditAlert", back_populates="audit_log_type", cascade="restrict")  # Previene eliminación accidental
+    retention_policies = relationship("AuditRetentionPolicy", back_populates="audit_log_type")
+    alerts = relationship("AuditAlert", back_populates="audit_log_type")
     
     def __repr__(self):
         return f"<AuditLogType(id={self.id}, code='{self.code}', name='{self.name}')>"
@@ -37,7 +35,6 @@ class AuditRetentionPolicy(BaseModel):
     Modelo para políticas de retención de logs de auditoría.
     """
     __tablename__ = "audit_retention_policies"
-    
     audit_log_type_id = Column(String(36), ForeignKey("audit_log_types.id"), nullable=False, index=True)
     retention_days = Column(Integer, nullable=False)
     archive_after_days = Column(Integer, nullable=True)
@@ -57,7 +54,6 @@ class AuditAlert(BaseModel):
     Modelo para alertas de auditoría.
     """
     __tablename__ = "audit_alerts"
-    
     audit_log_type_id = Column(String(36), ForeignKey("audit_log_types.id"), nullable=False, index=True)
     condition_rules = Column(JSON, nullable=False)
     alert_recipients = Column(JSON, nullable=False)
@@ -77,7 +73,6 @@ class AuditStatistics(BaseModel):
     Modelo para estadísticas de auditoría.
     """
     __tablename__ = "audit_statistics"
-    
     date = Column(Date, nullable=False, index=True)
     total_actions = Column(Integer, default=0, nullable=False)
     unique_users = Column(Integer, default=0, nullable=False)

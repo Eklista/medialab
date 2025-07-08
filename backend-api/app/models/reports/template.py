@@ -34,7 +34,6 @@ class ReportTemplate(BaseModel):
     Modelo para plantillas de reportes.
     """
     __tablename__ = "report_templates"
-    
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     category = Column(SQLEnum(ReportCategory), nullable=False)
@@ -46,13 +45,13 @@ class ReportTemplate(BaseModel):
     schedule_options = Column(JSON, nullable=True)
     access_roles = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_by_user_id = Column(UUID, ForeignKey("users.id")
-    created_by_user = relationship("User", back_populates="created_report_templates"), nullable=False, index=True)
+    created_by_user_id = Column(UUID, ForeignKey("users.id"), nullable=False, index=True)
+    created_by_user = relationship("User", back_populates="created_report_templates")
     
     # Relaciones
     created_by = relationship("User", back_populates="created_reports")
-    generated_reports = relationship("GeneratedReport", back_populates="template", cascade="restrict")  # Previene eliminación accidental
-    scheduled_reports = relationship("ScheduledReport", back_populates="template", cascade="restrict")  # Previene eliminación accidental
+    generated_reports = relationship("GeneratedReport", back_populates="template")  # Previene eliminación accidental
+    scheduled_reports = relationship("ScheduledReport", back_populates="template")  # Previene eliminación accidental
     
     def __repr__(self):
         return f"<ReportTemplate(id={self.id}, name='{self.name}', category='{self.category.value}')>"

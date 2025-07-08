@@ -6,16 +6,14 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class Unit(Base):
+class Unit(BaseModel):
     """
     Unidades universitarias (facultades, departamentos, centros, etc.)
     """
     __tablename__ = "units"
-    
-    id = Column(Integer, primary_key=True, index=True)
     unit_type_id = Column(Integer, ForeignKey("unit_types.id"), nullable=False, index=True)
     parent_unit_id = Column(Integer, ForeignKey("units.id"), nullable=True, index=True)
     
@@ -37,23 +35,23 @@ class Unit(Base):
     
     # Relaciones
     unit_type = relationship("UnitType", back_populates="units")
-    parent_unit = relationship("Unit", remote_side=[id], backref="child_units", back_populates="child_units")
+    parent_unit = relationship("Unit", remote_side=[id], back_populates="child_units")
+    child_units = relationship("Unit", back_populates="parent_unit")
     
     # Relaciones con otros modelos
     requests = relationship("Request", back_populates="unit")
+    careers = relationship("Career", back_populates="unit")
 
     def __repr__(self):
         return f"<Unit(id={self.id}, name='{self.name}', abbreviation='{self.abbreviation}')>"
 
 
-class UnitType(Base):
+class UnitType(BaseModel):
     """
     Tipos de unidades universitarias (Facultad, Departamento, Centro, etc.)
     SEEDER table
     """
     __tablename__ = "unit_types"
-    
-    id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text)
@@ -70,7 +68,6 @@ class UnitType(Base):
     
     # Relaciones
     professors = relationship("Professor", back_populates="unit")
-    child_units = relationship("Unit", back_populates="parent_unit", remote_side="Unit.id")
     project_associations = relationship("ProjectUnit", back_populates="unit")
     units = relationship("Unit", back_populates="unit_type")
 

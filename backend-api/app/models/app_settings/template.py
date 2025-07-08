@@ -19,12 +19,10 @@ class DraftStatus(Enum):
 
 
 class DeliverableType(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo para tipos de entregables.
     """
     __tablename__ = "deliverable_types"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -42,7 +40,6 @@ class PodcastEpisodeDraft(BaseModel):
     Modelo para borradores de episodios de podcast.
     """
     __tablename__ = "podcast_episodes_drafts"
-    
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     episode_number = Column(Integer, nullable=True)
     guest_name = Column(String(255), nullable=True)
@@ -52,19 +49,18 @@ class PodcastEpisodeDraft(BaseModel):
     status = Column(SQLEnum(DraftStatus), default=DraftStatus.DRAFT, nullable=False)
     request_id = Column(String(36), ForeignKey("requests.id"), nullable=True, index=True)
     
-    # Relaciones    user = relationship("User", back_populates="deliverable_types")    request = relationship("Request", back_populates="deliverable_types")
+    # Relaciones    user = relationship("User", back_populates="deliverable_types")
+    request = relationship("Request", back_populates="deliverable_types")
     
     def __repr__(self):
         return f"<PodcastEpisodeDraft(id={self.id}, guest_name='{self.guest_name}', status='{self.status.value}')>"
 
 
 class CourseClassDraft(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo para borradores de clases de curso.
     """
     __tablename__ = "course_classes_drafts"
-    
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     course_name = Column(String(255), nullable=True)
     class_number = Column(Integer, nullable=True)
@@ -74,9 +70,9 @@ class CourseClassDraft(BaseModel):
     notes = Column(Text, nullable=True)
     status = Column(SQLEnum(DraftStatus), default=DraftStatus.DRAFT, nullable=False)
     request_id = Column(String(36), ForeignKey("requests.id"), nullable=True, index=True)
-    
     deliverables = relationship("Deliverable", back_populates="deliverable_type")
-    # Relaciones    user = relationship("User", back_populates="deliverable_types")    request = relationship("Request", back_populates="deliverable_types")
+    # Relaciones    user = relationship("User", back_populates="deliverable_types")
+    request = relationship("Request", back_populates="deliverable_types")
     
     def __repr__(self):
         return f"<CourseClassDraft(id={self.id}, course_name='{self.course_name}', status='{self.status.value}')>"

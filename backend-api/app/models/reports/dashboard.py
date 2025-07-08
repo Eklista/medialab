@@ -7,16 +7,14 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class CustomDashboard(Base):
+class CustomDashboard(BaseModel):
     """
     Dashboards personalizados
     Configuraciones de dashboard personalizadas por usuario
     """
     __tablename__ = "custom_dashboards"
-    
-    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
     # Información del dashboard
@@ -47,14 +45,12 @@ class CustomDashboard(Base):
     def __repr__(self):
         return f"<CustomDashboard(name='{self.name}', user_id={self.user_id})>"
 
-class DashboardWidget(Base):
+class DashboardWidget(BaseModel):
     """
     Widgets de dashboard
     Componentes individuales que conforman un dashboard
     """
     __tablename__ = "dashboard_widgets"
-    
-    id = Column(Integer, primary_key=True, index=True)
     dashboard_id = Column(Integer, ForeignKey("custom_dashboards.id"), nullable=False, index=True)
     
     # Información del widget

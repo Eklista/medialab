@@ -8,19 +8,15 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class Equipment(Base):
+class Equipment(BaseModel):
     """
     Equipos específicos del inventario
     Extiende la funcionalidad de InventoryItem para equipos
     """
-    __tablename__ = "equipments"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información técnica específica
+    __tablename__ = "equipments"    # Información técnica específica
     power_consumption = Column(String(50))  # Consumo eléctrico
     dimensions = Column(String(100))  # Dimensiones físicas
     weight = Column(Numeric(8, 2))  # Peso en kg
@@ -41,7 +37,8 @@ class Equipment(Base):
     # Relación con el item de inventario base
     inventory_type = relationship("InventoryType", back_populates="equipment")
     task_assignments = relationship("ProjectUnit", back_populates="equipment")
-    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False, index=True)    inventory_item = relationship("InventoryItem", back_populates="equipment")
+    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False, index=True)
+    inventory_item = relationship("InventoryItem", back_populates="equipment")
     
     # Fechas
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

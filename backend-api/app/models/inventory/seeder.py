@@ -6,16 +6,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class InventoryType(Base):
+class InventoryType(BaseModel):
     """
     Tipos de inventario (SEEDER)
     Catálogo de clasificaciones para diferentes tipos de inventario
     """
     __tablename__ = "inventory_types"
-    
-    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, unique=True)
     code = Column(String(20), nullable=False, unique=True)
     description = Column(Text)
@@ -35,14 +33,12 @@ class InventoryType(Base):
     def __repr__(self):
         return f"<InventoryType(name='{self.name}', code='{self.code}')>"
 
-class SupplyDelivery(Base):
+class SupplyDelivery(BaseModel):
     """
     Entregas de suministros
     Registro de entregas específicas de suministros
     """
     __tablename__ = "supply_deliveries"
-    
-    id = Column(Integer, primary_key=True, index=True)
     supply_id = Column(Integer, ForeignKey("supplies.id"), nullable=False, index=True)
     delivery_date = Column(DateTime(timezone=True), nullable=False)
     quantity_delivered = Column(Integer, nullable=False)

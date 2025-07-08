@@ -7,19 +7,15 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class Course(Base):
+class Course(BaseModel):
     """
     Proyectos específicos para cursos educativos
     Extiende la funcionalidad de Project para cursos
     """
-    __tablename__ = "courses"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información académica
+    __tablename__ = "courses"    # Información académica
     course_code = Column(String(20), unique=True)  # Código del curso
     credit_hours = Column(Integer)  # Horas crédito
     academic_level = Column(String(50))  # undergraduate, graduate, professional
@@ -54,7 +50,8 @@ class Course(Base):
     certification_entity = Column(String(200))  # Entidad que certifica
     
     # Relación con el proyecto base
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)    project = relationship("Project", back_populates="courses")
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project = relationship("Project", back_populates="courses")
     
     # Relaciones adicionales
     classes = relationship("Career", back_populates="course", remote_side="Career.id")

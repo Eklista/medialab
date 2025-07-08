@@ -18,12 +18,10 @@ class DashboardType(Enum):
 
 
 class UserTypeSetting(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo para configuraciones de tipos de usuario del sistema.
     """
     __tablename__ = "user_type_settings"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)

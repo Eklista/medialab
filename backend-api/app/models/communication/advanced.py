@@ -7,18 +7,14 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
-class NotificationBatch(Base):
+class NotificationBatch(BaseModel):
     """
     Lotes de notificaciones
     Agrupación de notificaciones enviadas en lote
     """
-    __tablename__ = "notification_batches"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información del lote
+    __tablename__ = "notification_batches"    # Información del lote
     batch_name = Column(String(200))
     batch_type = Column(String(100), nullable=False)  # 'broadcast', 'targeted', 'automated'
     
@@ -49,20 +45,20 @@ class NotificationBatch(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relaciones    template = relationship("NotificationTemplate", back_populates="notification_batches")    channel = relationship("NotificationChannel", back_populates="notification_batches")    created_by = relationship("User", back_populates="created_notification_batches")
+    # Relaciones    template = relationship("NotificationTemplate", back_populates="notification_batches")
+    channel = relationship("NotificationChannel", back_populates="notification_batches")
+    created_by = relationship("User", back_populates="created_notification_batches")
     logs = relationship("NotificationLog", back_populates="batch")
     
     def __repr__(self):
         return f"<NotificationBatch(name='{self.batch_name}', status='{self.status}')>"
 
-class NotificationLog(Base):
+class NotificationLog(BaseModel):
     """
     Logs de notificaciones
     Registro detallado de cada notificación enviada
     """
     __tablename__ = "notification_logs"
-    
-    id = Column(Integer, primary_key=True, index=True)
     notification_id = Column(Integer, ForeignKey("notifications.id"), index=True, nullable=False)
     batch_id = Column(Integer, ForeignKey("notification_batches.id"), index=True, nullable=False)
     
@@ -93,21 +89,18 @@ class NotificationLog(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones    notification = relationship("Notification", back_populates="notification_batches")
-    batch = relationship("NotificationBatch", back_populates="logs")    recipient = relationship("User", back_populates="received_notification_batches")
+    batch = relationship("NotificationBatch", back_populates="logs")
+    recipient = relationship("User", back_populates="received_notification_batches")
     
     def __repr__(self):
         return f"<NotificationLog(recipient_id={self.recipient_id}, status='{self.status}')>"
 
-class NotificationSchedule(Base):
+class NotificationSchedule(BaseModel):
     """
     Programación de notificaciones
     Configuración para notificaciones automáticas programadas
     """
-    __tablename__ = "notification_schedules"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información básica
+    __tablename__ = "notification_schedules"    # Información básica
     name = Column(String(200), nullable=False)
     description = Column(Text)
     
@@ -145,21 +138,19 @@ class NotificationSchedule(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relaciones    template = relationship("NotificationTemplate", back_populates="notification_batches")    channel = relationship("NotificationChannel", back_populates="notification_batches")    created_by = relationship("User", back_populates="created_notification_batches")
+    # Relaciones    template = relationship("NotificationTemplate", back_populates="notification_batches")
+    channel = relationship("NotificationChannel", back_populates="notification_batches")
+    created_by = relationship("User", back_populates="created_notification_batches")
     
     def __repr__(self):
         return f"<NotificationSchedule(name='{self.name}', type='{self.schedule_type}')>"
 
-class ScheduledReport(Base):
+class ScheduledReport(BaseModel):
     """
     Reportes programados
     Configuración para generación automática de reportes
     """
-    __tablename__ = "scheduled_reports"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información del reporte
+    __tablename__ = "scheduled_reports"    # Información del reporte
     name = Column(String(200), nullable=False)
     report_type = Column(String(100), nullable=False)  # 'kpi', 'project_summary', 'inventory', etc.
     description = Column(Text)

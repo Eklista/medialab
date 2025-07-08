@@ -64,7 +64,6 @@ class CalendarEvent(BaseModel):
     Modelo para eventos del calendario.
     """
     __tablename__ = "calendar_events"
-    
     event_type_id = Column(String(36), ForeignKey("event_types.id"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -96,7 +95,6 @@ class EventAttendee(BaseModel):
     Modelo para asistentes de eventos.
     """
     __tablename__ = "event_attendees"
-    
     event_id = Column(String(36), ForeignKey("calendar_events.id"), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     attendance_status = Column(SQLEnum(AttendanceStatus), default=AttendanceStatus.PENDING, nullable=False)
@@ -118,7 +116,6 @@ class EventResource(BaseModel):
     Modelo para recursos de eventos.
     """
     __tablename__ = "event_resources"
-    
     event_id = Column(String(36), ForeignKey("calendar_events.id"), nullable=False, index=True)
     resource_type = Column(SQLEnum(ResourceType), nullable=False)
     resource_id = Column(String(36), nullable=False, index=True)

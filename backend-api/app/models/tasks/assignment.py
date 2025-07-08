@@ -6,17 +6,15 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class TaskAssignment(Base):
+class TaskAssignment(BaseModel):
     """
     Asignaciones detalladas de tareas a usuarios
     Permite múltiples asignados por tarea con roles específicos
     """
     __tablename__ = "task_assignments"
-    
-    id = Column(Integer, primary_key=True, index=True)
     role = Column(String(100))  # lead, contributor, reviewer, etc.
     responsibility = Column(Text)  # Descripción específica de la responsabilidad
     effort_percentage = Column(Integer)  # Porcentaje del esfuerzo de la tarea
@@ -31,10 +29,10 @@ class TaskAssignment(Base):
     completed_at = Column(DateTime(timezone=True))
     
     # Relaciones
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)    task = relationship("Task", back_populates="task_assignments")
-    
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)    user = relationship("User", back_populates="task_assignments")
-    
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
+    task = relationship("Task", back_populates="task_assignments")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user = relationship("User", back_populates="task_assignments")
     assigned_by_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True)
     assigned_by = relationship("User", foreign_keys=[assigned_by_id], back_populates="task_assignment_assignments")
 

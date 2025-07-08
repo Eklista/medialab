@@ -7,19 +7,15 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class Supply(Base):
+class Supply(BaseModel):
     """
     Suministros consumibles del inventario
     Extiende la funcionalidad de InventoryItem para materiales consumibles
     """
-    __tablename__ = "supplies"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Información de inventario
+    __tablename__ = "supplies"    # Información de inventario
     current_stock = Column(Integer, default=0)
     minimum_stock = Column(Integer, default=0)  # Nivel mínimo para alertas
     maximum_stock = Column(Integer)  # Nivel máximo recomendado
@@ -53,7 +49,8 @@ class Supply(Base):
     
     # Relación con el item de inventario base
     inventory_type = relationship("InventoryType", back_populates="supplies")
-    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False, index=True)    inventory_item = relationship("InventoryItem", back_populates="supplies")
+    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False, index=True)
+    inventory_item = relationship("InventoryItem", back_populates="supplies")
     deliveries = relationship("InventoryType", back_populates="supply")
     
     # Fechas

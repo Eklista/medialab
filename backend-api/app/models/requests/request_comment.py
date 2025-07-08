@@ -5,19 +5,16 @@ Modelo de comentarios de solicitud
 from sqlalchemy import Column, String, Text, DateTime, Boolean, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class RequestComment(Base):
+class RequestComment(BaseModel):
     """
     Comments on requests during evaluation
     """
     __tablename__ = "request_comments"
-    
-    id = Column(Integer, primary_key=True, index=True)
     request_id = Column(Integer, ForeignKey("requests.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    
     comment = Column(Text, nullable=False)
     is_internal = Column(Boolean, default=False)  # Internal admin comment vs client visible
     
@@ -30,7 +27,8 @@ class RequestComment(Base):
     
     # Relationships
     child_comments = relationship("RequestComment", back_populates="parent_comment")
-    request = relationship("Request", back_populates="comments")    user = relationship("User", back_populates="request_comments")
+    request = relationship("Request", back_populates="comments")
+    user = relationship("User", back_populates="request_comments")
     parent_comment = relationship("RequestComment", remote_side="RequestComment.id", back_populates="child_comments")
     replies = relationship("RequestComment", back_populates="parent_comment")
 

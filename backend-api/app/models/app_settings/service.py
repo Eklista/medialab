@@ -9,12 +9,10 @@ from ..base import BaseModel
 
 
 class ServiceCategory(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo para categorías de servicios.
     """
     __tablename__ = "service_categories"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -24,7 +22,7 @@ class ServiceCategory(BaseModel):
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Relaciones
-    service_types = relationship("ServiceType", back_populates="category", cascade="restrict")  # Previene eliminación accidental
+    service_types = relationship("ServiceType", back_populates="category")  # Previene eliminación accidental
     
     def __repr__(self):
         return f"<ServiceCategory(id={self.id}, code='{self.code}', name='{self.name}')>"
@@ -35,7 +33,6 @@ class ServiceType(BaseModel):
     Modelo para tipos de servicios.
     """
     __tablename__ = "service_types"
-    
     category_id = Column(String(36), ForeignKey("service_categories.id"), nullable=False, index=True)
     code = Column(String(100), nullable=False, index=True)
     name = Column(String(255), nullable=False)
@@ -51,14 +48,11 @@ class ServiceType(BaseModel):
     def __repr__(self):
         return f"<ServiceType(id={self.id}, code='{self.code}', name='{self.name}')>"
 
-
 class DurationType(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo para tipos de duración.
     """
     __tablename__ = "duration_types"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -66,4 +60,5 @@ class DurationType(BaseModel):
     is_active = Column(Boolean, default=True, nullable=False)
     
     def __repr__(self):
+        return f"<DurationType(id={self.id}, code='{self.code}', name='{self.name}', months={self.months_duration})>"
         return f"<DurationType(id={self.id}, code='{self.code}', name='{self.name}', months={self.months_duration})>"

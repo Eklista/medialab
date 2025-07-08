@@ -2,7 +2,7 @@
 Modelo para KPIs (Indicadores Clave de Rendimiento).
 """
 
-from sqlalchemy import Column, String, Text, Boolean, Decimal, ForeignKey, Enum as SQLEnum, JSON, Date, DateTime
+from sqlalchemy import Column, String, Text, Boolean, Numeric, ForeignKey, Enum as SQLEnum, JSON, Date, DateTime
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 
@@ -30,18 +30,16 @@ class CalculationFrequency(Enum):
 
 
 class KPIDefinition(BaseModel):
-    id = Column(Integer, primary_key=True, index=True)
     """
     Modelo para definiciones de KPIs.
     """
     __tablename__ = "kpi_definitions"
-    
     code = Column(String(100), nullable=False, unique=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     category = Column(SQLEnum(KPICategory), nullable=False)
     calculation_method = Column(JSON, nullable=False)
-    target_value = Column(Decimal(10, 2), nullable=True)
+    target_value = Column(Numeric(10, 2), nullable=True)
     unit = Column(String(50), nullable=True)
     data_source = Column(JSON, nullable=False)
     calculation_frequency = Column(SQLEnum(CalculationFrequency), nullable=False)
@@ -59,13 +57,12 @@ class KPIValue(BaseModel):
     Modelo para valores de KPIs.
     """
     __tablename__ = "kpi_values"
-    
     kpi_definition_id = Column(String(36), ForeignKey("kpi_definitions.id"), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
-    value = Column(Decimal(10, 2), nullable=False)
-    target_value = Column(Decimal(10, 2), nullable=True)
-    variance = Column(Decimal(10, 2), nullable=True)
-    metadata = Column(JSON, nullable=True)
+    value = Column(Numeric(10, 2), nullable=False)
+    target_value = Column(Numeric(10, 2), nullable=True)
+    variance = Column(Numeric(10, 2), nullable=True)
+    kpi_metadata = Column(JSON, nullable=True)
     calculated_at = Column(DateTime(timezone=True), nullable=False)
     
     # Relaciones

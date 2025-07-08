@@ -31,7 +31,6 @@ class GeneratedReport(BaseModel):
     Modelo para reportes generados.
     """
     __tablename__ = "generated_reports"
-    
     template_id = Column(String(36), ForeignKey("report_templates.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     generated_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
@@ -47,7 +46,8 @@ class GeneratedReport(BaseModel):
     last_downloaded_at = Column(DateTime(timezone=True), nullable=True)
     
     # Relaciones
-    template = relationship("ReportTemplate", back_populates="generated_reports")    generated_by = relationship("User", back_populates="generated_reports")
+    template = relationship("ReportTemplate", back_populates="generated_reports")
+    generated_by = relationship("User", back_populates="generated_reports")
     
     def __repr__(self):
         return f"<GeneratedReport(id={self.id}, name='{self.name}', status='{self.status.value}')>"

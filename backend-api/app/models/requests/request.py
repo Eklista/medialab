@@ -6,19 +6,15 @@ from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Date, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class Request(Base):
+class Request(BaseModel):
     """
     Client requests for services
     First step in the workflow before becoming projects
     """
-    __tablename__ = "requests"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Basic Info
+    __tablename__ = "requests"    # Basic Info
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     
@@ -36,8 +32,7 @@ class Request(Base):
     
     # Evaluation
     evaluation_notes = Column(Text)
-    evaluated_by_user_id = Column(Integer, ForeignKey("users.id")
-    evaluated_by_user = relationship("User", back_populates="evaluated_requests"), nullable=True, index=True)
+    evaluated_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     evaluated_at = Column(DateTime(timezone=True))
     
     # Conversion

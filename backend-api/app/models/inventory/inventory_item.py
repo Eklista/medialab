@@ -7,15 +7,13 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 from .enums import InventoryItemStatus
 
 
-class InventoryItem(Base):
+class InventoryItem(BaseModel):
     """Items de inventario"""
     __tablename__ = "inventory_items"
-    
-    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     description = Column(Text)
     brand = Column(String(100))
@@ -44,7 +42,6 @@ class InventoryItem(Base):
     # Relaciones
     category_id = Column(Integer, ForeignKey("inventory_categories.id"), index=True, nullable=False)
     category = relationship("InventoryCategory", back_populates="items")
-    
     assigned_to_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True)
     assigned_to = relationship("User", back_populates="assigned_inventory_items")
     

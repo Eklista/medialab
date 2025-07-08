@@ -6,14 +6,12 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from ..base import Base
+from ..base import BaseModel
 
 
-class ProjectResource(Base):
+class ProjectResource(BaseModel):
     """Recursos asignados a proyectos"""
     __tablename__ = "project_resources"
-    
-    id = Column(Integer, primary_key=True, index=True)
     resource_type = Column(String(50))  # equipment, space, material, etc.
     quantity = Column(Integer, default=1)
     assigned_at = Column(DateTime(timezone=True), default=datetime.utcnow)
